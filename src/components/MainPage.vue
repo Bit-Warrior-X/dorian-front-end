@@ -1,33 +1,69 @@
 <template>
   <div class="main-page">
+    <!-- Overlay for mobile -->
+    <div v-if="isPanelOpen" class="overlay" @click="togglePanel"></div>
+    
     <!-- Left Panel -->
-    <aside class="left-panel">
+    <aside :class="['left-panel', { 'panel-hidden': !isPanelOpen }]">
       <div class="panel-header">
         <h2>CDNProxy</h2>
+        <button class="panel-toggle-btn" @click="togglePanel" title="Toggle Panel">
+          <svg v-if="isPanelOpen" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
       </div>
       <nav class="panel-nav">
         <ul class="nav-list">
           <li :class="['nav-item', activeView === 'dashboard' ? 'active' : '']">
             <a href="#" @click.prevent="setActiveView('dashboard', $event)">
-              <span class="nav-icon">📊</span>
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </span>
               <span>Dashboard</span>
             </a>
           </li>
           <li :class="['nav-item', activeView === 'settings' ? 'active' : '']">
             <a href="#" @click.prevent="setActiveView('settings', $event)">
-              <span class="nav-icon">⚙️</span>
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0L5.636 18.364M18.364 5.636l-4.243 4.243m-4.242 0L5.636 5.636"></path>
+                </svg>
+              </span>
               <span>Settings</span>
             </a>
           </li>
           <li :class="['nav-item', activeView === 'users' ? 'active' : '']">
             <a href="#" @click.prevent="setActiveView('users', $event)">
-              <span class="nav-icon">👥</span>
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </span>
               <span>Users</span>
             </a>
           </li>
           <li :class="['nav-item', activeView === 'reports' ? 'active' : '']">
             <a href="#" @click.prevent="setActiveView('reports', $event)">
-              <span class="nav-icon">📈</span>
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="20" x2="12" y2="10"></line>
+                  <line x1="18" y1="20" x2="18" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="16"></line>
+                </svg>
+              </span>
               <span>Reports</span>
             </a>
           </li>
@@ -35,15 +71,47 @@
       </nav>
       <div class="panel-footer">
         <button @click="handleLogout" class="logout-button">
-          <span class="nav-icon">🚪</span>
+          <span class="nav-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </span>
           <span>Logout</span>
         </button>
       </div>
     </aside>
 
     <!-- Right Main View -->
-    <main class="main-view">
+    <main :class="['main-view', { 'main-view-expanded': !isPanelOpen }]">
+      <!-- Floating toggle button when panel is hidden -->
+      <button 
+        v-if="!isPanelOpen" 
+        class="floating-toggle-btn" 
+        @click="togglePanel" 
+        title="Show Panel"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      
       <div class="view-header">
+        <button 
+          v-if="isPanelOpen" 
+          class="menu-toggle-btn" 
+          @click="togglePanel" 
+          title="Hide Panel"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
         <h1>{{ currentViewTitle }}</h1>
         <div class="user-info">
           <span>Welcome, Super Admin</span>
@@ -66,6 +134,7 @@ import ReportsView from './views/ReportsView.vue'
 const emit = defineEmits(['logout'])
 
 const activeView = ref('dashboard')
+const isPanelOpen = ref(true)
 
 const views = {
   dashboard: {
@@ -103,6 +172,10 @@ const setActiveView = (view, event) => {
 const handleLogout = () => {
   emit('logout')
 }
+
+const togglePanel = () => {
+  isPanelOpen.value = !isPanelOpen.value
+}
 </script>
 
 <style scoped>
@@ -122,26 +195,113 @@ const handleLogout = () => {
   overflow: hidden;
 }
 
+/* Overlay for mobile */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .overlay {
+    display: block;
+  }
+}
+
 /* Left Panel Styles */
 .left-panel {
-  width: 250px;
-  background: #1a202c;
+  width: 280px;
+  min-width: 280px;
+  background: linear-gradient(180deg, #1a202c 0%, #2d3748 100%);
   color: white;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 999;
+  position: relative;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.left-panel.panel-hidden {
+  width: 0;
+  min-width: 0;
+  transform: translateX(-100%);
+  border-right: none;
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .left-panel {
+    position: fixed;
+    height: 100vh;
+    left: 0;
+    top: 0;
+    width: 280px;
+    min-width: 280px;
+  }
+  
+  .left-panel.panel-hidden {
+    transform: translateX(-100%);
+    width: 280px;
+    min-width: 280px;
+  }
+  
+  .main-view-expanded {
+    width: 100%;
+  }
 }
 
 .panel-header {
-  padding: 24px 20px;
+  padding: 28px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
 }
 
 .panel-header h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.75rem;
+  font-weight: 700;
   margin: 0;
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
+
+.panel-toggle-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
   color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+}
+
+.panel-toggle-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.panel-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
 }
 
 .panel-nav {
@@ -163,29 +323,72 @@ const handleLogout = () => {
 .nav-item a {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
-  color: rgba(255, 255, 255, 0.7);
+  gap: 14px;
+  padding: 14px 24px;
+  color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  border-radius: 0 12px 12px 0;
+  margin-right: 12px;
+  position: relative;
+}
+
+.nav-item a::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 0 4px 4px 0;
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-item a:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   color: white;
+  transform: translateX(4px);
+}
+
+.nav-item a:hover .nav-icon svg {
+  transform: scale(1.1);
+}
+
+.nav-item a:hover::before {
+  height: 60%;
 }
 
 .nav-item.active a {
-  background: rgba(102, 126, 234, 0.2);
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.1) 100%);
   color: white;
-  border-left: 3px solid #667eea;
+  box-shadow: inset 0 0 20px rgba(102, 126, 234, 0.1);
+}
+
+.nav-item.active a .nav-icon svg {
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 4px rgba(102, 126, 234, 0.5));
+}
+
+.nav-item.active a::before {
+  height: 80%;
 }
 
 .nav-icon {
-  font-size: 1.2rem;
-  width: 24px;
-  text-align: center;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-icon svg {
+  width: 100%;
+  height: 100%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .panel-footer {
@@ -198,45 +401,124 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 20px;
-  background: rgba(220, 38, 38, 0.2);
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.2) 0%, rgba(185, 28, 28, 0.2) 100%);
   color: white;
-  border: none;
-  border-radius: 8px;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 12px;
   cursor: pointer;
   font-size: 1rem;
-  transition: all 0.2s;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
 }
 
 .logout-button:hover {
-  background: rgba(220, 38, 38, 0.3);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.3) 0%, rgba(185, 28, 28, 0.3) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  border-color: rgba(220, 38, 38, 0.5);
 }
 
 /* Main View Styles */
 .main-view {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #f7fafc;
+  background: linear-gradient(180deg, #f7fafc 0%, #edf2f7 100%);
   overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.main-view-expanded {
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
 }
 
 .view-header {
-  background: white;
-  padding: 20px 32px;
-  border-bottom: 1px solid #e5e7eb;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  padding: 24px 40px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.menu-toggle-btn {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  color: #1a202c;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.menu-toggle-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.menu-toggle-btn:hover {
+  background: linear-gradient(135deg, #e5e7eb 0%, #cbd5e0 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Floating toggle button when panel is hidden */
+.floating-toggle-btn {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 56px;
+  border-radius: 0 12px 12px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  box-shadow: 4px 0 20px rgba(102, 126, 234, 0.4);
+  padding: 0;
+}
+
+.floating-toggle-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.floating-toggle-btn:hover {
+  width: 48px;
+  box-shadow: 6px 0 30px rgba(102, 126, 234, 0.5);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  transform: translateY(-50%) translateX(4px);
 }
 
 .view-header h1 {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: #1a202c;
-  margin: 0;
+  flex: 1;
 }
+
 
 .user-info {
   color: #718096;
@@ -245,14 +527,33 @@ const handleLogout = () => {
 
 .view-content {
   flex: 1;
-  padding: 32px;
+  padding: 40px;
   overflow-y: auto;
+  background: transparent;
+}
+
+.view-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.view-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.view-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+}
+
+.view-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .left-panel {
-    width: 200px;
+    width: 250px;
   }
 
   .panel-header h2 {
@@ -273,6 +574,20 @@ const handleLogout = () => {
 
   .view-content {
     padding: 20px;
+  }
+  
+  .panel-toggle-btn {
+    display: none;
+  }
+  
+  .floating-toggle-btn {
+    width: 32px;
+    height: 40px;
+    font-size: 0.9rem;
+  }
+  
+  .floating-toggle-btn:hover {
+    width: 36px;
   }
 }
 
