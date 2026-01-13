@@ -67,6 +67,45 @@
               <span>Reports</span>
             </a>
           </li>
+          <li :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '']">
+            <a href="#" @click.prevent="toggleDataAnalytics">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 3v18h18"></path>
+                  <path d="M18 7c0 2.5-2 5-5 5s-5-2.5-5-5 2-5 5-5 5 2.5 5 5z"></path>
+                  <path d="M12 3v18"></path>
+                </svg>
+              </span>
+              <span>DataAnalytics</span>
+              <span class="nav-arrow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
+            </a>
+            <ul v-show="isDataAnalyticsOpen" class="nav-submenu">
+              <li :class="['nav-subitem', activeView === 'access-log' ? 'active' : '']">
+                <a href="#" @click.prevent="setActiveView('access-log', $event)">
+                  <span>Access Log</span>
+                </a>
+              </li>
+              <li :class="['nav-subitem', activeView === 'log-export' ? 'active' : '']">
+                <a href="#" @click.prevent="setActiveView('log-export', $event)">
+                  <span>Log Export</span>
+                </a>
+              </li>
+              <li :class="['nav-subitem', activeView === 'security-analytics' ? 'active' : '']">
+                <a href="#" @click.prevent="setActiveView('security-analytics', $event)">
+                  <span>Security Analytics</span>
+                </a>
+              </li>
+              <li :class="['nav-subitem', activeView === 'layer4-attack-analytics' ? 'active' : '']">
+                <a href="#" @click.prevent="setActiveView('layer4-attack-analytics', $event)">
+                  <span>Layer 4 Attack Analytics</span>
+                </a>
+              </li>
+            </ul>
+          </li>
         </ul>
       </nav>
       <div class="panel-footer">
@@ -130,11 +169,16 @@ import DashboardView from './views/DashboardView.vue'
 import SettingsView from './views/SettingsView.vue'
 import UsersView from './views/UsersView.vue'
 import ReportsView from './views/ReportsView.vue'
+import AccessLogView from './views/AccessLogView.vue'
+import LogExportView from './views/LogExportView.vue'
+import SecurityAnalyticsView from './views/SecurityAnalyticsView.vue'
+import Layer4AttackAnalyticsView from './views/Layer4AttackAnalyticsView.vue'
 
 const emit = defineEmits(['logout'])
 
 const activeView = ref('dashboard')
 const isPanelOpen = ref(true)
+const isDataAnalyticsOpen = ref(false)
 
 const views = {
   dashboard: {
@@ -152,6 +196,22 @@ const views = {
   reports: {
     title: 'Reports',
     component: ReportsView
+  },
+  'access-log': {
+    title: 'Access Log',
+    component: AccessLogView
+  },
+  'log-export': {
+    title: 'Log Export',
+    component: LogExportView
+  },
+  'security-analytics': {
+    title: 'Security Analytics',
+    component: SecurityAnalyticsView
+  },
+  'layer4-attack-analytics': {
+    title: 'Layer 4 Attack Analytics',
+    component: Layer4AttackAnalyticsView
   }
 }
 
@@ -160,13 +220,23 @@ const currentViewComponent = computed(() => views[activeView.value]?.component |
 
 const setActiveView = (view, event) => {
   activeView.value = view
+  
+  // Auto-open DataAnalytics if selecting a sub-item
+  if (['access-log', 'log-export', 'security-analytics', 'layer4-attack-analytics'].includes(view)) {
+    isDataAnalyticsOpen.value = true
+  }
+  
   // Update active nav item
-  document.querySelectorAll('.nav-item').forEach(item => {
+  document.querySelectorAll('.nav-item, .nav-subitem').forEach(item => {
     item.classList.remove('active')
   })
   if (event) {
-    event.target.closest('.nav-item')?.classList.add('active')
+    event.target.closest('.nav-item, .nav-subitem')?.classList.add('active')
   }
+}
+
+const toggleDataAnalytics = () => {
+  isDataAnalyticsOpen.value = !isDataAnalyticsOpen.value
 }
 
 const handleLogout = () => {
@@ -374,6 +444,92 @@ const togglePanel = () => {
 
 .nav-item.active a::before {
   height: 80%;
+}
+
+.nav-item-parent {
+  position: relative;
+}
+
+.nav-item-parent > a {
+  position: relative;
+}
+
+.nav-arrow {
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-item-parent.open .nav-arrow {
+  transform: rotate(90deg);
+}
+
+.nav-item-parent.open > a {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.nav-submenu {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-subitem {
+  margin: 2px 0;
+}
+
+.nav-subitem a {
+  display: flex;
+  align-items: center;
+  padding: 10px 24px;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border-radius: 0 8px 8px 0;
+  margin-right: 12px;
+  position: relative;
+  font-size: 0.9rem;
+}
+
+.nav-subitem a::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 0 3px 3px 0;
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-subitem a:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  transform: translateX(4px);
+}
+
+.nav-subitem a:hover::before {
+  height: 50%;
+}
+
+.nav-subitem.active a {
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.08) 100%);
+  color: white;
+}
+
+.nav-subitem.active a::before {
+  height: 70%;
 }
 
 .nav-icon {
