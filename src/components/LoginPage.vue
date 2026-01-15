@@ -69,9 +69,10 @@ const handleLogin = async () => {
 
   // Simulate API call
   setTimeout(() => {
-    // Validate credentials
-    const validEmail = 'superadmin@gmail.com'
-    const validPassword = '123456'
+    const users = [
+      { email: 'superadmin@gmail.com', password: '123456', role: 'super_admin' },
+      { email: 'user@gmail.com', password: '123456', role: 'user' }
+    ]
 
     if (!email.value || !password.value) {
       errorMessage.value = 'Please fill in all fields'
@@ -79,22 +80,30 @@ const handleLogin = async () => {
       return
     }
 
-    // Check if credentials match
-    if (email.value.toLowerCase().trim() === validEmail && password.value === validPassword) {
+    const matchedUser = users.find(
+      (user) =>
+        user.email.toLowerCase().trim() === email.value.toLowerCase().trim() &&
+        user.password === password.value
+    )
+
+    if (matchedUser) {
       console.log('Login successful:', {
-        email: email.value,
+        email: matchedUser.email,
+        role: matchedUser.role,
         rememberMe: rememberMe.value
       })
-      // Emit login success event
-      emit('login-success')
-      // Reset form
+      emit('login-success', {
+        email: matchedUser.email,
+        role: matchedUser.role,
+        rememberMe: rememberMe.value
+      })
       email.value = ''
       password.value = ''
       rememberMe.value = false
     } else {
       errorMessage.value = 'Invalid email or password. Please try again.'
     }
-    
+
     isLoading.value = false
   }, 100)
 }

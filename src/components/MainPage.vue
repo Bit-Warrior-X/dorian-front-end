@@ -42,7 +42,7 @@
               <span>Settings</span>
             </a>
           </li>
-          <li :class="['nav-item', activeView === 'users' ? 'active' : '']">
+          <li v-if="isSuperAdmin" :class="['nav-item', activeView === 'users' ? 'active' : '']">
             <a href="#" @click.prevent="setActiveView('users', $event)">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -55,7 +55,7 @@
               <span>Users</span>
             </a>
           </li>
-          <li :class="['nav-item', activeView === 'reports' ? 'active' : '']">
+          <li v-if="isSuperAdmin" :class="['nav-item', activeView === 'reports' ? 'active' : '']">
             <a href="#" @click.prevent="setActiveView('reports', $event)">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -67,7 +67,7 @@
               <span>Reports</span>
             </a>
           </li>
-          <li :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '']">
+          <li v-if="isSuperAdmin" :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '']">
             <a href="#" @click.prevent="toggleDataAnalytics">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -153,7 +153,7 @@
         </button>
         <h1>{{ currentViewTitle }}</h1>
         <div class="user-info">
-          <span>Welcome, Super Admin</span>
+          <span>Welcome, {{ isSuperAdmin ? 'Super Admin' : 'User' }}</span>
         </div>
       </div>
       <div class="view-content">
@@ -173,6 +173,26 @@ import AccessLogView from './views/AccessLogView.vue'
 import LogExportView from './views/LogExportView.vue'
 import SecurityAnalyticsView from './views/SecurityAnalyticsView.vue'
 import Layer4AttackAnalyticsView from './views/Layer4AttackAnalyticsView.vue'
+
+const props = defineProps({
+  userRole: {
+    type: String,
+    default: 'user'
+  }
+})
+
+const isSuperAdmin = computed(() => props.userRole === 'super_admin')
+
+const adminOnlyViews = new Set([
+  'users',
+  'reports',
+  'access-log',
+  'log-export',
+  'security-analytics',
+  'layer4-attack-analytics'
+])
+
+const isViewAllowed = (view) => !adminOnlyViews.has(view) || isSuperAdmin.value
 
 const emit = defineEmits(['logout'])
 
@@ -215,10 +235,22 @@ const views = {
   }
 }
 
-const currentViewTitle = computed(() => views[activeView.value]?.title || 'Dashboard')
-const currentViewComponent = computed(() => views[activeView.value]?.component || DashboardView)
+const currentViewTitle = computed(() =>
+  isViewAllowed(activeView.value)
+    ? views[activeView.value]?.title || 'Dashboard'
+    : 'Dashboard'
+)
+const currentViewComponent = computed(() =>
+  isViewAllowed(activeView.value)
+    ? views[activeView.value]?.component || DashboardView
+    : DashboardView
+)
 
 const setActiveView = (view, event) => {
+  if (!isViewAllowed(view)) {
+    activeView.value = 'dashboard'
+    return
+  }
   activeView.value = view
   
   // Auto-open DataAnalytics if selecting a sub-item
