@@ -31,6 +31,41 @@
               <span>Dashboard</span>
             </a>
           </li>
+          <li :class="['nav-item', 'nav-item-parent', isServersOpen ? 'open' : '']">
+            <a href="#" @click.prevent="toggleServers">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="8" rx="2"></rect>
+                  <rect x="2" y="13" width="20" height="8" rx="2"></rect>
+                  <line x1="6" y1="7" x2="6.01" y2="7"></line>
+                  <line x1="6" y1="17" x2="6.01" y2="17"></line>
+                </svg>
+              </span>
+              <span>Servers</span>
+              <span class="nav-arrow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
+            </a>
+            <ul v-show="isServersOpen" class="nav-submenu">
+              <li :class="['nav-subitem', activeView === 'server-list' ? 'active' : '']">
+                <a href="#" @click.prevent="setActiveView('server-list', $event)">
+                  <span>Server List</span>
+                </a>
+              </li>
+              <li :class="['nav-subitem', activeView === 'server-settings' ? 'active' : '']">
+                <a href="#" @click.prevent="setActiveView('server-settings', $event)">
+                  <span>Server Settings</span>
+                </a>
+              </li>
+              <li :class="['nav-subitem', activeView === 'server-blacklist' ? 'active' : '']">
+                <a href="#" @click.prevent="setActiveView('server-blacklist', $event)">
+                  <span>Blacklist</span>
+                </a>
+              </li>
+            </ul>
+          </li>
           <li :class="['nav-item', activeView === 'settings' ? 'active' : '']">
             <a href="#" @click.prevent="setActiveView('settings', $event)">
               <span class="nav-icon">
@@ -166,6 +201,9 @@
 <script setup>
 import { ref, computed } from 'vue'
 import DashboardView from './views/DashboardView.vue'
+import ServerListView from './views/ServerListView.vue'
+import ServerSettingsView from './views/ServerSettingsView.vue'
+import ServerBlacklistView from './views/ServerBlacklistView.vue'
 import SettingsView from './views/SettingsView.vue'
 import UsersView from './views/UsersView.vue'
 import ReportsView from './views/ReportsView.vue'
@@ -199,11 +237,24 @@ const emit = defineEmits(['logout'])
 const activeView = ref('dashboard')
 const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
+const isServersOpen = ref(false)
 
 const views = {
   dashboard: {
     title: 'Dashboard',
     component: DashboardView
+  },
+  'server-list': {
+    title: 'Server List',
+    component: ServerListView
+  },
+  'server-settings': {
+    title: 'Server Settings',
+    component: ServerSettingsView
+  },
+  'server-blacklist': {
+    title: 'Blacklist',
+    component: ServerBlacklistView
   },
   settings: {
     title: 'Settings',
@@ -257,6 +308,11 @@ const setActiveView = (view, event) => {
   if (['access-log', 'log-export', 'security-analytics', 'layer4-attack-analytics'].includes(view)) {
     isDataAnalyticsOpen.value = true
   }
+
+  // Auto-open Servers if selecting a sub-item
+  if (['server-list', 'server-settings', 'server-blacklist'].includes(view)) {
+    isServersOpen.value = true
+  }
   
   // Update active nav item
   document.querySelectorAll('.nav-item, .nav-subitem').forEach(item => {
@@ -269,6 +325,10 @@ const setActiveView = (view, event) => {
 
 const toggleDataAnalytics = () => {
   isDataAnalyticsOpen.value = !isDataAnalyticsOpen.value
+}
+
+const toggleServers = () => {
+  isServersOpen.value = !isServersOpen.value
 }
 
 const handleLogout = () => {
