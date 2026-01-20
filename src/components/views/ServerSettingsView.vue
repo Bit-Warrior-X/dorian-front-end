@@ -33,6 +33,7 @@
         </div>
         <div class="tabs-body">
           <L4DdosDefensePanel v-if="activeTab === 'l4-ddos'" />
+          <WafPanel v-else-if="activeTab === 'waf'" />
           <table v-else class="config-table">
             <thead>
               <tr>
@@ -64,6 +65,7 @@
 import { ref, computed } from "vue";
 import { serverList } from "@/data/servers";
 import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
+import WafPanel from "./WafPanel.vue";
 
 const serverOptions = serverList;
 const selectedServer = ref("");
