@@ -1,6 +1,6 @@
 <template>
   <div class="servers-view">
-    <div class="content-card">
+    <div class="content-card filter-card">
       <div class="filter-row">
         <label class="filter-label" for="server-settings-target">Target server</label>
         <select id="server-settings-target" class="filter-select" v-model="selectedServer">
@@ -16,8 +16,46 @@
           <span class="meta-pill license">License: {{ selectedServerData.license }}</span>
         </div>
       </div>
-      <h2>Server Settings</h2>
-      <p>Manage server configuration, alerts, and maintenance options.</p>
+    </div>
+    <div v-if="selectedServerData" class="content-card settings-card">
+      <div class="settings-tabs">
+        <div class="tabs-header">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            class="tab-btn"
+            :class="{ active: activeTab === tab.id }"
+            type="button"
+            @click="activeTab = tab.id"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+        <div class="tabs-body">
+          <L4DdosDefensePanel v-if="activeTab === 'l4-ddos'" />
+          <table v-else class="config-table">
+            <thead>
+              <tr>
+                <th>Setting</th>
+                <th>Value</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in activeConfigRows" :key="row.name">
+                <td>{{ row.name }}</td>
+                <td>
+                  <span v-if="row.type === 'toggle'" class="value-pill" :class="{ on: row.value === 'On' }">
+                    {{ row.value }}
+                  </span>
+                  <span v-else>{{ row.value }}</span>
+                </td>
+                <td class="config-note">{{ row.note }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -25,12 +63,73 @@
 <script setup>
 import { ref, computed } from "vue";
 import { serverList } from "@/data/servers";
+import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
 
 const serverOptions = serverList;
 const selectedServer = ref("");
 const selectedServerData = computed(() =>
   serverOptions.find((server) => server.id === selectedServer.value)
 );
+
+const tabs = [
+  {
+    id: "l4-ddos",
+    label: "L4 DDos Defense",
+    rows: [
+      { name: "Protection mode", value: "Auto", note: "Detect volumetric attacks in real time." },
+      { name: "Rate limit", value: "5k req/s", note: "Adaptive per region." },
+      { name: "Mitigation", value: "On", note: "Drops suspicious traffic.", type: "toggle" }
+    ]
+  },
+  {
+    id: "waf",
+    label: "WAF",
+    rows: [
+      { name: "Ruleset", value: "OWASP Core", note: "Managed rules applied." },
+      { name: "Bot control", value: "On", note: "Blocks known bad bots.", type: "toggle" },
+      { name: "Alerting", value: "Email", note: "Notify on critical events." }
+    ]
+  },
+  {
+    id: "advanced",
+    label: "Advanced Protection",
+    rows: [
+      { name: "Geo fencing", value: "Enabled", note: "Restricted regions blocked." },
+      { name: "Anomaly score", value: "Medium", note: "Adaptive protection level." },
+      { name: "TLS enforcement", value: "On", note: "Require modern TLS.", type: "toggle" }
+    ]
+  },
+  {
+    id: "upstream",
+    label: "Upstream Servers",
+    rows: [
+      { name: "Load balancing", value: "Round-robin", note: "Distribute traffic evenly." },
+      { name: "Health checks", value: "On", note: "Remove unhealthy upstreams.", type: "toggle" },
+      { name: "Failover", value: "Enabled", note: "Automatic fallback on failure." }
+    ]
+  },
+  {
+    id: "info",
+    label: "Server Information",
+    rows: [
+      { name: "Primary IP", value: selectedServerData.value?.ip || "-", note: "Current server address." },
+      { name: "Version", value: selectedServerData.value?.version || "-", note: "Installed version." },
+      { name: "Created", value: selectedServerData.value?.created || "-", note: "Provisioned date." }
+    ]
+  }
+];
+
+const activeTab = ref(tabs[0].id);
+const activeConfigRows = computed(() => {
+  const active = tabs.find((tab) => tab.id === activeTab.value);
+  if (!active) return [];
+  if (active.id !== "info") return active.rows;
+  return [
+    { name: "Primary IP", value: selectedServerData.value?.ip || "-", note: "Current server address." },
+    { name: "Version", value: selectedServerData.value?.version || "-", note: "Installed version." },
+    { name: "Created", value: selectedServerData.value?.created || "-", note: "Provisioned date." }
+  ];
+});
 </script>
 
 <style scoped>
@@ -56,12 +155,16 @@ const selectedServerData = computed(() =>
   margin: 0 0 12px 0;
 }
 
+.filter-card {
+  padding-bottom: 20px;
+}
+
 .filter-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-bottom: 18px;
+  margin: 0;
 }
 
 .filter-label {
@@ -122,6 +225,95 @@ const selectedServerData = computed(() =>
 .meta-pill.license {
   background: rgba(59, 130, 246, 0.12);
   color: #1d4ed8;
+}
+
+.settings-tabs {
+  border-top: none;
+  padding-top: 0;
+}
+
+.tabs-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #fff;
+  color: #475569;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #1d4ed8;
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.12);
+}
+
+.tab-btn:hover:not(.active) {
+  border-color: rgba(100, 116, 139, 0.6);
+  color: #334155;
+}
+
+.tabs-body {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.config-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 540px;
+}
+
+.config-table thead {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.config-table th,
+.config-table td {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 0.92rem;
+  color: #1f2937;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.config-table th {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.config-note {
+  color: #64748b;
+}
+
+.value-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.value-pill.on {
+  color: #15803d;
+  background: rgba(34, 197, 94, 0.18);
 }
 
 .content-card p {
