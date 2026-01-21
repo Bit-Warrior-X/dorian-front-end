@@ -84,6 +84,7 @@ const handleLogin = async () => {
     })
 
     const user = result?.user || {
+      name: email.value.split('@')[0],
       email: result?.email || email.value
     }
 

@@ -104,7 +104,8 @@ const routes = [
         name: 'users',
         component: () => import('@/components/views/UsersView.vue'),
         meta: {
-          title: 'Users'
+          title: 'Users',
+          requiresAdmin: true
         }
       }
     ]
@@ -127,8 +128,10 @@ router.beforeEach((to) => {
   auth.hydrate()
 
   const isLoggedIn = auth.isAuthenticated.value
+  const isAdmin = auth.state.user?.role === 'Admin'
   const isPublic = to.matched.some((record) => record.meta?.public)
   const requiresAuth = to.matched.some((record) => record.meta?.requiresAuth)
+  const requiresAdmin = to.matched.some((record) => record.meta?.requiresAdmin)
 
   if (to.name === 'login' && isLoggedIn) {
     return { name: 'dashboard' }
@@ -140,6 +143,10 @@ router.beforeEach((to) => {
 
   if (requiresAuth && !isLoggedIn) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (requiresAdmin && !isAdmin) {
+    return { name: 'dashboard' }
   }
 
   return true

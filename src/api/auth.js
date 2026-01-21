@@ -2,8 +2,20 @@ import { apiRequest } from './client'
 import { getApiConfig } from './config'
 
 const mockUsers = [
-  { email: 'superadmin@gmail.com', password: '123456' },
-  { email: 'user@gmail.com', password: '123456' }
+  {
+    email: 'superadmin@gmail.com',
+    password: '123456',
+    role: 'Admin',
+    name: 'Super Admin',
+    status: 'Active',
+  },
+  {
+    email: 'user@gmail.com',
+    password: '123456',
+    role: 'User',
+    name: 'User',
+    status: 'Active',
+  }
 ]
 
 const mockLogin = async ({ email, password }) => {
@@ -18,10 +30,16 @@ const mockLogin = async ({ email, password }) => {
     throw new Error('Invalid email or password. Please try again.')
   }
 
+  if (matchedUser.status === 'Blocked') {
+    throw new Error('Your account is blocked. Please contact an administrator.')
+  }
+
   return {
     token: 'mock-token',
     user: {
-      email: matchedUser.email
+      email: matchedUser.email,
+      role: matchedUser.role,
+      name: matchedUser.name
     }
   }
 }

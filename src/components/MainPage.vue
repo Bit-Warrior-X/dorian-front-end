@@ -105,7 +105,7 @@
               </li>
             </ul>
           </li>
-          <li :class="['nav-item', isRouteActive('users') ? 'active' : '']">
+          <li v-if="isAdmin" :class="['nav-item', isRouteActive('users') ? 'active' : '']">
             <RouterLink to="/app/users">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -164,10 +164,24 @@
           </svg>
         </button>
         <h1>{{ currentViewTitle }}</h1>
-        <div class="user-info">
-          <button class="signout-button" type="button" @click="handleLogout">
-            Sign out
+        <div ref="userMenuRef" class="user-info">
+          <button class="user-menu-button" type="button" @click="toggleUserMenu">
+            <span class="user-avatar">{{ userInitials }}</span>
+            <span class="user-name">{{ displayName }}</span>
+            <span class="user-caret">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </span>
           </button>
+          <div v-if="isUserMenuOpen" class="user-menu">
+            <button class="user-menu-item" type="button" @click="handleChangePassword">
+              Change Password
+            </button>
+            <button class="user-menu-item user-menu-item--danger" type="button" @click="handleLogout">
+              Log out
+            </button>
+          </div>
         </div>
       </div>
       <div class="view-content">
@@ -178,7 +192,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/stores/auth'
 
@@ -189,6 +203,8 @@ const router = useRouter()
 const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
 const isServersOpen = ref(false)
+const isUserMenuOpen = ref(false)
+const userMenuRef = ref(null)
 
 const isServersRoute = computed(
   () => route.meta?.section === 'servers' || route.path.startsWith('/app/servers')
@@ -202,6 +218,18 @@ const isAnalyticsRoute = computed(
 const isRouteActive = (name) => route.name === name
 
 const currentViewTitle = computed(() => route.meta?.title || 'Dashboard')
+const isAdmin = computed(() => auth.state.user?.role === 'Admin')
+const displayName = computed(() => auth.state.user?.name || auth.state.user?.email || 'User')
+const userInitials = computed(() => {
+  const name = displayName.value.trim()
+  if (!name) return 'U'
+  if (name.includes('@')) {
+    return name[0].toUpperCase()
+  }
+  const parts = name.split(' ').filter(Boolean)
+  if (parts.length === 1) return parts[0][0].toUpperCase()
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+})
 
 watch(
   () => route.path,
@@ -229,9 +257,36 @@ const handleLogout = async () => {
   await router.replace('/login')
 }
 
+const handleChangePassword = () => {
+  isUserMenuOpen.value = false
+}
+
+const toggleUserMenu = () => {
+  isUserMenuOpen.value = !isUserMenuOpen.value
+}
+
+const closeUserMenu = () => {
+  isUserMenuOpen.value = false
+}
+
+const handleDocumentClick = (event) => {
+  if (!userMenuRef.value) return
+  if (!userMenuRef.value.contains(event.target)) {
+    closeUserMenu()
+  }
+}
+
 const togglePanel = () => {
   isPanelOpen.value = !isPanelOpen.value
 }
+
+onMounted(() => {
+  document.addEventListener('click', handleDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
+})
 </script>
 
 <style scoped>
@@ -663,27 +718,98 @@ const togglePanel = () => {
 
 
 .user-info {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   color: #718096;
   font-size: 0.95rem;
 }
 
-.signout-button {
-  border: 1px solid rgba(102, 126, 234, 0.4);
+.user-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(102, 126, 234, 0.25);
   background: #ffffff;
-  color: #4c51bf;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 0.85rem;
+  color: #1f2937;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.signout-button:hover {
+.user-menu-button:hover {
   background: rgba(102, 126, 234, 0.08);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.user-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.user-caret svg {
+  width: 16px;
+  height: 16px;
+}
+
+.user-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 180px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  padding: 8px;
+  z-index: 20;
+}
+
+.user-menu-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: #1f2937;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.user-menu-item:hover {
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.user-menu-item--danger {
+  color: #b91c1c;
 }
 
 .view-content {

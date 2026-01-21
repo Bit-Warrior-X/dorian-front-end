@@ -11,6 +11,7 @@
             <tr>
               <th>Name</th>
               <th>Email</th>
+              <th>Password</th>
               <th>Role</th>
               <th>Status</th>
               <th>Servers</th>
@@ -21,6 +22,7 @@
             <tr v-for="user in users" :key="user.id">
               <td>{{ user.name }}</td>
               <td>{{ user.email }}</td>
+              <td>{{ maskPassword(user.password) }}</td>
               <td>
                 <span class="badge" :class="user.role === 'Admin' ? 'admin' : 'user'">{{ user.role }}</span>
               </td>
@@ -82,6 +84,10 @@
           <div class="dialog-field">
             <label for="add-user-email">Email</label>
             <input id="add-user-email" v-model="newUser.email" type="email" placeholder="jane@example.com" />
+          </div>
+          <div class="dialog-field">
+            <label for="add-user-password">Password</label>
+            <input id="add-user-password" v-model="newUser.password" type="password" placeholder="Enter a password" />
           </div>
           <div class="dialog-field">
             <label for="add-user-role">Role</label>
@@ -154,6 +160,7 @@ const serverOptions = ['edge-nyc-01', 'edge-sin-05', 'edge-fra-04', 'edge-lon-02
 const newUser = reactive({
   name: '',
   email: '',
+  password: '',
   role: 'User',
   status: 'Active',
   servers: [],
@@ -171,6 +178,7 @@ const openEditDialog = (user) => {
   editingUserId.value = user.id
   newUser.name = user.name
   newUser.email = user.email
+  newUser.password = user.password || ''
   newUser.role = user.role
   newUser.status = user.status
   newUser.servers = user.servers ? [...user.servers] : []
@@ -184,6 +192,7 @@ const closeAddDialog = () => {
 const resetNewUser = () => {
   newUser.name = ''
   newUser.email = ''
+  newUser.password = ''
   newUser.role = 'User'
   newUser.status = 'Active'
   newUser.servers = []
@@ -212,6 +221,7 @@ const submitAddUser = async () => {
   const payload = {
     name,
     email,
+    password: newUser.password.trim(),
     role: newUser.role,
     status: newUser.status,
     servers: newUser.role === 'User' ? [...newUser.servers] : [],
@@ -286,6 +296,7 @@ const confirmBlockUser = (user) => {
       const payload = {
         name: user.name,
         email: user.email,
+        password: user.password || '',
         role: user.role,
         status: nextStatus,
         servers: user.role === 'User' ? [...(user.servers || [])] : [],
@@ -311,6 +322,11 @@ watch(
     }
   },
 )
+
+const maskPassword = (value) => {
+  if (!value) return 'N/A'
+  return '******'
+}
 
 onMounted(() => {
   void loadUsers()
