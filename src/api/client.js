@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+import { getApiConfig } from './config'
+
 const STORAGE_KEY = 'cdnproxy.auth'
 
 const getStoredToken = () => {
@@ -22,7 +23,8 @@ const parseJson = async (response) => {
 }
 
 export const apiRequest = async (path, options = {}) => {
-  const url = `${API_BASE_URL}${path}`
+  const { apiBaseUrl } = await getApiConfig()
+  const url = `${apiBaseUrl}${path}`
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})

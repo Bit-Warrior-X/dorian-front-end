@@ -137,25 +137,11 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
+import { createUser, deleteUser, fetchUsers, updateUser } from '@/api/users'
 
-const users = ref([
-  {
-    id: 1,
-    name: 'Super Admin',
-    email: 'superadmin@gmail.com',
-    role: 'Admin',
-    status: 'Active',
-  },
-  {
-    id: 2,
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'User',
-    status: 'Active',
-    servers: ['edge-nyc-01', 'edge-sin-05'],
-  },
-])
+const users = ref([])
+const isLoading = ref(false)
 
 const isAddDialogOpen = ref(false)
 const isEditMode = ref(false)
@@ -203,7 +189,19 @@ const resetNewUser = () => {
   newUser.servers = []
 }
 
-const submitAddUser = () => {
+const loadUsers = async () => {
+  isLoading.value = true
+  try {
+    const data = await fetchUsers()
+    users.value = Array.isArray(data) ? data : []
+  } catch {
+    users.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const submitAddUser = async () => {
   const name = newUser.name.trim()
   const email = newUser.email.trim()
 
@@ -211,27 +209,33 @@ const submitAddUser = () => {
     return
   }
 
+  const payload = {
+    name,
+    email,
+    role: newUser.role,
+    status: newUser.status,
+    servers: newUser.role === 'User' ? [...newUser.servers] : [],
+  }
+
   if (isEditMode.value && editingUserId.value) {
-    const index = users.value.findIndex((user) => user.id === editingUserId.value)
-    if (index !== -1) {
-      users.value[index] = {
-        ...users.value[index],
-        name,
-        email,
-        role: newUser.role,
-        status: newUser.status,
-        servers: newUser.role === 'User' ? [...newUser.servers] : [],
+    try {
+      const updated = await updateUser(editingUserId.value, payload)
+      const index = users.value.findIndex((user) => user.id === editingUserId.value)
+      if (index !== -1) {
+        users.value[index] = updated
+      } else {
+        users.value = [updated, ...users.value]
       }
+    } catch {
+      return
     }
   } else {
-    users.value.push({
-      id: Date.now(),
-      name,
-      email,
-      role: newUser.role,
-      status: newUser.status,
-      servers: newUser.role === 'User' ? [...newUser.servers] : [],
-    })
+    try {
+      const created = await createUser(payload)
+      users.value = [created, ...users.value]
+    } catch {
+      return
+    }
   }
 
   resetNewUser()
@@ -261,8 +265,13 @@ const confirmDeleteUser = (user) => {
   openConfirmDialog(
     'Delete User',
     `Are you sure you want to delete ${user.name}?`,
-    () => {
-      users.value = users.value.filter((entry) => entry.id !== user.id)
+    async () => {
+      try {
+        await deleteUser(user.id)
+        users.value = users.value.filter((entry) => entry.id !== user.id)
+      } catch {
+        return
+      }
     },
   )
 }
@@ -273,13 +282,22 @@ const confirmBlockUser = (user) => {
   openConfirmDialog(
     `${nextStatus === 'Blocked' ? 'Block' : 'Unblock'} User`,
     `Are you sure you want to ${actionLabel} ${user.name}?`,
-    () => {
-      const index = users.value.findIndex((entry) => entry.id === user.id)
-      if (index !== -1) {
-        users.value[index] = {
-          ...users.value[index],
-          status: nextStatus,
+    async () => {
+      const payload = {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: nextStatus,
+        servers: user.role === 'User' ? [...(user.servers || [])] : [],
+      }
+      try {
+        const updated = await updateUser(user.id, payload)
+        const index = users.value.findIndex((entry) => entry.id === user.id)
+        if (index !== -1) {
+          users.value[index] = updated
         }
+      } catch {
+        return
       }
     },
   )
@@ -293,6 +311,10 @@ watch(
     }
   },
 )
+
+onMounted(() => {
+  void loadUsers()
+})
 </script>
 
 <style scoped>

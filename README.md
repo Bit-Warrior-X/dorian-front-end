@@ -37,6 +37,15 @@ VITE_API_BASE_URL=http://localhost:8080
 VITE_USE_MOCKS=true
 ```
 
+You can also configure the runtime API base URL via `public/config.json`:
+
+```json
+{
+  "apiBaseUrl": "http://localhost:8080",
+  "useMocks": false
+}
+```
+
 ### Compile and Hot-Reload for Development
 
 ```sh

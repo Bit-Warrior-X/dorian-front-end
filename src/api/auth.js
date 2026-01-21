@@ -1,11 +1,5 @@
 import { apiRequest } from './client'
-
-const hasApiBaseUrl = Boolean(import.meta.env.VITE_API_BASE_URL)
-const USE_MOCKS =
-  !hasApiBaseUrl ||
-  ['true', '1', 'yes'].includes(
-    String(import.meta.env.VITE_USE_MOCKS || '').toLowerCase()
-  )
+import { getApiConfig } from './config'
 
 const mockUsers = [
   { email: 'superadmin@gmail.com', password: '123456' },
@@ -33,7 +27,8 @@ const mockLogin = async ({ email, password }) => {
 }
 
 export const login = async ({ email, password }) => {
-  if (USE_MOCKS) {
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
     return mockLogin({ email, password })
   }
 
