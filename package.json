@@ -12,6 +12,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "apexcharts": "^4.7.0",
     "jvectormap": "^2.0.4",
     "vue": "^3.5.26"
   },

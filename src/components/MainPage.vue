@@ -66,42 +66,6 @@
               </li>
             </ul>
           </li>
-          <li :class="['nav-item', activeView === 'settings' ? 'active' : '']">
-            <a href="#" @click.prevent="setActiveView('settings', $event)">
-              <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="3"></circle>
-                  <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0L5.636 18.364M18.364 5.636l-4.243 4.243m-4.242 0L5.636 5.636"></path>
-                </svg>
-              </span>
-              <span>Settings</span>
-            </a>
-          </li>
-          <li v-if="isSuperAdmin" :class="['nav-item', activeView === 'users' ? 'active' : '']">
-            <a href="#" @click.prevent="setActiveView('users', $event)">
-              <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-              </span>
-              <span>Users</span>
-            </a>
-          </li>
-          <li v-if="isSuperAdmin" :class="['nav-item', activeView === 'reports' ? 'active' : '']">
-            <a href="#" @click.prevent="setActiveView('reports', $event)">
-              <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="12" y1="20" x2="12" y2="10"></line>
-                  <line x1="18" y1="20" x2="18" y2="4"></line>
-                  <line x1="6" y1="20" x2="6" y2="16"></line>
-                </svg>
-              </span>
-              <span>Reports</span>
-            </a>
-          </li>
           <li v-if="isSuperAdmin" :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '']">
             <a href="#" @click.prevent="toggleDataAnalytics">
               <span class="nav-icon">
@@ -140,6 +104,19 @@
                 </a>
               </li>
             </ul>
+          </li>
+          <li v-if="isSuperAdmin" :class="['nav-item', activeView === 'users' ? 'active' : '']">
+            <a href="#" @click.prevent="setActiveView('users', $event)">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </span>
+              <span>Users</span>
+            </a>
           </li>
         </ul>
       </nav>
@@ -204,9 +181,7 @@ import DashboardView from './views/DashboardView.vue'
 import ServerListView from './views/ServerListView.vue'
 import ServerSettingsView from './views/ServerSettingsView.vue'
 import ServerBlacklistView from './views/ServerBlacklistView.vue'
-import SettingsView from './views/SettingsView.vue'
 import UsersView from './views/UsersView.vue'
-import ReportsView from './views/ReportsView.vue'
 import AccessLogView from './views/AccessLogView.vue'
 import LogExportView from './views/LogExportView.vue'
 import SecurityAnalyticsView from './views/SecurityAnalyticsView.vue'
@@ -223,7 +198,6 @@ const isSuperAdmin = computed(() => props.userRole === 'super_admin')
 
 const adminOnlyViews = new Set([
   'users',
-  'reports',
   'access-log',
   'log-export',
   'security-analytics',
@@ -256,17 +230,9 @@ const views = {
     title: 'Blacklist',
     component: ServerBlacklistView
   },
-  settings: {
-    title: 'Settings',
-    component: SettingsView
-  },
   users: {
     title: 'Users',
     component: UsersView
-  },
-  reports: {
-    title: 'Reports',
-    component: ReportsView
   },
   'access-log': {
     title: 'Access Log',

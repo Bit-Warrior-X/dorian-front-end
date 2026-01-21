@@ -1,79 +1,17 @@
 <template>
   <div class="access-log-view">
-    <!-- Stats Panels -->
-    <div class="stats-panels">
-      <div class="stat-panel">
-        <div class="stat-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="20" x2="12" y2="10"></line>
-            <line x1="18" y1="20" x2="18" y2="4"></line>
-            <line x1="6" y1="20" x2="6" y2="16"></line>
-          </svg>
-        </div>
-        <div class="stat-content">
-          <h3>Lines Loaded</h3>
-          <p class="stat-value">12,345</p>
-        </div>
-      </div>
-      
-      <div class="stat-panel success">
-        <div class="stat-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
-        <div class="stat-content">
-          <h3>2xx Response</h3>
-          <p class="stat-value">10,234</p>
-        </div>
-      </div>
-      
-      <div class="stat-panel info">
-        <div class="stat-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 16 12 12 16 12"></polyline>
-          </svg>
-        </div>
-        <div class="stat-content">
-          <h3>3xx Response</h3>
-          <p class="stat-value">1,456</p>
-        </div>
-      </div>
-      
-      <div class="stat-panel warning">
-        <div class="stat-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-        </div>
-        <div class="stat-content">
-          <h3>4xx Errors</h3>
-          <p class="stat-value">523</p>
-        </div>
-      </div>
-      
-      <div class="stat-panel error">
-        <div class="stat-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="15" y1="9" x2="9" y2="15"></line>
-            <line x1="9" y1="9" x2="15" y2="15"></line>
-          </svg>
-        </div>
-        <div class="stat-content">
-          <h3>5xx Errors</h3>
-          <p class="stat-value">132</p>
-        </div>
-      </div>
-    </div>
-    
     <div class="view-card">
       <div class="card-header">
         <div class="header-left">
-          <h2>Access Log</h2>
+          <div class="server-select-wrapper">
+            <span class="server-select-label">Server</span>
+            <select v-model="selectedServer" class="server-select header-server-select">
+              <option v-for="server in servers" :key="server.value" :value="server.value">
+                {{ server.label }}
+              </option>
+            </select>
+          </div>
+          <h3>Access Log</h3>
           <div class="status-indicator" :class="statusClass">
             <span class="status-dot"></span>
             <span class="status-text">{{ status }}</span>
@@ -132,7 +70,7 @@
               </button>
             </div>
           </div>
-          
+
           <div class="filter-group">
             <input 
               type="text" 
@@ -222,6 +160,76 @@
         </table>
       </div>
     </div>
+
+    <!-- Stats Panels -->
+    <div class="stats-panels">
+      <div class="stat-panel">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="20" x2="12" y2="10"></line>
+            <line x1="18" y1="20" x2="18" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="16"></line>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <h3>Lines Loaded</h3>
+          <p class="stat-value">12,345</p>
+        </div>
+      </div>
+      
+      <div class="stat-panel success">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <h3>2xx Response</h3>
+          <p class="stat-value">10,234</p>
+        </div>
+      </div>
+      
+      <div class="stat-panel info">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 16 12 12 16 12"></polyline>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <h3>3xx Response</h3>
+          <p class="stat-value">1,456</p>
+        </div>
+      </div>
+      
+      <div class="stat-panel warning">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <h3>4xx Errors</h3>
+          <p class="stat-value">523</p>
+        </div>
+      </div>
+      
+      <div class="stat-panel error">
+        <div class="stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <h3>5xx Errors</h3>
+          <p class="stat-value">132</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -238,6 +246,7 @@ const showCustomDialog = ref(false)
 const isCustomRange = ref(false)
 const customStartDate = ref('')
 const customEndDate = ref('')
+const selectedServer = ref('all')
 
 const timeRanges = [
   { label: '15m', value: '15m' },
@@ -245,6 +254,13 @@ const timeRanges = [
   { label: '6h', value: '6h' },
   { label: '24h', value: '24h' },
   { label: '7d', value: '7d' }
+]
+
+const servers = [
+  { label: 'All Servers', value: 'all' },
+  { label: 'Edge-01', value: 'edge-01' },
+  { label: 'Edge-02', value: 'edge-02' },
+  { label: 'Origin-01', value: 'origin-01' }
 ]
 
 const selectTimeRange = (value) => {
@@ -281,6 +297,8 @@ const togglePause = () => {
 .access-log-view {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 100%;
   gap: 24px;
 }
 
@@ -288,6 +306,7 @@ const togglePause = () => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
+  margin-top: auto;
 }
 
 .stat-panel {
@@ -370,6 +389,9 @@ const togglePause = () => {
   padding: 32px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
   border: 1px solid rgba(226, 232, 240, 0.8);
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .card-header {
@@ -383,6 +405,31 @@ const togglePause = () => {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
+}
+
+.server-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.server-select-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.server-select-wrapper:focus-within {
+  border-color: #c7d2fe;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
 }
 
 .card-header h2 {
@@ -622,6 +669,27 @@ const togglePause = () => {
   outline: none;
 }
 
+.server-select {
+  padding: 4px 24px 4px 6px;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: transparent;
+  color: #1f2937;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 8 10 12 14 8'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 12px;
+}
+
+.server-select:focus {
+  box-shadow: none;
+}
+
 .lines-select:focus {
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -838,6 +906,7 @@ const togglePause = () => {
 }
 
 .log-table-container {
+  flex: 1 1 auto;
   overflow-x: auto;
   background: #1a202c;
   border-radius: 12px;

@@ -70,7 +70,7 @@ import WafPanel from "./WafPanel.vue";
 import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 
 const serverOptions = serverList;
-const selectedServer = ref("");
+const selectedServer = ref(serverOptions[0]?.id || "");
 const selectedServerData = computed(() =>
   serverOptions.find((server) => server.id === selectedServer.value)
 );
