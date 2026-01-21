@@ -30,8 +30,12 @@ const mockLogin = async ({ email, password }) => {
     throw new Error('Invalid email or password. Please try again.')
   }
 
-  if (matchedUser.status === 'Blocked') {
+  if (matchedUser.status === 'Block') {
     throw new Error('Your account is blocked. Please contact an administrator.')
+  }
+
+  if (matchedUser.status === 'Waiting') {
+    throw new Error('Please wait while admin accept your login.')
   }
 
   return {

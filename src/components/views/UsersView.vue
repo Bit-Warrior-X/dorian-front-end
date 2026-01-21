@@ -14,7 +14,6 @@
               <th>Password</th>
               <th>Role</th>
               <th>Status</th>
-              <th>Servers</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -27,13 +26,12 @@
                 <span class="badge" :class="user.role === 'Admin' ? 'admin' : 'user'">{{ user.role }}</span>
               </td>
               <td>
-                <span class="badge" :class="user.status === 'Active' ? 'active' : 'blocked'">{{ user.status }}</span>
-              </td>
-              <td>
-                <div v-if="user.role === 'User' && user.servers?.length" class="server-list">
-                  <span v-for="server in user.servers" :key="server" class="server-pill">{{ server }}</span>
-                </div>
-                <span v-else class="muted-text">—</span>
+                <span
+                  class="badge"
+                  :class="user.status === 'Active' ? 'active' : user.status === 'Waiting' ? 'pending' : 'blocked'"
+                >
+                  {{ user.status }}
+                </span>
               </td>
               <td>
                 <div class="actions">
@@ -99,18 +97,10 @@
           <div class="dialog-field">
             <label for="add-user-status">Status</label>
             <select id="add-user-status" v-model="newUser.status">
+              <option value="Waiting">Waiting</option>
               <option value="Active">Active</option>
-              <option value="Blocked">Blocked</option>
+              <option value="Block">Block</option>
             </select>
-          </div>
-          <div v-if="newUser.role === 'User'" class="dialog-field dialog-field--full">
-            <label>Servers</label>
-            <div class="server-options">
-              <label v-for="server in serverOptions" :key="server" class="server-option">
-                <input v-model="newUser.servers" type="checkbox" :value="server" />
-                <span>{{ server }}</span>
-              </label>
-            </div>
           </div>
         </div>
         <div class="dialog-actions">
@@ -143,7 +133,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { createUser, deleteUser, fetchUsers, updateUser } from '@/api/users'
 
 const users = ref([])
@@ -156,14 +146,12 @@ const isConfirmDialogOpen = ref(false)
 const confirmTitle = ref('')
 const confirmMessage = ref('')
 let pendingConfirmAction = null
-const serverOptions = ['edge-nyc-01', 'edge-sin-05', 'edge-fra-04', 'edge-lon-02']
 const newUser = reactive({
   name: '',
   email: '',
   password: '',
   role: 'User',
-  status: 'Active',
-  servers: [],
+  status: 'Waiting',
 })
 
 const openAddDialog = () => {
@@ -181,7 +169,6 @@ const openEditDialog = (user) => {
   newUser.password = user.password || ''
   newUser.role = user.role
   newUser.status = user.status
-  newUser.servers = user.servers ? [...user.servers] : []
   isAddDialogOpen.value = true
 }
 
@@ -194,8 +181,7 @@ const resetNewUser = () => {
   newUser.email = ''
   newUser.password = ''
   newUser.role = 'User'
-  newUser.status = 'Active'
-  newUser.servers = []
+  newUser.status = 'Waiting'
 }
 
 const loadUsers = async () => {
@@ -224,7 +210,6 @@ const submitAddUser = async () => {
     password: newUser.password.trim(),
     role: newUser.role,
     status: newUser.status,
-    servers: newUser.role === 'User' ? [...newUser.servers] : [],
   }
 
   if (isEditMode.value && editingUserId.value) {
@@ -287,10 +272,10 @@ const confirmDeleteUser = (user) => {
 }
 
 const confirmBlockUser = (user) => {
-  const nextStatus = user.status === 'Blocked' ? 'Active' : 'Blocked'
-  const actionLabel = nextStatus === 'Blocked' ? 'block' : 'unblock'
+  const nextStatus = user.status === 'Block' ? 'Active' : 'Block'
+  const actionLabel = nextStatus === 'Block' ? 'block' : 'unblock'
   openConfirmDialog(
-    `${nextStatus === 'Blocked' ? 'Block' : 'Unblock'} User`,
+    `${nextStatus === 'Block' ? 'Block' : 'Unblock'} User`,
     `Are you sure you want to ${actionLabel} ${user.name}?`,
     async () => {
       const payload = {
@@ -299,7 +284,6 @@ const confirmBlockUser = (user) => {
         password: user.password || '',
         role: user.role,
         status: nextStatus,
-        servers: user.role === 'User' ? [...(user.servers || [])] : [],
       }
       try {
         const updated = await updateUser(user.id, payload)
@@ -313,15 +297,6 @@ const confirmBlockUser = (user) => {
     },
   )
 }
-
-watch(
-  () => newUser.role,
-  (role) => {
-    if (role !== 'User') {
-      newUser.servers = []
-    }
-  },
-)
 
 const maskPassword = (value) => {
   if (!value) return 'N/A'
@@ -442,6 +417,11 @@ tbody tr:hover {
 .badge.active {
   background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
   color: #065f46;
+}
+
+.badge.pending {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
 }
 
 .badge.blocked {
