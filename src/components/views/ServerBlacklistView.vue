@@ -50,7 +50,6 @@
           <thead>
             <tr>
               <th>IP address</th>
-              <th>URL</th>
               <th>GeoLocation</th>
               <th>Reason</th>
               <th>Source</th>
@@ -63,7 +62,6 @@
           <tbody>
             <tr v-for="entry in filteredEntries" :key="entry.id">
               <td>{{ entry.ip }}</td>
-              <td>{{ entry.url }}</td>
               <td>{{ entry.geo }}</td>
               <td class="reason-cell">{{ entry.reason }}</td>
               <td>{{ entry.server }}</td>
@@ -119,16 +117,6 @@
             />
           </div>
           <div class="dialog-field">
-            <label for="block-url">URL (regex supported)</label>
-            <input
-              id="block-url"
-              v-model="newBlock.url"
-              type="text"
-              placeholder="/login"
-              required
-            />
-          </div>
-          <div class="dialog-field">
             <label for="block-reason">Reason</label>
             <input
               id="block-reason"
@@ -164,7 +152,19 @@
               <option value="rate-limit">RateLimit</option>
               <option value="geo-block">GeoBlock</option>
               <option value="manual">Manual</option>
+              <option value="custom">Customize</option>
             </select>
+          </div>
+          <div v-if="newBlock.triggerRule === 'custom'" class="dialog-field">
+            <label for="block-custom-rule">Custom trigger rule</label>
+            <div class="custom-rule-row">
+              <input
+                id="block-custom-rule"
+                v-model="customTriggerRule"
+                type="text"
+                placeholder="Enter custom rule"
+              />
+            </div>
           </div>
         </div>
         <p v-if="validationError" class="validation-error">{{ validationError }}</p>
@@ -195,12 +195,12 @@ const ruleFilter = ref("");
 const searchQuery = ref("");
 const isBlockDialogOpen = ref(false);
 const validationError = ref("");
+const customTriggerRule = ref("");
 const isConfirmDialogOpen = ref(false);
 const confirmAction = ref(null);
 const confirmTargetId = ref(null);
 const newBlock = ref({
   ip: "",
-  url: "",
   reason: "",
   server: "",
   ttl: "",
@@ -273,28 +273,33 @@ const applySearch = () => {
 const blockIp = () => {
   newBlock.value = {
     ip: "",
-    url: "",
     reason: "",
     server: "",
     ttl: "",
     triggerRule: ""
   };
   validationError.value = "";
+  customTriggerRule.value = "";
   isBlockDialogOpen.value = true;
 };
 
 const closeBlockDialog = () => {
   isBlockDialogOpen.value = false;
   validationError.value = "";
+  customTriggerRule.value = "";
 };
 
 const createBlock = () => {
-  if (!newBlock.value.ip || !newBlock.value.url || !newBlock.value.ttl) {
-    validationError.value = "IP address, URL, and TTL are required.";
+  if (!newBlock.value.ip || !newBlock.value.ttl) {
+    validationError.value = "IP address and TTL are required.";
     return;
   }
   if (!newBlock.value.server) {
     validationError.value = "Please select a server.";
+    return;
+  }
+  if (newBlock.value.triggerRule === "custom" && !customTriggerRule.value.trim()) {
+    validationError.value = "Please enter a custom trigger rule.";
     return;
   }
   validationError.value = "";
@@ -310,13 +315,12 @@ const createBlock = () => {
   blacklistEntries.value.unshift({
     id: `bl-${Date.now()}`,
     ip: newBlock.value.ip,
-    url: newBlock.value.url || "-",
     geo: "Manual",
     reason: newBlock.value.reason || "Manual block",
     server: newBlock.value.server,
     blockedAt,
     ttl: newBlock.value.ttl || "Indefinite",
-    triggerRule: newBlock.value.triggerRule || "manual"
+    triggerRule: customTriggerRule.value.trim() || newBlock.value.triggerRule || "manual"
   });
   closeBlockDialog();
 };
@@ -649,6 +653,17 @@ const clearConfirmDialog = () => {
 .dialog-field select:focus {
   border-color: rgba(102, 126, 234, 0.6);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.custom-rule-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.custom-rule-row input {
+  flex: 1 1 220px;
 }
 
 .dialog-actions {
