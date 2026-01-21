@@ -84,8 +84,7 @@ const handleLogin = async () => {
     })
 
     const user = result?.user || {
-      email: result?.email || email.value,
-      role: result?.role || 'user'
+      email: result?.email || email.value
     }
 
     auth.setSession({ user, token: result?.token || null })

@@ -66,7 +66,7 @@
               </li>
             </ul>
           </li>
-          <li v-if="isSuperAdmin" :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '', isAnalyticsRoute ? 'active' : '']">
+          <li :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '', isAnalyticsRoute ? 'active' : '']">
             <a href="#" @click.prevent="toggleDataAnalytics">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -105,7 +105,7 @@
               </li>
             </ul>
           </li>
-          <li v-if="isSuperAdmin" :class="['nav-item', isRouteActive('users') ? 'active' : '']">
+          <li :class="['nav-item', isRouteActive('users') ? 'active' : '']">
             <RouterLink to="/app/users">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -186,7 +186,6 @@ const auth = useAuth()
 const route = useRoute()
 const router = useRouter()
 
-const isSuperAdmin = computed(() => auth.role.value === 'super_admin')
 const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
 const isServersOpen = ref(false)

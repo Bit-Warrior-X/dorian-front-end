@@ -51,7 +51,6 @@ const clearSession = () => {
 }
 
 const isAuthenticated = computed(() => Boolean(state.user))
-const role = computed(() => state.user?.role || 'user')
 const email = computed(() => state.user?.email || '')
 const token = computed(() => state.token)
 
@@ -61,7 +60,6 @@ export const auth = {
   setSession,
   clearSession,
   isAuthenticated,
-  role,
   email,
   token
 }

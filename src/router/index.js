@@ -69,8 +69,7 @@ const routes = [
         component: () => import('@/components/views/AccessLogView.vue'),
         meta: {
           title: 'Access Log',
-          section: 'analytics',
-          requiresSuperAdmin: true
+          section: 'analytics'
         }
       },
       {
@@ -79,8 +78,7 @@ const routes = [
         component: () => import('@/components/views/LogExportView.vue'),
         meta: {
           title: 'Log Export',
-          section: 'analytics',
-          requiresSuperAdmin: true
+          section: 'analytics'
         }
       },
       {
@@ -89,8 +87,7 @@ const routes = [
         component: () => import('@/components/views/SecurityAnalyticsView.vue'),
         meta: {
           title: 'Security Analytics',
-          section: 'analytics',
-          requiresSuperAdmin: true
+          section: 'analytics'
         }
       },
       {
@@ -99,8 +96,7 @@ const routes = [
         component: () => import('@/components/views/Layer4AttackAnalyticsView.vue'),
         meta: {
           title: 'Layer 4 Attack Analytics',
-          section: 'analytics',
-          requiresSuperAdmin: true
+          section: 'analytics'
         }
       },
       {
@@ -108,8 +104,7 @@ const routes = [
         name: 'users',
         component: () => import('@/components/views/UsersView.vue'),
         meta: {
-          title: 'Users',
-          requiresSuperAdmin: true
+          title: 'Users'
         }
       }
     ]
@@ -134,9 +129,6 @@ router.beforeEach((to) => {
   const isLoggedIn = auth.isAuthenticated.value
   const isPublic = to.matched.some((record) => record.meta?.public)
   const requiresAuth = to.matched.some((record) => record.meta?.requiresAuth)
-  const requiresSuperAdmin = to.matched.some(
-    (record) => record.meta?.requiresSuperAdmin
-  )
 
   if (to.name === 'login' && isLoggedIn) {
     return { name: 'dashboard' }
@@ -148,10 +140,6 @@ router.beforeEach((to) => {
 
   if (requiresAuth && !isLoggedIn) {
     return { name: 'login', query: { redirect: to.fullPath } }
-  }
-
-  if (requiresSuperAdmin && auth.role.value !== 'super_admin') {
-    return { name: 'dashboard' }
   }
 
   return true
