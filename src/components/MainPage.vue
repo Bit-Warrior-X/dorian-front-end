@@ -165,7 +165,9 @@
         </button>
         <h1>{{ currentViewTitle }}</h1>
         <div class="user-info">
-          <span>Welcome, {{ isSuperAdmin ? 'Super Admin' : 'User' }}</span>
+          <button class="signout-button" type="button" @click="handleLogout">
+            Sign out
+          </button>
         </div>
       </div>
       <div class="view-content">
@@ -416,18 +418,18 @@ const togglePanel = () => {
   height: 60%;
 }
 
-.nav-item.active a {
+.nav-item.active > a {
   background: linear-gradient(90deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.1) 100%);
   color: white;
   box-shadow: inset 0 0 20px rgba(102, 126, 234, 0.1);
 }
 
-.nav-item.active a .nav-icon svg {
+.nav-item.active > a .nav-icon svg {
   transform: scale(1.15);
   filter: drop-shadow(0 0 4px rgba(102, 126, 234, 0.5));
 }
 
-.nav-item.active a::before {
+.nav-item.active > a::before {
   height: 80%;
 }
 
@@ -662,8 +664,27 @@ const togglePanel = () => {
 
 
 .user-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   color: #718096;
   font-size: 0.95rem;
+}
+
+.signout-button {
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  background: #ffffff;
+  color: #4c51bf;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.signout-button:hover {
+  background: rgba(102, 126, 234, 0.08);
 }
 
 .view-content {
