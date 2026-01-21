@@ -54,8 +54,13 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { login } from '@/api/auth'
+import { useAuth } from '@/stores/auth'
 
-const emit = defineEmits(['login-success'])
+const router = useRouter()
+const route = useRoute()
+const auth = useAuth()
 
 const email = ref('')
 const password = ref('')
@@ -67,45 +72,37 @@ const handleLogin = async () => {
   errorMessage.value = ''
   isLoading.value = true
 
-  // Simulate API call
-  setTimeout(() => {
-    const users = [
-      { email: 'superadmin@gmail.com', password: '123456', role: 'super_admin' },
-      { email: 'user@gmail.com', password: '123456', role: 'user' }
-    ]
-
+  try {
     if (!email.value || !password.value) {
-      errorMessage.value = 'Please fill in all fields'
-      isLoading.value = false
-      return
+      throw new Error('Please fill in all fields')
     }
 
-    const matchedUser = users.find(
-      (user) =>
-        user.email.toLowerCase().trim() === email.value.toLowerCase().trim() &&
-        user.password === password.value
-    )
+    const result = await login({
+      email: email.value,
+      password: password.value,
+      rememberMe: rememberMe.value
+    })
 
-    if (matchedUser) {
-      console.log('Login successful:', {
-        email: matchedUser.email,
-        role: matchedUser.role,
-        rememberMe: rememberMe.value
-      })
-      emit('login-success', {
-        email: matchedUser.email,
-        role: matchedUser.role,
-        rememberMe: rememberMe.value
-      })
-      email.value = ''
-      password.value = ''
-      rememberMe.value = false
-    } else {
-      errorMessage.value = 'Invalid email or password. Please try again.'
+    const user = result?.user || {
+      email: result?.email || email.value,
+      role: result?.role || 'user'
     }
 
+    auth.setSession({ user, token: result?.token || null })
+
+    const redirectTo = route.query.redirect
+      ? String(route.query.redirect)
+      : '/app'
+    await router.replace(redirectTo)
+
+    email.value = ''
+    password.value = ''
+    rememberMe.value = false
+  } catch (error) {
+    errorMessage.value = error?.message || 'Login failed. Please try again.'
+  } finally {
     isLoading.value = false
-  }, 100)
+  }
 }
 </script>
 

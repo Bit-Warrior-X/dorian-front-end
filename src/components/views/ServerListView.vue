@@ -426,6 +426,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import { fetchServers } from '@/api/servers'
 import { serverList } from '@/data/servers'
 
 const isNewServerDialogOpen = ref(false)
@@ -455,7 +456,7 @@ const editServer = ref({
 const isConfirmDialogOpen = ref(false)
 const confirmAction = ref(null)
 const confirmTarget = ref(null)
-const servers = ref(serverList.map((server) => ({ ...server })))
+const servers = ref([])
 const pageSize = ref(6)
 const currentPage = ref(1)
 const newServer = ref({
@@ -594,8 +595,20 @@ const handleClickOutsideMenu = (event) => {
   }
 }
 
+const loadServers = async () => {
+  try {
+    const data = await fetchServers()
+    servers.value = Array.isArray(data)
+      ? data.map((server) => ({ ...server }))
+      : []
+  } catch {
+    servers.value = serverList.map((server) => ({ ...server }))
+  }
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutsideMenu)
+  void loadServers()
 })
 
 onBeforeUnmount(() => {

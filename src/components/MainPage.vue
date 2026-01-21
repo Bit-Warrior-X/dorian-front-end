@@ -18,8 +18,8 @@
       </div>
       <nav class="panel-nav">
         <ul class="nav-list">
-          <li :class="['nav-item', activeView === 'dashboard' ? 'active' : '']">
-            <a href="#" @click.prevent="setActiveView('dashboard', $event)">
+          <li :class="['nav-item', isRouteActive('dashboard') ? 'active' : '']">
+            <RouterLink to="/app/dashboard">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="3" width="7" height="7"></rect>
@@ -29,9 +29,9 @@
                 </svg>
               </span>
               <span>Dashboard</span>
-            </a>
+            </RouterLink>
           </li>
-          <li :class="['nav-item', 'nav-item-parent', isServersOpen ? 'open' : '']">
+          <li :class="['nav-item', 'nav-item-parent', isServersOpen ? 'open' : '', isServersRoute ? 'active' : '']">
             <a href="#" @click.prevent="toggleServers">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -49,24 +49,24 @@
               </span>
             </a>
             <ul v-show="isServersOpen" class="nav-submenu">
-              <li :class="['nav-subitem', activeView === 'server-list' ? 'active' : '']">
-                <a href="#" @click.prevent="setActiveView('server-list', $event)">
+              <li :class="['nav-subitem', isRouteActive('server-list') ? 'active' : '']">
+                <RouterLink to="/app/servers/list">
                   <span>Server List</span>
-                </a>
+                </RouterLink>
               </li>
-              <li :class="['nav-subitem', activeView === 'server-settings' ? 'active' : '']">
-                <a href="#" @click.prevent="setActiveView('server-settings', $event)">
+              <li :class="['nav-subitem', isRouteActive('server-settings') ? 'active' : '']">
+                <RouterLink to="/app/servers/settings">
                   <span>Server Settings</span>
-                </a>
+                </RouterLink>
               </li>
-              <li :class="['nav-subitem', activeView === 'server-blacklist' ? 'active' : '']">
-                <a href="#" @click.prevent="setActiveView('server-blacklist', $event)">
+              <li :class="['nav-subitem', isRouteActive('server-blacklist') ? 'active' : '']">
+                <RouterLink to="/app/servers/blacklist">
                   <span>Blacklist</span>
-                </a>
+                </RouterLink>
               </li>
             </ul>
           </li>
-          <li v-if="isSuperAdmin" :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '']">
+          <li v-if="isSuperAdmin" :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '', isAnalyticsRoute ? 'active' : '']">
             <a href="#" @click.prevent="toggleDataAnalytics">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -83,30 +83,30 @@
               </span>
             </a>
             <ul v-show="isDataAnalyticsOpen" class="nav-submenu">
-              <li :class="['nav-subitem', activeView === 'access-log' ? 'active' : '']">
-                <a href="#" @click.prevent="setActiveView('access-log', $event)">
+              <li :class="['nav-subitem', isRouteActive('access-log') ? 'active' : '']">
+                <RouterLink to="/app/analytics/access-log">
                   <span>Access Log</span>
-                </a>
+                </RouterLink>
               </li>
-              <li :class="['nav-subitem', activeView === 'log-export' ? 'active' : '']">
-                <a href="#" @click.prevent="setActiveView('log-export', $event)">
+              <li :class="['nav-subitem', isRouteActive('log-export') ? 'active' : '']">
+                <RouterLink to="/app/analytics/log-export">
                   <span>Log Export</span>
-                </a>
+                </RouterLink>
               </li>
-              <li :class="['nav-subitem', activeView === 'security-analytics' ? 'active' : '']">
-                <a href="#" @click.prevent="setActiveView('security-analytics', $event)">
+              <li :class="['nav-subitem', isRouteActive('security-analytics') ? 'active' : '']">
+                <RouterLink to="/app/analytics/security-analytics">
                   <span>Security Analytics</span>
-                </a>
+                </RouterLink>
               </li>
-              <li :class="['nav-subitem', activeView === 'layer4-attack-analytics' ? 'active' : '']">
-                <a href="#" @click.prevent="setActiveView('layer4-attack-analytics', $event)">
+              <li :class="['nav-subitem', isRouteActive('layer4-attack-analytics') ? 'active' : '']">
+                <RouterLink to="/app/analytics/layer4-attack-analytics">
                   <span>Layer 4 Attack Analytics</span>
-                </a>
+                </RouterLink>
               </li>
             </ul>
           </li>
-          <li v-if="isSuperAdmin" :class="['nav-item', activeView === 'users' ? 'active' : '']">
-            <a href="#" @click.prevent="setActiveView('users', $event)">
+          <li v-if="isSuperAdmin" :class="['nav-item', isRouteActive('users') ? 'active' : '']">
+            <RouterLink to="/app/users">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -116,7 +116,7 @@
                 </svg>
               </span>
               <span>Users</span>
-            </a>
+            </RouterLink>
           </li>
         </ul>
       </nav>
@@ -169,125 +169,51 @@
         </div>
       </div>
       <div class="view-content">
-        <component :is="currentViewComponent" />
+        <RouterView />
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import DashboardView from './views/DashboardView.vue'
-import ServerListView from './views/ServerListView.vue'
-import ServerSettingsView from './views/ServerSettingsView.vue'
-import ServerBlacklistView from './views/ServerBlacklistView.vue'
-import UsersView from './views/UsersView.vue'
-import AccessLogView from './views/AccessLogView.vue'
-import LogExportView from './views/LogExportView.vue'
-import SecurityAnalyticsView from './views/SecurityAnalyticsView.vue'
-import Layer4AttackAnalyticsView from './views/Layer4AttackAnalyticsView.vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuth } from '@/stores/auth'
 
-const props = defineProps({
-  userRole: {
-    type: String,
-    default: 'user'
-  }
-})
+const auth = useAuth()
+const route = useRoute()
+const router = useRouter()
 
-const isSuperAdmin = computed(() => props.userRole === 'super_admin')
-
-const adminOnlyViews = new Set([
-  'users',
-  'access-log',
-  'log-export',
-  'security-analytics',
-  'layer4-attack-analytics'
-])
-
-const isViewAllowed = (view) => !adminOnlyViews.has(view) || isSuperAdmin.value
-
-const emit = defineEmits(['logout'])
-
-const activeView = ref('dashboard')
+const isSuperAdmin = computed(() => auth.role.value === 'super_admin')
 const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
 const isServersOpen = ref(false)
 
-const views = {
-  dashboard: {
-    title: 'Dashboard',
-    component: DashboardView
-  },
-  'server-list': {
-    title: 'Server List',
-    component: ServerListView
-  },
-  'server-settings': {
-    title: 'Server Settings',
-    component: ServerSettingsView
-  },
-  'server-blacklist': {
-    title: 'Blacklist',
-    component: ServerBlacklistView
-  },
-  users: {
-    title: 'Users',
-    component: UsersView
-  },
-  'access-log': {
-    title: 'Access Log',
-    component: AccessLogView
-  },
-  'log-export': {
-    title: 'Log Export',
-    component: LogExportView
-  },
-  'security-analytics': {
-    title: 'Security Analytics',
-    component: SecurityAnalyticsView
-  },
-  'layer4-attack-analytics': {
-    title: 'Layer 4 Attack Analytics',
-    component: Layer4AttackAnalyticsView
-  }
-}
-
-const currentViewTitle = computed(() =>
-  isViewAllowed(activeView.value)
-    ? views[activeView.value]?.title || 'Dashboard'
-    : 'Dashboard'
+const isServersRoute = computed(
+  () => route.meta?.section === 'servers' || route.path.startsWith('/app/servers')
 )
-const currentViewComponent = computed(() =>
-  isViewAllowed(activeView.value)
-    ? views[activeView.value]?.component || DashboardView
-    : DashboardView
+const isAnalyticsRoute = computed(
+  () =>
+    route.meta?.section === 'analytics' ||
+    route.path.startsWith('/app/analytics')
 )
 
-const setActiveView = (view, event) => {
-  if (!isViewAllowed(view)) {
-    activeView.value = 'dashboard'
-    return
-  }
-  activeView.value = view
-  
-  // Auto-open DataAnalytics if selecting a sub-item
-  if (['access-log', 'log-export', 'security-analytics', 'layer4-attack-analytics'].includes(view)) {
-    isDataAnalyticsOpen.value = true
-  }
+const isRouteActive = (name) => route.name === name
 
-  // Auto-open Servers if selecting a sub-item
-  if (['server-list', 'server-settings', 'server-blacklist'].includes(view)) {
-    isServersOpen.value = true
-  }
-  
-  // Update active nav item
-  document.querySelectorAll('.nav-item, .nav-subitem').forEach(item => {
-    item.classList.remove('active')
-  })
-  if (event) {
-    event.target.closest('.nav-item, .nav-subitem')?.classList.add('active')
-  }
-}
+const currentViewTitle = computed(() => route.meta?.title || 'Dashboard')
+
+watch(
+  () => route.path,
+  () => {
+    if (isServersRoute.value) {
+      isServersOpen.value = true
+    }
+    if (isAnalyticsRoute.value) {
+      isDataAnalyticsOpen.value = true
+    }
+  },
+  { immediate: true }
+)
 
 const toggleDataAnalytics = () => {
   isDataAnalyticsOpen.value = !isDataAnalyticsOpen.value
@@ -297,8 +223,9 @@ const toggleServers = () => {
   isServersOpen.value = !isServersOpen.value
 }
 
-const handleLogout = () => {
-  emit('logout')
+const handleLogout = async () => {
+  auth.clearSession()
+  await router.replace('/login')
 }
 
 const togglePanel = () => {

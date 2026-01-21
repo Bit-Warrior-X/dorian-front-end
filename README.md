@@ -25,6 +25,18 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 npm install
 ```
 
+## Backend Configuration
+
+Set the API base URL and mock usage through Vite env vars:
+
+```sh
+# Optional: point at your backend
+VITE_API_BASE_URL=http://localhost:8080
+
+# Optional: use mock auth and server data
+VITE_USE_MOCKS=true
+```
+
 ### Compile and Hot-Reload for Development
 
 ```sh

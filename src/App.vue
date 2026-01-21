@@ -1,25 +1,9 @@
 <script setup>
-import { ref } from 'vue'
-import LoginPage from './components/LoginPage.vue'
-import MainPage from './components/MainPage.vue'
-
-const isLoggedIn = ref(false)
-const userRole = ref('user')
-
-const handleLoginSuccess = (payload) => {
-  isLoggedIn.value = true
-  userRole.value = payload?.role || 'user'
-}
-
-const handleLogout = () => {
-  isLoggedIn.value = false
-  userRole.value = 'user'
-}
+import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <LoginPage v-if="!isLoggedIn" @login-success="handleLoginSuccess" />
-  <MainPage v-else :user-role="userRole" @logout="handleLogout" />
+  <RouterView />
 </template>
 
 <style>
