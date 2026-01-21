@@ -14,6 +14,7 @@
               <th>Password</th>
               <th>Role</th>
               <th>Status</th>
+              <th>Servers</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -32,6 +33,12 @@
                 >
                   {{ user.status }}
                 </span>
+              </td>
+              <td>
+                <div v-if="user.role === 'User' && user.servers?.length" class="server-list">
+                  <span v-for="server in user.servers" :key="server" class="server-pill">{{ server }}</span>
+                </div>
+                <span v-else class="muted-text">—</span>
               </td>
               <td>
                 <div class="actions">
@@ -102,6 +109,15 @@
               <option value="Block">Block</option>
             </select>
           </div>
+          <div v-if="newUser.role === 'User'" class="dialog-field dialog-field--full">
+            <label>Servers</label>
+            <div class="server-options">
+              <label v-for="server in serverOptions" :key="server.id" class="server-option">
+                <input v-model="newUser.serverIds" type="checkbox" :value="server.id" />
+                <span>{{ server.name || server.ip || `Server #${server.id}` }}</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="dialog-actions">
           <button class="ghost-btn" type="button" @click="closeAddDialog">Cancel</button>
@@ -133,8 +149,9 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { createUser, deleteUser, fetchUsers, updateUser } from '@/api/users'
+import { fetchServers } from '@/api/servers'
 
 const users = ref([])
 const isLoading = ref(false)
@@ -146,12 +163,14 @@ const isConfirmDialogOpen = ref(false)
 const confirmTitle = ref('')
 const confirmMessage = ref('')
 let pendingConfirmAction = null
+const serverOptions = ref([])
 const newUser = reactive({
   name: '',
   email: '',
   password: '',
   role: 'User',
   status: 'Waiting',
+  serverIds: [],
 })
 
 const openAddDialog = () => {
@@ -169,6 +188,7 @@ const openEditDialog = (user) => {
   newUser.password = user.password || ''
   newUser.role = user.role
   newUser.status = user.status
+  newUser.serverIds = user.serverIds ? [...user.serverIds] : []
   isAddDialogOpen.value = true
 }
 
@@ -182,6 +202,7 @@ const resetNewUser = () => {
   newUser.password = ''
   newUser.role = 'User'
   newUser.status = 'Waiting'
+  newUser.serverIds = []
 }
 
 const loadUsers = async () => {
@@ -210,24 +231,20 @@ const submitAddUser = async () => {
     password: newUser.password.trim(),
     role: newUser.role,
     status: newUser.status,
+    serverIds: newUser.role === 'User' ? [...newUser.serverIds] : [],
   }
 
   if (isEditMode.value && editingUserId.value) {
     try {
-      const updated = await updateUser(editingUserId.value, payload)
-      const index = users.value.findIndex((user) => user.id === editingUserId.value)
-      if (index !== -1) {
-        users.value[index] = updated
-      } else {
-        users.value = [updated, ...users.value]
-      }
+      await updateUser(editingUserId.value, payload)
+      await loadUsers()
     } catch {
       return
     }
   } else {
     try {
-      const created = await createUser(payload)
-      users.value = [created, ...users.value]
+      await createUser(payload)
+      await loadUsers()
     } catch {
       return
     }
@@ -263,7 +280,7 @@ const confirmDeleteUser = (user) => {
     async () => {
       try {
         await deleteUser(user.id)
-        users.value = users.value.filter((entry) => entry.id !== user.id)
+        await loadUsers()
       } catch {
         return
       }
@@ -284,13 +301,11 @@ const confirmBlockUser = (user) => {
         password: user.password || '',
         role: user.role,
         status: nextStatus,
+        serverIds: user.role === 'User' ? [...(user.serverIds || [])] : [],
       }
       try {
-        const updated = await updateUser(user.id, payload)
-        const index = users.value.findIndex((entry) => entry.id === user.id)
-        if (index !== -1) {
-          users.value[index] = updated
-        }
+        await updateUser(user.id, payload)
+        await loadUsers()
       } catch {
         return
       }
@@ -303,8 +318,27 @@ const maskPassword = (value) => {
   return '******'
 }
 
+const loadServers = async () => {
+  try {
+    const data = await fetchServers()
+    serverOptions.value = Array.isArray(data) ? data : []
+  } catch {
+    serverOptions.value = []
+  }
+}
+
+watch(
+  () => newUser.role,
+  (role) => {
+    if (role !== 'User') {
+      newUser.serverIds = []
+    }
+  },
+)
+
 onMounted(() => {
   void loadUsers()
+  void loadServers()
 })
 </script>
 
