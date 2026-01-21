@@ -53,6 +53,56 @@
           <p class="stat-value">456</p>
         </div>
       </div>
+      <div class="stat-card">
+        <div class="stat-icon connections">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l7 3v6c0 5-7 9-7 9s-7-4-7-9V5l7-3z"></path>
+            <path d="M9 12l2 2 4-4"></path>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <h3>L4 Attacks This Month</h3>
+          <p class="stat-value">124</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon connections">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4v16h16"></path>
+            <path d="M20 7l-4 4-3-3-5 5"></path>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <h3>L4 Attacks Previous Month</h3>
+          <p class="stat-value">98</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon connections">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M8 12h8"></path>
+            <path d="M12 8v8"></path>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <h3>L7 Threats This Month</h3>
+          <p class="stat-value">312</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon connections">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <h3>L7 Threats Previous Month</h3>
+          <p class="stat-value">276</p>
+        </div>
+      </div>
     </div>
     <div class="bandwidth-card">
       <div class="bandwidth-header">
@@ -80,15 +130,79 @@
         </button>
       </div>
     </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <h3>Request Count & Response</h3>
+            <p>Requests and responses per second</p>
+          </div>
+          <div class="chart-controls">
+            <div class="range-buttons">
+              <button
+                v-for="option in timeRangeOptions"
+                :key="option.value"
+                type="button"
+                class="range-btn"
+                :class="{ active: requestRange === option.value }"
+                @click="requestRange = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+            <select v-model="requestServer" class="chart-select">
+              <option v-for="option in serverOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="bandwidth-chart">
+          <div ref="requestResponseChart"></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <h3>Status Code</h3>
+            <p>Response distribution per second</p>
+          </div>
+          <div class="chart-controls">
+            <div class="range-buttons">
+              <button
+                v-for="option in timeRangeOptions"
+                :key="option.value"
+                type="button"
+                class="range-btn"
+                :class="{ active: statusRange === option.value }"
+                @click="statusRange = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+            <select v-model="statusServer" class="chart-select">
+              <option v-for="option in serverOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="bandwidth-chart">
+          <div ref="statusCodeChart"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ApexCharts from 'apexcharts'
 import { serverList } from '@/data/servers'
 
 const bandwidthChart = ref(null)
+const requestResponseChart = ref(null)
+const statusCodeChart = ref(null)
 const palette = ['#6366f1', '#14b8a6', '#f59e0b', '#ef4444', '#22c55e', '#0ea5e9', '#a855f7']
 const servers = serverList.map((server, index) => ({
   id: server.id,
@@ -101,11 +215,49 @@ const range = maxPoints * intervalMs
 
 let chartInstance = null
 let bandwidthTimer = null
+let requestResponseChartInstance = null
+let statusCodeChartInstance = null
+
+const timeRangeOptions = [
+  { label: '5min', value: 5 * 60 * 1000 },
+  { label: '10min', value: 10 * 60 * 1000 },
+  { label: '30min', value: 30 * 60 * 1000 },
+  { label: '1h', value: 60 * 60 * 1000 },
+]
+const serverOptions = [
+  { label: 'All Servers', value: 'all' },
+  ...serverList.map((server) => ({ label: server.name, value: server.id })),
+]
+const requestRange = ref(timeRangeOptions[0].value)
+const statusRange = ref(timeRangeOptions[0].value)
+const requestServer = ref('all')
+const statusServer = ref('all')
 
 const randomBandwidth = (base = 400) => {
   const jitter = (Math.random() - 0.5) * 30
   const next = Math.max(50, Math.min(980, base + jitter))
   return Math.round(next)
+}
+
+const randomRequests = (base = 1200) => {
+  const jitter = (Math.random() - 0.5) * 180
+  const next = Math.max(50, Math.min(4000, base + jitter))
+  return Math.round(next)
+}
+
+const randomResponses = (base = 1000) => {
+  const jitter = (Math.random() - 0.5) * 150
+  const next = Math.max(50, Math.min(3800, base + jitter))
+  return Math.round(next)
+}
+
+const randomStatusCounts = (base = 800) => {
+  const jitter = (Math.random() - 0.5) * 120
+  const success = Math.max(20, Math.round(base + jitter))
+  const redirect = Math.max(8, Math.round(success * 0.12))
+  const client = Math.max(6, Math.round(success * 0.08))
+  const server = Math.max(3, Math.round(success * 0.03))
+  return { success, redirect, client, server }
 }
 
 const createInitialSeries = () => {
@@ -128,6 +280,9 @@ const latestValues = ref(
   bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0),
 )
 const hiddenServers = ref(new Set())
+
+const requestResponseSeries = ref(createRequestResponseSeries())
+const statusCodeSeries = ref(createStatusCodeSeries())
 
 const updateSeries = () => {
   const samplePayload = getSampleBandwidthPayload()
@@ -170,6 +325,9 @@ const updateSeries = () => {
       }
     })
   }
+
+  updateRequestResponseSeries(now)
+  updateStatusCodeSeries(now)
 }
 
 const toggleServerSeries = (server) => {
@@ -197,6 +355,166 @@ const getSampleBandwidthPayload = () => {
     acc[server.id] = randomBandwidth(base)
     return acc
   }, {})
+}
+
+function createRequestResponseSeries() {
+  const now = Date.now()
+  const requests = []
+  const responses = []
+  for (let pointIndex = 0; pointIndex < maxPoints; pointIndex += 1) {
+    const timestamp = now - (maxPoints - pointIndex) * intervalMs
+    const { requestValue, responseValue } = getRequestResponseValues(requestServer.value)
+    requests.push({ x: timestamp, y: requestValue })
+    responses.push({ x: timestamp, y: responseValue })
+  }
+  return [
+    { name: 'Requests', data: requests },
+    { name: 'Responses', data: responses },
+  ]
+}
+
+function createStatusCodeSeries() {
+  const now = Date.now()
+  const success = []
+  const redirect = []
+  const client = []
+  const server = []
+  for (let pointIndex = 0; pointIndex < maxPoints; pointIndex += 1) {
+    const timestamp = now - (maxPoints - pointIndex) * intervalMs
+    const { successValue, redirectValue, clientValue, serverValue } = getStatusCodeValues(statusServer.value)
+    success.push({ x: timestamp, y: successValue })
+    redirect.push({ x: timestamp, y: redirectValue })
+    client.push({ x: timestamp, y: clientValue })
+    server.push({ x: timestamp, y: serverValue })
+  }
+  return [
+    { name: '2xx', data: success },
+    { name: '3xx', data: redirect },
+    { name: '4xx', data: client },
+    { name: '5xx', data: server },
+  ]
+}
+
+function getRequestResponseValues(selectedServer) {
+  if (selectedServer === 'all') {
+    return servers.reduce(
+      (acc, server, index) => {
+        const base = 900 + (index % 5) * 140
+        acc.requestValue += randomRequests(base)
+        acc.responseValue += randomResponses(base * 0.9)
+        return acc
+      },
+      { requestValue: 0, responseValue: 0 },
+    )
+  }
+  const serverIndex = servers.findIndex((server) => server.id === selectedServer)
+  const base = 900 + (serverIndex % 5) * 140
+  return {
+    requestValue: randomRequests(base),
+    responseValue: randomResponses(base * 0.9),
+  }
+}
+
+function getStatusCodeValues(selectedServer) {
+  if (selectedServer === 'all') {
+    return servers.reduce(
+      (acc, server, index) => {
+        const base = 800 + (index % 5) * 120
+        const counts = randomStatusCounts(base)
+        acc.successValue += counts.success
+        acc.redirectValue += counts.redirect
+        acc.clientValue += counts.client
+        acc.serverValue += counts.server
+        return acc
+      },
+      { successValue: 0, redirectValue: 0, clientValue: 0, serverValue: 0 },
+    )
+  }
+  const serverIndex = servers.findIndex((server) => server.id === selectedServer)
+  const base = 800 + (serverIndex % 5) * 120
+  const counts = randomStatusCounts(base)
+  return {
+    successValue: counts.success,
+    redirectValue: counts.redirect,
+    clientValue: counts.client,
+    serverValue: counts.server,
+  }
+}
+
+const updateRequestResponseSeries = (now) => {
+  const { requestValue, responseValue } = getRequestResponseValues(requestServer.value)
+  const nextRequests = { x: now, y: requestValue }
+  const nextResponses = { x: now, y: responseValue }
+
+  requestResponseSeries.value = requestResponseSeries.value.map((series) => {
+    const next = [...series.data, series.name === 'Requests' ? nextRequests : nextResponses]
+    return {
+      ...series,
+      data: next.length > maxPoints ? next.slice(next.length - maxPoints) : next,
+    }
+  })
+
+  if (requestResponseChartInstance) {
+    requestResponseChartInstance.appendData([
+      { data: [nextRequests] },
+      { data: [nextResponses] },
+    ])
+    requestResponseChartInstance.updateOptions(
+      {
+        xaxis: {
+          range: requestRange.value,
+          max: now,
+          tickAmount: 6,
+        },
+      },
+      false,
+      true,
+    )
+  }
+}
+
+const updateStatusCodeSeries = (now) => {
+  const { successValue, redirectValue, clientValue, serverValue } = getStatusCodeValues(statusServer.value)
+  const nextSuccess = { x: now, y: successValue }
+  const nextRedirect = { x: now, y: redirectValue }
+  const nextClient = { x: now, y: clientValue }
+  const nextServer = { x: now, y: serverValue }
+
+  statusCodeSeries.value = statusCodeSeries.value.map((series) => {
+    const nextPoint =
+      series.name === '2xx'
+        ? nextSuccess
+        : series.name === '3xx'
+          ? nextRedirect
+          : series.name === '4xx'
+            ? nextClient
+            : nextServer
+    const next = [...series.data, nextPoint]
+    return {
+      ...series,
+      data: next.length > maxPoints ? next.slice(next.length - maxPoints) : next,
+    }
+  })
+
+  if (statusCodeChartInstance) {
+    statusCodeChartInstance.appendData([
+      { data: [nextSuccess] },
+      { data: [nextRedirect] },
+      { data: [nextClient] },
+      { data: [nextServer] },
+    ])
+    statusCodeChartInstance.updateOptions(
+      {
+        xaxis: {
+          range: statusRange.value,
+          max: now,
+          tickAmount: 6,
+        },
+      },
+      false,
+      true,
+    )
+  }
 }
 
 const createChart = () => {
@@ -269,11 +587,153 @@ const createChart = () => {
   chartInstance.render()
 }
 
+const createRequestResponseChart = () => {
+  if (!requestResponseChart.value) {
+    return
+  }
+
+  const now = Date.now()
+  requestResponseChartInstance = new ApexCharts(requestResponseChart.value, {
+    chart: {
+      type: 'line',
+      height: 320,
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 1500,
+        dynamicAnimation: {
+          speed: 1500,
+        },
+      },
+      toolbar: { show: false },
+      zoom: { enabled: false },
+    },
+    stroke: {
+      curve: 'smooth',
+      width: 2,
+    },
+    markers: {
+      size: 0,
+      hover: { size: 4 },
+    },
+    colors: ['#22c55e', '#0ea5e9'],
+    series: requestResponseSeries.value,
+    xaxis: {
+      type: 'datetime',
+      labels: {
+        show: true,
+        datetimeUTC: false,
+        style: { colors: '#94a3b8' },
+        formatter: (value) => {
+          const date = new Date(value)
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      range: requestRange.value,
+      max: now,
+      tickAmount: 6,
+    },
+    yaxis: {
+      opposite: true,
+      labels: {
+        formatter: (value) => `${Math.round(value)} rps`,
+        style: { colors: '#94a3b8' },
+      },
+    },
+    grid: {
+      borderColor: 'rgba(148, 163, 184, 0.35)',
+      strokeDashArray: 6,
+    },
+    tooltip: {
+      x: { format: 'HH:mm:ss' },
+      y: { formatter: (value) => `${Math.round(value)} rps` },
+      theme: 'light',
+    },
+    legend: { show: false },
+  })
+
+  requestResponseChartInstance.render()
+}
+
+const createStatusCodeChart = () => {
+  if (!statusCodeChart.value) {
+    return
+  }
+
+  const now = Date.now()
+  statusCodeChartInstance = new ApexCharts(statusCodeChart.value, {
+    chart: {
+      type: 'line',
+      height: 320,
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 1500,
+        dynamicAnimation: {
+          speed: 1500,
+        },
+      },
+      toolbar: { show: false },
+      zoom: { enabled: false },
+    },
+    stroke: {
+      curve: 'smooth',
+      width: 2,
+    },
+    markers: {
+      size: 0,
+      hover: { size: 4 },
+    },
+    colors: ['#22c55e', '#38bdf8', '#f59e0b', '#ef4444'],
+    series: statusCodeSeries.value,
+    xaxis: {
+      type: 'datetime',
+      labels: {
+        show: true,
+        datetimeUTC: false,
+        style: { colors: '#94a3b8' },
+        formatter: (value) => {
+          const date = new Date(value)
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      range: statusRange.value,
+      max: now,
+      tickAmount: 6,
+    },
+    yaxis: {
+      opposite: true,
+      labels: {
+        formatter: (value) => `${Math.round(value)}`,
+        style: { colors: '#94a3b8' },
+      },
+    },
+    grid: {
+      borderColor: 'rgba(148, 163, 184, 0.35)',
+      strokeDashArray: 6,
+    },
+    tooltip: {
+      x: { format: 'HH:mm:ss' },
+      y: { formatter: (value) => `${Math.round(value)}` },
+      theme: 'light',
+    },
+    legend: { show: false },
+  })
+
+  statusCodeChartInstance.render()
+}
+
 onMounted(() => {
   if (!servers.length) {
     return
   }
   createChart()
+  createRequestResponseChart()
+  createStatusCodeChart()
   bandwidthTimer = window.setInterval(updateSeries, intervalMs)
 })
 
@@ -284,6 +744,50 @@ onBeforeUnmount(() => {
   if (chartInstance) {
     chartInstance.destroy()
     chartInstance = null
+  }
+  if (requestResponseChartInstance) {
+    requestResponseChartInstance.destroy()
+    requestResponseChartInstance = null
+  }
+  if (statusCodeChartInstance) {
+    statusCodeChartInstance.destroy()
+    statusCodeChartInstance = null
+  }
+})
+
+watch([requestRange, requestServer], () => {
+  requestResponseSeries.value = createRequestResponseSeries()
+  if (requestResponseChartInstance) {
+    requestResponseChartInstance.updateSeries(requestResponseSeries.value, true)
+    requestResponseChartInstance.updateOptions(
+      {
+        xaxis: {
+          range: requestRange.value,
+          max: Date.now(),
+          tickAmount: 6,
+        },
+      },
+      false,
+      true,
+    )
+  }
+})
+
+watch([statusRange, statusServer], () => {
+  statusCodeSeries.value = createStatusCodeSeries()
+  if (statusCodeChartInstance) {
+    statusCodeChartInstance.updateSeries(statusCodeSeries.value, true)
+    statusCodeChartInstance.updateOptions(
+      {
+        xaxis: {
+          range: statusRange.value,
+          max: Date.now(),
+          tickAmount: 6,
+        },
+      },
+      false,
+      true,
+    )
   }
 })
 </script>
@@ -297,7 +801,7 @@ onBeforeUnmount(() => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
   gap: 20px;
 }
 
@@ -360,6 +864,85 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px 18px;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.chart-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  padding: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chart-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.chart-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.chart-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.range-buttons {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.range-btn {
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: white;
+  color: #334155;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.range-btn.active,
+.range-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.chart-select {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: #1f2937;
+  background: white;
 }
 
 .legend-item {
@@ -460,6 +1043,10 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
   }
 }
 
