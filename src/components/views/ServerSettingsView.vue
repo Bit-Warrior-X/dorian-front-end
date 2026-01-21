@@ -31,9 +31,10 @@
             {{ tab.label }}
           </button>
         </div>
-        <div class="tabs-body">
+        <div class="tabs-body" :class="{ 'no-outline': activeTab === 'upstream' }">
           <L4DdosDefensePanel v-if="activeTab === 'l4-ddos'" />
           <WafPanel v-else-if="activeTab === 'waf'" />
+          <UpstreamServersPanel v-else-if="activeTab === 'upstream'" />
           <table v-else class="config-table">
             <thead>
               <tr>
@@ -66,12 +67,36 @@ import { ref, computed } from "vue";
 import { serverList } from "@/data/servers";
 import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
 import WafPanel from "./WafPanel.vue";
+import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 
 const serverOptions = serverList;
 const selectedServer = ref("");
 const selectedServerData = computed(() =>
   serverOptions.find((server) => server.id === selectedServer.value)
 );
+
+const getServerInfoRows = () => {
+  const server = selectedServerData.value;
+  const status = server?.statusLabel || "-";
+  const license = server?.license || "-";
+  const users = server?.users ?? "-";
+  const sshPort = server?.sshPort || "-";
+  const username = server?.username || "-";
+
+  return [
+    { name: "Server name", value: server?.name || "-", note: "Display name for this server." },
+    { name: "Server ID", value: server?.id || "-", note: "Unique server identifier." },
+    { name: "Primary IP", value: server?.ip || "-", note: "Current server address." },
+    { name: "Status", value: status, note: "Current server status." },
+    { name: "License", value: license, note: "Applied license tier." },
+    { name: "Managed users", value: users, note: "Number of assigned users." },
+    { name: "Version", value: server?.version || "-", note: "Installed version." },
+    { name: "SSH user", value: username, note: "Default SSH username." },
+    { name: "SSH port", value: sshPort, note: "SSH connection port." },
+    { name: "Expired date", value: server?.expiredDate || "-", note: "License expiration date." },
+    { name: "Created", value: server?.created || "-", note: "Provisioned date." }
+  ];
+};
 
 const tabs = [
   {
@@ -93,15 +118,6 @@ const tabs = [
     ]
   },
   {
-    id: "advanced",
-    label: "Advanced Protection",
-    rows: [
-      { name: "Geo fencing", value: "Enabled", note: "Restricted regions blocked." },
-      { name: "Anomaly score", value: "Medium", note: "Adaptive protection level." },
-      { name: "TLS enforcement", value: "On", note: "Require modern TLS.", type: "toggle" }
-    ]
-  },
-  {
     id: "upstream",
     label: "Upstream Servers",
     rows: [
@@ -113,11 +129,7 @@ const tabs = [
   {
     id: "info",
     label: "Server Information",
-    rows: [
-      { name: "Primary IP", value: selectedServerData.value?.ip || "-", note: "Current server address." },
-      { name: "Version", value: selectedServerData.value?.version || "-", note: "Installed version." },
-      { name: "Created", value: selectedServerData.value?.created || "-", note: "Provisioned date." }
-    ]
+    rows: getServerInfoRows()
   }
 ];
 
@@ -126,11 +138,7 @@ const activeConfigRows = computed(() => {
   const active = tabs.find((tab) => tab.id === activeTab.value);
   if (!active) return [];
   if (active.id !== "info") return active.rows;
-  return [
-    { name: "Primary IP", value: selectedServerData.value?.ip || "-", note: "Current server address." },
-    { name: "Version", value: selectedServerData.value?.version || "-", note: "Installed version." },
-    { name: "Created", value: selectedServerData.value?.created || "-", note: "Provisioned date." }
-  ];
+  return getServerInfoRows();
 });
 </script>
 
@@ -269,6 +277,11 @@ const activeConfigRows = computed(() => {
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 14px;
   overflow: hidden;
+}
+
+.tabs-body.no-outline {
+  border: none;
+  border-radius: 0;
 }
 
 .config-table {
