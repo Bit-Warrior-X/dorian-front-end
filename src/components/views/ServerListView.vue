@@ -193,13 +193,13 @@
           <h4>Management users</h4>
           <div v-if="selectedUsers.length" class="selected-users">
             <button
-              v-for="user in selectedUsers"
-              :key="user"
+              v-for="userId in selectedUsers"
+              :key="userId"
               type="button"
               class="user-chip"
-              @click="removeUser(user)"
+              @click="removeUser(userId)"
             >
-              {{ user }}
+              {{ getUserLabelById(userId) }}
             </button>
           </div>
           <div class="dialog-grid">
@@ -221,12 +221,12 @@
                 <div v-show="isUserDropdownOpen" class="combobox-menu">
                   <button
                     v-for="user in filteredAvailableUsers"
-                    :key="user"
+                    :key="user.id"
                     type="button"
                     class="combobox-option"
                     @click="addUser(user)"
                   >
-                    <span>{{ user }}</span>
+                    <span>{{ getUserLabel(user) }}</span>
                   </button>
                   <div v-if="!filteredAvailableUsers.length" class="combobox-empty">
                     No users found
@@ -361,13 +361,13 @@
           <h4>Management users</h4>
           <div v-if="selectedUsers.length" class="selected-users">
             <button
-              v-for="user in selectedUsers"
-              :key="user"
+              v-for="userId in selectedUsers"
+              :key="userId"
               type="button"
               class="user-chip"
-              @click="removeUser(user)"
+              @click="removeUser(userId)"
             >
-              {{ user }}
+              {{ getUserLabelById(userId) }}
             </button>
           </div>
           <div class="dialog-grid">
@@ -389,12 +389,12 @@
                 <div v-show="isUserDropdownOpen" class="combobox-menu">
                   <button
                     v-for="user in filteredAvailableUsers"
-                    :key="user"
+                    :key="user.id"
                     type="button"
                     class="combobox-option"
                     @click="addUser(user)"
                   >
-                    <span>{{ user }}</span>
+                    <span>{{ getUserLabel(user) }}</span>
                   </button>
                   <div v-if="!filteredAvailableUsers.length" class="combobox-empty">
                     No users found
@@ -424,19 +424,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
-import { fetchServers } from '@/api/servers'
-import { serverList } from '@/data/servers'
+import { fetchServers, updateServerUsers } from '@/api/servers'
+import { fetchUsers } from '@/api/users'
+import { useAuth } from '@/stores/auth'
 
 const isNewServerDialogOpen = ref(false)
-const allUsers = [
-  'Alex Morgan',
-  'Jamie Lee',
-  'Pat Kim',
-  'Riley Chen',
-  'Taylor Singh'
-]
+const auth = useAuth()
+const allUsers = ref([])
 const selectedUsers = ref([])
 const isUserDropdownOpen = ref(false)
 const licenseOption = ref('trial')
@@ -467,15 +463,25 @@ const newServer = ref({
   sshPort: ''
 })
 
+const usersById = computed(() => {
+  const map = new Map()
+  allUsers.value.forEach((user) => {
+    map.set(user.id, user)
+  })
+  return map
+})
+
 const availableUsers = computed(() =>
-  allUsers.filter((user) => !selectedUsers.value.includes(user))
+  allUsers.value.filter((user) => !selectedUsers.value.includes(user.id))
 )
 
 const filteredAvailableUsers = computed(() => {
   const query = userSearch.value.trim().toLowerCase()
   const list = availableUsers.value
   if (!query) return list
-  return list.filter((user) => user.toLowerCase().includes(query))
+  return list.filter((user) =>
+    getUserLabel(user).toLowerCase().includes(query)
+  )
 })
 
 const confirmTitle = computed(() => {
@@ -555,7 +561,9 @@ const openEditServer = (server) => {
     password: server.password || '',
     sshPort: server.sshPort || ''
   }
-  selectedUsers.value = server.managedUsers ? [...server.managedUsers] : []
+  selectedUsers.value = server.managedUserIds
+    ? [...server.managedUserIds]
+    : []
   userSearch.value = ''
   isUserDropdownOpen.value = false
   isEditServerDialogOpen.value = true
@@ -575,14 +583,14 @@ const toggleUserDropdown = () => {
 }
 
 const addUser = (user) => {
-  if (selectedUsers.value.includes(user)) return
-  selectedUsers.value = [...selectedUsers.value, user]
+  if (selectedUsers.value.includes(user.id)) return
+  selectedUsers.value = [...selectedUsers.value, user.id]
   userSearch.value = ''
   isUserDropdownOpen.value = false
 }
 
-const removeUser = (user) => {
-  selectedUsers.value = selectedUsers.value.filter((item) => item !== user)
+const removeUser = (userId) => {
+  selectedUsers.value = selectedUsers.value.filter((item) => item !== userId)
 }
 
 const toggleRowMenu = (rowId) => {
@@ -598,18 +606,51 @@ const handleClickOutsideMenu = (event) => {
 const loadServers = async () => {
   try {
     const data = await fetchServers()
-    servers.value = Array.isArray(data)
-      ? data.map((server) => ({ ...server }))
+    const list = Array.isArray(data) ? data.map((server) => ({ ...server })) : []
+    const isAdmin =
+      String(auth.state.user?.role || '').toLowerCase() === 'admin'
+    if (isAdmin) {
+      servers.value = list
+      return
+    }
+    const userId = auth.state.user?.id
+    if (!userId) {
+      servers.value = []
+      return
+    }
+    servers.value = list.filter((server) =>
+      Array.isArray(server.managedUserIds)
+        ? server.managedUserIds.includes(userId)
+        : false
+    )
+  } catch {
+    servers.value = []
+  }
+}
+
+const loadUsers = async () => {
+  try {
+    const data = await fetchUsers()
+    allUsers.value = Array.isArray(data)
+      ? data.filter((user) => user.role === 'User')
       : []
   } catch {
-    servers.value = serverList.map((server) => ({ ...server }))
+    allUsers.value = []
   }
 }
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutsideMenu)
   void loadServers()
+  void loadUsers()
 })
+
+watch(
+  () => auth.state.user,
+  () => {
+    void loadServers()
+  }
+)
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutsideMenu)
@@ -624,6 +665,13 @@ const openLicensePicker = () => {
 const handleLicenseFile = (event) => {
   const file = event.target.files?.[0]
   licenseFileName.value = file ? file.name : ''
+}
+
+const getUserLabel = (user) => user?.name || user?.email || 'Unknown user'
+
+const getUserLabelById = (userId) => {
+  const user = usersById.value.get(userId)
+  return getUserLabel(user)
 }
 
 const formatDate = (date) =>
@@ -641,7 +689,10 @@ const createServer = () => {
     statusLabel: 'Active',
     statusClass: 'active',
     users: selectedUsers.value.length,
-    managedUsers: [...selectedUsers.value],
+    managedUsers: selectedUsers.value
+      .map((id) => usersById.value.get(id)?.name)
+      .filter(Boolean),
+    managedUserIds: [...selectedUsers.value],
     username: newServer.value.username,
     password: newServer.value.password,
     sshPort: newServer.value.sshPort,
@@ -674,17 +725,25 @@ const requestDeleteConfirm = (server) => {
   activeRowMenu.value = null
 }
 
-const applyEditServer = () => {
+const applyEditServer = async () => {
   const index = servers.value.findIndex((item) => item.id === editServerId.value)
   if (index === -1) return
 
   const updatedUsers = [...selectedUsers.value]
+  try {
+    await updateServerUsers(editServerId.value, updatedUsers)
+  } catch {
+    return
+  }
   servers.value[index] = {
     ...servers.value[index],
     name: editServer.value.name || servers.value[index].name,
     ip: editServer.value.ip || servers.value[index].ip,
     users: updatedUsers.length,
-    managedUsers: updatedUsers,
+    managedUsers: updatedUsers
+      .map((id) => usersById.value.get(id)?.name)
+      .filter(Boolean),
+    managedUserIds: updatedUsers,
     username: editServer.value.username,
     password: editServer.value.password,
     sshPort: editServer.value.sshPort
@@ -693,9 +752,9 @@ const applyEditServer = () => {
   closeEditServerDialog()
 }
 
-const handleConfirmDialog = () => {
+const handleConfirmDialog = async () => {
   if (confirmAction.value === 'edit') {
-    applyEditServer()
+    await applyEditServer()
   } else if (confirmAction.value === 'upgrade') {
     handleUpgradeServer()
   } else if (confirmAction.value === 'delete') {

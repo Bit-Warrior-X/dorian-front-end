@@ -8,6 +8,7 @@ const mockUsers = [
     role: 'Admin',
     name: 'Super Admin',
     status: 'Active',
+    id: 1,
   },
   {
     email: 'user@gmail.com',
@@ -15,6 +16,7 @@ const mockUsers = [
     role: 'User',
     name: 'User',
     status: 'Active',
+    id: 2,
   }
 ]
 
@@ -41,6 +43,7 @@ const mockLogin = async ({ email, password }) => {
   return {
     token: 'mock-token',
     user: {
+      id: matchedUser.id,
       email: matchedUser.email,
       role: matchedUser.role,
       name: matchedUser.name

@@ -218,7 +218,9 @@ const isAnalyticsRoute = computed(
 const isRouteActive = (name) => route.name === name
 
 const currentViewTitle = computed(() => route.meta?.title || 'Dashboard')
-const isAdmin = computed(() => auth.state.user?.role === 'Admin')
+const isAdmin = computed(
+  () => String(auth.state.user?.role || '').toLowerCase() === 'admin'
+)
 const displayName = computed(() => auth.state.user?.name || auth.state.user?.email || 'User')
 const userInitials = computed(() => {
   const name = displayName.value.trim()

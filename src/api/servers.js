@@ -10,3 +10,9 @@ export const fetchServers = async () => {
 
   return apiRequest('/servers')
 }
+
+export const updateServerUsers = async (serverId, userIds) =>
+  apiRequest(`/servers/${serverId}/users`, {
+    method: 'PUT',
+    body: JSON.stringify({ userIds }),
+  })
