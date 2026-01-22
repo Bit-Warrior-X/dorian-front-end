@@ -13,7 +13,7 @@
       </button>
     </div>
     <div class="waf-content">
-      <WafWhitelistPanel v-if="activeWafItem === 'whitelist'" />
+      <WafWhitelistPanel v-if="activeWafItem === 'whitelist'" :server-id="serverId" />
       <WafBlacklistPanel v-else-if="activeWafItem === 'blacklist'" />
       <WafIpRepulationPanel v-else-if="activeWafItem === 'ip-repulation'" />
       <WafGeoLocationPanel v-else-if="activeWafItem === 'geo-locations'" />
@@ -43,6 +43,13 @@ import WafSecondFreqLimitPanel from "./WafSecondFreqLimitPanel.vue";
 import WafResponseFreqPanel from "./WafResponseFreqPanel.vue";
 import WafUserAgentPanel from "./WafUserAgentPanel.vue";
 import WafIpRepulationPanel from "./WafIpRepulationPanel.vue";
+
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
+  }
+});
 
 const wafItems = [
   { id: "whitelist", label: "WhiteList" },

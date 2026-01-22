@@ -37,7 +37,7 @@
         </div>
         <div class="tabs-body" :class="{ 'no-outline': activeTab === 'upstream' }">
           <L4DdosDefensePanel v-if="activeTab === 'l4-ddos'" :server-id="selectedServer" />
-          <WafPanel v-else-if="activeTab === 'waf'" />
+          <WafPanel v-else-if="activeTab === 'waf'" :server-id="selectedServer" />
           <UpstreamServersPanel v-else-if="activeTab === 'upstream'" />
           <table v-else class="config-table">
             <thead>

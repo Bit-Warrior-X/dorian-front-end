@@ -139,6 +139,7 @@
                   <span>{{ method }}</span>
                 </label>
               </div>
+              <p v-if="showMethodRequired" class="field-error">Select at least one method</p>
             </div>
           </div>
           <div class="form-field">
@@ -216,115 +217,25 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import {
+  fetchWhitelistRules,
+  createWhitelistRule,
+  updateWhitelistRule,
+  deleteWhitelistRule as deleteWhitelistRuleApi,
+  deleteWhitelistRules
+} from "@/api/wafWhitelist";
+import { useNotifications } from "@/stores/notifications";
 
-const whitelistRules = ref([
-  {
-    id: "rule-1",
-    url: "/api/v1/health",
-    method: "GET",
-    ips: "203.0.113.10, 203.0.113.11",
-    description: "Allow monitoring probes."
-  },
-  {
-    id: "rule-2",
-    url: "/login",
-    method: "POST",
-    ips: "198.51.100.8",
-    description: "Trusted SSO gateway."
-  },
-  {
-    id: "rule-3",
-    url: "/webhooks/*",
-    method: "HEAD",
-    ips: "192.0.2.45",
-    description: "Partner webhook checks."
-  },
-  {
-    id: "rule-4",
-    url: "/api/v1/status",
-    method: "GET",
-    ips: "198.51.100.20",
-    description: "Status endpoint checks."
-  },
-  {
-    id: "rule-5",
-    url: "/api/v1/billing/*",
-    method: "POST",
-    ips: "203.0.113.44, 203.0.113.45",
-    description: "Billing provider callbacks."
-  },
-  {
-    id: "rule-6",
-    url: "/assets/*",
-    method: "GET",
-    ips: "0.0.0.0/0",
-    description: "Public asset delivery."
-  },
-  {
-    id: "rule-7",
-    url: "/auth/token",
-    method: "POST",
-    ips: "192.0.2.88",
-    description: "Internal token service."
-  },
-  {
-    id: "rule-8",
-    url: "/reports/*",
-    method: "GET",
-    ips: "198.51.100.77",
-    description: "Reporting exports."
-  },
-  {
-    id: "rule-9",
-    url: "/api/v1/search",
-    method: "GET",
-    ips: "203.0.113.101",
-    description: "Search engine crawler."
-  },
-  {
-    id: "rule-10",
-    url: "/checkout",
-    method: "POST",
-    ips: "198.51.100.5",
-    description: "Payment gateway."
-  },
-  {
-    id: "rule-11",
-    url: "/notifications/*",
-    method: "PUT",
-    ips: "203.0.113.77",
-    description: "Notification provider."
-  },
-  {
-    id: "rule-12",
-    url: "/api/v1/users/*",
-    method: "PATCH",
-    ips: "192.0.2.120",
-    description: "Identity sync."
-  },
-  {
-    id: "rule-13",
-    url: "/files/upload",
-    method: "POST",
-    ips: "198.51.100.33",
-    description: "Trusted uploader."
-  },
-  {
-    id: "rule-14",
-    url: "/api/v1/metrics",
-    method: "GET",
-    ips: "203.0.113.200",
-    description: "Metrics scrape."
-  },
-  {
-    id: "rule-15",
-    url: "/api/v1/audit/*",
-    method: "GET",
-    ips: "192.0.2.150",
-    description: "Audit logs."
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
   }
-]);
+});
+
+const notifications = useNotifications();
+const whitelistRules = ref([]);
 
 const selectedRuleIds = ref([]);
 
@@ -332,6 +243,7 @@ const methodOptions = ["GET", "POST", "PUT", "DELETE", "HEAD", "PATCH", "OPTIONS
 const isDialogOpen = ref(false);
 const submitAttempted = ref(false);
 const editingRuleId = ref(null);
+const originalForm = ref(null);
 const deleteTarget = ref(null);
 const isBatchConfirmOpen = ref(false);
 const touched = ref({
@@ -351,7 +263,8 @@ const isFormValid = computed(() => {
   return (
     formState.value.ipList.trim().length > 0 &&
     formState.value.url.trim().length > 0 &&
-    formState.value.description.trim().length > 0
+    formState.value.description.trim().length > 0 &&
+    formState.value.methods.length > 0
   );
 });
 
@@ -367,6 +280,10 @@ const showUrlRequired = computed(() => {
     (touched.value.url || submitAttempted.value) &&
     formState.value.url.trim().length === 0
   );
+});
+
+const showMethodRequired = computed(() => {
+  return submitAttempted.value && formState.value.methods.length === 0;
 });
 
 const resetForm = () => {
@@ -390,12 +307,24 @@ const openCreateDialog = () => {
 };
 
 const openEditDialog = (rule) => {
+  const normalizedMethod = rule.method?.trim() || "";
+  const parsedMethods = normalizedMethod
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const methods = parsedMethods;
   formState.value = {
     ipList: rule.ips.split(",").map((ip) => ip.trim()).join("\n"),
     url: rule.url,
-    methods: rule.method.split(",").map((value) => value.trim()).filter(Boolean),
+    methods,
     description: rule.description
   };
+  originalForm.value = JSON.stringify({
+    ipList: formState.value.ipList.trim(),
+    url: formState.value.url.trim(),
+    methods: [...formState.value.methods].sort(),
+    description: formState.value.description.trim()
+  });
   touched.value = {
     ipList: false,
     url: false
@@ -419,22 +348,20 @@ const saveRule = () => {
     .join(", ");
   const payload = {
     url: formState.value.url.trim(),
-    method: formState.value.methods.length ? formState.value.methods.join(", ") : "Any",
+    method: formState.value.methods.join(", "),
     ips: ipString || formState.value.ipList.trim(),
     description: formState.value.description.trim()
   };
-  if (editingRuleId.value) {
-    const index = whitelistRules.value.findIndex((rule) => rule.id === editingRuleId.value);
-    if (index !== -1) {
-      whitelistRules.value[index] = { ...whitelistRules.value[index], ...payload };
-    }
-  } else {
-    whitelistRules.value.unshift({
-      id: `rule-${Date.now()}`,
-      ...payload
-    });
+  if (!props.serverId) return;
+  if (editingRuleId.value && !isRuleDirty(payload)) {
+    closeDialog();
+    return;
   }
-  closeDialog();
+  if (editingRuleId.value) {
+    void updateRule(payload);
+  } else {
+    void createRule(payload);
+  }
 };
 
 const isEditing = computed(() => Boolean(editingRuleId.value));
@@ -450,12 +377,8 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value) return;
-  whitelistRules.value = whitelistRules.value.filter((rule) => rule.id !== deleteTarget.value.id);
-  deleteTarget.value = null;
-  selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
-    whitelistRules.value.some((rule) => rule.id === id)
-  );
+  if (!deleteTarget.value || !props.serverId) return;
+  void handleDeleteRule();
 };
 
 const openBatchConfirm = () => {
@@ -468,13 +391,98 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length) return;
-  whitelistRules.value = whitelistRules.value.filter(
-    (rule) => !selectedRuleIds.value.includes(rule.id)
-  );
-  selectedRuleIds.value = [];
-  isBatchConfirmOpen.value = false;
+  if (!selectedRuleIds.value.length || !props.serverId) return;
+  void handleBatchRemove();
 };
+
+const isRuleDirty = (payload) => {
+  if (!originalForm.value) return true;
+  const current = JSON.stringify({
+    ipList: payload.ips.trim(),
+    url: payload.url.trim(),
+    methods: payload.method.split(",").map((value) => value.trim()).filter(Boolean).sort(),
+    description: payload.description.trim()
+  });
+  return current !== originalForm.value;
+};
+
+
+const loadRules = async () => {
+  if (!props.serverId) {
+    whitelistRules.value = [];
+    return;
+  }
+  try {
+    const data = await fetchWhitelistRules(props.serverId);
+    whitelistRules.value = Array.isArray(data) ? data : [];
+  } catch {
+    whitelistRules.value = [];
+  }
+};
+
+const createRule = async (payload) => {
+  try {
+    await createWhitelistRule(props.serverId, payload);
+    await loadRules();
+    notifications.enqueue("Whitelist rule created.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to create whitelist rule.", "error");
+  }
+};
+
+const updateRule = async (payload) => {
+  try {
+    await updateWhitelistRule(props.serverId, editingRuleId.value, payload);
+    await loadRules();
+    notifications.enqueue("Whitelist rule updated.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to update whitelist rule.", "error");
+  }
+};
+
+const handleDeleteRule = async () => {
+  try {
+    await deleteWhitelistRuleApi(props.serverId, deleteTarget.value.id);
+    await loadRules();
+    notifications.enqueue("Whitelist rule deleted.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to delete whitelist rule.", "error");
+  } finally {
+    deleteTarget.value = null;
+    selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
+      whitelistRules.value.some((rule) => rule.id === id)
+    );
+  }
+};
+
+const handleBatchRemove = async () => {
+  try {
+    await deleteWhitelistRules(props.serverId, selectedRuleIds.value);
+    await loadRules();
+    notifications.enqueue("Whitelist rules removed.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to remove whitelist rules.", "error");
+  } finally {
+    selectedRuleIds.value = [];
+    isBatchConfirmOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  void loadRules();
+});
+
+watch(
+  () => props.serverId,
+  () => {
+    selectedRuleIds.value = [];
+    editingRuleId.value = null;
+    deleteTarget.value = null;
+    void loadRules();
+  }
+);
 </script>
 
 <style scoped>
