@@ -293,7 +293,13 @@ const formState = ref({
 });
 
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
-const isSubmitDisabled = computed(() => !props.serverId || !isFormValid.value);
+const isSubmitDisabled = computed(() => {
+  if (!props.serverId || !isFormValid.value) return true;
+  if (editingRuleId.value) {
+    return !isRuleDirty(buildPayload());
+  }
+  return false;
+});
 
 const isFormValid = computed(() => {
   return (
@@ -381,18 +387,7 @@ const closeDialog = () => {
 const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
-  const ipString = formState.value.ipList
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join(", ");
-  const payload = {
-    url: formState.value.url.trim(),
-    method: formState.value.methods.join(", "),
-    ips: ipString || formState.value.ipList.trim(),
-    behavior: toApiBehavior(formState.value.behavior),
-    description: formState.value.description.trim()
-  };
+  const payload = buildPayload();
   if (!props.serverId) return;
   if (editingRuleId.value && !isRuleDirty(payload)) {
     closeDialog();
@@ -455,6 +450,21 @@ const isRuleDirty = (payload) => {
     description: payload.description.trim()
   });
   return current !== originalForm.value;
+};
+
+const buildPayload = () => {
+  const ipString = formState.value.ipList
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(", ");
+  return {
+    url: formState.value.url.trim(),
+    method: formState.value.methods.join(", "),
+    ips: ipString || formState.value.ipList.trim(),
+    behavior: toApiBehavior(formState.value.behavior),
+    description: formState.value.description.trim()
+  };
 };
 
 const loadRules = async () => {

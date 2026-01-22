@@ -16,7 +16,7 @@
       <WafWhitelistPanel v-if="activeWafItem === 'whitelist'" :server-id="serverId" />
       <WafBlacklistPanel v-else-if="activeWafItem === 'blacklist'" :server-id="serverId" />
       <WafIpRepulationPanel v-else-if="activeWafItem === 'ip-repulation'" />
-      <WafGeoLocationPanel v-else-if="activeWafItem === 'geo-locations'" />
+      <WafGeoLocationPanel v-else-if="activeWafItem === 'geo-locations'" :server-id="serverId" />
       <WafAntiCcPanel v-else-if="activeWafItem === 'anti-cc'" />
       <WafAntiHeaderSettingPanel v-else-if="activeWafItem === 'anti-header-setting'" />
       <WafIntervalFreqLimitPanel v-else-if="activeWafItem === 'interval-freq-limit'" />
