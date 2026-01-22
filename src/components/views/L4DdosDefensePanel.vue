@@ -834,11 +834,33 @@
         </div>
       </div>
     </div>
+    <ConfirmDialog
+      v-model="isConfirmDialogOpen"
+      title="Apply L4 settings"
+      message="Apply L4 defense settings to this server?"
+      confirm-text="Apply"
+      cancel-text="Cancel"
+      @confirm="handleConfirmDialog"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import { fetchL4Config, updateL4Config } from "@/api/l4";
+import ConfirmDialog from "../ConfirmDialog.vue";
+import { useNotifications } from "@/stores/notifications";
+
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
+  }
+});
+
+const notifications = useNotifications();
+const isConfirmDialogOpen = ref(false);
+let pendingConfirmAction = null;
 
 const l4Items = [
   { id: "global-config", label: "Global Config" },
@@ -925,6 +947,8 @@ const geoIpForm = ref({
   enabled: true,
   selectedCountries: ["United States", "Canada", "United Kingdom"],
   activeContinent: "North America",
+  geoDbIpv4Path: "geodb/ipv4.csv",
+  geoDbLocationPath: "geodb/location.csv",
   continents: [
     "Africa",
     "Asia",
@@ -1239,32 +1263,216 @@ const filteredGeoCountries = computed(() => {
 });
 
 const confirmSynSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
 const confirmGlobalSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
 const confirmAckSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
 const confirmRstSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
 const confirmIcmpSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
 const confirmUdpSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
 const confirmGreSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
 const confirmTcpDetailedSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
 const confirmGeoIpSettings = () => {
-  // Placeholder: wire up API call or store update when available.
+  openConfirmDialog();
 };
+
+const loadConfig = async () => {
+  if (!props.serverId) return;
+  try {
+    const data = await fetchL4Config(props.serverId);
+    applyConfig(data);
+  } catch {
+    // ignore for now
+  }
+};
+
+const applyConfig = (config) => {
+  if (!config) return;
+  globalForm.value.ethInterface = config.dev || "eth0";
+  globalForm.value.attachMode = config.attachMode || "skb";
+  globalForm.value.sensitivity = config.sensitivity || "Medium";
+  globalForm.value.protectionMode = config.protectionMode || "Always On";
+  globalForm.value.blockDuration = String(config.blackIpDuration ?? "3600");
+
+  synForm.value.enabled = Boolean(config.synValid);
+  synForm.value.threshold = String(config.synThreshold ?? "");
+  synForm.value.burstPkt = String(config.synBurstPkt ?? "");
+  synForm.value.burstCounter = String(config.synBurstCountPerSec ?? "");
+  synForm.value.fixedThreshold = String(config.synFixedThreshold ?? "");
+  synForm.value.fixedDuration = String(config.synFixedCheckDuration ?? "");
+  synForm.value.challengeTimeout = String(config.challengeTimeout ?? "");
+  synForm.value.blockDuration = String(config.synProtectionDuration ?? "");
+
+  ackForm.value.enabled = Boolean(config.ackValid);
+  ackForm.value.threshold = String(config.ackThreshold ?? "");
+  ackForm.value.burstPkt = String(config.ackBurstPkt ?? "");
+  ackForm.value.burstCounter = String(config.ackBurstCountPerSec ?? "");
+  ackForm.value.fixedThreshold = String(config.ackFixedThreshold ?? "");
+  ackForm.value.fixedDuration = String(config.ackFixedCheckDuration ?? "");
+  ackForm.value.blockDuration = String(config.ackProtectionDuration ?? "");
+
+  rstForm.value.enabled = Boolean(config.rstValid);
+  rstForm.value.threshold = String(config.rstThreshold ?? "");
+  rstForm.value.burstPkt = String(config.rstBurstPkt ?? "");
+  rstForm.value.burstCounter = String(config.rstBurstCountPerSec ?? "");
+  rstForm.value.fixedThreshold = String(config.rstFixedThreshold ?? "");
+  rstForm.value.fixedDuration = String(config.rstFixedCheckDuration ?? "");
+  rstForm.value.blockDuration = String(config.rstProtectionDuration ?? "");
+
+  icmpForm.value.enabled = Boolean(config.icmpValid);
+  icmpForm.value.threshold = String(config.icmpThreshold ?? "");
+  icmpForm.value.burstPkt = String(config.icmpBurstPkt ?? "");
+  icmpForm.value.burstCounter = String(config.icmpBurstCountPerSec ?? "");
+  icmpForm.value.fixedThreshold = String(config.icmpFixedThreshold ?? "");
+  icmpForm.value.fixedDuration = String(config.icmpFixedCheckDuration ?? "");
+  icmpForm.value.blockDuration = String(config.icmpProtectionDuration ?? "");
+
+  udpForm.value.enabled = Boolean(config.udpValid);
+  udpForm.value.threshold = String(config.udpThreshold ?? "");
+  udpForm.value.burstPkt = String(config.udpBurstPkt ?? "");
+  udpForm.value.burstCounter = String(config.udpBurstCountPerSec ?? "");
+  udpForm.value.fixedThreshold = String(config.udpFixedThreshold ?? "");
+  udpForm.value.fixedDuration = String(config.udpFixedCheckDuration ?? "");
+  udpForm.value.blockDuration = String(config.udpProtectionDuration ?? "");
+
+  greForm.value.enabled = Boolean(config.greValid);
+  greForm.value.threshold = String(config.greThreshold ?? "");
+  greForm.value.burstPkt = String(config.greBurstPkt ?? "");
+  greForm.value.burstCounter = String(config.greBurstCountPerSec ?? "");
+  greForm.value.fixedThreshold = String(config.greFixedThreshold ?? "");
+  greForm.value.fixedDuration = String(config.greFixedCheckDuration ?? "");
+  greForm.value.blockDuration = String(config.greProtectionDuration ?? "");
+
+  tcpDetailedForm.value.connectionLimitEnabled = Boolean(config.tcpConnectionLimitCheck);
+  tcpDetailedForm.value.connectionLimit = config.tcpConnectionLimitCnt ?? 0;
+  tcpDetailedForm.value.segmentationCheck = Boolean(config.tcpSegCheck);
+
+  geoIpForm.value.enabled = Boolean(config.geoCheck);
+  geoIpForm.value.geoDbIpv4Path = config.geoDbIpv4Path || "geodb/ipv4.csv";
+  geoIpForm.value.geoDbLocationPath = config.geoDbLocationPath || "geodb/location.csv";
+  geoIpForm.value.selectedCountries = Array.isArray(config.geoAllowCountries)
+    ? config.geoAllowCountries
+    : [];
+};
+
+const saveConfig = async () => {
+  if (!props.serverId) return;
+  try {
+    await updateL4Config(props.serverId, buildPayload());
+    notifications.enqueue("L4 settings updated.", "success");
+  } catch {
+    notifications.enqueue("Failed to update L4 settings.", "error");
+  }
+};
+
+const openConfirmDialog = () => {
+  pendingConfirmAction = saveConfig;
+  isConfirmDialogOpen.value = true;
+};
+
+const handleConfirmDialog = async () => {
+  if (pendingConfirmAction) {
+    await pendingConfirmAction();
+  }
+  pendingConfirmAction = null;
+};
+
+const buildPayload = () => ({
+  dev: globalForm.value.ethInterface,
+  attachMode: globalForm.value.attachMode,
+  sensitivity: globalForm.value.sensitivity,
+  protectionMode: globalForm.value.protectionMode,
+  blackIpDuration: parseNumber(globalForm.value.blockDuration, 3600),
+  synValid: Boolean(synForm.value.enabled),
+  synThreshold: parseNumber(synForm.value.threshold, 0),
+  synBurstPkt: parseNumber(synForm.value.burstPkt, 0),
+  synBurstCountPerSec: parseNumber(synForm.value.burstCounter, 0),
+  synFixedThreshold: parseNumber(synForm.value.fixedThreshold, 0),
+  synFixedCheckDuration: parseNumber(synForm.value.fixedDuration, 0),
+  challengeTimeout: parseNumber(synForm.value.challengeTimeout, 0),
+  synProtectionDuration: parseNumber(synForm.value.blockDuration, 0),
+  ackValid: Boolean(ackForm.value.enabled),
+  ackThreshold: parseNumber(ackForm.value.threshold, 0),
+  ackBurstPkt: parseNumber(ackForm.value.burstPkt, 0),
+  ackBurstCountPerSec: parseNumber(ackForm.value.burstCounter, 0),
+  ackFixedThreshold: parseNumber(ackForm.value.fixedThreshold, 0),
+  ackFixedCheckDuration: parseNumber(ackForm.value.fixedDuration, 0),
+  ackProtectionDuration: parseNumber(ackForm.value.blockDuration, 0),
+  rstValid: Boolean(rstForm.value.enabled),
+  rstThreshold: parseNumber(rstForm.value.threshold, 0),
+  rstBurstPkt: parseNumber(rstForm.value.burstPkt, 0),
+  rstBurstCountPerSec: parseNumber(rstForm.value.burstCounter, 0),
+  rstFixedThreshold: parseNumber(rstForm.value.fixedThreshold, 0),
+  rstFixedCheckDuration: parseNumber(rstForm.value.fixedDuration, 0),
+  rstProtectionDuration: parseNumber(rstForm.value.blockDuration, 0),
+  icmpValid: Boolean(icmpForm.value.enabled),
+  icmpThreshold: parseNumber(icmpForm.value.threshold, 0),
+  icmpBurstPkt: parseNumber(icmpForm.value.burstPkt, 0),
+  icmpBurstCountPerSec: parseNumber(icmpForm.value.burstCounter, 0),
+  icmpFixedThreshold: parseNumber(icmpForm.value.fixedThreshold, 0),
+  icmpFixedCheckDuration: parseNumber(icmpForm.value.fixedDuration, 0),
+  icmpProtectionDuration: parseNumber(icmpForm.value.blockDuration, 0),
+  udpValid: Boolean(udpForm.value.enabled),
+  udpThreshold: parseNumber(udpForm.value.threshold, 0),
+  udpBurstPkt: parseNumber(udpForm.value.burstPkt, 0),
+  udpBurstCountPerSec: parseNumber(udpForm.value.burstCounter, 0),
+  udpFixedThreshold: parseNumber(udpForm.value.fixedThreshold, 0),
+  udpFixedCheckDuration: parseNumber(udpForm.value.fixedDuration, 0),
+  udpProtectionDuration: parseNumber(udpForm.value.blockDuration, 0),
+  greValid: Boolean(greForm.value.enabled),
+  greThreshold: parseNumber(greForm.value.threshold, 0),
+  greBurstPkt: parseNumber(greForm.value.burstPkt, 0),
+  greBurstCountPerSec: parseNumber(greForm.value.burstCounter, 0),
+  greFixedThreshold: parseNumber(greForm.value.fixedThreshold, 0),
+  greFixedCheckDuration: parseNumber(greForm.value.fixedDuration, 0),
+  greProtectionDuration: parseNumber(greForm.value.blockDuration, 0),
+  tcpSegCheck: Boolean(tcpDetailedForm.value.segmentationCheck),
+  geoCheck: Boolean(geoIpForm.value.enabled),
+  geoDbIpv4Path: geoIpForm.value.geoDbIpv4Path,
+  geoDbLocationPath: geoIpForm.value.geoDbLocationPath,
+  geoAllowCountries: [...geoIpForm.value.selectedCountries],
+  tcpConnectionLimitCheck: Boolean(tcpDetailedForm.value.connectionLimitEnabled),
+  tcpConnectionLimitCnt: parseNumber(tcpDetailedForm.value.connectionLimit, 0)
+});
+
+const parseNumber = (value, fallback) => {
+  if (value === null || value === undefined) return fallback;
+  const raw = String(value).trim().toLowerCase();
+  if (!raw) return fallback;
+  let multiplier = 1;
+  if (raw.includes("k")) multiplier = 1000;
+  if (raw.includes("m")) multiplier = 1000000;
+  const match = raw.match(/[\d.]+/);
+  if (!match) return fallback;
+  const parsed = Number(match[0]);
+  if (Number.isNaN(parsed)) return fallback;
+  return Math.round(parsed * multiplier);
+};
+
+onMounted(() => {
+  void loadConfig();
+});
+
+watch(
+  () => props.serverId,
+  () => {
+    void loadConfig();
+  }
+);
 </script>
 
 <style scoped>
@@ -1273,6 +1481,7 @@ const confirmGeoIpSettings = () => {
   grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
   min-height: 260px;
 }
+
 
 .l4-list {
   border-right: 1px solid rgba(226, 232, 240, 0.9);

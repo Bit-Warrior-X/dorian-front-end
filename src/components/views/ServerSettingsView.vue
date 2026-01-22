@@ -3,7 +3,11 @@
     <div class="content-card filter-card">
       <div class="filter-row">
         <label class="filter-label" for="server-settings-target">Target server</label>
-        <select id="server-settings-target" class="filter-select" v-model="selectedServer">
+        <select
+          id="server-settings-target"
+          class="filter-select"
+          v-model.number="selectedServer"
+        >
           <option disabled value="">Select a server</option>
           <option v-for="server in serverOptions" :key="server.id" :value="server.id">
             {{ server.name || server.ip || `Server #${server.id}` }}
@@ -32,7 +36,7 @@
           </button>
         </div>
         <div class="tabs-body" :class="{ 'no-outline': activeTab === 'upstream' }">
-          <L4DdosDefensePanel v-if="activeTab === 'l4-ddos'" />
+          <L4DdosDefensePanel v-if="activeTab === 'l4-ddos'" :server-id="selectedServer" />
           <WafPanel v-else-if="activeTab === 'waf'" />
           <UpstreamServersPanel v-else-if="activeTab === 'upstream'" />
           <table v-else class="config-table">
