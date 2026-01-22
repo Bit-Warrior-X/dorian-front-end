@@ -64,7 +64,14 @@
                   {{ server.statusLabel }}
                 </span>
               </td>
-              <td>{{ server.users }}</td>
+              <td>
+                <div v-if="server.managedUsers?.length" class="server-users">
+                  <span v-for="user in server.managedUsers" :key="user" class="server-user-pill">
+                    {{ user }}
+                  </span>
+                </div>
+                <span v-else class="muted-text">—</span>
+              </td>
               <td>{{ server.license }}</td>
               <td>{{ server.version }}</td>
               <td>{{ server.expiredDate }}</td>
@@ -1032,6 +1039,22 @@ const nextPage = () => {
 .status-pill.maintenance {
   background: rgba(245, 158, 11, 0.18);
   color: #b45309;
+}
+
+.server-users {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.server-user-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1e3a8a;
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  border: 1px solid rgba(165, 180, 252, 0.7);
 }
 
 .icon-btn {
