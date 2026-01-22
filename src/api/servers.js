@@ -16,3 +16,20 @@ export const updateServerUsers = async (serverId, userIds) =>
     method: 'PUT',
     body: JSON.stringify({ userIds }),
   })
+
+export const createServer = async (payload) =>
+  apiRequest('/servers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const updateServer = async (serverId, payload) =>
+  apiRequest(`/servers/${serverId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+
+export const deleteServer = async (serverId) =>
+  apiRequest(`/servers/${serverId}`, {
+    method: 'DELETE',
+  })

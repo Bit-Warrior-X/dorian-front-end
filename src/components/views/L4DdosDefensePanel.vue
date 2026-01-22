@@ -15,11 +15,91 @@
     <div class="l4-settings">
       <div class="l4-settings-header">
         <h4>{{ activeL4Data.label }}</h4>
-        <span v-if="!isSynFloodActive" class="value-pill" :class="{ on: activeL4Data.enabled }">
-          {{ activeL4Data.enabled ? "Enabled" : "Disabled" }}
-        </span>
       </div>
-      <div v-if="isSynFloodActive" class="l4-form">
+      <div v-if="isGlobalConfigActive" class="l4-form">
+        <div class="l4-form-sections">
+          <div class="l4-section">
+            <div class="l4-form-grid">
+              <div class="l4-field">
+                <label for="global-protection-mode">Protection Mode</label>
+                <select
+                  id="global-protection-mode"
+                  v-model="globalForm.protectionMode"
+                  class="l4-input"
+                  :disabled="!globalForm.enabled"
+                >
+                  <option value="Always On">Always On</option>
+                  <option value="Monitor">Monitor</option>
+                </select>
+              </div>
+              <div class="l4-field">
+                <label for="global-sensitivity">Sensitivity</label>
+                <select
+                  id="global-sensitivity"
+                  v-model="globalForm.sensitivity"
+                  class="l4-input"
+                  :disabled="!globalForm.enabled"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="l4-section">
+            <div class="l4-form-grid">
+              <div class="l4-field">
+                <label for="global-eth-interface">Eth Interface</label>
+                <input
+                  id="global-eth-interface"
+                  v-model="globalForm.ethInterface"
+                  type="text"
+                  class="l4-input"
+                  :disabled="!globalForm.enabled"
+                />
+              </div>
+              <div class="l4-field">
+                <label for="global-attach-mode">Attach Mode</label>
+                <select
+                  id="global-attach-mode"
+                  v-model="globalForm.attachMode"
+                  class="l4-input"
+                  :disabled="!globalForm.enabled"
+                >
+                  <option value="skb">skb</option>
+                  <option value="native">native</option>
+                  <option value="drv">drv</option>
+                  <option value="hw">hw</option>
+                </select>
+              </div>
+              <div class="l4-field">
+                <label for="global-block-duration">Block Duration</label>
+                <input
+                  id="global-block-duration"
+                  v-model="globalForm.blockDuration"
+                  type="text"
+                  class="l4-input"
+                  :disabled="!globalForm.enabled"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="confirm-btn" @click="confirmGlobalSettings">
+          Confirm Settings
+        </button>
+        <div class="l4-description tcp-detailed-description">
+          <ul>
+            <li><strong>Protection Mode:</strong> Defines the operational mode of the defense system.</li>
+            <li><strong>Sensitivity:</strong> Adjusts the aggressiveness of threat detection.</li>
+            <li><strong>Ethernet Interface:</strong> Specifies the network interface to be protected.</li>
+            <li><strong>Attach Mode:</strong> Determines how the eBPF/XDP protection hook is deployed to the interface.</li>
+            <li><strong>Block Duration:</strong> Sets the temporary block time for IP addresses flagged as malicious.</li>
+          </ul>
+        </div>
+      </div>
+      <div v-else-if="isSynFloodActive" class="l4-form">
         <button
           type="button"
           class="l4-toggle"
@@ -110,20 +190,6 @@
               </div>
             </div>
           </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="syn-block-duration">Block Duration</label>
-                <input
-                  id="syn-block-duration"
-                  v-model="synForm.blockDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!synForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
         </div>
         <button type="button" class="confirm-btn" @click="confirmSynSettings">
           Confirm Settings
@@ -199,20 +265,6 @@
                 <input
                   id="ack-fixed-threshold"
                   v-model="ackForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!ackForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="ack-block-duration">Block Duration</label>
-                <input
-                  id="ack-block-duration"
-                  v-model="ackForm.blockDuration"
                   type="text"
                   class="l4-input"
                   :disabled="!ackForm.enabled"
@@ -302,20 +354,6 @@
               </div>
             </div>
           </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="rst-block-duration">Block Duration</label>
-                <input
-                  id="rst-block-duration"
-                  v-model="rstForm.blockDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!rstForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
         </div>
         <button type="button" class="confirm-btn" @click="confirmRstSettings">
           Confirm Settings
@@ -391,20 +429,6 @@
                 <input
                   id="icmp-fixed-threshold"
                   v-model="icmpForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!icmpForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="icmp-block-duration">Block Duration</label>
-                <input
-                  id="icmp-block-duration"
-                  v-model="icmpForm.blockDuration"
                   type="text"
                   class="l4-input"
                   :disabled="!icmpForm.enabled"
@@ -494,20 +518,6 @@
               </div>
             </div>
           </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="udp-block-duration">Block Duration</label>
-                <input
-                  id="udp-block-duration"
-                  v-model="udpForm.blockDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!udpForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
         </div>
         <button type="button" class="confirm-btn" @click="confirmUdpSettings">
           Confirm Settings
@@ -583,20 +593,6 @@
                 <input
                   id="gre-fixed-threshold"
                   v-model="greForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!greForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="gre-block-duration">Block Duration</label>
-                <input
-                  id="gre-block-duration"
-                  v-model="greForm.blockDuration"
                   type="text"
                   class="l4-input"
                   :disabled="!greForm.enabled"
@@ -766,15 +762,11 @@
           <span class="l4-setting-value">{{ activeL4Data.note }}</span>
         </div>
       </div>
-      <div v-if="!isTcpDetailedConfigActive && !isGeoIpCheckActive" class="l4-description">
+      <div v-if="!isTcpDetailedConfigActive && !isGeoIpCheckActive && !isGlobalConfigActive" class="l4-description">
         <p>
           DDoS detection runs on a 1-second sampling window. When traffic exceeds the configured
           threshold, protection mode activates and evaluates burst and fixed rules. If traffic
           stays below the threshold, protection mode exits and rule checks stop.
-        </p>
-        <p>
-          Blacklisted IPs are automatically removed after the configured expiry (for example,
-          <code>black_ip_duration = 3600s</code>).
         </p>
         <div class="l4-description-group">
           <h5>Burst Mode &amp; Fixed Mode</h5>
@@ -791,7 +783,10 @@
             </li>
           </ul>
         </div>
-        <div v-if="activeL4Item === 'syn-flood'" class="l4-description-group">
+        <div v-if="activeL4Item === 'global-config'" class="l4-description-group">
+          <h5>Global</h5>
+        </div>
+        <div v-else-if="activeL4Item === 'syn-flood'" class="l4-description-group">
           <h5>SYN Flood Extra Logic</h5>
           <ul>
             <li>Discard the first SYN.</li>
@@ -846,6 +841,7 @@
 import { ref, computed } from "vue";
 
 const l4Items = [
+  { id: "global-config", label: "Global Config" },
   { id: "syn-flood", label: "TCP SYN Flood" },
   { id: "ack-flood", label: "TCP ACK Flood" },
   { id: "rst-flood", label: "TCP RST Flood" },
@@ -857,6 +853,14 @@ const l4Items = [
 ];
 
 const activeL4Item = ref(l4Items[0].id);
+const globalForm = ref({
+  enabled: true,
+  protectionMode: "Always On",
+  sensitivity: "Medium",
+  ethInterface: "eth0",
+  attachMode: "skb",
+  blockDuration: "3600s"
+});
 const synForm = ref({
   enabled: true,
   threshold: "8k pps",
@@ -1143,6 +1147,14 @@ const geoIpForm = ref({
 });
 
 const l4Settings = {
+  "global-config": {
+    label: "Global Config",
+    enabled: true,
+    sensitivity: "Medium",
+    threshold: "Adaptive",
+    action: "Auto protect",
+    note: "Base L4 protection profile for all services."
+  },
   "syn-flood": {
     label: "TCP SYN Flood",
     enabled: true,
@@ -1210,6 +1222,7 @@ const l4Settings = {
 };
 
 const activeL4Data = computed(() => l4Settings[activeL4Item.value] || l4Settings["syn-flood"]);
+const isGlobalConfigActive = computed(() => activeL4Item.value === "global-config");
 const isSynFloodActive = computed(() => activeL4Item.value === "syn-flood");
 const isAckFloodActive = computed(() => activeL4Item.value === "ack-flood");
 const isRstFloodActive = computed(() => activeL4Item.value === "rst-flood");
@@ -1226,6 +1239,9 @@ const filteredGeoCountries = computed(() => {
 });
 
 const confirmSynSettings = () => {
+  // Placeholder: wire up API call or store update when available.
+};
+const confirmGlobalSettings = () => {
   // Placeholder: wire up API call or store update when available.
 };
 const confirmAckSettings = () => {

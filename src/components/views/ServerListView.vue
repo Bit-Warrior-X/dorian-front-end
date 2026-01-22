@@ -1,5 +1,15 @@
 <template>
   <div class="servers-view">
+    <div class="toast-stack">
+      <div
+        v-for="note in notifications"
+        :key="note.id"
+        class="toast"
+        :class="note.type"
+      >
+        {{ note.message }}
+      </div>
+    </div>
 
     <div class="content-card">
       <div class="filter-header">
@@ -433,12 +443,19 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
-import { fetchServers, updateServerUsers } from '@/api/servers'
+import {
+  createServer as createServerApi,
+  fetchServers,
+  deleteServer,
+  updateServer,
+  updateServerUsers,
+} from '@/api/servers'
 import { fetchUsers } from '@/api/users'
 import { useAuth } from '@/stores/auth'
 
 const isNewServerDialogOpen = ref(false)
 const auth = useAuth()
+const notifications = ref([])
 const allUsers = ref([])
 const selectedUsers = ref([])
 const isUserDropdownOpen = ref(false)
@@ -564,8 +581,8 @@ const openEditServer = (server) => {
   editServer.value = {
     name: server.name,
     ip: server.ip,
-    username: server.username || '',
-    password: server.password || '',
+    username: server.sshUser || '',
+    password: server.sshPassword || '',
     sshPort: server.sshPort || ''
   }
   selectedUsers.value = server.managedUserIds
@@ -674,6 +691,14 @@ const handleLicenseFile = (event) => {
   licenseFileName.value = file ? file.name : ''
 }
 
+const enqueueNotification = (message, type = 'success') => {
+  const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  notifications.value = [...notifications.value, { id, message, type }]
+  setTimeout(() => {
+    notifications.value = notifications.value.filter((note) => note.id !== id)
+  }, 3500)
+}
+
 const getUserLabel = (user) => user?.name || user?.email || 'Unknown user'
 
 const getUserLabelById = (userId) => {
@@ -684,32 +709,29 @@ const getUserLabelById = (userId) => {
 const formatDate = (date) =>
   date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
 
-const createServer = () => {
-  const createdDate = formatDate(new Date())
-  const newId = `${newServer.value.name || 'server'}-${Date.now()}`.toLowerCase()
-  const licenseLabel = licenseOption.value === 'trial' ? 'Trial' : 'Licensed'
+const createServer = async () => {
+  const payload = {
+    name: newServer.value.name?.trim() || '',
+    ip: newServer.value.ip?.trim() || '',
+    status: 'Normal',
+    licenseType: licenseOption.value === 'trial' ? 'Trial' : 'Enterprise',
+    licenseFile: licenseFileName.value || '',
+    version: '',
+    sshUser: newServer.value.username?.trim() || '',
+    sshPassword: newServer.value.password?.trim() || '',
+    sshPort: newServer.value.sshPort?.toString().trim() || '',
+    userIds: [...selectedUsers.value],
+  }
 
-  servers.value.unshift({
-    id: newId,
-    name: newServer.value.name || 'New Server',
-    ip: newServer.value.ip || '0.0.0.0',
-    statusLabel: 'Active',
-    statusClass: 'active',
-    users: selectedUsers.value.length,
-    managedUsers: selectedUsers.value
-      .map((id) => usersById.value.get(id)?.name)
-      .filter(Boolean),
-    managedUserIds: [...selectedUsers.value],
-    username: newServer.value.username,
-    password: newServer.value.password,
-    sshPort: newServer.value.sshPort,
-    license: licenseLabel,
-    expiredDate: licenseOption.value === 'trial' ? '30 days' : 'TBD',
-    created: createdDate
-  })
-
-  currentPage.value = 1
-  closeNewServerDialog()
+  try {
+    await createServerApi(payload)
+    await loadServers()
+    enqueueNotification('Server created successfully.', 'success')
+    currentPage.value = 1
+    closeNewServerDialog()
+  } catch (error) {
+    enqueueNotification(error?.message || 'Failed to create server.', 'error')
+  }
 }
 
 const requestEditConfirm = () => {
@@ -738,8 +760,16 @@ const applyEditServer = async () => {
 
   const updatedUsers = [...selectedUsers.value]
   try {
+    await updateServer(editServerId.value, {
+      name: editServer.value.name || servers.value[index].name,
+      ip: editServer.value.ip || servers.value[index].ip,
+      sshUser: editServer.value.username || '',
+      sshPassword: editServer.value.password || '',
+      sshPort: editServer.value.sshPort?.toString().trim() || '',
+    })
     await updateServerUsers(editServerId.value, updatedUsers)
   } catch {
+    enqueueNotification('Failed to update server.', 'error')
     return
   }
   servers.value[index] = {
@@ -751,11 +781,12 @@ const applyEditServer = async () => {
       .map((id) => usersById.value.get(id)?.name)
       .filter(Boolean),
     managedUserIds: updatedUsers,
-    username: editServer.value.username,
-    password: editServer.value.password,
+    sshUser: editServer.value.username,
+    sshPassword: editServer.value.password,
     sshPort: editServer.value.sshPort
   }
 
+  enqueueNotification('Server updated successfully.', 'success')
   closeEditServerDialog()
 }
 
@@ -781,11 +812,17 @@ const handleUpgradeServer = () => {
   // Placeholder for upgrade action; integrate API call here when available.
 }
 
-const handleDeleteServer = () => {
+const handleDeleteServer = async () => {
   if (!confirmTarget.value) return
-  servers.value = servers.value.filter((item) => item.id !== confirmTarget.value.id)
-  if (currentPage.value > totalPages.value) {
-    currentPage.value = totalPages.value
+  try {
+    await deleteServer(confirmTarget.value.id)
+    await loadServers()
+    enqueueNotification('Server deleted successfully.', 'success')
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value
+    }
+  } catch (error) {
+    enqueueNotification(error?.message || 'Failed to delete server.', 'error')
   }
 }
 
@@ -804,6 +841,41 @@ const nextPage = () => {
   flex-direction: column;
   gap: 24px;
   min-height: 100%;
+}
+
+.toast-stack {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1200;
+}
+
+.toast {
+  min-width: 240px;
+  max-width: 360px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.toast.success {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(236, 253, 245, 0.95);
+  color: #065f46;
+}
+
+.toast.error {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(254, 242, 242, 0.95);
+  color: #b91c1c;
 }
 .servers-table-card {
   flex: 1;

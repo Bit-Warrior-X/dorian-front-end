@@ -6,7 +6,7 @@
         <select id="server-settings-target" class="filter-select" v-model="selectedServer">
           <option disabled value="">Select a server</option>
           <option v-for="server in serverOptions" :key="server.id" :value="server.id">
-            {{ server.name }}
+            {{ server.name || server.ip || `Server #${server.id}` }}
           </option>
         </select>
         <div v-if="selectedServerData" class="filter-meta">
@@ -63,17 +63,30 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import { serverList } from "@/data/servers";
+import { ref, computed, onMounted } from "vue";
+import { fetchServers } from "@/api/servers";
 import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
 import WafPanel from "./WafPanel.vue";
 import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 
-const serverOptions = serverList;
-const selectedServer = ref(serverOptions[0]?.id || "");
+const serverOptions = ref([]);
+const selectedServer = ref("");
 const selectedServerData = computed(() =>
-  serverOptions.find((server) => server.id === selectedServer.value)
+  serverOptions.value.find((server) => server.id === selectedServer.value)
 );
+
+const loadServers = async () => {
+  try {
+    const data = await fetchServers();
+    serverOptions.value = Array.isArray(data) ? data : [];
+  } catch {
+    serverOptions.value = [];
+  }
+
+  if (!selectedServer.value && serverOptions.value.length) {
+    selectedServer.value = serverOptions.value[0].id;
+  }
+};
 
 const getServerInfoRows = () => {
   const server = selectedServerData.value;
@@ -81,7 +94,7 @@ const getServerInfoRows = () => {
   const license = server?.license || "-";
   const users = server?.users ?? "-";
   const sshPort = server?.sshPort || "-";
-  const username = server?.username || "-";
+  const username = server?.sshUser || "-";
 
   return [
     { name: "Server name", value: server?.name || "-", note: "Display name for this server." },
@@ -139,6 +152,10 @@ const activeConfigRows = computed(() => {
   if (!active) return [];
   if (active.id !== "info") return active.rows;
   return getServerInfoRows();
+});
+
+onMounted(() => {
+  void loadServers();
 });
 </script>
 
