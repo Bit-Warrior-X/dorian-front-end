@@ -14,7 +14,7 @@
     </div>
     <div class="waf-content">
       <WafWhitelistPanel v-if="activeWafItem === 'whitelist'" :server-id="serverId" />
-      <WafBlacklistPanel v-else-if="activeWafItem === 'blacklist'" />
+      <WafBlacklistPanel v-else-if="activeWafItem === 'blacklist'" :server-id="serverId" />
       <WafIpRepulationPanel v-else-if="activeWafItem === 'ip-repulation'" />
       <WafGeoLocationPanel v-else-if="activeWafItem === 'geo-locations'" />
       <WafAntiCcPanel v-else-if="activeWafItem === 'anti-cc'" />

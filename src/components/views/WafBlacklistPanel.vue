@@ -140,6 +140,7 @@
                   <span>{{ method }}</span>
                 </label>
               </div>
+              <p v-if="showMethodRequired" class="field-error">Select at least one method</p>
             </div>
           </div>
           <div class="form-field">
@@ -167,17 +168,17 @@
                 <button
                   type="button"
                   class="option-btn"
-                  :class="{ active: formState.behavior === 'Drop + Black' }"
-                  @click="formState.behavior = 'Drop + Black'"
+                  :class="{ active: formState.behavior === 'Drop + Block' }"
+                  @click="formState.behavior = 'Drop + Block'"
                 >
-                  Drop + Black
+                  Drop + Block
                 </button>
               </div>
             </div>
           </div>
           <div class="form-field">
             <label for="blacklist-desc">
-              Description <span class="required">*</span>
+              Description
             </label>
             <div class="field-control">
               <textarea
@@ -194,7 +195,7 @@
           <button type="button" class="secondary-btn" @click="closeDialog">
             Cancel
           </button>
-          <button type="button" class="primary-btn" :disabled="!isFormValid" @click="saveRule">
+          <button type="button" class="primary-btn" :disabled="isSubmitDisabled" @click="saveRule">
             {{ isEditing ? "Update Rule" : "Save Rule" }}
           </button>
         </div>
@@ -250,50 +251,25 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import {
+  fetchBlacklistRules,
+  createBlacklistRule,
+  updateBlacklistRule,
+  deleteBlacklistRule as deleteBlacklistRuleApi,
+  deleteBlacklistRules
+} from "@/api/wafBlacklist";
+import { useNotifications } from "@/stores/notifications";
 
-const blacklistRules = ref([
-  {
-    id: "rule-1",
-    url: "/login",
-    method: "POST",
-    ips: "203.0.113.10",
-    behavior: "Deny",
-    description: "Block repeated login abuse."
-  },
-  {
-    id: "rule-2",
-    url: "/api/v1/search",
-    method: "GET",
-    ips: "198.51.100.200, 198.51.100.201",
-    behavior: "Drop",
-    description: "Scraping IPs."
-  },
-  {
-    id: "rule-3",
-    url: "/admin/*",
-    method: "Any",
-    ips: "192.0.2.45",
-    behavior: "Drop + Black",
-    description: "Unauthorized admin access."
-  },
-  {
-    id: "rule-4",
-    url: "/checkout",
-    method: "POST",
-    ips: "203.0.113.55",
-    behavior: "Deny",
-    description: "Fraud detection."
-  },
-  {
-    id: "rule-5",
-    url: "/api/v1/reports/*",
-    method: "GET",
-    ips: "198.51.100.77",
-    behavior: "Drop",
-    description: "Excessive export requests."
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
   }
-]);
+});
+
+const notifications = useNotifications();
+const blacklistRules = ref([]);
 
 const selectedRuleIds = ref([]);
 
@@ -301,6 +277,7 @@ const methodOptions = ["GET", "POST", "PUT", "DELETE", "HEAD", "PATCH", "OPTIONS
 const isDialogOpen = ref(false);
 const submitAttempted = ref(false);
 const editingRuleId = ref(null);
+const originalForm = ref(null);
 const deleteTarget = ref(null);
 const isBatchConfirmOpen = ref(false);
 const touched = ref({
@@ -316,13 +293,14 @@ const formState = ref({
 });
 
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
+const isSubmitDisabled = computed(() => !props.serverId || !isFormValid.value);
 
 const isFormValid = computed(() => {
   return (
     formState.value.ipList.trim().length > 0 &&
     formState.value.url.trim().length > 0 &&
-    formState.value.behavior.trim().length > 0 &&
-    formState.value.description.trim().length > 0
+    formState.value.methods.length > 0 &&
+    formState.value.behavior.trim().length > 0
   );
 });
 
@@ -338,6 +316,10 @@ const showUrlRequired = computed(() => {
     (touched.value.url || submitAttempted.value) &&
     formState.value.url.trim().length === 0
   );
+});
+
+const showMethodRequired = computed(() => {
+  return submitAttempted.value && formState.value.methods.length === 0;
 });
 
 const resetForm = () => {
@@ -362,13 +344,27 @@ const openCreateDialog = () => {
 };
 
 const openEditDialog = (rule) => {
+  const normalizedMethod = rule.method?.trim() || "";
+  const parsedMethods = normalizedMethod
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const methods =
+    normalizedMethod.toLowerCase() === "any" ? [...methodOptions] : parsedMethods;
   formState.value = {
     ipList: rule.ips.split(",").map((ip) => ip.trim()).join("\n"),
     url: rule.url,
-    methods: rule.method.split(",").map((value) => value.trim()).filter(Boolean),
-    behavior: rule.behavior || "Deny",
+    methods,
+    behavior: toDisplayBehavior(rule.behavior) || "Deny",
     description: rule.description
   };
+  originalForm.value = JSON.stringify({
+    ipList: formState.value.ipList.trim(),
+    url: formState.value.url.trim(),
+    methods: [...formState.value.methods].sort(),
+    behavior: formState.value.behavior,
+    description: formState.value.description.trim()
+  });
   touched.value = {
     ipList: false,
     url: false
@@ -392,23 +388,21 @@ const saveRule = () => {
     .join(", ");
   const payload = {
     url: formState.value.url.trim(),
-    method: formState.value.methods.length ? formState.value.methods.join(", ") : "Any",
+    method: formState.value.methods.join(", "),
     ips: ipString || formState.value.ipList.trim(),
-    behavior: formState.value.behavior,
+    behavior: toApiBehavior(formState.value.behavior),
     description: formState.value.description.trim()
   };
-  if (editingRuleId.value) {
-    const index = blacklistRules.value.findIndex((rule) => rule.id === editingRuleId.value);
-    if (index !== -1) {
-      blacklistRules.value[index] = { ...blacklistRules.value[index], ...payload };
-    }
-  } else {
-    blacklistRules.value.unshift({
-      id: `rule-${Date.now()}`,
-      ...payload
-    });
+  if (!props.serverId) return;
+  if (editingRuleId.value && !isRuleDirty(payload)) {
+    closeDialog();
+    return;
   }
-  closeDialog();
+  if (editingRuleId.value) {
+    void updateRule(payload);
+  } else {
+    void createRule(payload);
+  }
 };
 
 const isEditing = computed(() => Boolean(editingRuleId.value));
@@ -424,12 +418,8 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value) return;
-  blacklistRules.value = blacklistRules.value.filter((rule) => rule.id !== deleteTarget.value.id);
-  deleteTarget.value = null;
-  selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
-    blacklistRules.value.some((rule) => rule.id === id)
-  );
+  if (!deleteTarget.value || !props.serverId) return;
+  void handleDeleteRule();
 };
 
 const openBatchConfirm = () => {
@@ -442,13 +432,111 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length) return;
-  blacklistRules.value = blacklistRules.value.filter(
-    (rule) => !selectedRuleIds.value.includes(rule.id)
-  );
-  selectedRuleIds.value = [];
-  isBatchConfirmOpen.value = false;
+  if (!selectedRuleIds.value.length || !props.serverId) return;
+  void handleBatchRemove();
 };
+
+const toDisplayBehavior = (value) => {
+  if (!value) return "Drop";
+  return value === "Drop+Block" ? "Drop + Block" : value;
+};
+
+const toApiBehavior = (value) => {
+  return value === "Drop + Block" ? "Drop+Block" : value;
+};
+
+const isRuleDirty = (payload) => {
+  if (!originalForm.value) return true;
+  const current = JSON.stringify({
+    ipList: payload.ips.trim(),
+    url: payload.url.trim(),
+    methods: payload.method.split(",").map((value) => value.trim()).filter(Boolean).sort(),
+    behavior: toDisplayBehavior(payload.behavior),
+    description: payload.description.trim()
+  });
+  return current !== originalForm.value;
+};
+
+const loadRules = async () => {
+  if (!props.serverId) {
+    blacklistRules.value = [];
+    return;
+  }
+  try {
+    const data = await fetchBlacklistRules(props.serverId);
+    const list = Array.isArray(data) ? data : [];
+    blacklistRules.value = list.map((rule) => ({
+      ...rule,
+      behavior: toDisplayBehavior(rule.behavior)
+    }));
+  } catch {
+    blacklistRules.value = [];
+  }
+};
+
+const createRule = async (payload) => {
+  try {
+    await createBlacklistRule(props.serverId, payload);
+    await loadRules();
+    notifications.enqueue("Blacklist rule created.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to create blacklist rule.", "error");
+  }
+};
+
+const updateRule = async (payload) => {
+  try {
+    await updateBlacklistRule(props.serverId, editingRuleId.value, payload);
+    await loadRules();
+    notifications.enqueue("Blacklist rule updated.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to update blacklist rule.", "error");
+  }
+};
+
+const handleDeleteRule = async () => {
+  try {
+    await deleteBlacklistRuleApi(props.serverId, deleteTarget.value.id);
+    await loadRules();
+    notifications.enqueue("Blacklist rule deleted.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to delete blacklist rule.", "error");
+  } finally {
+    deleteTarget.value = null;
+    selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
+      blacklistRules.value.some((rule) => rule.id === id)
+    );
+  }
+};
+
+const handleBatchRemove = async () => {
+  try {
+    await deleteBlacklistRules(props.serverId, selectedRuleIds.value);
+    await loadRules();
+    notifications.enqueue("Blacklist rules removed.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to remove blacklist rules.", "error");
+  } finally {
+    selectedRuleIds.value = [];
+    isBatchConfirmOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  void loadRules();
+});
+
+watch(
+  () => props.serverId,
+  () => {
+    selectedRuleIds.value = [];
+    editingRuleId.value = null;
+    deleteTarget.value = null;
+    void loadRules();
+  }
+);
 </script>
 
 <style scoped>
