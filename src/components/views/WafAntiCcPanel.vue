@@ -31,8 +31,9 @@
             <th>Threshold</th>
             <th>Window</th>
             <th>Action</th>
+            <th>Behavior</th>
             <th>Enable/Disable</th>
-            <th>Action</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -51,6 +52,7 @@
             <td>{{ rule.threshold }}</td>
             <td>{{ rule.window }}</td>
             <td>{{ rule.action }}</td>
+            <td>{{ rule.behavior }}</td>
             <td>
               <span class="status-pill" :class="{ on: rule.enabled }">
                 {{ rule.enabled ? "Enabled" : "Disabled" }}
@@ -84,7 +86,7 @@
             </td>
           </tr>
           <tr v-if="!antiCcRules.length">
-            <td colspan="8" class="empty-cell">No Anti CC rules yet.</td>
+            <td colspan="9" class="empty-cell">No Anti CC rules yet.</td>
           </tr>
         </tbody>
       </table>
@@ -126,6 +128,7 @@
                   <span>{{ method }}</span>
                 </label>
               </div>
+              <p v-if="showMethodRequired" class="field-error">Select at least one method</p>
             </div>
           </div>
           <div class="form-field">
@@ -164,10 +167,43 @@
             </label>
             <div class="field-control">
               <select id="anti-cc-action" v-model="formState.action" class="form-input">
+                <option>5-Second Shield</option>
                 <option>Challenge</option>
-                <option>Block</option>
-                <option>Log only</option>
+                <option>Return Code</option>
               </select>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>
+              Behavior <span class="required">*</span>
+            </label>
+            <div class="field-control">
+              <div class="option-group">
+                <button
+                  type="button"
+                  class="option-btn"
+                  :class="{ active: formState.behavior === 'Deny' }"
+                  @click="formState.behavior = 'Deny'"
+                >
+                  Deny
+                </button>
+                <button
+                  type="button"
+                  class="option-btn"
+                  :class="{ active: formState.behavior === 'Drop' }"
+                  @click="formState.behavior = 'Drop'"
+                >
+                  Drop
+                </button>
+                <button
+                  type="button"
+                  class="option-btn"
+                  :class="{ active: formState.behavior === 'Drop + Block' }"
+                  @click="formState.behavior = 'Drop + Block'"
+                >
+                  Drop + Block
+                </button>
+              </div>
             </div>
           </div>
           <div class="form-field">
@@ -195,7 +231,7 @@
           <button type="button" class="secondary-btn" @click="closeDialog">
             Cancel
           </button>
-          <button type="button" class="primary-btn" :disabled="!isFormValid" @click="saveRule">
+          <button type="button" class="primary-btn" :disabled="isSubmitDisabled" @click="saveRule">
             {{ isEditing ? "Update Rule" : "Save Rule" }}
           </button>
         </div>
@@ -251,43 +287,39 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import {
+  fetchAntiCcRules,
+  createAntiCcRule,
+  updateAntiCcRule,
+  deleteAntiCcRule as deleteAntiCcRuleApi,
+  deleteAntiCcRules
+} from "@/api/wafAntiCc";
+import { useNotifications } from "@/stores/notifications";
 
-const antiCcRules = ref([
-  {
-    id: "rule-1",
-    url: "/checkout",
-    method: "POST",
-    threshold: 120,
-    window: "10s",
-    action: "Challenge",
-    enabled: true
-  },
-  {
-    id: "rule-2",
-    url: "/api/v1/login",
-    method: "POST",
-    threshold: 60,
-    window: "30s",
-    action: "Block",
-    enabled: true
-  },
-  {
-    id: "rule-3",
-    url: "/api/v1/search",
-    method: "GET",
-    threshold: 300,
-    window: "1m",
-    action: "Log only",
-    enabled: false
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
   }
-]);
+});
+
+const notifications = useNotifications();
+const antiCcRules = ref([]);
 
 const selectedRuleIds = ref([]);
 const methodOptions = ["GET", "POST", "PUT", "DELETE", "HEAD", "PATCH", "OPTIONS"];
+const windowOptions = [
+  { label: "1s", value: 1 },
+  { label: "5s", value: 5 },
+  { label: "10s", value: 10 },
+  { label: "30s", value: 30 },
+  { label: "1m", value: 60 }
+];
 const isDialogOpen = ref(false);
 const submitAttempted = ref(false);
 const editingRuleId = ref(null);
+const originalForm = ref(null);
 const deleteTarget = ref(null);
 const isBatchConfirmOpen = ref(false);
 const touched = ref({
@@ -300,16 +332,26 @@ const formState = ref({
   threshold: "",
   window: "10s",
   action: "Challenge",
+  behavior: "Deny",
   enabled: true
 });
 
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
+const isSubmitDisabled = computed(() => {
+  if (!props.serverId || !isFormValid.value) return true;
+  if (editingRuleId.value) {
+    return !isRuleDirty(buildPayload());
+  }
+  return false;
+});
 
 const isFormValid = computed(() => {
   return (
     formState.value.url.trim().length > 0 &&
-    String(formState.value.threshold).trim().length > 0
+    String(formState.value.threshold).trim().length > 0 &&
+    formState.value.methods.length > 0 &&
+    formState.value.behavior.trim().length > 0
   );
 });
 
@@ -327,6 +369,10 @@ const showThresholdRequired = computed(() => {
   );
 });
 
+const showMethodRequired = computed(() => {
+  return submitAttempted.value && formState.value.methods.length === 0;
+});
+
 const resetForm = () => {
   formState.value = {
     url: "",
@@ -334,6 +380,7 @@ const resetForm = () => {
     threshold: "",
     window: "10s",
     action: "Challenge",
+    behavior: "Deny",
     enabled: true
   };
   touched.value = {
@@ -352,12 +399,22 @@ const openCreateDialog = () => {
 const openEditDialog = (rule) => {
   formState.value = {
     url: rule.url,
-    methods: rule.method === "Any" ? [] : rule.method.split(",").map((item) => item.trim()),
+    methods: rule.method ? rule.method.split(",").map((item) => item.trim()).filter(Boolean) : [],
     threshold: rule.threshold,
     window: rule.window,
-    action: rule.action,
+    action: rule.action || "Challenge",
+    behavior: toDisplayBehavior(rule.behavior),
     enabled: rule.enabled
   };
+  originalForm.value = JSON.stringify({
+    url: formState.value.url.trim(),
+    methods: [...formState.value.methods].sort(),
+    threshold: String(formState.value.threshold).trim(),
+    window: formState.value.window,
+    action: formState.value.action,
+    behavior: formState.value.behavior,
+    enabled: formState.value.enabled
+  });
   touched.value = {
     url: false,
     threshold: false
@@ -374,26 +431,17 @@ const closeDialog = () => {
 const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
-  const payload = {
-    url: formState.value.url.trim(),
-    method: formState.value.methods.length ? formState.value.methods.join(", ") : "Any",
-    threshold: formState.value.threshold,
-    window: formState.value.window,
-    action: formState.value.action,
-    enabled: formState.value.enabled
-  };
-  if (editingRuleId.value) {
-    const index = antiCcRules.value.findIndex((rule) => rule.id === editingRuleId.value);
-    if (index !== -1) {
-      antiCcRules.value[index] = { ...antiCcRules.value[index], ...payload };
-    }
-  } else {
-    antiCcRules.value.unshift({
-      id: `rule-${Date.now()}`,
-      ...payload
-    });
+  const payload = buildPayload();
+  if (!props.serverId) return;
+  if (editingRuleId.value && !isRuleDirty(payload)) {
+    closeDialog();
+    return;
   }
-  closeDialog();
+  if (editingRuleId.value) {
+    void updateRule(payload);
+  } else {
+    void createRule(payload);
+  }
 };
 
 const editAntiCcRule = (rule) => {
@@ -409,12 +457,8 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value) return;
-  antiCcRules.value = antiCcRules.value.filter((rule) => rule.id !== deleteTarget.value.id);
-  deleteTarget.value = null;
-  selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
-    antiCcRules.value.some((rule) => rule.id === id)
-  );
+  if (!deleteTarget.value || !props.serverId) return;
+  void handleDeleteRule();
 };
 
 const openBatchConfirm = () => {
@@ -427,11 +471,138 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length) return;
-  antiCcRules.value = antiCcRules.value.filter((rule) => !selectedRuleIds.value.includes(rule.id));
-  selectedRuleIds.value = [];
-  isBatchConfirmOpen.value = false;
+  if (!selectedRuleIds.value.length || !props.serverId) return;
+  void handleBatchRemove();
 };
+
+const toDisplayBehavior = (value) => {
+  if (!value) return "Drop";
+  return value === "Drop+Block" ? "Drop + Block" : value;
+};
+
+const toApiBehavior = (value) => {
+  return value === "Drop + Block" ? "Drop+Block" : value;
+};
+
+const toWindowSeconds = (label) => {
+  const option = windowOptions.find((item) => item.label === label);
+  return option ? option.value : 0;
+};
+
+const toWindowLabel = (seconds) => {
+  const option = windowOptions.find((item) => item.value === seconds);
+  return option ? option.label : "10s";
+};
+
+const isRuleDirty = (payload) => {
+  if (!originalForm.value) return true;
+  const current = JSON.stringify({
+    url: payload.url.trim(),
+    methods: payload.method.split(",").map((item) => item.trim()).filter(Boolean).sort(),
+    threshold: String(payload.threshold).trim(),
+    window: toWindowLabel(payload.window),
+    action: payload.action,
+    behavior: toDisplayBehavior(payload.behavior),
+    enabled: payload.status === "ENABLE"
+  });
+  return current !== originalForm.value;
+};
+
+const buildPayload = () => {
+  return {
+    url: formState.value.url.trim(),
+    method: formState.value.methods.join(", "),
+    threshold: Number(formState.value.threshold),
+    window: toWindowSeconds(formState.value.window),
+    action: formState.value.action,
+    behavior: toApiBehavior(formState.value.behavior),
+    status: formState.value.enabled ? "ENABLE" : "DISABLE"
+  };
+};
+
+const loadRules = async () => {
+  if (!props.serverId) {
+    antiCcRules.value = [];
+    return;
+  }
+  try {
+    const data = await fetchAntiCcRules(props.serverId);
+    const list = Array.isArray(data) ? data : [];
+    antiCcRules.value = list.map((rule) => ({
+      ...rule,
+      action: rule.action || "Challenge",
+      window: toWindowLabel(rule.window),
+      behavior: toDisplayBehavior(rule.behavior),
+      enabled: rule.status === "ENABLE"
+    }));
+  } catch {
+    antiCcRules.value = [];
+  }
+};
+
+const createRule = async (payload) => {
+  try {
+    await createAntiCcRule(props.serverId, payload);
+    await loadRules();
+    notifications.enqueue("Anti CC rule created.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to create Anti CC rule.", "error");
+  }
+};
+
+const updateRule = async (payload) => {
+  try {
+    await updateAntiCcRule(props.serverId, editingRuleId.value, payload);
+    await loadRules();
+    notifications.enqueue("Anti CC rule updated.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to update Anti CC rule.", "error");
+  }
+};
+
+const handleDeleteRule = async () => {
+  try {
+    await deleteAntiCcRuleApi(props.serverId, deleteTarget.value.id);
+    await loadRules();
+    notifications.enqueue("Anti CC rule deleted.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to delete Anti CC rule.", "error");
+  } finally {
+    deleteTarget.value = null;
+    selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
+      antiCcRules.value.some((rule) => rule.id === id)
+    );
+  }
+};
+
+const handleBatchRemove = async () => {
+  try {
+    await deleteAntiCcRules(props.serverId, selectedRuleIds.value);
+    await loadRules();
+    notifications.enqueue("Anti CC rules removed.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to remove Anti CC rules.", "error");
+  } finally {
+    selectedRuleIds.value = [];
+    isBatchConfirmOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  void loadRules();
+});
+
+watch(
+  () => props.serverId,
+  () => {
+    selectedRuleIds.value = [];
+    editingRuleId.value = null;
+    deleteTarget.value = null;
+    void loadRules();
+  }
+);
 </script>
 
 <style scoped>
@@ -749,6 +920,30 @@ const confirmBatchRemove = () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.option-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.option-btn {
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: #fff;
+  color: #475569;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-btn.active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #1d4ed8;
 }
 .checkbox-grid {
   display: grid;
