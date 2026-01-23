@@ -21,7 +21,7 @@
       <WafAntiHeaderSettingPanel v-else-if="activeWafItem === 'anti-header-setting'" :server-id="serverId" />
       <WafIntervalFreqLimitPanel v-else-if="activeWafItem === 'interval-freq-limit'" :server-id="serverId" />
       <WafSecondFreqLimitPanel v-else-if="activeWafItem === 'second-freq-limit'" :server-id="serverId" />
-      <WafResponseFreqPanel v-else-if="activeWafItem === 'response-freq'" />
+      <WafResponseFreqPanel v-else-if="activeWafItem === 'response-freq'" :server-id="serverId" />
       <WafUserAgentPanel v-else-if="activeWafItem === 'user-agent'" />
       <div v-else class="waf-section-card empty-state">
         <h4>{{ activeWafLabel }}</h4>
