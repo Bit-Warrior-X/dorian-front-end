@@ -19,7 +19,7 @@
       <WafGeoLocationPanel v-else-if="activeWafItem === 'geo-locations'" :server-id="serverId" />
       <WafAntiCcPanel v-else-if="activeWafItem === 'anti-cc'" :server-id="serverId" />
       <WafAntiHeaderSettingPanel v-else-if="activeWafItem === 'anti-header-setting'" :server-id="serverId" />
-      <WafIntervalFreqLimitPanel v-else-if="activeWafItem === 'interval-freq-limit'" />
+      <WafIntervalFreqLimitPanel v-else-if="activeWafItem === 'interval-freq-limit'" :server-id="serverId" />
       <WafSecondFreqLimitPanel v-else-if="activeWafItem === 'second-freq-limit'" />
       <WafResponseFreqPanel v-else-if="activeWafItem === 'response-freq'" />
       <WafUserAgentPanel v-else-if="activeWafItem === 'user-agent'" />

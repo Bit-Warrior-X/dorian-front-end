@@ -47,7 +47,7 @@
             </td>
             <td>{{ rule.url }}</td>
             <td>{{ rule.time }}</td>
-            <td>{{ rule.count }}</td>
+            <td>{{ rule.requestCount }}</td>
             <td>{{ rule.behavior }}</td>
             <td>
               <span class="status-pill" :class="{ on: rule.enabled }">
@@ -170,10 +170,10 @@
                 <button
                   type="button"
                   class="option-btn"
-                  :class="{ active: formState.behavior === 'Drop + Black' }"
-                  @click="formState.behavior = 'Drop + Black'"
+                  :class="{ active: formState.behavior === 'Drop + Block' }"
+                  @click="formState.behavior = 'Drop + Block'"
                 >
-                  Drop + Black
+                  Drop + Block
                 </button>
               </div>
             </div>
@@ -203,7 +203,7 @@
           <button type="button" class="secondary-btn" @click="closeDialog">
             Cancel
           </button>
-          <button type="button" class="primary-btn" :disabled="!isFormValid" @click="saveRule">
+          <button type="button" class="primary-btn" :disabled="isSubmitDisabled" @click="saveRule">
             {{ isEditing ? "Update Rule" : "Save Rule" }}
           </button>
         </div>
@@ -259,39 +259,31 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import {
+  fetchIntervalRules,
+  createIntervalRule,
+  updateIntervalRule,
+  deleteIntervalRule as deleteIntervalRuleApi,
+  deleteIntervalRules
+} from "@/api/wafIntervalFreqLimit";
+import { useNotifications } from "@/stores/notifications";
 
-const intervalRules = ref([
-  {
-    id: "rule-1",
-    url: "/checkout",
-    time: 60,
-    count: 120,
-    behavior: "Drop",
-    enabled: true
-  },
-  {
-    id: "rule-2",
-    url: "/api/v1/login",
-    time: 60,
-    count: 50,
-    behavior: "Deny",
-    enabled: true
-  },
-  {
-    id: "rule-3",
-    url: "/api/v1/search",
-    time: 60,
-    count: 300,
-    behavior: "Drop + Black",
-    enabled: false
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
   }
-]);
+});
+
+const notifications = useNotifications();
+const intervalRules = ref([]);
 
 const selectedRuleIds = ref([]);
 const isDialogOpen = ref(false);
 const submitAttempted = ref(false);
 const editingRuleId = ref(null);
+const originalForm = ref(null);
 const deleteTarget = ref(null);
 const isBatchConfirmOpen = ref(false);
 const touched = ref({
@@ -309,12 +301,20 @@ const formState = ref({
 
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
+const isSubmitDisabled = computed(() => {
+  if (!props.serverId || !isFormValid.value) return true;
+  if (editingRuleId.value) {
+    return !isRuleDirty(buildPayload());
+  }
+  return false;
+});
 
 const isFormValid = computed(() => {
   return (
     formState.value.url.trim().length > 0 &&
     String(formState.value.time).trim().length > 0 &&
-    String(formState.value.count).trim().length > 0
+    String(formState.value.count).trim().length > 0 &&
+    formState.value.behavior.trim().length > 0
   );
 });
 
@@ -365,10 +365,17 @@ const openEditDialog = (rule) => {
   formState.value = {
     url: rule.url,
     time: rule.time,
-    count: rule.count,
-    behavior: rule.behavior,
+    count: rule.requestCount,
+    behavior: toDisplayBehavior(rule.behavior),
     enabled: rule.enabled
   };
+  originalForm.value = JSON.stringify({
+    url: formState.value.url.trim(),
+    time: String(formState.value.time).trim(),
+    count: String(formState.value.count).trim(),
+    behavior: formState.value.behavior,
+    enabled: formState.value.enabled
+  });
   touched.value = {
     url: false,
     time: false,
@@ -386,25 +393,17 @@ const closeDialog = () => {
 const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
-  const payload = {
-    url: formState.value.url.trim(),
-    time: Number(formState.value.time),
-    count: Number(formState.value.count),
-    behavior: formState.value.behavior,
-    enabled: formState.value.enabled
-  };
-  if (editingRuleId.value) {
-    const index = intervalRules.value.findIndex((rule) => rule.id === editingRuleId.value);
-    if (index !== -1) {
-      intervalRules.value[index] = { ...intervalRules.value[index], ...payload };
-    }
-  } else {
-    intervalRules.value.unshift({
-      id: `rule-${Date.now()}`,
-      ...payload
-    });
+  const payload = buildPayload();
+  if (!props.serverId) return;
+  if (editingRuleId.value && !isRuleDirty(payload)) {
+    closeDialog();
+    return;
   }
-  closeDialog();
+  if (editingRuleId.value) {
+    void updateRule(payload);
+  } else {
+    void createRule(payload);
+  }
 };
 
 const editIntervalRule = (rule) => {
@@ -420,12 +419,8 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value) return;
-  intervalRules.value = intervalRules.value.filter((rule) => rule.id !== deleteTarget.value.id);
-  deleteTarget.value = null;
-  selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
-    intervalRules.value.some((rule) => rule.id === id)
-  );
+  if (!deleteTarget.value || !props.serverId) return;
+  void handleDeleteRule();
 };
 
 const openBatchConfirm = () => {
@@ -438,13 +433,122 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length) return;
-  intervalRules.value = intervalRules.value.filter(
-    (rule) => !selectedRuleIds.value.includes(rule.id)
-  );
-  selectedRuleIds.value = [];
-  isBatchConfirmOpen.value = false;
+  if (!selectedRuleIds.value.length || !props.serverId) return;
+  void handleBatchRemove();
 };
+
+const toDisplayBehavior = (value) => {
+  if (!value) return "Drop";
+  return value === "Drop+Block" ? "Drop + Block" : value;
+};
+
+const toApiBehavior = (value) => {
+  return value === "Drop + Block" ? "Drop+Block" : value;
+};
+
+const isRuleDirty = (payload) => {
+  if (!originalForm.value) return true;
+  const current = JSON.stringify({
+    url: payload.url.trim(),
+    time: String(payload.time).trim(),
+    count: String(payload.requestCount).trim(),
+    behavior: toDisplayBehavior(payload.behavior),
+    enabled: payload.status === "ENABLE"
+  });
+  return current !== originalForm.value;
+};
+
+const buildPayload = () => {
+  return {
+    url: formState.value.url.trim(),
+    time: Number(formState.value.time),
+    requestCount: Number(formState.value.count),
+    behavior: toApiBehavior(formState.value.behavior),
+    status: formState.value.enabled ? "ENABLE" : "DISABLE"
+  };
+};
+
+const loadRules = async () => {
+  if (!props.serverId) {
+    intervalRules.value = [];
+    return;
+  }
+  try {
+    const data = await fetchIntervalRules(props.serverId);
+    const list = Array.isArray(data) ? data : [];
+    intervalRules.value = list.map((rule) => ({
+      ...rule,
+      behavior: toDisplayBehavior(rule.behavior),
+      enabled: rule.status === "ENABLE"
+    }));
+  } catch {
+    intervalRules.value = [];
+  }
+};
+
+const createRule = async (payload) => {
+  try {
+    await createIntervalRule(props.serverId, payload);
+    await loadRules();
+    notifications.enqueue("Interval rule created.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to create interval rule.", "error");
+  }
+};
+
+const updateRule = async (payload) => {
+  try {
+    await updateIntervalRule(props.serverId, editingRuleId.value, payload);
+    await loadRules();
+    notifications.enqueue("Interval rule updated.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to update interval rule.", "error");
+  }
+};
+
+const handleDeleteRule = async () => {
+  try {
+    await deleteIntervalRuleApi(props.serverId, deleteTarget.value.id);
+    await loadRules();
+    notifications.enqueue("Interval rule deleted.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to delete interval rule.", "error");
+  } finally {
+    deleteTarget.value = null;
+    selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
+      intervalRules.value.some((rule) => rule.id === id)
+    );
+  }
+};
+
+const handleBatchRemove = async () => {
+  try {
+    await deleteIntervalRules(props.serverId, selectedRuleIds.value);
+    await loadRules();
+    notifications.enqueue("Interval rules removed.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to remove interval rules.", "error");
+  } finally {
+    selectedRuleIds.value = [];
+    isBatchConfirmOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  void loadRules();
+});
+
+watch(
+  () => props.serverId,
+  () => {
+    selectedRuleIds.value = [];
+    editingRuleId.value = null;
+    deleteTarget.value = null;
+    void loadRules();
+  }
+);
 </script>
 
 <style scoped>
