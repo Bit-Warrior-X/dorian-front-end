@@ -22,7 +22,7 @@
       <WafIntervalFreqLimitPanel v-else-if="activeWafItem === 'interval-freq-limit'" :server-id="serverId" />
       <WafSecondFreqLimitPanel v-else-if="activeWafItem === 'second-freq-limit'" :server-id="serverId" />
       <WafResponseFreqPanel v-else-if="activeWafItem === 'response-freq'" :server-id="serverId" />
-      <WafUserAgentPanel v-else-if="activeWafItem === 'user-agent'" />
+      <WafUserAgentPanel v-else-if="activeWafItem === 'user-agent'" :server-id="serverId" />
       <div v-else class="waf-section-card empty-state">
         <h4>{{ activeWafLabel }}</h4>
         <p>Configure this WAF section next.</p>

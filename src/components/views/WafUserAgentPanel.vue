@@ -46,7 +46,7 @@
               />
             </td>
             <td>{{ rule.url }}</td>
-            <td>{{ rule.agent }}</td>
+            <td>{{ rule.userAgent }}</td>
             <td>{{ rule.match }}</td>
             <td>{{ rule.behavior }}</td>
             <td>
@@ -120,7 +120,7 @@
             <div class="field-control">
               <input
                 id="ua-agent"
-                v-model="formState.agent"
+                v-model="formState.userAgent"
                 type="text"
                 class="form-input"
                 placeholder="curl/7.79"
@@ -187,10 +187,10 @@
                 <button
                   type="button"
                   class="option-btn"
-                  :class="{ active: formState.behavior === 'Drop + Black' }"
-                  @click="formState.behavior = 'Drop + Black'"
+                  :class="{ active: formState.behavior === 'Drop + Block' }"
+                  @click="formState.behavior = 'Drop + Block'"
                 >
-                  Drop + Black
+                  Drop + Block
                 </button>
               </div>
             </div>
@@ -220,7 +220,7 @@
           <button type="button" class="secondary-btn" @click="closeDialog">
             Cancel
           </button>
-          <button type="button" class="primary-btn" :disabled="!isFormValid" @click="saveRule">
+          <button type="button" class="primary-btn" :disabled="isSubmitDisabled" @click="saveRule">
             {{ isEditing ? "Update Rule" : "Save Rule" }}
           </button>
         </div>
@@ -276,39 +276,31 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import {
+  fetchUserAgentRules,
+  createUserAgentRule,
+  updateUserAgentRule,
+  deleteUserAgentRule as deleteUserAgentRuleApi,
+  deleteUserAgentRules
+} from "@/api/wafUserAgent";
+import { useNotifications } from "@/stores/notifications";
 
-const userAgentRules = ref([
-  {
-    id: "rule-1",
-    url: "/api/v1/search",
-    agent: "curl",
-    match: "Contains",
-    behavior: "Drop",
-    enabled: true
-  },
-  {
-    id: "rule-2",
-    url: "/api/v1/login",
-    agent: "Python-requests",
-    match: "Contains",
-    behavior: "Deny",
-    enabled: true
-  },
-  {
-    id: "rule-3",
-    url: "/api/v1/checkout",
-    agent: "BadBot/1.0",
-    match: "Equals",
-    behavior: "Drop + Black",
-    enabled: false
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
   }
-]);
+});
+
+const notifications = useNotifications();
+const userAgentRules = ref([]);
 
 const selectedRuleIds = ref([]);
 const isDialogOpen = ref(false);
 const submitAttempted = ref(false);
 const editingRuleId = ref(null);
+const originalForm = ref(null);
 const deleteTarget = ref(null);
 const isBatchConfirmOpen = ref(false);
 const touched = ref({
@@ -317,7 +309,7 @@ const touched = ref({
 });
 const formState = ref({
   url: "",
-  agent: "",
+  userAgent: "",
   match: "Contains",
   behavior: "Deny",
   enabled: true
@@ -325,15 +317,27 @@ const formState = ref({
 
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
+const isSubmitDisabled = computed(() => {
+  if (!props.serverId || !isFormValid.value) return true;
+  if (editingRuleId.value) {
+    return !isRuleDirty(buildPayload());
+  }
+  return false;
+});
 
 const isFormValid = computed(() => {
-  return formState.value.url.trim().length > 0 && formState.value.agent.trim().length > 0;
+  return (
+    formState.value.url.trim().length > 0 &&
+    formState.value.userAgent.trim().length > 0 &&
+    formState.value.match.trim().length > 0 &&
+    formState.value.behavior.trim().length > 0
+  );
 });
 
 const showAgentRequired = computed(() => {
   return (
     (touched.value.agent || submitAttempted.value) &&
-    formState.value.agent.trim().length === 0
+    formState.value.userAgent.trim().length === 0
   );
 });
 
@@ -347,7 +351,7 @@ const showUrlRequired = computed(() => {
 const resetForm = () => {
   formState.value = {
     url: "",
-    agent: "",
+    userAgent: "",
     match: "Contains",
     behavior: "Deny",
     enabled: true
@@ -368,11 +372,18 @@ const openCreateDialog = () => {
 const openEditDialog = (rule) => {
   formState.value = {
     url: rule.url,
-    agent: rule.agent,
+    userAgent: rule.userAgent,
     match: rule.match,
-    behavior: rule.behavior,
+    behavior: toDisplayBehavior(rule.behavior),
     enabled: rule.enabled
   };
+  originalForm.value = JSON.stringify({
+    url: formState.value.url.trim(),
+    userAgent: formState.value.userAgent.trim(),
+    match: formState.value.match,
+    behavior: formState.value.behavior,
+    enabled: formState.value.enabled
+  });
   touched.value = {
     url: false,
     agent: false
@@ -389,25 +400,17 @@ const closeDialog = () => {
 const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
-  const payload = {
-    url: formState.value.url.trim(),
-    agent: formState.value.agent.trim(),
-    match: formState.value.match,
-    behavior: formState.value.behavior,
-    enabled: formState.value.enabled
-  };
-  if (editingRuleId.value) {
-    const index = userAgentRules.value.findIndex((rule) => rule.id === editingRuleId.value);
-    if (index !== -1) {
-      userAgentRules.value[index] = { ...userAgentRules.value[index], ...payload };
-    }
-  } else {
-    userAgentRules.value.unshift({
-      id: `rule-${Date.now()}`,
-      ...payload
-    });
+  const payload = buildPayload();
+  if (!props.serverId) return;
+  if (editingRuleId.value && !isRuleDirty(payload)) {
+    closeDialog();
+    return;
   }
-  closeDialog();
+  if (editingRuleId.value) {
+    void updateRule(payload);
+  } else {
+    void createRule(payload);
+  }
 };
 
 const editUserAgentRule = (rule) => {
@@ -423,12 +426,8 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value) return;
-  userAgentRules.value = userAgentRules.value.filter((rule) => rule.id !== deleteTarget.value.id);
-  deleteTarget.value = null;
-  selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
-    userAgentRules.value.some((rule) => rule.id === id)
-  );
+  if (!deleteTarget.value || !props.serverId) return;
+  void handleDeleteRule();
 };
 
 const openBatchConfirm = () => {
@@ -441,13 +440,122 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length) return;
-  userAgentRules.value = userAgentRules.value.filter(
-    (rule) => !selectedRuleIds.value.includes(rule.id)
-  );
-  selectedRuleIds.value = [];
-  isBatchConfirmOpen.value = false;
+  if (!selectedRuleIds.value.length || !props.serverId) return;
+  void handleBatchRemove();
 };
+
+const toDisplayBehavior = (value) => {
+  if (!value) return "Drop";
+  return value === "Drop+Block" ? "Drop + Block" : value;
+};
+
+const toApiBehavior = (value) => {
+  return value === "Drop + Block" ? "Drop+Block" : value;
+};
+
+const isRuleDirty = (payload) => {
+  if (!originalForm.value) return true;
+  const current = JSON.stringify({
+    url: payload.url.trim(),
+    userAgent: payload.userAgent.trim(),
+    match: payload.match,
+    behavior: toDisplayBehavior(payload.behavior),
+    enabled: payload.status === "ENABLE"
+  });
+  return current !== originalForm.value;
+};
+
+const buildPayload = () => {
+  return {
+    url: formState.value.url.trim(),
+    userAgent: formState.value.userAgent.trim(),
+    match: formState.value.match,
+    behavior: toApiBehavior(formState.value.behavior),
+    status: formState.value.enabled ? "ENABLE" : "DISABLE"
+  };
+};
+
+const loadRules = async () => {
+  if (!props.serverId) {
+    userAgentRules.value = [];
+    return;
+  }
+  try {
+    const data = await fetchUserAgentRules(props.serverId);
+    const list = Array.isArray(data) ? data : [];
+    userAgentRules.value = list.map((rule) => ({
+      ...rule,
+      behavior: toDisplayBehavior(rule.behavior),
+      enabled: rule.status === "ENABLE"
+    }));
+  } catch {
+    userAgentRules.value = [];
+  }
+};
+
+const createRule = async (payload) => {
+  try {
+    await createUserAgentRule(props.serverId, payload);
+    await loadRules();
+    notifications.enqueue("User agent rule created.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to create user agent rule.", "error");
+  }
+};
+
+const updateRule = async (payload) => {
+  try {
+    await updateUserAgentRule(props.serverId, editingRuleId.value, payload);
+    await loadRules();
+    notifications.enqueue("User agent rule updated.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to update user agent rule.", "error");
+  }
+};
+
+const handleDeleteRule = async () => {
+  try {
+    await deleteUserAgentRuleApi(props.serverId, deleteTarget.value.id);
+    await loadRules();
+    notifications.enqueue("User agent rule deleted.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to delete user agent rule.", "error");
+  } finally {
+    deleteTarget.value = null;
+    selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
+      userAgentRules.value.some((rule) => rule.id === id)
+    );
+  }
+};
+
+const handleBatchRemove = async () => {
+  try {
+    await deleteUserAgentRules(props.serverId, selectedRuleIds.value);
+    await loadRules();
+    notifications.enqueue("User agent rules removed.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to remove user agent rules.", "error");
+  } finally {
+    selectedRuleIds.value = [];
+    isBatchConfirmOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  void loadRules();
+});
+
+watch(
+  () => props.serverId,
+  () => {
+    selectedRuleIds.value = [];
+    editingRuleId.value = null;
+    deleteTarget.value = null;
+    void loadRules();
+  }
+);
 </script>
 
 <style scoped>
