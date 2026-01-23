@@ -209,10 +209,10 @@
                 <button
                   type="button"
                   class="option-btn"
-                  :class="{ active: formState.behavior === 'Drop + Black' }"
-                  @click="formState.behavior = 'Drop + Black'"
+                  :class="{ active: formState.behavior === 'Drop + Block' }"
+                  @click="formState.behavior = 'Drop + Block'"
                 >
-                  Drop + Black
+                  Drop + Block
                 </button>
               </div>
             </div>
@@ -242,7 +242,7 @@
           <button type="button" class="secondary-btn" @click="closeDialog">
             Cancel
           </button>
-          <button type="button" class="primary-btn" :disabled="!isFormValid" @click="saveRule">
+          <button type="button" class="primary-btn" :disabled="isSubmitDisabled" @click="saveRule">
             {{ isEditing ? "Update Rule" : "Save Rule" }}
           </button>
         </div>
@@ -298,48 +298,31 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
+import {
+  fetchAntiHeaderRules,
+  createAntiHeaderRule,
+  updateAntiHeaderRule,
+  deleteAntiHeaderRule as deleteAntiHeaderRuleApi,
+  deleteAntiHeaderRules
+} from "@/api/wafAntiHeader";
+import { useNotifications } from "@/stores/notifications";
 
-const antiHeaderRules = ref([
-  {
-    id: "rule-1",
-    url: "/login",
-    header: "Referer",
-    headerMode: "Referer",
-    customHeader: "",
-    value: "evil.example",
-    blockMode: "If match",
-    behavior: "Drop",
-    enabled: true
-  },
-  {
-    id: "rule-2",
-    url: "/api/v1/checkout",
-    header: "Origin",
-    headerMode: "Origin",
-    customHeader: "",
-    value: "https://untrusted.example",
-    blockMode: "If match",
-    behavior: "Drop + Black",
-    enabled: false
-  },
-  {
-    id: "rule-3",
-    url: "/api/v1/health",
-    header: "Cache-Control",
-    headerMode: "Cache-Control",
-    customHeader: "",
-    value: "no-store",
-    blockMode: "If not match",
-    behavior: "Deny",
-    enabled: true
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
   }
-]);
+});
+
+const notifications = useNotifications();
+const antiHeaderRules = ref([]);
 
 const selectedRuleIds = ref([]);
 const isDialogOpen = ref(false);
 const submitAttempted = ref(false);
 const editingRuleId = ref(null);
+const originalForm = ref(null);
 const deleteTarget = ref(null);
 const isBatchConfirmOpen = ref(false);
 const touched = ref({
@@ -359,13 +342,22 @@ const formState = ref({
 
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
+const isSubmitDisabled = computed(() => {
+  if (!props.serverId || !isFormValid.value) return true;
+  if (editingRuleId.value) {
+    return !isRuleDirty(buildPayload());
+  }
+  return false;
+});
 
 const isFormValid = computed(() => {
   return (
     formState.value.url.trim().length > 0 &&
     formState.value.value.trim().length > 0 &&
     (formState.value.headerMode !== "Customize" ||
-      formState.value.customHeader.trim().length > 0)
+      formState.value.customHeader.trim().length > 0) &&
+    formState.value.blockMode.trim().length > 0 &&
+    formState.value.behavior.trim().length > 0
   );
 });
 
@@ -416,15 +408,32 @@ const openCreateDialog = () => {
 };
 
 const openEditDialog = (rule) => {
+  const knownHeaders = [
+    "X-XSS-Protection",
+    "X-Frame-Options",
+    "Cache-Control",
+    "Cookie",
+    "Origin",
+    "Referer"
+  ];
+  const headerMode = knownHeaders.includes(rule.header) ? rule.header : "Customize";
   formState.value = {
     url: rule.url,
-    headerMode: rule.headerMode || rule.header || "Customize",
-    customHeader: rule.headerMode === "Customize" ? rule.customHeader || rule.header : "",
+    headerMode,
+    customHeader: headerMode === "Customize" ? rule.header : "",
     value: rule.value,
-    blockMode: rule.blockMode,
-    behavior: rule.behavior,
+    blockMode: rule.blockMode || "If match",
+    behavior: toDisplayBehavior(rule.behavior),
     enabled: rule.enabled
   };
+  originalForm.value = JSON.stringify({
+    url: formState.value.url.trim(),
+    header: getHeaderValue().trim(),
+    value: formState.value.value.trim(),
+    blockMode: formState.value.blockMode,
+    behavior: formState.value.behavior,
+    enabled: formState.value.enabled
+  });
   touched.value = {
     url: false,
     value: false,
@@ -442,32 +451,17 @@ const closeDialog = () => {
 const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
-  const headerValue =
-    formState.value.headerMode === "Customize"
-      ? formState.value.customHeader.trim()
-      : formState.value.headerMode;
-  const payload = {
-    url: formState.value.url.trim(),
-    header: headerValue,
-    headerMode: formState.value.headerMode,
-    customHeader: formState.value.headerMode === "Customize" ? headerValue : "",
-    value: formState.value.value.trim(),
-    blockMode: formState.value.blockMode,
-    behavior: formState.value.behavior,
-    enabled: formState.value.enabled
-  };
-  if (editingRuleId.value) {
-    const index = antiHeaderRules.value.findIndex((rule) => rule.id === editingRuleId.value);
-    if (index !== -1) {
-      antiHeaderRules.value[index] = { ...antiHeaderRules.value[index], ...payload };
-    }
-  } else {
-    antiHeaderRules.value.unshift({
-      id: `rule-${Date.now()}`,
-      ...payload
-    });
+  const payload = buildPayload();
+  if (!props.serverId) return;
+  if (editingRuleId.value && !isRuleDirty(payload)) {
+    closeDialog();
+    return;
   }
-  closeDialog();
+  if (editingRuleId.value) {
+    void updateRule(payload);
+  } else {
+    void createRule(payload);
+  }
 };
 
 const editAntiHeaderRule = (rule) => {
@@ -483,12 +477,8 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value) return;
-  antiHeaderRules.value = antiHeaderRules.value.filter((rule) => rule.id !== deleteTarget.value.id);
-  deleteTarget.value = null;
-  selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
-    antiHeaderRules.value.some((rule) => rule.id === id)
-  );
+  if (!deleteTarget.value || !props.serverId) return;
+  void handleDeleteRule();
 };
 
 const openBatchConfirm = () => {
@@ -501,13 +491,131 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length) return;
-  antiHeaderRules.value = antiHeaderRules.value.filter(
-    (rule) => !selectedRuleIds.value.includes(rule.id)
-  );
-  selectedRuleIds.value = [];
-  isBatchConfirmOpen.value = false;
+  if (!selectedRuleIds.value.length || !props.serverId) return;
+  void handleBatchRemove();
 };
+
+const getHeaderValue = () => {
+  return formState.value.headerMode === "Customize"
+    ? formState.value.customHeader.trim()
+    : formState.value.headerMode;
+};
+
+const toDisplayBehavior = (value) => {
+  if (!value) return "Drop";
+  return value === "Drop+Block" ? "Drop + Block" : value;
+};
+
+const toApiBehavior = (value) => {
+  return value === "Drop + Block" ? "Drop+Block" : value;
+};
+
+const isRuleDirty = (payload) => {
+  if (!originalForm.value) return true;
+  const current = JSON.stringify({
+    url: payload.url.trim(),
+    header: payload.header.trim(),
+    value: payload.value.trim(),
+    blockMode: payload.blockMode,
+    behavior: toDisplayBehavior(payload.behavior),
+    enabled: payload.status === "ENABLE"
+  });
+  return current !== originalForm.value;
+};
+
+const buildPayload = () => {
+  return {
+    url: formState.value.url.trim(),
+    header: getHeaderValue().trim(),
+    value: formState.value.value.trim(),
+    blockMode: formState.value.blockMode,
+    behavior: toApiBehavior(formState.value.behavior),
+    status: formState.value.enabled ? "ENABLE" : "DISABLE"
+  };
+};
+
+const loadRules = async () => {
+  if (!props.serverId) {
+    antiHeaderRules.value = [];
+    return;
+  }
+  try {
+    const data = await fetchAntiHeaderRules(props.serverId);
+    const list = Array.isArray(data) ? data : [];
+    antiHeaderRules.value = list.map((rule) => ({
+      ...rule,
+      blockMode: rule.blockMode || "If match",
+      behavior: toDisplayBehavior(rule.behavior),
+      enabled: rule.status === "ENABLE"
+    }));
+  } catch {
+    antiHeaderRules.value = [];
+  }
+};
+
+const createRule = async (payload) => {
+  try {
+    await createAntiHeaderRule(props.serverId, payload);
+    await loadRules();
+    notifications.enqueue("Anti header rule created.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to create anti header rule.", "error");
+  }
+};
+
+const updateRule = async (payload) => {
+  try {
+    await updateAntiHeaderRule(props.serverId, editingRuleId.value, payload);
+    await loadRules();
+    notifications.enqueue("Anti header rule updated.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to update anti header rule.", "error");
+  }
+};
+
+const handleDeleteRule = async () => {
+  try {
+    await deleteAntiHeaderRuleApi(props.serverId, deleteTarget.value.id);
+    await loadRules();
+    notifications.enqueue("Anti header rule deleted.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to delete anti header rule.", "error");
+  } finally {
+    deleteTarget.value = null;
+    selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
+      antiHeaderRules.value.some((rule) => rule.id === id)
+    );
+  }
+};
+
+const handleBatchRemove = async () => {
+  try {
+    await deleteAntiHeaderRules(props.serverId, selectedRuleIds.value);
+    await loadRules();
+    notifications.enqueue("Anti header rules removed.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to remove anti header rules.", "error");
+  } finally {
+    selectedRuleIds.value = [];
+    isBatchConfirmOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  void loadRules();
+});
+
+watch(
+  () => props.serverId,
+  () => {
+    selectedRuleIds.value = [];
+    editingRuleId.value = null;
+    deleteTarget.value = null;
+    void loadRules();
+  }
+);
 </script>
 
 <style scoped>
