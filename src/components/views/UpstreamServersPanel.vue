@@ -26,7 +26,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="server in upstreamServers" :key="server.id">
+            <tr v-for="server in formattedServers" :key="server.id">
               <td>
                 <span
                   class="status-dot"
@@ -76,7 +76,7 @@
             </svg>
           </button>
         </div>
-        <p class="helper-text">Enter the upstream address and optional weight, then add it to the list.</p>
+        <p class="helper-text">Enter the upstream address and weights, then add it to the list.</p>
         <div class="form-grid">
           <div class="form-field">
             <label for="upstream-address">Server Address</label>
@@ -88,13 +88,33 @@
             />
           </div>
           <div class="form-field">
-            <label for="upstream-weight">Weight (Optional)</label>
+            <label for="upstream-weight">Weight</label>
             <input
               id="upstream-weight"
               v-model="newServerWeight"
               type="number"
               min="1"
               placeholder="4"
+            />
+          </div>
+          <div class="form-field">
+            <label for="upstream-max-fails">Max Fails</label>
+            <input
+              id="upstream-max-fails"
+              v-model="newServerMaxFails"
+              type="number"
+              min="1"
+              placeholder="3"
+            />
+          </div>
+          <div class="form-field">
+            <label for="upstream-timeout">Fail Timeout (s)</label>
+            <input
+              id="upstream-timeout"
+              v-model="newServerTimeout"
+              type="number"
+              min="1"
+              placeholder="30"
             />
           </div>
         </div>
@@ -108,34 +128,36 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { serverList } from "@/data/servers";
+import { ref, computed, watch, onMounted } from "vue";
+import {
+  fetchUpstreamServers,
+  createUpstreamServer,
+  deleteUpstreamServer as deleteUpstreamServerApi
+} from "@/api/upstreamServers";
+import { useNotifications } from "@/stores/notifications";
 
-const upstreamServers = ref(
-  serverList.map((server, index) => {
-    const address = `${server.ip}:${server.sshPort || "80"}`;
-    const weight = 4 + (index % 3);
-    return {
-      id: server.id,
-      statusLabel: server.statusLabel,
-      statusClass: server.statusClass,
-      address,
-      description: `weight=${weight} max_fails=3 fail_timeout=30s`
-    };
-  })
-);
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
+  }
+});
 
-const formatDate = (date) =>
-  date.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-
+const notifications = useNotifications();
+const upstreamServers = ref([]);
 const newServerAddress = ref("");
-const newServerWeight = ref("");
+const newServerWeight = ref("4");
+const newServerMaxFails = ref("3");
+const newServerTimeout = ref("30");
 const isAddDialogOpen = ref(false);
 
-const getDescription = (weight) => {
-  if (weight) return `weight=${weight} max_fails=3 fail_timeout=30s`;
-  return "max_fails=3 fail_timeout=30s";
-};
+const formattedServers = computed(() =>
+  upstreamServers.value.map((server) => ({
+    ...server,
+    statusLabel: server.status === "ENABLE" ? "Active" : "Inactive",
+    statusClass: server.status === "ENABLE" ? "active" : "inactive"
+  }))
+);
 
 const openAddDialog = () => {
   isAddDialogOpen.value = true;
@@ -145,37 +167,70 @@ const closeAddDialog = () => {
   isAddDialogOpen.value = false;
 };
 
-const addServer = () => {
+const addServer = async () => {
+  if (!props.serverId) return;
   const address = newServerAddress.value.trim();
   if (!address) return;
-
-  const weightValue = newServerWeight.value ? Number(newServerWeight.value) : "";
-  upstreamServers.value.unshift({
-    id: `upstream-${Date.now()}`,
-    statusLabel: "Active",
-    statusClass: "active",
-    address,
-    description: getDescription(weightValue)
-  });
-  newServerAddress.value = "";
-  newServerWeight.value = "";
-  closeAddDialog();
+  const weight = Number(newServerWeight.value) || 4;
+  const maxFails = Number(newServerMaxFails.value) || 3;
+  const timeout = Number(newServerTimeout.value) || 30;
+  const description = `weight=${weight} max_fails=${maxFails} fail_timeout=${timeout}s`;
+  try {
+    await createUpstreamServer(props.serverId, {
+      address,
+      description,
+      status: "ENABLE"
+    });
+    await loadServers();
+    notifications.enqueue("Upstream server added.", "success");
+    newServerAddress.value = "";
+    newServerWeight.value = "4";
+    newServerMaxFails.value = "3";
+    newServerTimeout.value = "30";
+    closeAddDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to add upstream server.", "error");
+  }
 };
 
-const removeServer = (serverId) => {
-  upstreamServers.value = upstreamServers.value.filter((server) => server.id !== serverId);
+const removeServer = async (upstreamId) => {
+  if (!props.serverId) return;
+  try {
+    await deleteUpstreamServerApi(props.serverId, upstreamId);
+    await loadServers();
+    notifications.enqueue("Upstream server removed.", "success");
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to remove upstream server.", "error");
+  }
 };
 
 const refreshStatuses = () => {
-  upstreamServers.value = upstreamServers.value.map((server) => {
-    const isActive = Math.random() > 0.35;
-    return {
-      ...server,
-      statusLabel: isActive ? "Active" : "Inactive",
-      statusClass: isActive ? "active" : "inactive"
-    };
-  });
+  void loadServers();
 };
+
+const loadServers = async () => {
+  if (!props.serverId) {
+    upstreamServers.value = [];
+    return;
+  }
+  try {
+    const data = await fetchUpstreamServers(props.serverId);
+    upstreamServers.value = Array.isArray(data) ? data : [];
+  } catch {
+    upstreamServers.value = [];
+  }
+};
+
+onMounted(() => {
+  void loadServers();
+});
+
+watch(
+  () => props.serverId,
+  () => {
+    void loadServers();
+  }
+);
 </script>
 
 <style scoped>
@@ -223,6 +278,7 @@ const refreshStatuses = () => {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
 }
+
 
 .form-field {
   display: flex;
