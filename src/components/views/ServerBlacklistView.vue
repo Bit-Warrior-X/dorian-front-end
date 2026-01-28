@@ -13,9 +13,9 @@
           <label for="blacklist-server">Server</label>
           <select id="blacklist-server" v-model="serverFilter">
             <option value="">All</option>
-            <option value="edge-nyc-01">edge-nyc-01</option>
-            <option value="edge-sin-05">edge-sin-05</option>
-            <option value="edge-fra-04">edge-fra-04</option>
+            <option v-for="server in servers" :key="server.id" :value="String(server.id)">
+              {{ server.name }}
+            </option>
           </select>
         </div>
         <div class="filter-field">
@@ -61,13 +61,13 @@
           </thead>
           <tbody>
             <tr v-for="entry in filteredEntries" :key="entry.id">
-              <td>{{ entry.ip }}</td>
-              <td>{{ entry.geo }}</td>
+              <td>{{ entry.ipAddress }}</td>
+              <td>{{ entry.geolocation }}</td>
               <td class="reason-cell">{{ entry.reason }}</td>
-              <td>{{ entry.server }}</td>
-              <td>{{ entry.blockedAt }}</td>
-              <td>{{ entry.ttl }}</td>
-              <td>{{ entry.triggerRule }}</td>
+              <td>{{ entry.server || '-' }}</td>
+              <td>{{ formatTimestamp(entry.createdAt) }}</td>
+              <td>{{ entry.ttl || 'Indefinite' }}</td>
+              <td>{{ entry.triggerRule || 'manual' }}</td>
               <td>
                 <button
                   class="icon-danger-btn"
@@ -129,9 +129,9 @@
             <label for="block-server">Server</label>
             <select id="block-server" v-model="newBlock.server">
               <option value="" disabled>Select server</option>
-              <option value="edge-nyc-01">edge-nyc-01</option>
-              <option value="edge-sin-05">edge-sin-05</option>
-              <option value="edge-fra-04">edge-fra-04</option>
+              <option v-for="server in servers" :key="server.id" :value="String(server.id)">
+                {{ server.name }}
+              </option>
             </select>
           </div>
           <div class="dialog-field">
@@ -187,8 +187,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import { fetchServers } from "@/api/servers";
+import {
+  fetchBlacklistEntries,
+  createBlacklistEntry,
+  deleteBlacklistEntry,
+  flushBlacklistEntries
+} from "@/api/serverBlacklist";
+import { useNotifications } from "@/stores/notifications";
 
 const serverFilter = ref("");
 const ruleFilter = ref("");
@@ -199,6 +207,8 @@ const customTriggerRule = ref("");
 const isConfirmDialogOpen = ref(false);
 const confirmAction = ref(null);
 const confirmTargetId = ref(null);
+const servers = ref([]);
+const notifications = useNotifications();
 const newBlock = ref({
   ip: "",
   reason: "",
@@ -206,59 +216,64 @@ const newBlock = ref({
   ttl: "",
   triggerRule: ""
 });
-
-const blacklistEntries = ref([
-  {
-    id: "bl-001",
-    ip: "192.168.10.44",
-    url: "/login",
-    geo: "US · New York",
-    reason: "Brute force attempts",
-    server: "edge-nyc-01",
-    blockedAt: "Jan 10, 2026 09:12",
-    ttl: "30d",
-    triggerRule: "waf-bruteforce"
-  },
-  {
-    id: "bl-002",
-    ip: "10.20.30.44",
-    url: "/admin",
-    geo: "SG · Singapore",
-    reason: "Credential stuffing",
-    server: "edge-sin-05",
-    blockedAt: "Jan 06, 2026 18:40",
-    ttl: "7d",
-    triggerRule: "rate-limit"
-  },
-  {
-    id: "bl-003",
-    ip: "172.16.4.8",
-    url: "/api/v1/search",
-    geo: "DE · Frankfurt",
-    reason: "Geo restriction policy",
-    server: "edge-fra-04",
-    blockedAt: "Dec 18, 2025 03:22",
-    ttl: "Indefinite",
-    triggerRule: "geo-block"
-  }
-]);
+const blacklistEntries = ref([]);
 
 const filteredEntries = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
   return blacklistEntries.value.filter((entry) => {
-    const matchesServer = !serverFilter.value || entry.server === serverFilter.value;
+    const matchesServer =
+      !serverFilter.value || String(entry.serverId) === String(serverFilter.value);
     const matchesRule =
       !ruleFilter.value || ruleFilter.value === "all" || entry.triggerRule === ruleFilter.value;
     const matchesQuery =
       !query ||
-      entry.ip.toLowerCase().includes(query) ||
-      entry.url.toLowerCase().includes(query) ||
-      entry.geo.toLowerCase().includes(query) ||
+      entry.ipAddress.toLowerCase().includes(query) ||
+      entry.geolocation.toLowerCase().includes(query) ||
       entry.reason.toLowerCase().includes(query) ||
-      entry.server.toLowerCase().includes(query);
+      entry.server?.toLowerCase().includes(query);
     return matchesServer && matchesRule && matchesQuery;
   });
 });
+
+const formatTimestamp = (value) => {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+};
+
+const loadServers = async () => {
+  try {
+    servers.value = await fetchServers();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to load servers.", "error");
+  }
+};
+
+const loadBlacklist = async (serverId) => {
+  try {
+    const list = await fetchBlacklistEntries(serverId);
+    blacklistEntries.value = list.map((entry) => ({
+      ...entry,
+      ipAddress: entry.ipAddress || "",
+      geolocation: entry.geolocation || "Manual",
+      reason: entry.reason || "",
+      server: entry.server || "",
+      ttl: entry.ttl || "",
+      triggerRule: entry.triggerRule || ""
+    }));
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to load blacklist entries.", "error");
+  }
+};
 
 const resetFilters = () => {
   serverFilter.value = "";
@@ -289,8 +304,9 @@ const closeBlockDialog = () => {
   customTriggerRule.value = "";
 };
 
-const createBlock = () => {
-  if (!newBlock.value.ip || !newBlock.value.ttl) {
+const createBlock = async () => {
+  const ipAddress = newBlock.value.ip.trim();
+  if (!ipAddress || !newBlock.value.ttl.trim()) {
     validationError.value = "IP address and TTL are required.";
     return;
   }
@@ -302,27 +318,34 @@ const createBlock = () => {
     validationError.value = "Please enter a custom trigger rule.";
     return;
   }
-  validationError.value = "";
-  const createdAt = new Date();
-  const blockedAt = createdAt.toLocaleString("en-US", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
 
-  blacklistEntries.value.unshift({
-    id: `bl-${Date.now()}`,
-    ip: newBlock.value.ip,
-    geo: "Manual",
-    reason: newBlock.value.reason || "Manual block",
-    server: newBlock.value.server,
-    blockedAt,
-    ttl: newBlock.value.ttl || "Indefinite",
-    triggerRule: customTriggerRule.value.trim() || newBlock.value.triggerRule || "manual"
-  });
-  closeBlockDialog();
+  const serverId = Number(newBlock.value.server);
+  if (!serverId) {
+    validationError.value = "Please select a server.";
+    return;
+  }
+
+  const serverName = servers.value.find((server) => server.id === serverId)?.name || "";
+  const reason = newBlock.value.reason.trim() || "Manual block";
+  const triggerRule = customTriggerRule.value.trim() || newBlock.value.triggerRule || "manual";
+
+  validationError.value = "";
+  try {
+    await createBlacklistEntry({
+      serverId,
+      ipAddress,
+      geolocation: "Manual",
+      reason,
+      server: serverName,
+      ttl: newBlock.value.ttl.trim() || "Indefinite",
+      triggerRule
+    });
+    await loadBlacklist(serverFilter.value ? Number(serverFilter.value) : undefined);
+    notifications.enqueue("Blacklist entry created.", "success");
+    closeBlockDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to create blacklist entry.", "error");
+  }
 };
 
 const flushAll = () => {
@@ -359,16 +382,31 @@ const confirmConfirmText = computed(() => {
   return "Confirm";
 });
 
-const handleConfirmDialog = () => {
-  if (confirmAction.value === "flush") {
-    blacklistEntries.value = [];
-  } else if (confirmAction.value === "remove") {
-    blacklistEntries.value = blacklistEntries.value.filter(
-      (entry) => entry.id !== confirmTargetId.value
-    );
+const handleConfirmDialog = async () => {
+  try {
+    if (confirmAction.value === "flush") {
+      await flushBlacklistEntries(serverFilter.value ? Number(serverFilter.value) : undefined);
+      notifications.enqueue("Blacklist flushed.", "success");
+    } else if (confirmAction.value === "remove") {
+      await deleteBlacklistEntry(confirmTargetId.value);
+      notifications.enqueue("Blacklist entry removed.", "success");
+    }
+    await loadBlacklist(serverFilter.value ? Number(serverFilter.value) : undefined);
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to update blacklist.", "error");
   }
   clearConfirmDialog();
 };
+
+onMounted(async () => {
+  await loadServers();
+  await loadBlacklist();
+});
+
+watch(serverFilter, async (value) => {
+  const serverId = value ? Number(value) : undefined;
+  await loadBlacklist(serverId);
+});
 
 const clearConfirmDialog = () => {
   isConfirmDialogOpen.value = false;
