@@ -6,7 +6,7 @@
           <div class="server-select-wrapper">
             <span class="server-select-label">Server</span>
             <select v-model="selectedServer" class="server-select header-server-select">
-              <option v-for="server in servers" :key="server.value" :value="server.value">
+              <option v-for="server in serverOptions" :key="server.value" :value="server.value">
                 {{ server.label }}
               </option>
             </select>
@@ -15,6 +15,9 @@
           <div class="status-indicator" :class="statusClass">
             <span class="status-dot"></span>
             <span class="status-text">{{ status }}</span>
+          </div>
+          <div class="time-range-pill" :title="timeRangeLabel">
+            {{ timeRangeLabel }}
           </div>
         </div>
         <div class="header-actions">
@@ -132,29 +135,20 @@
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>2024-01-15 10:23:45</td>
-              <td>192.168.1.100</td>
-              <td><span class="badge method-get">GET</span></td>
-              <td>/api/data</td>
-              <td><span class="badge status-200">200</span></td>
-              <td>45ms</td>
+            <tr v-for="entry in visibleLogs" :key="entry.id">
+              <td>{{ entry.timestampLabel }}</td>
+              <td>{{ entry.ipAddress }}</td>
+              <td>
+                <span :class="['badge', entry.methodClass]">{{ entry.method }}</span>
+              </td>
+              <td>{{ entry.url }}</td>
+              <td>
+                <span :class="['badge', entry.statusClass]">{{ entry.status }}</span>
+              </td>
+              <td>{{ entry.responseTime }}</td>
             </tr>
-            <tr>
-              <td>2024-01-15 10:23:42</td>
-              <td>192.168.1.101</td>
-              <td><span class="badge method-post">POST</span></td>
-              <td>/api/upload</td>
-              <td><span class="badge status-201">201</span></td>
-              <td>120ms</td>
-            </tr>
-            <tr>
-              <td>2024-01-15 10:23:38</td>
-              <td>192.168.1.102</td>
-              <td><span class="badge method-get">GET</span></td>
-              <td>/api/users</td>
-              <td><span class="badge status-200">200</span></td>
-              <td>32ms</td>
+            <tr v-if="!visibleLogs.length">
+              <td colspan="6" class="empty-row">No log entries yet.</td>
             </tr>
           </tbody>
         </table>
@@ -173,7 +167,7 @@
         </div>
         <div class="stat-content">
           <h3>Lines Loaded</h3>
-          <p class="stat-value">12,345</p>
+          <p class="stat-value">{{ stats.total }}</p>
         </div>
       </div>
       
@@ -185,7 +179,7 @@
         </div>
         <div class="stat-content">
           <h3>2xx Response</h3>
-          <p class="stat-value">10,234</p>
+          <p class="stat-value">{{ stats.success }}</p>
         </div>
       </div>
       
@@ -198,7 +192,7 @@
         </div>
         <div class="stat-content">
           <h3>3xx Response</h3>
-          <p class="stat-value">1,456</p>
+          <p class="stat-value">{{ stats.redirect }}</p>
         </div>
       </div>
       
@@ -212,7 +206,7 @@
         </div>
         <div class="stat-content">
           <h3>4xx Errors</h3>
-          <p class="stat-value">523</p>
+          <p class="stat-value">{{ stats.clientError }}</p>
         </div>
       </div>
       
@@ -226,7 +220,7 @@
         </div>
         <div class="stat-content">
           <h3>5xx Errors</h3>
-          <p class="stat-value">132</p>
+          <p class="stat-value">{{ stats.serverError }}</p>
         </div>
       </div>
     </div>
@@ -234,19 +228,27 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { fetchServers } from '@/api/servers'
+import { getApiConfig } from '@/api/config'
+import { useNotifications } from '@/stores/notifications'
 
+const notifications = useNotifications()
 const searchQuery = ref('')
 const selectedTimeRange = ref('1h')
 const statusFilter = ref('')
 const linesLimit = ref('100')
 const isPaused = ref(false)
-const status = ref('Live')
+const status = ref('No Data')
 const showCustomDialog = ref(false)
 const isCustomRange = ref(false)
 const customStartDate = ref('')
 const customEndDate = ref('')
-const selectedServer = ref('all')
+const selectedServer = ref('')
+const serverList = ref([])
+const logs = ref([])
+const wsRef = ref(null)
+const wsToken = ref(0)
 
 const timeRanges = [
   { label: '15m', value: '15m' },
@@ -256,12 +258,32 @@ const timeRanges = [
   { label: '7d', value: '7d' }
 ]
 
-const servers = [
-  { label: 'All Servers', value: 'all' },
-  { label: 'Edge-01', value: 'edge-01' },
-  { label: 'Edge-02', value: 'edge-02' },
-  { label: 'Origin-01', value: 'origin-01' }
-]
+const serverOptions = computed(() => [
+  { label: 'Select Server', value: '' },
+  ...serverList.value.map((server) => ({
+    label: server.name || `Server ${server.id}`,
+    value: String(server.id)
+  }))
+])
+
+const statusClass = computed(() => {
+  const statusLower = status.value.toLowerCase()
+  if (statusLower === 'live') return 'status-live'
+  if (statusLower === 'paused') return 'status-paused'
+  if (statusLower === 'connecting') return 'status-searching'
+  if (statusLower === 'disconnected') return 'status-no-data'
+  if (statusLower === 'error') return 'status-no-data'
+  if (statusLower === 'no data') return 'status-no-data'
+  return ''
+})
+
+const timeRangeLabel = computed(() => {
+  if (isCustomRange.value && customStartDate.value && customEndDate.value) {
+    return `${customStartDate.value.replace('T', ' ')} → ${customEndDate.value.replace('T', ' ')}`
+  }
+  const found = timeRanges.find((range) => range.value === selectedTimeRange.value)
+  return found ? `Range: ${found.label}` : 'Range: All'
+})
 
 const selectTimeRange = (value) => {
   selectedTimeRange.value = value
@@ -273,24 +295,275 @@ const applyCustomRange = () => {
     isCustomRange.value = true
     selectedTimeRange.value = 'custom'
     showCustomDialog.value = false
-    // Here you would apply the custom range to your data
-    console.log('Custom range:', customStartDate.value, 'to', customEndDate.value)
   }
 }
-
-const statusClass = computed(() => {
-  const statusLower = status.value.toLowerCase()
-  if (statusLower === 'live') return 'status-live'
-  if (statusLower === 'paused') return 'status-paused'
-  if (statusLower === 'searching') return 'status-searching'
-  if (statusLower === 'no data') return 'status-no-data'
-  return ''
-})
 
 const togglePause = () => {
   isPaused.value = !isPaused.value
   status.value = isPaused.value ? 'Paused' : 'Live'
 }
+
+const getWsBaseUrl = async () => {
+  const { apiBaseUrl } = await getApiConfig()
+  const base = apiBaseUrl || window.location.origin
+  const parsed = new URL(base, window.location.origin)
+  parsed.protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:'
+  return parsed.origin
+}
+
+const disconnectStream = () => {
+  if (wsRef.value) {
+    wsRef.value.close()
+    wsRef.value = null
+  }
+  wsToken.value += 1
+}
+
+const connectStream = async () => {
+  disconnectStream()
+  logs.value = []
+  const serverId = Number(selectedServer.value)
+  if (!serverId) {
+    status.value = 'No Data'
+    return
+  }
+
+  status.value = 'Connecting'
+  try {
+    const baseUrl = await getWsBaseUrl()
+    const wsUrl = new URL(`${baseUrl}/servers/${serverId}/access-log/stream`)
+    wsUrl.searchParams.set('lines', linesLimit.value)
+  const socket = new WebSocket(wsUrl.toString())
+  const token = wsToken.value + 1
+  wsToken.value = token
+  wsRef.value = socket
+
+    socket.onopen = () => {
+      if (wsToken.value !== token) return
+      status.value = isPaused.value ? 'Paused' : 'Live'
+    }
+
+    socket.onmessage = (event) => {
+      if (wsToken.value !== token) return
+      if (isPaused.value) return
+      let payload = null
+      try {
+        payload = JSON.parse(event.data)
+      } catch {
+        payload = { line: event.data }
+      }
+      if (payload?.line) {
+        appendLogLine(payload.line)
+      }
+    }
+
+    socket.onerror = () => {
+      if (wsToken.value !== token) return
+      status.value = 'Error'
+      notifications.enqueue('Failed to connect to access log stream.', 'error')
+    }
+
+    socket.onclose = () => {
+      if (wsToken.value !== token) return
+      if (status.value !== 'Paused') {
+        status.value = 'Disconnected'
+      }
+    }
+  } catch (error) {
+    status.value = 'Error'
+    notifications.enqueue(error?.message || 'Failed to connect to access log stream.', 'error')
+  }
+}
+
+const appendLogLine = (line) => {
+  const parsed = parseLogLine(line)
+  logs.value.push(parsed)
+
+  const limit = Number(linesLimit.value) || 100
+  const maxBuffer = Math.max(500, limit * 2)
+  if (logs.value.length > maxBuffer) {
+    logs.value.splice(0, logs.value.length - maxBuffer)
+  }
+}
+
+const parseLogLine = (line) => {
+  const parsed = parseNginxLine(line)
+  const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  if (!parsed) {
+    return {
+      id,
+      rawLine: line,
+      timestamp: new Date(),
+      timestampLabel: new Date().toLocaleString(),
+      ipAddress: '-',
+      method: '-',
+      methodClass: '',
+      url: line,
+      status: '-',
+      statusClass: '',
+      responseTime: '-'
+    }
+  }
+
+  const statusValue = parsed.status || '-'
+  const responseTimeLabel = parsed.responseTime ? `${parsed.responseTime}ms` : '-'
+  return {
+    id,
+    rawLine: line,
+    timestamp: parsed.timestamp || new Date(),
+    timestampLabel: parsed.timestampLabel || '-',
+    ipAddress: parsed.ipAddress || '-',
+    method: parsed.method || '-',
+    methodClass: parsed.method ? `method-${parsed.method.toLowerCase()}` : '',
+    url: parsed.url || '-',
+    status: statusValue,
+    statusClass: parsed.status ? `status-${parsed.status}` : '',
+    responseTime: responseTimeLabel
+  }
+}
+
+const parseNginxLine = (line) => {
+  const regex =
+    /^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^"]+?) HTTP\/[0-9.]+" (\d{3}) \S+(?: \S+)?(?: ".*")?(?: ".*")?(?: ([0-9.]+))?/
+  const match = line.match(regex)
+  if (!match) return null
+
+  const [, ipAddress, timeLocal, method, url, status, responseTime] = match
+  const timestamp = parseNginxTime(timeLocal)
+  return {
+    ipAddress,
+    method,
+    url,
+    status,
+    responseTime: responseTime ? Number(responseTime) * 1000 : null,
+    timestamp,
+    timestampLabel: timestamp ? timestamp.toLocaleString() : timeLocal
+  }
+}
+
+const parseNginxTime = (value) => {
+  const match = value.match(
+    /(\d{2})\/(\w{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2}) ([+-]\d{4})/
+  )
+  if (!match) return null
+  const [, day, month, year, hour, minute, second, tz] = match
+  const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(month)
+  if (monthIndex < 0) return null
+  const offsetSign = tz.startsWith('-') ? -1 : 1
+  const offsetHours = Number(tz.slice(1, 3))
+  const offsetMinutes = Number(tz.slice(3, 5))
+  const offsetMs = offsetSign * (offsetHours * 60 + offsetMinutes) * 60 * 1000
+  const utc = Date.UTC(Number(year), monthIndex, Number(day), Number(hour), Number(minute), Number(second)) - offsetMs
+  return new Date(utc)
+}
+
+const filteredLogs = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase()
+  const statusQuery = statusFilter.value.trim()
+  const range = selectedTimeRange.value
+  const now = Date.now()
+
+  const rangeMs = (() => {
+    if (range === '15m') return 15 * 60 * 1000
+    if (range === '1h') return 60 * 60 * 1000
+    if (range === '6h') return 6 * 60 * 60 * 1000
+    if (range === '24h') return 24 * 60 * 60 * 1000
+    if (range === '7d') return 7 * 24 * 60 * 60 * 1000
+    return null
+  })()
+
+  const customStart = customStartDate.value ? new Date(customStartDate.value).getTime() : null
+  const customEnd = customEndDate.value ? new Date(customEndDate.value).getTime() : null
+
+  return logs.value.filter((entry) => {
+    const matchesQuery =
+      !query ||
+      entry.ipAddress.toLowerCase().includes(query) ||
+      entry.url.toLowerCase().includes(query) ||
+      entry.method.toLowerCase().includes(query) ||
+      entry.rawLine?.toLowerCase().includes(query)
+
+    let matchesStatus = true
+    if (statusQuery) {
+      const normalized = statusQuery.toLowerCase()
+      const statusText = String(entry.status)
+      if (normalized.endsWith('xx')) {
+        const bucket = Number(normalized.replace('xx', ''))
+        const code = Number(statusText)
+        matchesStatus = Number.isFinite(code) && Math.floor(code / 100) === bucket
+      } else {
+        matchesStatus = statusText.startsWith(normalized)
+      }
+    }
+
+    let matchesTime = true
+    const entryTime = entry.timestamp?.getTime?.()
+    if (isCustomRange.value && customStart && customEnd && entryTime) {
+      matchesTime = entryTime >= customStart && entryTime <= customEnd
+    } else if (rangeMs) {
+      matchesTime = entryTime ? entryTime >= now - rangeMs : false
+    }
+
+    return matchesQuery && matchesStatus && matchesTime
+  })
+})
+
+const visibleLogs = computed(() => {
+  const limit = Number(linesLimit.value) || 100
+  return filteredLogs.value.slice(-limit).reverse()
+})
+
+const stats = computed(() => {
+  const total = filteredLogs.value.length
+  let success = 0
+  let redirect = 0
+  let clientError = 0
+  let serverError = 0
+
+  filteredLogs.value.forEach((entry) => {
+    const code = Number(entry.status)
+    if (!Number.isFinite(code)) return
+    if (code >= 200 && code < 300) success += 1
+    else if (code >= 300 && code < 400) redirect += 1
+    else if (code >= 400 && code < 500) clientError += 1
+    else if (code >= 500) serverError += 1
+  })
+
+  return { total, success, redirect, clientError, serverError }
+})
+
+const loadServers = async () => {
+  try {
+    const list = await fetchServers()
+    serverList.value = Array.isArray(list) ? list : []
+    if (!selectedServer.value && serverList.value.length) {
+      selectedServer.value = String(serverList.value[0].id)
+    }
+  } catch (error) {
+    notifications.enqueue(error?.message || 'Failed to load servers.', 'error')
+  }
+}
+
+watch(selectedServer, () => {
+  connectStream()
+})
+
+watch(linesLimit, () => {
+  if (wsRef.value) {
+    connectStream()
+  }
+})
+
+onMounted(async () => {
+  await loadServers()
+  if (selectedServer.value) {
+    connectStream()
+  }
+})
+
+onBeforeUnmount(() => {
+  disconnectStream()
+})
 </script>
 
 <style scoped>
@@ -313,7 +586,7 @@ const togglePause = () => {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
   border-radius: 16px;
-  padding: 24px;
+  padding: 16px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -386,7 +659,7 @@ const togglePause = () => {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px);
   border-radius: 16px;
-  padding: 32px;
+  padding: 20px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
   border: 1px solid rgba(226, 232, 240, 0.8);
   flex: 1 1 auto;
@@ -398,7 +671,7 @@ const togglePause = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .header-left {
@@ -499,6 +772,15 @@ const togglePause = () => {
   animation: none;
 }
 
+.time-range-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -518,8 +800,8 @@ const togglePause = () => {
 .filters-section {
   background: #f7fafc;
   border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
+  padding: 12px;
+  margin-bottom: 12px;
   border: 1px solid #e5e7eb;
 }
 
@@ -908,6 +1190,9 @@ const togglePause = () => {
 .log-table-container {
   flex: 1 1 auto;
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 420px);
+  min-height: 360px;
   background: #1a202c;
   border-radius: 12px;
   padding: 1px;
@@ -958,6 +1243,11 @@ const togglePause = () => {
 
 .log-table tbody tr:nth-child(even):hover {
   background: rgba(102, 126, 234, 0.2);
+}
+
+.empty-row {
+  text-align: center;
+  color: #94a3b8;
 }
 
 .badge {
