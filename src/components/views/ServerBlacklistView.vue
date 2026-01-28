@@ -252,7 +252,8 @@ const formatTimestamp = (value) => {
 
 const loadServers = async () => {
   try {
-    servers.value = await fetchServers();
+    const list = await fetchServers();
+    servers.value = Array.isArray(list) ? list : [];
   } catch (error) {
     notifications.enqueue(error?.message || "Failed to load servers.", "error");
   }
@@ -261,7 +262,8 @@ const loadServers = async () => {
 const loadBlacklist = async (serverId) => {
   try {
     const list = await fetchBlacklistEntries(serverId);
-    blacklistEntries.value = list.map((entry) => ({
+    const entries = Array.isArray(list) ? list : [];
+    blacklistEntries.value = entries.map((entry) => ({
       ...entry,
       ipAddress: entry.ipAddress || "",
       geolocation: entry.geolocation || "Manual",
