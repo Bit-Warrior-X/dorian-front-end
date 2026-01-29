@@ -84,9 +84,9 @@ const routes = [
       {
         path: 'analytics/security-analytics',
         name: 'security-analytics',
-        component: () => import('@/components/views/SecurityAnalyticsView.vue'),
+        component: () => import('@/components/views/Analytics.vue'),
         meta: {
-          title: 'Security Analytics',
+          title: 'Analytics',
           section: 'analytics'
         }
       },
