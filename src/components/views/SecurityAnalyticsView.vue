@@ -38,35 +38,6 @@
       </div>
     </div>
     
-    <div class="analytics-card">
-      <h2>Security Events Timeline</h2>
-      <div class="timeline">
-        <div class="timeline-item">
-          <div class="timeline-marker threat"></div>
-          <div class="timeline-content">
-            <h4>DDoS Attack Detected</h4>
-            <p>Multiple requests from 192.168.1.50 - Blocked</p>
-            <span class="timeline-time">2 hours ago</span>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-marker warning"></div>
-          <div class="timeline-content">
-            <h4>Suspicious Activity</h4>
-            <p>Unusual traffic pattern detected from 10.0.0.15</p>
-            <span class="timeline-time">5 hours ago</span>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-marker success"></div>
-          <div class="timeline-content">
-            <h4>Security Scan Completed</h4>
-            <p>All systems verified and secure</p>
-            <span class="timeline-time">1 day ago</span>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -145,92 +116,5 @@
   margin: 0;
 }
 
-.analytics-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-}
-
-.analytics-card h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1a202c 0%, #4a5568 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 24px 0;
-  letter-spacing: -0.5px;
-}
-
-.timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.timeline-item {
-  display: flex;
-  gap: 16px;
-  position: relative;
-}
-
-.timeline-item:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  left: 11px;
-  top: 40px;
-  width: 2px;
-  height: calc(100% + 4px);
-  background: #e5e7eb;
-}
-
-.timeline-marker {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.timeline-marker.threat {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.timeline-marker.warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.timeline-marker.success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.timeline-content {
-  flex: 1;
-  background: #f7fafc;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-}
-
-.timeline-content h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1a202c;
-  margin: 0 0 6px 0;
-}
-
-.timeline-content p {
-  font-size: 0.9rem;
-  color: #718096;
-  margin: 0 0 8px 0;
-}
-
-.timeline-time {
-  font-size: 0.75rem;
-  color: #9ca3af;
-}
 </style>
 
