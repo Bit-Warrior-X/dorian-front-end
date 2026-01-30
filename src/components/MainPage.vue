@@ -83,19 +83,14 @@
               </span>
             </a>
             <ul v-show="isDataAnalyticsOpen" class="nav-submenu">
-              <li :class="['nav-subitem', isRouteActive('access-log') ? 'active' : '']">
-                <RouterLink to="/app/analytics/access-log">
-                  <span>Access Log</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('log-export') ? 'active' : '']">
-                <RouterLink to="/app/analytics/log-export">
-                  <span>Log Export</span>
-                </RouterLink>
-              </li>
               <li :class="['nav-subitem', isRouteActive('security-analytics') ? 'active' : '']">
                 <RouterLink to="/app/analytics/security-analytics">
                   <span>Analytics</span>
+                </RouterLink>
+              </li>
+              <li :class="['nav-subitem', isRouteActive('access-log') ? 'active' : '']">
+                <RouterLink to="/app/analytics/access-log">
+                  <span>Access Log</span>
                 </RouterLink>
               </li>
               <li :class="['nav-subitem', isRouteActive('security-analytics-detail') ? 'active' : '']">
