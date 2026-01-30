@@ -91,6 +91,15 @@ const routes = [
         }
       },
       {
+        path: 'analytics/security-analytics-detail',
+        name: 'security-analytics-detail',
+        component: () => import('@/components/views/SecurityAnalyticsView.vue'),
+        meta: {
+          title: 'Security Analytics',
+          section: 'analytics'
+        }
+      },
+      {
         path: 'analytics/layer4-attack-analytics',
         name: 'layer4-attack-analytics',
         component: () => import('@/components/views/Layer4AttackAnalyticsView.vue'),

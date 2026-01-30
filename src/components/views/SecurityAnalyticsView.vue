@@ -51,85 +51,172 @@
           </svg>
         </div>
         <div class="stat-info">
-          <h3>Total Traffic</h3>
-          <p class="stat-value">{{ sampleStats.totalTraffic }}</p>
+          <h3>Total Request Counts</h3>
+          <p class="stat-value">{{ sampleStats.totalRequestCounts }}</p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon warning">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 4v16h16"></path>
-            <path d="M4 14h4l4-6 4 3 4-5"></path>
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
         </div>
         <div class="stat-info">
-          <h3>Bandwidth (Last)</h3>
-          <p class="stat-value">{{ sampleStats.bandwidthLast }}</p>
-          <p class="stat-subvalue">{{ sampleStats.bandwidthLastTime }}</p>
+          <h3>Block Request Counts</h3>
+          <p class="stat-value">{{ sampleStats.blockRequestCounts }}</p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon success">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12h18"></path>
-            <path d="M7 8h10"></path>
-            <path d="M7 16h10"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Total Request</h3>
-          <p class="stat-value">{{ sampleStats.totalRequest }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon security">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v18"></path>
-            <path d="M3 12h18"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Total Response</h3>
-          <p class="stat-value">{{ sampleStats.totalResponse }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon warning">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="9"></circle>
             <path d="M8 12h8"></path>
           </svg>
         </div>
         <div class="stat-info">
-          <h3>IP Count</h3>
-          <p class="stat-value">{{ sampleStats.ipCount }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon success">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 7h16"></path>
-            <path d="M4 12h10"></path>
-            <path d="M4 17h7"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Referer</h3>
-          <p class="stat-value">{{ sampleStats.referer }}</p>
+          <h3>Total IPs</h3>
+          <p class="stat-value">{{ sampleStats.totalIps }}</p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon security">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 11h18"></path>
-            <path d="M5 7h14"></path>
-            <path d="M7 15h10"></path>
-            <circle cx="12" cy="19" r="2"></circle>
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
           </svg>
         </div>
         <div class="stat-info">
-          <h3>ISP Count</h3>
-          <p class="stat-value">{{ sampleStats.ispCount }}</p>
+          <h3>Blacklisted IPs</h3>
+          <p class="stat-value">{{ sampleStats.blacklistedIps }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="filters-card">
+      <div class="filters-row">
+        <label class="table-title">Block Count by Time</label>
+      </div>
+      <div class="bandwidth-chart bandwidth-chart--tall">
+        <div ref="blockCountChart"></div>
+      </div>
+    </div>
+    <div class="filters-card">
+      <div class="filters-row">
+        <div class="filters-left">
+          <span class="filter-inline-label">Requests by Country</span>
+        </div>
+      </div>
+      <div class="world-map">
+        <SvgMap :map="world" :location-attributes="mapLocationAttributes" />
+        <div
+          v-if="hoveredCountry"
+          class="map-tooltip"
+          :style="{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y}px` }"
+        >
+          {{ hoveredCountry }}
+        </div>
+      </div>
+    </div>
+    <div class="filters-card">
+      <div class="filters-row">
+        <label class="table-title">Top Requests</label>
+      </div>
+      <div class="top-tables">
+        <div class="table-card table-card--compact">
+          <div class="table-title">Requests Top30</div>
+          <div class="table-wrap">
+            <table class="ip-table">
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Request Counts</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in topRequestRows" :key="row.area">
+                  <td>{{ row.area }}</td>
+                  <td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-card table-card--compact">
+          <div class="table-title">BlockCounts Top30</div>
+          <div class="table-wrap">
+            <table class="ip-table">
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>Request Counts</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in topBlockRows" :key="row.area">
+                  <td>{{ row.area }}</td>
+                  <td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="top-bars top-bars--stacked">
+        <div class="table-card table-card--compact table-card--full table-card--spaced">
+          <div class="table-title">URLRequests Top10</div>
+          <div class="url-bars url-bars--horizontal">
+            <div v-for="row in topUrlRows" :key="row.url" class="url-bar-row">
+              <div class="url-bar-label">{{ row.url }}</div>
+              <div class="url-bar-line">
+                <div class="url-bar-track">
+                  <div
+                    class="url-bar-fill"
+                    :style="{ width: `${urlBarWidth(row.count)}%` }"
+                    :title="`${row.url} — ${row.count}`"
+                  ></div>
+                </div>
+                <div class="url-bar-value">{{ row.count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="table-card table-card--compact table-card--full table-card--spaced">
+          <div class="table-title">Referer Top10</div>
+          <div class="url-bars url-bars--horizontal">
+            <div v-for="row in topRefererRows" :key="row.referer" class="url-bar-row">
+              <div class="url-bar-label">{{ row.referer }}</div>
+              <div class="url-bar-line">
+                <div class="url-bar-track">
+                  <div
+                    class="url-bar-fill url-bar-fill--teal"
+                    :style="{ width: `${urlBarWidth(row.count)}%` }"
+                    :title="`${row.referer} — ${row.count}`"
+                  ></div>
+                </div>
+                <div class="url-bar-value">{{ row.count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="table-card table-card--compact table-card--full table-card--spaced">
+          <div class="table-title">User Agent Top10</div>
+          <div class="url-bars url-bars--horizontal">
+            <div v-for="row in topUserAgentRows" :key="row.agent" class="url-bar-row">
+              <div class="url-bar-label">{{ row.agent }}</div>
+              <div class="url-bar-line">
+                <div class="url-bar-track">
+                  <div
+                    class="url-bar-fill url-bar-fill--purple"
+                    :style="{ width: `${urlBarWidth(row.count)}%` }"
+                    :title="`${row.agent} — ${row.count}`"
+                  ></div>
+                </div>
+                <div class="url-bar-value">{{ row.count }}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -163,8 +250,11 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
+  <script setup>
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import ApexCharts from 'apexcharts'
+import { SvgMap } from 'vue-svg-map'
+import world from '@svg-maps/world'
 import { serverList } from '@/data/servers'
 
 const selectedServer = ref('all')
@@ -181,15 +271,199 @@ const appliedFilters = ref({
   customEnd: '',
 })
 const sampleStats = {
-  totalTraffic: '128.4 GB',
-  bandwidthLast: '842 Mbps',
-  bandwidthLastTime: '2025/1/29 12:23:12',
-  totalRequest: '1,284,992',
-  totalResponse: '1,273,110',
-  ipCount: '12,430',
-  referer: '126',
-  ispCount: '214',
+  totalRequestCounts: '1,284,992',
+  blockRequestCounts: '83,210',
+  totalIps: '12,430',
+  blacklistedIps: '214',
 }
+const blockCountChart = ref(null)
+let blockCountChartInstance = null
+const countryRequests = [
+  { code: 'US', name: 'United States', count: 120340 },
+  { code: 'BR', name: 'Brazil', count: 53420 },
+  { code: 'GB', name: 'United Kingdom', count: 40210 },
+  { code: 'DE', name: 'Germany', count: 38200 },
+  { code: 'RU', name: 'Russia', count: 44890 },
+  { code: 'IN', name: 'India', count: 61200 },
+  { code: 'CN', name: 'China', count: 72800 },
+  { code: 'JP', name: 'Japan', count: 29110 },
+  { code: 'AU', name: 'Australia', count: 18420 },
+  { code: 'ZA', name: 'South Africa', count: 12600 },
+]
+const countryRequestMap = computed(() =>
+  countryRequests.reduce((acc, item) => {
+    acc[item.code.toLowerCase()] = item
+    return acc
+  }, {})
+)
+const maxCountryCount = computed(() =>
+  Math.max(...countryRequests.map((item) => item.count))
+)
+const hoveredCountry = ref('')
+const tooltipPosition = ref({ x: 0, y: 0 })
+const colorFromRate = (ratio) => {
+  if (ratio >= 0.8) return '#ef4444'
+  if (ratio >= 0.6) return '#f97316'
+  if (ratio >= 0.4) return '#f59e0b'
+  if (ratio >= 0.2) return '#22c55e'
+  return '#60a5fa'
+}
+const mapLocationAttributes = (location) => {
+  const entry = countryRequestMap.value[location.id]
+  const ratio = entry && maxCountryCount.value ? entry.count / maxCountryCount.value : 0
+  return {
+    fill: entry ? colorFromRate(ratio) : 'rgba(148, 163, 184, 0.2)',
+    stroke: 'rgba(100, 116, 139, 0.6)',
+    'stroke-width': 0.5,
+    title: entry
+      ? `${entry.name} — ${entry.count.toLocaleString()} requests`
+      : location.name,
+    onMouseenter: () => {
+      hoveredCountry.value = entry
+        ? `${entry.name} — ${entry.count.toLocaleString()} requests`
+        : location.name
+    },
+    onMousemove: (event) => {
+      tooltipPosition.value = {
+        x: event.offsetX + 12,
+        y: event.offsetY + 12,
+      }
+    },
+    onMouseleave: () => {
+      hoveredCountry.value = ''
+    },
+  }
+}
+
+const topRequestRows = [
+  { area: 'United States', count: '120,340' },
+  { area: 'China', count: '72,800' },
+  { area: 'India', count: '61,200' },
+  { area: 'Brazil', count: '53,420' },
+  { area: 'Russia', count: '44,890' },
+  { area: 'Germany', count: '38,200' },
+]
+
+const topBlockRows = [
+  { area: 'United States', count: '12,480' },
+  { area: 'China', count: '8,920' },
+  { area: 'India', count: '6,110' },
+  { area: 'Brazil', count: '5,320' },
+  { area: 'Russia', count: '4,980' },
+  { area: 'Germany', count: '3,740' },
+]
+const topUrlRows = [
+  { url: '/api/login', count: '18,402' },
+  { url: '/api/search', count: '12,980' },
+  { url: '/api/orders', count: '9,440' },
+  { url: '/api/users', count: '8,110' },
+  { url: '/api/config', count: '6,790' },
+  { url: '/api/report', count: '5,340' },
+  { url: '/api/items', count: '4,980' },
+  { url: '/api/metrics', count: '4,210' },
+  { url: '/api/alerts', count: '3,860' },
+  { url: '/api/status', count: '3,420' },
+]
+const topRefererRows = [
+  { referer: 'google.com', count: '18,240' },
+  { referer: 'bing.com', count: '12,560' },
+  { referer: 'yahoo.com', count: '9,310' },
+  { referer: 'duckduckgo.com', count: '7,840' },
+  { referer: 'facebook.com', count: '6,420' },
+  { referer: 'twitter.com', count: '5,980' },
+  { referer: 'linkedin.com', count: '4,760' },
+  { referer: 'reddit.com', count: '4,210' },
+  { referer: 'github.com', count: '3,740' },
+  { referer: 'direct', count: '3,120' },
+]
+const topUserAgentRows = [
+  { agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', count: '16,820' },
+  { agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', count: '12,440' },
+  { agent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7)', count: '9,210' },
+  { agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X)', count: '8,320' },
+  { agent: 'Mozilla/5.0 (iPad; CPU OS 17_2 like Mac OS X)', count: '6,980' },
+  { agent: 'Mozilla/5.0 (Windows NT 6.1; Win64; x64)', count: '5,740' },
+  { agent: 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64)', count: '4,960' },
+  { agent: 'Mozilla/5.0 (Linux; Android 12; SM-G991B)', count: '4,120' },
+  { agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_7_10)', count: '3,880' },
+  { agent: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', count: '3,110' },
+]
+const urlMaxCount = computed(() => {
+  const values = topUrlRows.map((row) => Number(row.count.replace(/,/g, '')) || 0)
+  return Math.max(...values, 1)
+})
+const urlBarWidth = (count) => {
+  const numeric = Number(String(count).replace(/,/g, '')) || 0
+  return Math.round((numeric / urlMaxCount.value) * 100)
+}
+
+const randomBlockCount = (base = 600) => {
+  const jitter = (Math.random() - 0.5) * 200
+  return Math.max(50, Math.round(base + jitter))
+}
+
+const buildBlockCountSeries = () => {
+  const points = 24
+  const now = Date.now()
+  const interval = 5 * 60 * 1000
+  const data = Array.from({ length: points }, (_, index) => ({
+    x: now - (points - 1 - index) * interval,
+    y: randomBlockCount(),
+  }))
+  return [{ name: 'Blocked', data }]
+}
+
+const renderBlockCountChart = () => {
+  if (!blockCountChart.value) return
+  const series = buildBlockCountSeries()
+  const options = {
+    chart: {
+      type: 'area',
+      height: 400,
+      toolbar: { show: false },
+      animations: { enabled: true },
+    },
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 2 },
+    fill: {
+      type: 'gradient',
+      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
+    },
+    colors: ['#ef4444'],
+    xaxis: { type: 'datetime' },
+    yaxis: {
+      labels: { formatter: (val) => `${Math.round(val)}` },
+    },
+    grid: { borderColor: 'rgba(148, 163, 184, 0.2)' },
+    tooltip: {
+      x: { format: 'yyyy/MM/dd HH:mm' },
+      y: { formatter: (val) => `${Math.round(val)}` },
+    },
+    series,
+  }
+
+  if (blockCountChartInstance) {
+    blockCountChartInstance.updateOptions(options, true, true)
+  } else {
+    blockCountChartInstance = new ApexCharts(blockCountChart.value, options)
+    blockCountChartInstance.render()
+  }
+}
+
+watch(appliedFilters, () => {
+  renderBlockCountChart()
+})
+
+onMounted(() => {
+  renderBlockCountChart()
+})
+
+onBeforeUnmount(() => {
+  if (blockCountChartInstance) {
+    blockCountChartInstance.destroy()
+    blockCountChartInstance = null
+  }
+})
 
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
@@ -571,5 +845,185 @@ const applyFilters = () => {
   color: #10b981;
 }
 
+.world-map {
+  margin-top: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: #f8fafc;
+  padding: 12px;
+  position: relative;
+}
+
+.world-map :deep(.svg-map) {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.world-map :deep(.svg-map__location) {
+  transition: fill 0.2s ease;
+}
+
+.world-map :deep(.svg-map__location:hover) {
+  fill: rgba(37, 99, 235, 0.85);
+}
+
+.map-tooltip {
+  position: absolute;
+  z-index: 5;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.top-tables {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.table-card--compact {
+  background: rgba(248, 250, 252, 0.9);
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.table-card--spaced {
+  margin-top: 16px;
+}
+
+.table-card--full {
+  width: 100%;
+}
+
+.table-card--full {
+  width: 100%;
+}
+.table-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 12px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.ip-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ip-table th,
+.ip-table td {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  color: #1f2937;
+}
+
+.ip-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.ip-table--nowrap th,
+.ip-table--nowrap td {
+  white-space: nowrap;
+}
+
+.url-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.top-bars {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.top-bars--stacked {
+  grid-template-columns: minmax(0, 1fr);
+}
+.url-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.url-bar-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.url-bar-track {
+  width: 100%;
+  height: 16px;
+  background: rgba(226, 232, 240, 0.6);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.url-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+  transition: width 0.3s ease;
+}
+
+.url-bar-fill--teal {
+  background: linear-gradient(90deg, #14b8a6 0%, #0f766e 100%);
+}
+
+.url-bar-fill--purple {
+  background: linear-gradient(90deg, #8b5cf6 0%, #6d28d9 100%);
+}
+
+.bandwidth-chart {
+  width: 100%;
+  height: 280px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: #ffffff;
+}
+
+.bandwidth-chart div {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bandwidth-chart--tall {
+  height: 420px;
+}
+
+.url-bar-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.url-bar-value {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+}
 </style>
 

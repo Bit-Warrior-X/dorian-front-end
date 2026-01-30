@@ -98,6 +98,11 @@
                   <span>Analytics</span>
                 </RouterLink>
               </li>
+              <li :class="['nav-subitem', isRouteActive('security-analytics-detail') ? 'active' : '']">
+                <RouterLink to="/app/analytics/security-analytics-detail">
+                  <span>Security Analytics</span>
+                </RouterLink>
+              </li>
               <li :class="['nav-subitem', isRouteActive('layer4-attack-analytics') ? 'active' : '']">
                 <RouterLink to="/app/analytics/layer4-attack-analytics">
                   <span>Layer 4 Attack Analytics</span>
