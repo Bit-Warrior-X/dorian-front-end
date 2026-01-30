@@ -9,12 +9,6 @@
               {{ server.label }}
             </option>
           </select>
-        </div>
-        <div class="filters-center">
-          <span class="selected-range-label">Selected</span>
-          <span class="selected-range-value">{{ selectedRangeLabel }}</span>
-        </div>
-        <div class="filters-right">
           <span class="filter-inline-label">Time Range</span>
           <div class="time-buttons">
             <button
@@ -36,6 +30,12 @@
               Custom
             </button>
           </div>
+        </div>
+        <div class="filters-right">
+          <div class="selected-range-group">
+            <span class="selected-range-label">Selected</span>
+            <span class="selected-range-value">{{ selectedRangeLabel }}</span>
+          </div>
           <button type="button" class="apply-filter-btn" @click="applyFilters">
             Apply
           </button>
@@ -52,7 +52,7 @@
         </div>
         <div class="stat-info">
           <h3>Total Traffic</h3>
-          <p class="stat-value">{{ sampleStats.totalTraffic }}</p>
+          <p class="stat-value">{{ statsDisplay.totalTraffic }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -64,8 +64,8 @@
         </div>
         <div class="stat-info">
           <h3>Bandwidth (Last)</h3>
-          <p class="stat-value">{{ sampleStats.bandwidthLast }}</p>
-          <p class="stat-subvalue">{{ sampleStats.bandwidthLastTime }}</p>
+          <p class="stat-value">{{ statsDisplay.bandwidthLast }}</p>
+          <p class="stat-subvalue">{{ statsDisplay.bandwidthLastTime }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -78,7 +78,7 @@
         </div>
         <div class="stat-info">
           <h3>Total Request</h3>
-          <p class="stat-value">{{ sampleStats.totalRequest }}</p>
+          <p class="stat-value">{{ statsDisplay.totalRequest }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -90,7 +90,7 @@
         </div>
         <div class="stat-info">
           <h3>Total Response</h3>
-          <p class="stat-value">{{ sampleStats.totalResponse }}</p>
+          <p class="stat-value">{{ statsDisplay.totalResponse }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -102,7 +102,7 @@
         </div>
         <div class="stat-info">
           <h3>IP Count</h3>
-          <p class="stat-value">{{ sampleStats.ipCount }}</p>
+          <p class="stat-value">{{ statsDisplay.ipCount }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -115,7 +115,7 @@
         </div>
         <div class="stat-info">
           <h3>Referer</h3>
-          <p class="stat-value">{{ sampleStats.referer }}</p>
+          <p class="stat-value">{{ statsDisplay.referer }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -129,7 +129,7 @@
         </div>
         <div class="stat-info">
           <h3>ISP Count</h3>
-          <p class="stat-value">{{ sampleStats.ispCount }}</p>
+          <p class="stat-value">{{ statsDisplay.ispCount }}</p>
         </div>
       </div>
     </div>
@@ -137,9 +137,8 @@
       <div class="bandwidth-header">
         <div>
           <h3>Bandwidth by Time</h3>
-          <p>Sample bandwidth trend based on selected range</p>
+          <p>Bandwidth trend based on selected range</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="bandwidth-chart">
         <div ref="bandwidthChart"></div>
@@ -149,9 +148,8 @@
       <div class="bandwidth-header">
         <div>
           <h3>Traffic by Time</h3>
-          <p>Sample traffic trend based on selected range</p>
+          <p>Traffic trend based on selected range</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="bandwidth-chart">
         <div ref="trafficChart"></div>
@@ -161,9 +159,8 @@
       <div class="bandwidth-header">
         <div>
           <h3>Request / Response by Time</h3>
-          <p>Sample request and response trend based on selected range</p>
+          <p>Request and response trend based on selected range</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="bandwidth-chart">
         <div ref="requestResponseChart"></div>
@@ -173,9 +170,8 @@
       <div class="bandwidth-header">
         <div>
           <h3>Status Code by Time</h3>
-          <p>Sample status code trend based on selected range</p>
+          <p>Status code trend based on selected range</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="bandwidth-chart">
         <div ref="statusCodeChart"></div>
@@ -187,7 +183,6 @@
           <h3>Status Code Summary</h3>
           <p>Pie distribution and table summary</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="ip-table-layout">
         <div class="table-card table-card--compact">
@@ -223,9 +218,8 @@
       <div class="bandwidth-header">
         <div>
           <h3>IP Count by Time</h3>
-          <p>Sample unique IP count trend based on selected range</p>
+          <p>Unique IP count trend based on selected range</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="bandwidth-chart">
         <div ref="ipCountChart"></div>
@@ -237,7 +231,6 @@
           <h3>Top IPs</h3>
           <p>Pie distribution and table summary</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="ip-table-layout">
         <div class="table-card table-card--compact">
@@ -275,7 +268,6 @@
           <h3>ISP Summary</h3>
           <p>Pie distribution and table summary</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="ip-table-layout">
         <div class="table-card table-card--compact">
@@ -313,7 +305,6 @@
           <h3>Referer Summary</h3>
           <p>Pie distribution and table summary</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="ip-table-layout">
         <div class="table-card table-card--compact">
@@ -351,7 +342,6 @@
           <h3>HTTP Method Summary</h3>
           <p>Pie distribution and table summary</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="ip-table-layout">
         <div class="table-card table-card--compact">
@@ -387,9 +377,8 @@
       <div class="bandwidth-header">
         <div>
           <h3>HTTP Method by Time</h3>
-          <p>Sample method trend based on selected range</p>
+          <p>Method trend based on selected range</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="bandwidth-chart">
         <div ref="methodChart"></div>
@@ -401,7 +390,6 @@
           <h3>HTTP Protocol Summary</h3>
           <p>Pie distribution and table summary</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="ip-table-layout">
         <div class="table-card table-card--compact">
@@ -437,9 +425,8 @@
       <div class="bandwidth-header">
         <div>
           <h3>HTTP Protocol by Time</h3>
-          <p>Sample protocol trend based on selected range</p>
+          <p>Protocol trend based on selected range</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="bandwidth-chart">
         <div ref="protocolChart"></div>
@@ -451,7 +438,6 @@
           <h3>Requests by Country</h3>
           <p>World map with request counts by country</p>
         </div>
-        <span class="bandwidth-pill">Sample</span>
       </div>
       <div class="world-map">
         <SvgMap :map="world" :location-attributes="mapLocationAttributes" />
@@ -495,11 +481,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import ApexCharts from 'apexcharts'
-import { serverList } from '@/data/servers'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
+import { fetchServers } from '@/api/servers'
+import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
 
 const selectedServer = ref('all')
 const selectedTimeRange = ref('30m')
@@ -540,93 +527,40 @@ let methodPieChartInstance = null
 let methodChartInstance = null
 let protocolPieChartInstance = null
 let protocolChartInstance = null
-const sampleStats = {
-  totalTraffic: '128.4 GB',
-  bandwidthLast: '842 Mbps',
-  bandwidthLastTime: '2025/1/29 12:23:12',
-  totalRequest: '1,284,992',
-  totalResponse: '1,273,110',
-  ipCount: '12,430',
-  referer: '126',
-  ispCount: '214',
-}
-const ipTableRows = [
-  { ip: '192.142.44.13', requests: '20326', rate: '98%' },
-  { ip: '192.142.44.10', requests: '12', rate: '1%' },
-  { ip: '10.0.12.5', requests: '86', rate: '1%' },
-]
-const statusCodeRows = [
-  { code: '200', count: '120,340', rate: '54%' },
-  { code: '206', count: '12,420', rate: '6%' },
-  { code: '301', count: '9,840', rate: '4%' },
-  { code: '302', count: '18,220', rate: '8%' },
-  { code: '400', count: '6,120', rate: '3%' },
-  { code: '403', count: '4,920', rate: '2%' },
-  { code: '404', count: '19,440', rate: '9%' },
-  { code: '444', count: '1,260', rate: '1%' },
-  { code: '499', count: '2,420', rate: '1%' },
-  { code: '500', count: '3,110', rate: '1%' },
-  { code: '502', count: '4,020', rate: '2%' },
-  { code: '503', count: '2,810', rate: '1%' },
-  { code: '504', count: '1,740', rate: '1%' },
-  { code: '904', count: '1,120', rate: '1%' },
-  { code: '929', count: '860', rate: '0.5%' },
-  { code: '978', count: '740', rate: '0.5%' },
-]
-const ispTableRows = [
-  {
-    isp: 'Logic Infotech Electrical Spare Parts Trading',
-    requests: '20326',
-    rate: '98%',
-  },
-  {
-    isp: 'Joint Stock Company TransTeleCom',
-    requests: '210',
-    rate: '1%',
-  },
-]
-const refererTableRows = [
-  {
-    referer: 'google.com',
-    requests: '20326',
-    rate: '98%',
-  },
-  {
-    referer: 'bing.com',
-    requests: '210',
-    rate: '1%',
-  },
-]
-const methodTableRows = [
-  { method: 'GET', requests: '14012', rate: '60%' },
-  { method: 'POST', requests: '4200', rate: '18%' },
-  { method: 'DELETE', requests: '180', rate: '1%' },
-  { method: 'PUT', requests: '860', rate: '4%' },
-  { method: 'HEAD', requests: '420', rate: '2%' },
-  { method: 'PATCH', requests: '310', rate: '1%' },
-  { method: 'OPTIONS', requests: '1800', rate: '8%' },
-  { method: 'OTHER', requests: '520', rate: '6%' },
-]
-const protocolTableRows = [
-  { protocol: 'HTTP/1.1', requests: '16200', rate: '70%' },
-  { protocol: 'HTTP/1.0', requests: '1200', rate: '5%' },
-  { protocol: 'HTTP/2', requests: '4920', rate: '21%' },
-  { protocol: 'HTTP/3', requests: '860', rate: '4%' },
-]
-const countryRequests = [
-  { code: 'US', name: 'United States', count: 120340 },
-  { code: 'BR', name: 'Brazil', count: 53420 },
-  { code: 'GB', name: 'United Kingdom', count: 40210 },
-  { code: 'DE', name: 'Germany', count: 38200 },
-  { code: 'RU', name: 'Russia', count: 44890 },
-  { code: 'IN', name: 'India', count: 61200 },
-  { code: 'CN', name: 'China', count: 72800 },
-  { code: 'JP', name: 'Japan', count: 29110 },
-  { code: 'AU', name: 'Australia', count: 18420 },
-  { code: 'ZA', name: 'South Africa', count: 12600 },
-]
+const bandwidthSeries = ref([{ name: 'Bandwidth', data: [] }])
+const trafficSeries = ref([{ name: 'Traffic', data: [] }])
+const requestResponseSeries = ref([
+  { name: 'Requests', data: [] },
+  { name: 'Responses', data: [] },
+])
+const statusCodeSeries = ref([
+  { name: '2xx', data: [] },
+  { name: '3xx', data: [] },
+  { name: '4xx', data: [] },
+  { name: '5xx', data: [] },
+])
+const ipCountSeries = ref([{ name: 'IP Count', data: [] }])
+const methodSeries = ref([])
+const protocolSeries = ref([])
+const analyticsStats = ref({
+  totalTraffic: 0,
+  bandwidthLast: 0,
+  bandwidthLastTime: '',
+  totalRequest: 0,
+  totalResponse: 0,
+  ipCount: 0,
+  refererCount: 0,
+  ispCount: 0,
+})
+const ipTableRows = ref([])
+const statusCodeRows = ref([])
+const ispTableRows = ref([])
+const refererTableRows = ref([])
+const methodTableRows = ref([])
+const protocolTableRows = ref([])
+const countryRequests = ref([])
 const countryRequestMap = computed(() =>
-  countryRequests.reduce((acc, item) => {
+  countryRequests.value.reduce((acc, item) => {
     acc[item.code.toLowerCase()] = item
     return acc
   }, {})
@@ -634,10 +568,10 @@ const countryRequestMap = computed(() =>
 const hoveredCountry = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
 const maxCountryCount = computed(() =>
-  Math.max(...countryRequests.map((item) => item.count))
+  Math.max(0, ...countryRequests.value.map((item) => item.count))
 )
 const mapLocationAttributes = (location) => {
-  const entry = countryRequestMap.value[location.id]
+  const entry = countryRequestMap.value[location.id.toLowerCase()]
   const ratio = entry && maxCountryCount.value ? entry.count / maxCountryCount.value : 0
   const fillColor = entry ? colorFromRate(ratio) : 'rgba(148, 163, 184, 0.2)'
   return {
@@ -672,10 +606,57 @@ const colorFromRate = (ratio) => {
   return '#60a5fa'
 }
 
+const servers = ref([])
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
-  ...serverList.map((server) => ({ label: server.name, value: server.id })),
+  ...servers.value.map((server) => ({ label: server.name || `Server ${server.id}`, value: server.id })),
 ])
+
+const formatNumber = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '0'
+  return numeric.toLocaleString()
+}
+
+const formatBytes = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let index = 0
+  let current = numeric
+  while (current >= 1024 && index < units.length - 1) {
+    current /= 1024
+    index += 1
+  }
+  return `${current.toFixed(current >= 10 ? 0 : 1)} ${units[index]}`
+}
+
+const formatMegabytes = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 MB'
+  if (numeric >= 1024) {
+    return `${(numeric / 1024).toFixed(numeric >= 10240 ? 0 : 1)} GB`
+  }
+  return `${numeric.toFixed(numeric >= 10 ? 0 : 1)} MB`
+}
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleString()
+}
+
+const statsDisplay = computed(() => ({
+  totalTraffic: formatMegabytes(analyticsStats.value.totalTraffic),
+  bandwidthLast: `${formatNumber(analyticsStats.value.bandwidthLast)} Mbps`,
+  bandwidthLastTime: formatDateTime(analyticsStats.value.bandwidthLastTime),
+  totalRequest: formatNumber(analyticsStats.value.totalRequest),
+  totalResponse: formatNumber(analyticsStats.value.totalResponse),
+  ipCount: formatNumber(analyticsStats.value.ipCount),
+  referer: formatNumber(analyticsStats.value.refererCount),
+  ispCount: formatNumber(analyticsStats.value.ispCount),
+}))
 
 const selectedRangeLabel = computed(() => {
   if (isCustomRange.value) {
@@ -689,12 +670,10 @@ const selectedRangeLabel = computed(() => {
 })
 
 const timeRanges = [
-  { label: '30m', value: '30m' },
   { label: '1h', value: '1h' },
   { label: '2h', value: '2h' },
   { label: '4h', value: '4h' },
   { label: '6h', value: '6h' },
-  { label: '8h', value: '8h' },
   { label: '12h', value: '12h' },
   { label: '24h', value: '24h' },
   { label: 'Yesterday', value: 'yesterday' },
@@ -722,46 +701,7 @@ const applyFilters = () => {
     customStart: customStartDate.value,
     customEnd: customEndDate.value,
   }
-}
-
-const randomBandwidth = (base = 600) => {
-  const jitter = (Math.random() - 0.5) * 120
-  return Math.max(80, Math.round(base + jitter))
-}
-
-const randomTraffic = (base = 150) => {
-  const jitter = (Math.random() - 0.5) * 40
-  return Math.max(20, Math.round(base + jitter))
-}
-
-const randomRequests = (base = 1200) => {
-  const jitter = (Math.random() - 0.5) * 220
-  return Math.max(120, Math.round(base + jitter))
-}
-
-const randomResponses = (base = 1100) => {
-  const jitter = (Math.random() - 0.5) * 200
-  return Math.max(100, Math.round(base + jitter))
-}
-
-const randomStatusCount = (base = 300) => {
-  const jitter = (Math.random() - 0.5) * 120
-  return Math.max(20, Math.round(base + jitter))
-}
-
-const randomIpCount = (base = 2200) => {
-  const jitter = (Math.random() - 0.5) * 300
-  return Math.max(300, Math.round(base + jitter))
-}
-
-const randomMethodCount = (base = 400) => {
-  const jitter = (Math.random() - 0.5) * 140
-  return Math.max(40, Math.round(base + jitter))
-}
-
-const randomProtocolCount = (base = 300) => {
-  const jitter = (Math.random() - 0.5) * 120
-  return Math.max(30, Math.round(base + jitter))
+  loadAnalyticsData()
 }
 
 const resolveRangeMs = (filters) => {
@@ -789,54 +729,9 @@ const resolveRangeMs = (filters) => {
     }
     case 'yesterday':
       return 24 * 60 * 60 * 1000
-    case 'custom': {
-      const start = filters.customStart ? new Date(filters.customStart).getTime() : 0
-      const end = filters.customEnd ? new Date(filters.customEnd).getTime() : 0
-      return end > start ? end - start : 60 * 60 * 1000
-    }
     default:
       return 60 * 60 * 1000
   }
-}
-
-const buildBandwidthSeries = (rangeMs) => {
-  const points = 24
-  const now = Date.now()
-  const interval = rangeMs / (points - 1)
-  const data = Array.from({ length: points }, (_, index) => ({
-    x: now - (points - 1 - index) * interval,
-    y: randomBandwidth(),
-  }))
-  return [{ name: 'Bandwidth', data }]
-}
-
-const buildTrafficSeries = (rangeMs) => {
-  const points = 24
-  const now = Date.now()
-  const interval = rangeMs / (points - 1)
-  const data = Array.from({ length: points }, (_, index) => ({
-    x: now - (points - 1 - index) * interval,
-    y: randomTraffic(),
-  }))
-  return [{ name: 'Traffic', data }]
-}
-
-const buildRequestResponseSeries = (rangeMs) => {
-  const points = 24
-  const now = Date.now()
-  const interval = rangeMs / (points - 1)
-  const requests = Array.from({ length: points }, (_, index) => ({
-    x: now - (points - 1 - index) * interval,
-    y: randomRequests(),
-  }))
-  const responses = Array.from({ length: points }, (_, index) => ({
-    x: now - (points - 1 - index) * interval,
-    y: randomResponses(),
-  }))
-  return [
-    { name: 'Requests', data: requests },
-    { name: 'Responses', data: responses },
-  ]
 }
 
 const statusCodeList = [
@@ -844,69 +739,244 @@ const statusCodeList = [
   '499', '500', '502', '503', '504', '904', '929', '978',
 ]
 
-const buildStatusCodeSeries = (rangeMs) => {
-  const points = 24
-  const now = Date.now()
-  const interval = rangeMs / (points - 1)
-  return statusCodeList.map((code, idx) => {
-    const base = 120 + (idx % 6) * 40
-    const data = Array.from({ length: points }, (_, index) => ({
-      x: now - (points - 1 - index) * interval,
-      y: randomStatusCount(base),
-    }))
-    return { name: code, data }
-  })
+const methodKeys = [
+  { label: 'GET', field: 'getCount' },
+  { label: 'POST', field: 'postCount' },
+  { label: 'DELETE', field: 'deleteCount' },
+  { label: 'PUT', field: 'putCount' },
+  { label: 'HEAD', field: 'headCount' },
+  { label: 'PATCH', field: 'patchCount' },
+  { label: 'OPTIONS', field: 'optionsCount' },
+  { label: 'OTHER', field: 'othersCount' },
+]
+
+const protocolKeys = [
+  { label: 'HTTP/1.0', field: 'http1_0' },
+  { label: 'HTTP/1.1', field: 'http1_1' },
+  { label: 'HTTP/2', field: 'http2' },
+  { label: 'HTTP/3', field: 'http3' },
+]
+
+const loadServers = async () => {
+  try {
+    const list = await fetchServers()
+    servers.value = Array.isArray(list) ? list : []
+  } catch (error) {
+    console.error('Failed to load servers', error)
+    servers.value = []
+  }
 }
 
-const buildIpCountSeries = (rangeMs) => {
-  const points = 24
-  const now = Date.now()
-  const interval = rangeMs / (points - 1)
-  const data = Array.from({ length: points }, (_, index) => ({
-    x: now - (points - 1 - index) * interval,
-    y: randomIpCount(),
-  }))
-  return [{ name: 'IP Count', data }]
+const loadAnalyticsData = async () => {
+  const params = buildAnalyticsParams()
+  try {
+    const [
+      summary,
+      bandwidth,
+      traffic,
+      requestResponse,
+      statusSeries,
+      ipCount,
+      methodPoints,
+      protocolPoints,
+      statusSummary,
+      topIps,
+      topIsps,
+      topReferers,
+      countryRows,
+      methodSummary,
+      protocolSummary,
+    ] = await Promise.all([
+      fetchAnalyticsSummary(params),
+      fetchAnalyticsSeries('bandwidth', params),
+      fetchAnalyticsSeries('traffic', params),
+      fetchAnalyticsSeries('request-response', params),
+      fetchAnalyticsSeries('status-codes', params),
+      fetchAnalyticsSeries('ip-count', params),
+      fetchAnalyticsSeries('methods', params),
+      fetchAnalyticsSeries('protocols', params),
+      fetchAnalyticsSummaryGroup('status-codes', params),
+      fetchAnalyticsSummaryGroup('top-ips', params),
+      fetchAnalyticsSummaryGroup('isps', params),
+      fetchAnalyticsSummaryGroup('referers', params),
+      fetchAnalyticsSummaryGroup('countries', params),
+      fetchAnalyticsSummaryGroup('methods', params),
+      fetchAnalyticsSummaryGroup('protocols', params),
+    ])
+
+    analyticsStats.value = {
+      totalTraffic: Number(summary?.totalTraffic ?? 0),
+      bandwidthLast: Number(summary?.bandwidthLast ?? 0),
+      bandwidthLastTime: summary?.bandwidthLastTime || '',
+      totalRequest: Number(summary?.totalRequest ?? 0),
+      totalResponse: Number(summary?.totalResponse ?? 0),
+      ipCount: Number(summary?.ipCount ?? 0),
+      refererCount: Number(summary?.refererCount ?? 0),
+      ispCount: Number(summary?.ispCount ?? 0),
+    }
+
+    bandwidthSeries.value = [
+      { name: 'Bandwidth', data: mapSeriesPoints(Array.isArray(bandwidth) ? bandwidth : [], 'traffic') },
+    ]
+    trafficSeries.value = [
+      { name: 'Traffic', data: mapSeriesPoints(Array.isArray(traffic) ? traffic : [], 'traffic') },
+    ]
+    requestResponseSeries.value = [
+      {
+        name: 'Requests',
+        data: mapSeriesPoints(Array.isArray(requestResponse) ? requestResponse : [], 'requestCount'),
+      },
+      {
+        name: 'Responses',
+        data: mapSeriesPoints(Array.isArray(requestResponse) ? requestResponse : [], 'responseCount'),
+      },
+    ]
+    statusCodeSeries.value = [
+      { name: '2xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'success') },
+      { name: '3xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'redirect') },
+      { name: '4xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'client') },
+      { name: '5xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'server') },
+    ]
+    ipCountSeries.value = [
+      { name: 'IP Count', data: mapSeriesPoints(Array.isArray(ipCount) ? ipCount : [], 'count') },
+    ]
+    methodSeries.value = methodKeys.map((method) => ({
+      name: method.label,
+      data: mapSeriesPoints(Array.isArray(methodPoints) ? methodPoints : [], method.field),
+    }))
+    protocolSeries.value = protocolKeys.map((protocol) => ({
+      name: protocol.label,
+      data: mapSeriesPoints(Array.isArray(protocolPoints) ? protocolPoints : [], protocol.field),
+    }))
+
+    const statusRows = statusCodeList.map((code) => ({
+      code,
+      count: Number(statusSummary?.[`code${code}`] ?? 0),
+    }))
+    statusCodeRows.value = buildRateRows(statusRows)
+
+    const topIpRows = (Array.isArray(topIps) ? topIps : []).map((row) => ({
+      ip: row.ip,
+      requests: Number(row.requests ?? 0),
+    }))
+    ipTableRows.value = buildRateRows(topIpRows)
+
+    const ispRows = (Array.isArray(topIsps) ? topIsps : []).map((row) => ({
+      isp: row.isp,
+      requests: Number(row.requests ?? 0),
+    }))
+    ispTableRows.value = buildRateRows(ispRows)
+
+    const refererRows = (Array.isArray(topReferers) ? topReferers : []).map((row) => ({
+      referer: row.referer,
+      requests: Number(row.requests ?? 0),
+    }))
+    refererTableRows.value = buildRateRows(refererRows)
+
+    const countries = (Array.isArray(countryRows) ? countryRows : []).map((row) => ({
+      code: String(row.countryCode || '').toUpperCase(),
+      name: row.countryCode ? row.countryCode.toUpperCase() : 'Unknown',
+      count: Number(row.requests ?? 0),
+    }))
+    countryRequests.value = countries
+
+    const methodRows = methodKeys.map((method) => ({
+      method: method.label,
+      requests: Number(methodSummary?.[method.field] ?? 0),
+    }))
+    methodTableRows.value = buildRateRows(methodRows)
+
+    const protocolRows = protocolKeys.map((protocol) => ({
+      protocol: protocol.label,
+      requests: Number(protocolSummary?.[protocol.field] ?? 0),
+    }))
+    protocolTableRows.value = buildRateRows(protocolRows)
+
+    renderBandwidthChart()
+    renderTrafficChart()
+    renderRequestResponseChart()
+    renderStatusCodeChart()
+    renderIpCountChart()
+    renderMethodChart()
+    renderProtocolChart()
+    renderTopIpsPie()
+    renderStatusCodePie()
+    renderIspPie()
+    renderRefererPie()
+    renderMethodPie()
+    renderProtocolPie()
+  } catch (error) {
+    console.error('Failed to load analytics data', error)
+  }
 }
 
-const buildMethodSeries = (rangeMs) => {
-  const points = 24
-  const now = Date.now()
-  const interval = rangeMs / (points - 1)
-  return methodTableRows.map((row, idx) => {
-    const base = 160 + (idx % 6) * 60
-    const data = Array.from({ length: points }, (_, index) => ({
-      x: now - (points - 1 - index) * interval,
-      y: randomMethodCount(base),
-    }))
-    return { name: row.method, data }
-  })
+const resolveRangeWindow = (filters) => {
+  const now = new Date()
+  if (filters.isCustom && filters.customStart && filters.customEnd) {
+    return {
+      start: new Date(filters.customStart),
+      end: new Date(filters.customEnd),
+    }
+  }
+  if (filters.range === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
+  }
+  if (filters.range === 'yesterday') {
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start: new Date(end.getTime() - 24 * 60 * 60 * 1000), end }
+  }
+  const duration = resolveRangeMs(filters)
+  return { start: new Date(now.getTime() - duration), end: now }
 }
 
-const buildProtocolSeries = (rangeMs) => {
-  const points = 24
-  const now = Date.now()
-  const interval = rangeMs / (points - 1)
-  return protocolTableRows.map((row, idx) => {
-    const base = 140 + (idx % 4) * 70
-    const data = Array.from({ length: points }, (_, index) => ({
-      x: now - (points - 1 - index) * interval,
-      y: randomProtocolCount(base),
+const buildAnalyticsParams = () => {
+  const filters = appliedFilters.value
+  const params = { serverId: filters.server }
+  if (filters.isCustom && filters.customStart && filters.customEnd) {
+    params.start = filters.customStart
+    params.end = filters.customEnd
+  } else {
+    params.range = filters.range
+  }
+  return params
+}
+
+const mapSeriesPoints = (points, field) =>
+  points
+    .map((point) => ({
+      x: new Date(point.timestamp).getTime(),
+      y: Number(point[field] ?? 0),
     }))
-    return { name: row.protocol, data }
+    .filter((point) => !Number.isNaN(point.x))
+
+const buildRateRows = (rows) => {
+  const total = rows.reduce((sum, row) => sum + Number(row.count ?? row.requests ?? 0), 0)
+  return rows.map((row) => {
+    const value = Number(row.count ?? row.requests ?? 0)
+    const rate = total ? `${((value / total) * 100).toFixed(1)}%` : '0%'
+    return {
+      ...row,
+      value,
+      count: formatNumber(value),
+      requests: formatNumber(value),
+      rate,
+    }
   })
 }
 
 const renderBandwidthChart = () => {
   if (!bandwidthChart.value) return
-  const rangeMs = resolveRangeMs(appliedFilters.value)
-  const series = buildBandwidthSeries(rangeMs)
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = bandwidthSeries.value
   const options = {
     chart: {
       type: 'area',
       height: 280,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
@@ -915,7 +985,12 @@ const renderBandwidthChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: ['#2563eb'],
-    xaxis: { type: 'datetime' },
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)} Mbps`,
@@ -943,14 +1018,16 @@ const renderBandwidthChart = () => {
 
 const renderTrafficChart = () => {
   if (!trafficChart.value) return
-  const rangeMs = resolveRangeMs(appliedFilters.value)
-  const series = buildTrafficSeries(rangeMs)
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = trafficSeries.value
   const options = {
     chart: {
       type: 'area',
       height: 280,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
@@ -959,10 +1036,15 @@ const renderTrafficChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: ['#16a34a'],
-    xaxis: { type: 'datetime' },
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
     yaxis: {
       labels: {
-        formatter: (val) => `${Math.round(val)} GB`,
+        formatter: (val) => formatMegabytes(val),
       },
     },
     grid: {
@@ -971,7 +1053,7 @@ const renderTrafficChart = () => {
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
-        formatter: (val) => `${Math.round(val)} GB`,
+        formatter: (val) => formatMegabytes(val),
       },
     },
     series,
@@ -987,19 +1069,26 @@ const renderTrafficChart = () => {
 
 const renderRequestResponseChart = () => {
   if (!requestResponseChart.value) return
-  const rangeMs = resolveRangeMs(appliedFilters.value)
-  const series = buildRequestResponseSeries(rangeMs)
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = requestResponseSeries.value
   const options = {
     chart: {
       type: 'line',
       height: 280,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     colors: ['#6366f1', '#f59e0b'],
-    xaxis: { type: 'datetime' },
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1011,7 +1100,7 @@ const renderRequestResponseChart = () => {
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
-        formatter: (val) => `${Math.round(val)} req/s`,
+        formatter: (val) => `${Math.round(val)}`,
       },
     },
     series,
@@ -1027,18 +1116,25 @@ const renderRequestResponseChart = () => {
 
 const renderStatusCodeChart = () => {
   if (!statusCodeChart.value) return
-  const rangeMs = resolveRangeMs(appliedFilters.value)
-  const series = buildStatusCodeSeries(rangeMs)
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = statusCodeSeries.value
   const options = {
     chart: {
       type: 'line',
       height: 280,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
-    xaxis: { type: 'datetime' },
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1072,14 +1168,16 @@ const renderStatusCodeChart = () => {
 
 const renderIpCountChart = () => {
   if (!ipCountChart.value) return
-  const rangeMs = resolveRangeMs(appliedFilters.value)
-  const series = buildIpCountSeries(rangeMs)
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = ipCountSeries.value
   const options = {
     chart: {
       type: 'area',
       height: 280,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
@@ -1088,7 +1186,12 @@ const renderIpCountChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: ['#8b5cf6'],
-    xaxis: { type: 'datetime' },
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1116,18 +1219,25 @@ const renderIpCountChart = () => {
 
 const renderMethodChart = () => {
   if (!methodChart.value) return
-  const rangeMs = resolveRangeMs(appliedFilters.value)
-  const series = buildMethodSeries(rangeMs)
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = methodSeries.value
   const options = {
     chart: {
       type: 'line',
       height: 280,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
-    xaxis: { type: 'datetime' },
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1161,28 +1271,42 @@ const renderMethodChart = () => {
 
 const renderProtocolPie = () => {
   if (!protocolPieChart.value) return
-  const labels = protocolTableRows.map((row) => row.protocol)
-  const series = protocolTableRows.map((row) => Number(row.rate.replace('%', '')) || 0)
+  const labels = protocolTableRows.value.map((row) => row.protocol || 'Unknown')
+  const series = protocolTableRows.value.map((row) => Number(row.value ?? 0))
+  const hasData = series.some((value) => value > 0)
+  const safeLabels = hasData ? labels : ['No data']
+  const safeSeries = hasData ? series : [1]
   const options = {
     chart: {
       type: 'pie',
       height: 220,
       toolbar: { show: false },
     },
-    labels,
-    series,
+    labels: safeLabels,
+    series: safeSeries,
     legend: { show: false },
     dataLabels: { enabled: false },
     colors: ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6'],
     tooltip: {
       y: {
-        formatter: (val) => `${Math.round(val)}%`,
+        formatter: (val) => `${Math.round(val)}`,
       },
     },
   }
 
   if (protocolPieChartInstance) {
-    protocolPieChartInstance.updateOptions(options, true, true)
+    protocolPieChartInstance.updateOptions(
+      {
+        labels: safeLabels,
+        colors: options.colors,
+        tooltip: options.tooltip,
+        dataLabels: options.dataLabels,
+        legend: options.legend,
+      },
+      false,
+      true,
+    )
+    protocolPieChartInstance.updateSeries(safeSeries, true)
   } else {
     protocolPieChartInstance = new ApexCharts(protocolPieChart.value, options)
     protocolPieChartInstance.render()
@@ -1191,18 +1315,25 @@ const renderProtocolPie = () => {
 
 const renderProtocolChart = () => {
   if (!protocolChart.value) return
-  const rangeMs = resolveRangeMs(appliedFilters.value)
-  const series = buildProtocolSeries(rangeMs)
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = protocolSeries.value
   const options = {
     chart: {
       type: 'line',
       height: 280,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
-    xaxis: { type: 'datetime' },
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1236,28 +1367,44 @@ const renderProtocolChart = () => {
 
 const renderTopIpsPie = () => {
   if (!topIpsPieChart.value) return
-  const labels = ipTableRows.map((row) => row.ip)
-  const series = ipTableRows.map((row) => Number(row.rate.replace('%', '')) || 0)
+  const labels = ipTableRows.value.map((row) => row.ip || 'Unknown')
+  const series = ipTableRows.value.map((row) => Number(row.value ?? 0))
+  const hasData = series.some((value) => value > 0)
+  const safeLabels = hasData ? labels : ['No data']
+  const safeSeries = hasData ? series : [1]
   const options = {
     chart: {
       type: 'pie',
       height: 220,
       toolbar: { show: false },
     },
-    labels,
-    series,
+    labels: safeLabels,
+    series: safeSeries,
     legend: { show: false },
     dataLabels: { enabled: false },
-    colors: ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#0ea5e9'],
+    colors: hasData
+      ? ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#0ea5e9']
+      : ['#e2e8f0'],
     tooltip: {
       y: {
-        formatter: (val) => `${Math.round(val)}%`,
+        formatter: (val) => `${Math.round(val)}`,
       },
     },
   }
 
   if (topIpsPieChartInstance) {
-    topIpsPieChartInstance.updateOptions(options, true, true)
+    topIpsPieChartInstance.updateOptions(
+      {
+        labels: safeLabels,
+        colors: options.colors,
+        tooltip: options.tooltip,
+        dataLabels: options.dataLabels,
+        legend: options.legend,
+      },
+      false,
+      true,
+    )
+    topIpsPieChartInstance.updateSeries(safeSeries, true)
   } else {
     topIpsPieChartInstance = new ApexCharts(topIpsPieChart.value, options)
     topIpsPieChartInstance.render()
@@ -1266,16 +1413,19 @@ const renderTopIpsPie = () => {
 
 const renderStatusCodePie = () => {
   if (!statusCodePieChart.value) return
-  const labels = statusCodeRows.map((row) => row.code)
-  const series = statusCodeRows.map((row) => Number(row.rate.replace('%', '')) || 0)
+  const labels = statusCodeRows.value.map((row) => row.code || 'Unknown')
+  const series = statusCodeRows.value.map((row) => Number(row.value ?? 0))
+  const hasData = series.some((value) => value > 0)
+  const safeLabels = hasData ? labels : ['No data']
+  const safeSeries = hasData ? series : [1]
   const options = {
     chart: {
       type: 'pie',
       height: 220,
       toolbar: { show: false },
     },
-    labels,
-    series,
+    labels: safeLabels,
+    series: safeSeries,
     legend: { show: false },
     dataLabels: { enabled: false },
     colors: [
@@ -1285,13 +1435,24 @@ const renderStatusCodePie = () => {
     ],
     tooltip: {
       y: {
-        formatter: (val) => `${Math.round(val)}%`,
+        formatter: (val) => `${Math.round(val)}`,
       },
     },
   }
 
   if (statusCodePieChartInstance) {
-    statusCodePieChartInstance.updateOptions(options, true, true)
+    statusCodePieChartInstance.updateOptions(
+      {
+        labels: safeLabels,
+        colors: options.colors,
+        tooltip: options.tooltip,
+        dataLabels: options.dataLabels,
+        legend: options.legend,
+      },
+      false,
+      true,
+    )
+    statusCodePieChartInstance.updateSeries(safeSeries, true)
   } else {
     statusCodePieChartInstance = new ApexCharts(statusCodePieChart.value, options)
     statusCodePieChartInstance.render()
@@ -1300,28 +1461,42 @@ const renderStatusCodePie = () => {
 
 const renderIspPie = () => {
   if (!ispPieChart.value) return
-  const labels = ispTableRows.map((row) => row.isp)
-  const series = ispTableRows.map((row) => Number(row.rate.replace('%', '')) || 0)
+  const labels = ispTableRows.value.map((row) => row.isp || 'Unknown')
+  const series = ispTableRows.value.map((row) => Number(row.value ?? 0))
+  const hasData = series.some((value) => value > 0)
+  const safeLabels = hasData ? labels : ['No data']
+  const safeSeries = hasData ? series : [1]
   const options = {
     chart: {
       type: 'pie',
       height: 220,
       toolbar: { show: false },
     },
-    labels,
-    series,
+    labels: safeLabels,
+    series: safeSeries,
     legend: { show: false },
     dataLabels: { enabled: false },
-    colors: ['#22c55e', '#f59e0b', '#e2e8f0'],
+    colors: hasData ? ['#22c55e', '#f59e0b', '#e2e8f0'] : ['#e2e8f0'],
     tooltip: {
       y: {
-        formatter: (val) => `${Math.round(val)}%`,
+        formatter: (val) => `${Math.round(val)}`,
       },
     },
   }
 
   if (ispPieChartInstance) {
-    ispPieChartInstance.updateOptions(options, true, true)
+    ispPieChartInstance.updateOptions(
+      {
+        labels: safeLabels,
+        colors: options.colors,
+        tooltip: options.tooltip,
+        dataLabels: options.dataLabels,
+        legend: options.legend,
+      },
+      false,
+      true,
+    )
+    ispPieChartInstance.updateSeries(safeSeries, true)
   } else {
     ispPieChartInstance = new ApexCharts(ispPieChart.value, options)
     ispPieChartInstance.render()
@@ -1330,28 +1505,42 @@ const renderIspPie = () => {
 
 const renderRefererPie = () => {
   if (!refererPieChart.value) return
-  const labels = refererTableRows.map((row) => row.referer)
-  const series = refererTableRows.map((row) => Number(row.rate.replace('%', '')) || 0)
+  const labels = refererTableRows.value.map((row) => row.referer || 'Unknown')
+  const series = refererTableRows.value.map((row) => Number(row.value ?? 0))
+  const hasData = series.some((value) => value > 0)
+  const safeLabels = hasData ? labels : ['No data']
+  const safeSeries = hasData ? series : [1]
   const options = {
     chart: {
       type: 'pie',
       height: 220,
       toolbar: { show: false },
     },
-    labels,
-    series,
+    labels: safeLabels,
+    series: safeSeries,
     legend: { show: false },
     dataLabels: { enabled: false },
-    colors: ['#3b82f6', '#f59e0b', '#e2e8f0'],
+    colors: hasData ? ['#3b82f6', '#f59e0b', '#e2e8f0'] : ['#e2e8f0'],
     tooltip: {
       y: {
-        formatter: (val) => `${Math.round(val)}%`,
+        formatter: (val) => `${Math.round(val)}`,
       },
     },
   }
 
   if (refererPieChartInstance) {
-    refererPieChartInstance.updateOptions(options, true, true)
+    refererPieChartInstance.updateOptions(
+      {
+        labels: safeLabels,
+        colors: options.colors,
+        tooltip: options.tooltip,
+        dataLabels: options.dataLabels,
+        legend: options.legend,
+      },
+      false,
+      true,
+    )
+    refererPieChartInstance.updateSeries(safeSeries, true)
   } else {
     refererPieChartInstance = new ApexCharts(refererPieChart.value, options)
     refererPieChartInstance.render()
@@ -1360,64 +1549,54 @@ const renderRefererPie = () => {
 
 const renderMethodPie = () => {
   if (!methodPieChart.value) return
-  const labels = methodTableRows.map((row) => row.method)
-  const series = methodTableRows.map((row) => Number(row.rate.replace('%', '')) || 0)
+  const labels = methodTableRows.value.map((row) => row.method || 'Unknown')
+  const series = methodTableRows.value.map((row) => Number(row.value ?? 0))
+  const hasData = series.some((value) => value > 0)
+  const safeLabels = hasData ? labels : ['No data']
+  const safeSeries = hasData ? series : [1]
   const options = {
     chart: {
       type: 'pie',
       height: 220,
       toolbar: { show: false },
     },
-    labels,
-    series,
+    labels: safeLabels,
+    series: safeSeries,
     legend: { show: false },
     dataLabels: { enabled: false },
     colors: ['#2563eb', '#16a34a', '#ef4444', '#f59e0b', '#0ea5e9', '#8b5cf6', '#22c55e', '#64748b'],
     tooltip: {
       y: {
-        formatter: (val) => `${Math.round(val)}%`,
+        formatter: (val) => `${Math.round(val)}`,
       },
     },
   }
 
   if (methodPieChartInstance) {
-    methodPieChartInstance.updateOptions(options, true, true)
+    methodPieChartInstance.updateOptions(
+      {
+        labels: safeLabels,
+        colors: options.colors,
+        tooltip: options.tooltip,
+        dataLabels: options.dataLabels,
+        legend: options.legend,
+      },
+      false,
+      true,
+    )
+    methodPieChartInstance.updateSeries(safeSeries, true)
   } else {
     methodPieChartInstance = new ApexCharts(methodPieChart.value, options)
     methodPieChartInstance.render()
   }
 }
 
-watch(appliedFilters, () => {
-  renderBandwidthChart()
-  renderTrafficChart()
-  renderRequestResponseChart()
-  renderStatusCodeChart()
-  renderIpCountChart()
-  renderTopIpsPie()
-  renderStatusCodePie()
-  renderIspPie()
-  renderRefererPie()
-  renderMethodPie()
-  renderMethodChart()
-  renderProtocolPie()
-  renderProtocolChart()
-})
-
 onMounted(() => {
-  renderBandwidthChart()
-  renderTrafficChart()
-  renderRequestResponseChart()
-  renderStatusCodeChart()
-  renderIpCountChart()
+  loadServers()
+  loadAnalyticsData()
   renderTopIpsPie()
-  renderStatusCodePie()
   renderIspPie()
   renderRefererPie()
-  renderMethodPie()
-  renderMethodChart()
-  renderProtocolPie()
-  renderProtocolChart()
 })
 
 onBeforeUnmount(() => {
@@ -1516,23 +1695,23 @@ onBeforeUnmount(() => {
 }
 
 .filters-left {
-  flex: 1 1 240px;
-}
-
-.filters-center {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 1 auto;
-  justify-content: center;
-  color: #475569;
-  font-weight: 600;
+  flex: 1 1 420px;
+  gap: 12px;
 }
 
 .filters-right {
-  flex: 2 1 360px;
+  flex: 0 1 auto;
   justify-content: flex-end;
   margin-left: auto;
+  gap: 12px;
+}
+
+.selected-range-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-weight: 600;
 }
 
 .filter-inline-label {
@@ -1621,14 +1800,14 @@ onBeforeUnmount(() => {
   font-weight: 600;
   cursor: pointer;
   color: #ffffff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .apply-filter-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 12px 26px rgba(239, 68, 68, 0.45);
 }
 
 .dialog-overlay {
@@ -1793,6 +1972,8 @@ onBeforeUnmount(() => {
 }
 
 .world-map {
+  width: 100%;
+  height: fit-content;
   border-radius: 16px;
   border: 1px solid rgba(226, 232, 240, 0.8);
   background: #f8fafc;
@@ -1801,9 +1982,10 @@ onBeforeUnmount(() => {
 }
 
 .world-map :deep(.svg-map) {
-  width: 100%;
+  width: 70%;
   height: auto;
   display: block;
+  margin: 0 auto;
 }
 
 .world-map :deep(.svg-map__location) {
