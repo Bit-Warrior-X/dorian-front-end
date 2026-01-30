@@ -12,7 +12,7 @@
         </div>
         <div class="stat-info">
           <h3>Total Users</h3>
-          <p class="stat-value">12,345</p>
+          <p class="stat-value">{{ formatNumber(dashboardStats.totalUsers) }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -26,7 +26,7 @@
         </div>
         <div class="stat-info">
           <h3>Total Servers</h3>
-          <p class="stat-value">1,234</p>
+          <p class="stat-value">{{ formatNumber(dashboardStats.totalServers) }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -38,7 +38,7 @@
         </div>
         <div class="stat-info">
           <h3>Active Servers</h3>
-          <p class="stat-value">987</p>
+          <p class="stat-value">{{ formatNumber(dashboardStats.activeServers) }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -50,7 +50,7 @@
         </div>
         <div class="stat-info">
           <h3>Blocked IPs</h3>
-          <p class="stat-value">456</p>
+          <p class="stat-value">{{ formatNumber(dashboardStats.blockedIps) }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -62,7 +62,7 @@
         </div>
         <div class="stat-info">
           <h3>L4 Attacks This Month</h3>
-          <p class="stat-value">124</p>
+          <p class="stat-value">{{ formatNumber(dashboardStats.l4AttacksThisMonth) }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -74,7 +74,7 @@
         </div>
         <div class="stat-info">
           <h3>L4 Attacks Previous Month</h3>
-          <p class="stat-value">98</p>
+          <p class="stat-value">{{ formatNumber(dashboardStats.l4AttacksPreviousMonth) }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -107,28 +107,19 @@
     <div class="analytics-card">
       <h2>Security Events Timeline</h2>
       <div class="timeline">
-        <div class="timeline-item">
-          <div class="timeline-marker threat"></div>
-          <div class="timeline-content">
-            <h4>DDoS Attack Detected</h4>
-            <p>Multiple requests from 192.168.1.50 - Blocked</p>
-            <span class="timeline-time">2 hours ago</span>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <div class="timeline-marker warning"></div>
-          <div class="timeline-content">
-            <h4>Suspicious Activity</h4>
-            <p>Unusual traffic pattern detected from 10.0.0.15</p>
-            <span class="timeline-time">5 hours ago</span>
-          </div>
-        </div>
-        <div class="timeline-item">
+        <div v-if="!securityEvents.length" class="timeline-item">
           <div class="timeline-marker success"></div>
           <div class="timeline-content">
-            <h4>Security Scan Completed</h4>
-            <p>All systems verified and secure</p>
-            <span class="timeline-time">1 day ago</span>
+            <h4>No security events</h4>
+            <p>New events will appear here as they are recorded.</p>
+          </div>
+        </div>
+        <div v-for="(event, index) in securityEvents" :key="event.id" class="timeline-item">
+          <div class="timeline-marker" :class="eventMarkerClass(event, index)"></div>
+          <div class="timeline-content">
+            <h4>{{ event.title }}</h4>
+            <p>{{ event.description }}</p>
+            <span class="timeline-time">{{ formatEventTime(event.createdAt) }}</span>
           </div>
         </div>
       </div>
@@ -228,10 +219,20 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ApexCharts from 'apexcharts'
 import { serverList } from '@/data/servers'
+import { fetchDashboardSummary, fetchSecurityEvents } from '@/api/dashboard'
 
 const bandwidthChart = ref(null)
 const requestResponseChart = ref(null)
 const statusCodeChart = ref(null)
+const securityEvents = ref([])
+const dashboardStats = ref({
+  totalUsers: 0,
+  totalServers: 0,
+  activeServers: 0,
+  blockedIps: 0,
+  l4AttacksThisMonth: 0,
+  l4AttacksPreviousMonth: 0,
+})
 const palette = ['#6366f1', '#14b8a6', '#f59e0b', '#ef4444', '#22c55e', '#0ea5e9', '#a855f7']
 const servers = serverList.map((server, index) => ({
   id: server.id,
@@ -246,6 +247,61 @@ let chartInstance = null
 let bandwidthTimer = null
 let requestResponseChartInstance = null
 let statusCodeChartInstance = null
+
+const formatNumber = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '0'
+  return numeric.toLocaleString()
+}
+
+const loadDashboardSummary = async () => {
+  try {
+    const payload = await fetchDashboardSummary()
+    dashboardStats.value = {
+      totalUsers: Number(payload?.totalUsers ?? 0),
+      totalServers: Number(payload?.totalServers ?? 0),
+      activeServers: Number(payload?.activeServers ?? 0),
+      blockedIps: Number(payload?.blockedIps ?? 0),
+      l4AttacksThisMonth: Number(payload?.l4AttacksThisMonth ?? 0),
+      l4AttacksPreviousMonth: Number(payload?.l4AttacksPreviousMonth ?? 0),
+    }
+  } catch (error) {
+    console.error('Failed to load dashboard summary', error)
+  }
+}
+
+const loadSecurityEvents = async () => {
+  try {
+    const payload = await fetchSecurityEvents(6)
+    securityEvents.value = Array.isArray(payload) ? payload : []
+  } catch (error) {
+    console.error('Failed to load security events', error)
+    securityEvents.value = []
+  }
+}
+
+const formatEventTime = (value) => {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return value
+  }
+  return parsed.toLocaleString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const eventMarkerClass = (event, index) => {
+  const title = String(event?.title || '').toLowerCase()
+  if (title.includes('attack') || title.includes('ddos')) return 'threat'
+  if (title.includes('suspicious') || title.includes('warning')) return 'warning'
+  if (title.includes('resolved') || title.includes('completed')) return 'success'
+  return ['threat', 'warning', 'success'][index % 3]
+}
 
 const timeRangeOptions = [
   { label: '5min', value: 5 * 60 * 1000 },
@@ -757,6 +813,8 @@ const createStatusCodeChart = () => {
 }
 
 onMounted(() => {
+  loadDashboardSummary()
+  loadSecurityEvents()
   if (!servers.length) {
     return
   }
