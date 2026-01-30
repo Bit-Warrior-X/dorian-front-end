@@ -527,6 +527,19 @@ const exportCsv = () => {
     return
   }
 
+  const resolveServerName = () => {
+    const currentId = String(selectedServer.value || '')
+    const server = serverList.value.find((item) => String(item.id) === currentId)
+    return server?.name || (currentId ? `server_${currentId}` : 'server')
+  }
+
+  const sanitizeName = (value) =>
+    String(value)
+      .trim()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+      .toLowerCase()
+
   const escapeCsv = (value) => {
     const text = String(value ?? '')
     if (/[",\n]/.test(text)) {
@@ -555,7 +568,8 @@ const exportCsv = () => {
 
   const now = new Date()
   const pad = (val) => String(val).padStart(2, '0')
-  const filename = `access-log-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`
+  const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  const filename = `${sanitizeName(resolveServerName())}_${timestamp}.csv`
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
