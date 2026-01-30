@@ -87,7 +87,7 @@
         </div>
         <div class="stat-info">
           <h3>L7 Threats This Month</h3>
-          <p class="stat-value">312</p>
+          <p class="stat-value">{{ formatNumber(dashboardStats.l7ThreatsThisMonth) }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -100,7 +100,7 @@
         </div>
         <div class="stat-info">
           <h3>L7 Threats Previous Month</h3>
-          <p class="stat-value">276</p>
+          <p class="stat-value">{{ formatNumber(dashboardStats.l7ThreatsPreviousMonth) }}</p>
         </div>
       </div>
     </div>
@@ -128,16 +128,23 @@
       <div class="bandwidth-header">
         <div>
           <h3>Realtime Bandwidth by Server</h3>
-          <p>Live throughput updated every second (Mbps)</p>
+          <p>Live throughput updated every 5 minutes (Mbps)</p>
         </div>
-        <span class="bandwidth-pill">Live</span>
+        <div class="bandwidth-controls">
+          <select v-model="bandwidthRange" class="chart-select">
+            <option v-for="option in bandwidthRangeOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <span class="bandwidth-pill">Live</span>
+        </div>
       </div>
       <div class="bandwidth-chart">
         <div ref="bandwidthChart"></div>
       </div>
       <div class="bandwidth-legend">
         <button
-          v-for="(server, index) in servers"
+          v-for="(server, index) in bandwidthServers"
           :key="server.id"
           class="legend-item"
           type="button"
@@ -158,18 +165,11 @@
             <p>Requests and responses per second</p>
           </div>
           <div class="chart-controls">
-            <div class="range-buttons">
-              <button
-                v-for="option in timeRangeOptions"
-                :key="option.value"
-                type="button"
-                class="range-btn"
-                :class="{ active: requestRange === option.value }"
-                @click="requestRange = option.value"
-              >
+            <select v-model="requestRange" class="chart-select">
+              <option v-for="option in bandwidthRangeOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
-              </button>
-            </div>
+              </option>
+            </select>
             <select v-model="requestServer" class="chart-select">
               <option v-for="option in serverOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
@@ -188,18 +188,11 @@
             <p>Response distribution per second</p>
           </div>
           <div class="chart-controls">
-            <div class="range-buttons">
-              <button
-                v-for="option in timeRangeOptions"
-                :key="option.value"
-                type="button"
-                class="range-btn"
-                :class="{ active: statusRange === option.value }"
-                @click="statusRange = option.value"
-              >
+            <select v-model="statusRange" class="chart-select">
+              <option v-for="option in bandwidthRangeOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
-              </button>
-            </div>
+              </option>
+            </select>
             <select v-model="statusServer" class="chart-select">
               <option v-for="option in serverOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
@@ -216,10 +209,10 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ApexCharts from 'apexcharts'
-import { serverList } from '@/data/servers'
-import { fetchDashboardSummary, fetchSecurityEvents } from '@/api/dashboard'
+import { fetchBandwidthSeries, fetchDashboardSummary, fetchRequestResponseSeries, fetchSecurityEvents, fetchStatusCodeSeries } from '@/api/dashboard'
+import { fetchServers } from '@/api/servers'
 
 const bandwidthChart = ref(null)
 const requestResponseChart = ref(null)
@@ -232,19 +225,17 @@ const dashboardStats = ref({
   blockedIps: 0,
   l4AttacksThisMonth: 0,
   l4AttacksPreviousMonth: 0,
+  l7ThreatsThisMonth: 0,
+  l7ThreatsPreviousMonth: 0,
 })
 const palette = ['#6366f1', '#14b8a6', '#f59e0b', '#ef4444', '#22c55e', '#0ea5e9', '#a855f7']
-const servers = serverList.map((server, index) => ({
-  id: server.id,
-  label: server.name,
-  color: palette[index % palette.length],
-}))
-const maxPoints = 30
-const intervalMs = 1000
-const range = maxPoints * intervalMs
+const bandwidthServers = ref([])
+const bandwidthRefreshMs = 60 * 1000
+const trafficRefreshMs = 60 * 1000
 
 let chartInstance = null
 let bandwidthTimer = null
+let trafficTimer = null
 let requestResponseChartInstance = null
 let statusCodeChartInstance = null
 
@@ -264,6 +255,8 @@ const loadDashboardSummary = async () => {
       blockedIps: Number(payload?.blockedIps ?? 0),
       l4AttacksThisMonth: Number(payload?.l4AttacksThisMonth ?? 0),
       l4AttacksPreviousMonth: Number(payload?.l4AttacksPreviousMonth ?? 0),
+      l7ThreatsThisMonth: Number(payload?.l7ThreatsThisMonth ?? 0),
+      l7ThreatsPreviousMonth: Number(payload?.l7ThreatsPreviousMonth ?? 0),
     }
   } catch (error) {
     console.error('Failed to load dashboard summary', error)
@@ -272,11 +265,36 @@ const loadDashboardSummary = async () => {
 
 const loadSecurityEvents = async () => {
   try {
-    const payload = await fetchSecurityEvents(6)
+    const payload = await fetchSecurityEvents(10)
     securityEvents.value = Array.isArray(payload) ? payload : []
   } catch (error) {
     console.error('Failed to load security events', error)
     securityEvents.value = []
+  }
+}
+
+const loadBandwidthServers = async () => {
+  try {
+    const payload = await fetchServers()
+    const list = Array.isArray(payload) ? payload : []
+    bandwidthServers.value = list.map((server, index) => ({
+      id: server.id,
+      label: server.name || `Server ${server.id}`,
+      color: palette[index % palette.length],
+    }))
+    bandwidthSeries.value = createEmptyBandwidthSeries()
+    latestValues.value = bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0)
+    hiddenServers.value = new Set()
+    if (chartInstance) {
+      chartInstance.destroy()
+      chartInstance = null
+    }
+    createChart()
+  } catch (error) {
+    console.error('Failed to load servers for bandwidth', error)
+    bandwidthServers.value = []
+    bandwidthSeries.value = []
+    latestValues.value = []
   }
 }
 
@@ -303,116 +321,252 @@ const eventMarkerClass = (event, index) => {
   return ['threat', 'warning', 'success'][index % 3]
 }
 
-const timeRangeOptions = [
-  { label: '5min', value: 5 * 60 * 1000 },
-  { label: '10min', value: 10 * 60 * 1000 },
-  { label: '30min', value: 30 * 60 * 1000 },
-  { label: '1h', value: 60 * 60 * 1000 },
+const bandwidthRangeOptions = [
+  { label: '30m', value: '30m' },
+  { label: '1h', value: '1h' },
+  { label: '2h', value: '2h' },
+  { label: '4h', value: '4h' },
+  { label: '8h', value: '8h' },
+  { label: '12h', value: '12h' },
+  { label: '24h', value: '24h' },
 ]
-const serverOptions = [
+const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
-  ...serverList.map((server) => ({ label: server.name, value: server.id })),
-]
-const requestRange = ref(timeRangeOptions[0].value)
-const statusRange = ref(timeRangeOptions[0].value)
+  ...bandwidthServers.value.map((server) => ({ label: server.label, value: server.id })),
+])
+const bandwidthRange = ref(bandwidthRangeOptions[0].value)
+const requestRange = ref(bandwidthRangeOptions[0].value)
+const statusRange = ref(bandwidthRangeOptions[0].value)
 const requestServer = ref('all')
 const statusServer = ref('all')
 
-const randomBandwidth = (base = 400) => {
-  const jitter = (Math.random() - 0.5) * 30
-  const next = Math.max(50, Math.min(980, base + jitter))
-  return Math.round(next)
+const getBandwidthRangeMs = (value) => {
+  switch (value) {
+    case '1h':
+      return 60 * 60 * 1000
+    case '2h':
+      return 2 * 60 * 60 * 1000
+    case '4h':
+      return 4 * 60 * 60 * 1000
+    case '8h':
+      return 8 * 60 * 60 * 1000
+    case '12h':
+      return 12 * 60 * 60 * 1000
+    case '24h':
+      return 24 * 60 * 60 * 1000
+    default:
+      return 30 * 60 * 1000
+  }
 }
 
-const randomRequests = (base = 1200) => {
-  const jitter = (Math.random() - 0.5) * 180
-  const next = Math.max(50, Math.min(4000, base + jitter))
-  return Math.round(next)
-}
+const createEmptyBandwidthSeries = () =>
+  bandwidthServers.value.map((server) => ({
+    name: server.label,
+    data: [],
+  }))
 
-const randomResponses = (base = 1000) => {
-  const jitter = (Math.random() - 0.5) * 150
-  const next = Math.max(50, Math.min(3800, base + jitter))
-  return Math.round(next)
-}
-
-const randomStatusCounts = (base = 800) => {
-  const jitter = (Math.random() - 0.5) * 120
-  const success = Math.max(20, Math.round(base + jitter))
-  const redirect = Math.max(8, Math.round(success * 0.12))
-  const client = Math.max(6, Math.round(success * 0.08))
-  const server = Math.max(3, Math.round(success * 0.03))
-  return { success, redirect, client, server }
-}
-
-const createInitialSeries = () => {
-  const now = Date.now()
-  return servers.map((server, index) => {
-    const base = 300 + (index % 5) * 80
-    const data = Array.from({ length: maxPoints }, (_, pointIndex) => ({
-      x: now - (maxPoints - pointIndex) * intervalMs,
-      y: randomBandwidth(base),
-    }))
-    return {
-      name: server.label,
-      data,
-    }
-  })
-}
-
-const bandwidthSeries = ref(createInitialSeries())
-const latestValues = ref(
-  bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0),
-)
+const bandwidthSeries = ref([])
+const latestValues = ref([])
 const hiddenServers = ref(new Set())
 
-const requestResponseSeries = ref(createRequestResponseSeries())
-const statusCodeSeries = ref(createStatusCodeSeries())
+const requestResponseSeries = ref([
+  { name: 'Requests', data: [] },
+  { name: 'Responses', data: [] },
+])
+const statusCodeSeries = ref([
+  { name: '2xx', data: [] },
+  { name: '3xx', data: [] },
+  { name: '4xx', data: [] },
+  { name: '5xx', data: [] },
+])
 
-const updateSeries = () => {
-  const samplePayload = getSampleBandwidthPayload()
-  const now = Date.now()
-  const appendPayload = []
-
-  bandwidthSeries.value = bandwidthSeries.value.map((series, index) => {
-    const serverId = servers[index].id
-    const nextValue = samplePayload[serverId] ?? series.data[series.data.length - 1]?.y ?? 0
-    const nextPoint = { x: now, y: Math.round(nextValue) }
-    appendPayload.push({ data: [nextPoint] })
-
-    const next = [...series.data, nextPoint]
-    const trimmed = next.length > maxPoints ? next.slice(next.length - maxPoints) : next
-    return {
-      ...series,
-      data: trimmed,
+const loadBandwidthSeries = async () => {
+  if (!bandwidthServers.value.length) {
+    return
+  }
+  try {
+    const payload = await fetchBandwidthSeries(bandwidthRange.value)
+    const seriesMap = new Map()
+    if (Array.isArray(payload)) {
+      payload.forEach((entry) => {
+        const points = Array.isArray(entry?.points) ? entry.points : []
+        seriesMap.set(Number(entry?.serverId), points)
+      })
     }
-  })
 
-  latestValues.value = bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0)
-
-  if (chartInstance) {
-    chartInstance.appendData(appendPayload)
-    chartInstance.updateOptions(
-      {
-        xaxis: {
-          range,
-          max: now,
-          tickAmount: 6,
-        },
-      },
-      false,
-      true,
-    )
-    hiddenServers.value.forEach((serverId) => {
-      const server = servers.find((item) => item.id === serverId)
-      if (server) {
-        chartInstance.hideSeries(server.label)
+    bandwidthSeries.value = bandwidthServers.value.map((server) => {
+      const points = seriesMap.get(server.id) || []
+      const data = points
+        .map((point) => ({
+          x: new Date(point.timestamp).getTime(),
+          y: Number(point.bandwidth ?? 0),
+        }))
+        .filter((point) => !Number.isNaN(point.x))
+      return {
+        name: server.label,
+        data,
       }
     })
-  }
 
-  updateRequestResponseSeries(now)
-  updateStatusCodeSeries(now)
+    latestValues.value = bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0)
+
+    if (chartInstance) {
+      chartInstance.updateSeries(bandwidthSeries.value, true)
+      chartInstance.updateOptions(
+        {
+          xaxis: {
+            range: getBandwidthRangeMs(bandwidthRange.value),
+            min: Date.now() - getBandwidthRangeMs(bandwidthRange.value),
+            max: Date.now(),
+            tickAmount: 6,
+          },
+        },
+        false,
+        true,
+      )
+      hiddenServers.value.forEach((serverId) => {
+        const server = bandwidthServers.value.find((item) => item.id === serverId)
+        if (server) {
+          chartInstance.hideSeries(server.label)
+        }
+      })
+    }
+  } catch (error) {
+    console.error('Failed to load bandwidth series', error)
+    bandwidthSeries.value = createEmptyBandwidthSeries()
+    latestValues.value = bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0)
+    if (chartInstance) {
+      chartInstance.updateSeries(bandwidthSeries.value, true)
+    }
+  }
+}
+
+const updateRequestResponseAxis = () => {
+  if (!requestResponseChartInstance) {
+    return
+  }
+  const rangeMs = getBandwidthRangeMs(requestRange.value)
+  requestResponseChartInstance.updateOptions(
+    {
+      xaxis: {
+        range: rangeMs,
+        min: Date.now() - rangeMs,
+        max: Date.now(),
+        tickAmount: 36,
+      },
+    },
+    false,
+    true,
+  )
+}
+
+const updateStatusCodeAxis = () => {
+  if (!statusCodeChartInstance) {
+    return
+  }
+  const rangeMs = getBandwidthRangeMs(statusRange.value)
+  statusCodeChartInstance.updateOptions(
+    {
+      xaxis: {
+        range: rangeMs,
+        min: Date.now() - rangeMs,
+        max: Date.now(),
+        tickAmount: 36,
+      },
+    },
+    false,
+    true,
+  )
+}
+
+const loadRequestResponseSeries = async () => {
+  try {
+    const payload = await fetchRequestResponseSeries(requestRange.value, requestServer.value)
+    const points = Array.isArray(payload) ? payload : []
+    const requests = points
+      .map((point) => ({
+        x: new Date(point.timestamp).getTime(),
+        y: Number(point.requestCount ?? 0),
+      }))
+      .filter((point) => !Number.isNaN(point.x))
+    const responses = points
+      .map((point) => ({
+        x: new Date(point.timestamp).getTime(),
+        y: Number(point.responseCount ?? 0),
+      }))
+      .filter((point) => !Number.isNaN(point.x))
+    requestResponseSeries.value = [
+      { name: 'Requests', data: requests },
+      { name: 'Responses', data: responses },
+    ]
+    if (requestResponseChartInstance) {
+      requestResponseChartInstance.updateSeries(requestResponseSeries.value, true)
+      updateRequestResponseAxis()
+    }
+  } catch (error) {
+    console.error('Failed to load request response series', error)
+    requestResponseSeries.value = [
+      { name: 'Requests', data: [] },
+      { name: 'Responses', data: [] },
+    ]
+    if (requestResponseChartInstance) {
+      requestResponseChartInstance.updateSeries(requestResponseSeries.value, true)
+      updateRequestResponseAxis()
+    }
+  }
+}
+
+const loadStatusCodeSeries = async () => {
+  try {
+    const payload = await fetchStatusCodeSeries(statusRange.value, statusServer.value)
+    const points = Array.isArray(payload) ? payload : []
+    const success = points
+      .map((point) => ({
+        x: new Date(point.timestamp).getTime(),
+        y: Number(point.success ?? 0),
+      }))
+      .filter((point) => !Number.isNaN(point.x))
+    const redirect = points
+      .map((point) => ({
+        x: new Date(point.timestamp).getTime(),
+        y: Number(point.redirect ?? 0),
+      }))
+      .filter((point) => !Number.isNaN(point.x))
+    const client = points
+      .map((point) => ({
+        x: new Date(point.timestamp).getTime(),
+        y: Number(point.client ?? 0),
+      }))
+      .filter((point) => !Number.isNaN(point.x))
+    const server = points
+      .map((point) => ({
+        x: new Date(point.timestamp).getTime(),
+        y: Number(point.server ?? 0),
+      }))
+      .filter((point) => !Number.isNaN(point.x))
+    statusCodeSeries.value = [
+      { name: '2xx', data: success },
+      { name: '3xx', data: redirect },
+      { name: '4xx', data: client },
+      { name: '5xx', data: server },
+    ]
+    if (statusCodeChartInstance) {
+      statusCodeChartInstance.updateSeries(statusCodeSeries.value, true)
+      updateStatusCodeAxis()
+    }
+  } catch (error) {
+    console.error('Failed to load status code series', error)
+    statusCodeSeries.value = [
+      { name: '2xx', data: [] },
+      { name: '3xx', data: [] },
+      { name: '4xx', data: [] },
+      { name: '5xx', data: [] },
+    ]
+    if (statusCodeChartInstance) {
+      statusCodeChartInstance.updateSeries(statusCodeSeries.value, true)
+      updateStatusCodeAxis()
+    }
+  }
 }
 
 const toggleServerSeries = (server) => {
@@ -434,176 +588,8 @@ const toggleServerSeries = (server) => {
   )
 }
 
-const getSampleBandwidthPayload = () => {
-  return servers.reduce((acc, server, index) => {
-    const base = 300 + (index % 5) * 80
-    acc[server.id] = randomBandwidth(base)
-    return acc
-  }, {})
-}
-
-function createRequestResponseSeries() {
-  const now = Date.now()
-  const requests = []
-  const responses = []
-  for (let pointIndex = 0; pointIndex < maxPoints; pointIndex += 1) {
-    const timestamp = now - (maxPoints - pointIndex) * intervalMs
-    const { requestValue, responseValue } = getRequestResponseValues(requestServer.value)
-    requests.push({ x: timestamp, y: requestValue })
-    responses.push({ x: timestamp, y: responseValue })
-  }
-  return [
-    { name: 'Requests', data: requests },
-    { name: 'Responses', data: responses },
-  ]
-}
-
-function createStatusCodeSeries() {
-  const now = Date.now()
-  const success = []
-  const redirect = []
-  const client = []
-  const server = []
-  for (let pointIndex = 0; pointIndex < maxPoints; pointIndex += 1) {
-    const timestamp = now - (maxPoints - pointIndex) * intervalMs
-    const { successValue, redirectValue, clientValue, serverValue } = getStatusCodeValues(statusServer.value)
-    success.push({ x: timestamp, y: successValue })
-    redirect.push({ x: timestamp, y: redirectValue })
-    client.push({ x: timestamp, y: clientValue })
-    server.push({ x: timestamp, y: serverValue })
-  }
-  return [
-    { name: '2xx', data: success },
-    { name: '3xx', data: redirect },
-    { name: '4xx', data: client },
-    { name: '5xx', data: server },
-  ]
-}
-
-function getRequestResponseValues(selectedServer) {
-  if (selectedServer === 'all') {
-    return servers.reduce(
-      (acc, server, index) => {
-        const base = 900 + (index % 5) * 140
-        acc.requestValue += randomRequests(base)
-        acc.responseValue += randomResponses(base * 0.9)
-        return acc
-      },
-      { requestValue: 0, responseValue: 0 },
-    )
-  }
-  const serverIndex = servers.findIndex((server) => server.id === selectedServer)
-  const base = 900 + (serverIndex % 5) * 140
-  return {
-    requestValue: randomRequests(base),
-    responseValue: randomResponses(base * 0.9),
-  }
-}
-
-function getStatusCodeValues(selectedServer) {
-  if (selectedServer === 'all') {
-    return servers.reduce(
-      (acc, server, index) => {
-        const base = 800 + (index % 5) * 120
-        const counts = randomStatusCounts(base)
-        acc.successValue += counts.success
-        acc.redirectValue += counts.redirect
-        acc.clientValue += counts.client
-        acc.serverValue += counts.server
-        return acc
-      },
-      { successValue: 0, redirectValue: 0, clientValue: 0, serverValue: 0 },
-    )
-  }
-  const serverIndex = servers.findIndex((server) => server.id === selectedServer)
-  const base = 800 + (serverIndex % 5) * 120
-  const counts = randomStatusCounts(base)
-  return {
-    successValue: counts.success,
-    redirectValue: counts.redirect,
-    clientValue: counts.client,
-    serverValue: counts.server,
-  }
-}
-
-const updateRequestResponseSeries = (now) => {
-  const { requestValue, responseValue } = getRequestResponseValues(requestServer.value)
-  const nextRequests = { x: now, y: requestValue }
-  const nextResponses = { x: now, y: responseValue }
-
-  requestResponseSeries.value = requestResponseSeries.value.map((series) => {
-    const next = [...series.data, series.name === 'Requests' ? nextRequests : nextResponses]
-    return {
-      ...series,
-      data: next.length > maxPoints ? next.slice(next.length - maxPoints) : next,
-    }
-  })
-
-  if (requestResponseChartInstance) {
-    requestResponseChartInstance.appendData([
-      { data: [nextRequests] },
-      { data: [nextResponses] },
-    ])
-    requestResponseChartInstance.updateOptions(
-      {
-        xaxis: {
-          range: requestRange.value,
-          max: now,
-          tickAmount: 6,
-        },
-      },
-      false,
-      true,
-    )
-  }
-}
-
-const updateStatusCodeSeries = (now) => {
-  const { successValue, redirectValue, clientValue, serverValue } = getStatusCodeValues(statusServer.value)
-  const nextSuccess = { x: now, y: successValue }
-  const nextRedirect = { x: now, y: redirectValue }
-  const nextClient = { x: now, y: clientValue }
-  const nextServer = { x: now, y: serverValue }
-
-  statusCodeSeries.value = statusCodeSeries.value.map((series) => {
-    const nextPoint =
-      series.name === '2xx'
-        ? nextSuccess
-        : series.name === '3xx'
-          ? nextRedirect
-          : series.name === '4xx'
-            ? nextClient
-            : nextServer
-    const next = [...series.data, nextPoint]
-    return {
-      ...series,
-      data: next.length > maxPoints ? next.slice(next.length - maxPoints) : next,
-    }
-  })
-
-  if (statusCodeChartInstance) {
-    statusCodeChartInstance.appendData([
-      { data: [nextSuccess] },
-      { data: [nextRedirect] },
-      { data: [nextClient] },
-      { data: [nextServer] },
-    ])
-    statusCodeChartInstance.updateOptions(
-      {
-        xaxis: {
-          range: statusRange.value,
-          max: now,
-          tickAmount: 6,
-        },
-      },
-      false,
-      true,
-    )
-  }
-}
-
 const createChart = () => {
-  if (!bandwidthChart.value) {
+  if (!bandwidthChart.value || !bandwidthServers.value.length) {
     return
   }
 
@@ -631,7 +617,7 @@ const createChart = () => {
       size: 0,
       hover: { size: 4 },
     },
-    colors: servers.map((server) => server.color),
+    colors: bandwidthServers.value.map((server) => server.color),
     series: bandwidthSeries.value,
     xaxis: {
       type: 'datetime',
@@ -641,14 +627,15 @@ const createChart = () => {
         style: { colors: '#94a3b8' },
         formatter: (value) => {
           const date = new Date(value)
-          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         },
       },
       axisBorder: { show: false },
       axisTicks: { show: false },
-      range,
+      range: getBandwidthRangeMs(bandwidthRange.value),
+      min: now - getBandwidthRangeMs(bandwidthRange.value),
       max: now,
-      tickAmount: 6,
+      tickAmount: 36,
     },
     yaxis: {
       opposite: true,
@@ -678,6 +665,7 @@ const createRequestResponseChart = () => {
   }
 
   const now = Date.now()
+  const rangeMs = getBandwidthRangeMs(requestRange.value)
   requestResponseChartInstance = new ApexCharts(requestResponseChart.value, {
     chart: {
       type: 'line',
@@ -711,14 +699,15 @@ const createRequestResponseChart = () => {
         style: { colors: '#94a3b8' },
         formatter: (value) => {
           const date = new Date(value)
-          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         },
       },
       axisBorder: { show: false },
       axisTicks: { show: false },
-      range: requestRange.value,
+      range: rangeMs,
+      min: now - rangeMs,
       max: now,
-      tickAmount: 6,
+      tickAmount: 36,
     },
     yaxis: {
       opposite: true,
@@ -732,7 +721,7 @@ const createRequestResponseChart = () => {
       strokeDashArray: 6,
     },
     tooltip: {
-      x: { format: 'HH:mm:ss' },
+      x: { format: 'HH:mm' },
       y: { formatter: (value) => `${Math.round(value)} rps` },
       theme: 'light',
     },
@@ -748,6 +737,7 @@ const createStatusCodeChart = () => {
   }
 
   const now = Date.now()
+  const rangeMs = getBandwidthRangeMs(statusRange.value)
   statusCodeChartInstance = new ApexCharts(statusCodeChart.value, {
     chart: {
       type: 'line',
@@ -781,14 +771,15 @@ const createStatusCodeChart = () => {
         style: { colors: '#94a3b8' },
         formatter: (value) => {
           const date = new Date(value)
-          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         },
       },
       axisBorder: { show: false },
       axisTicks: { show: false },
-      range: statusRange.value,
+      range: rangeMs,
+      min: now - rangeMs,
       max: now,
-      tickAmount: 6,
+      tickAmount: 36,
     },
     yaxis: {
       opposite: true,
@@ -802,7 +793,7 @@ const createStatusCodeChart = () => {
       strokeDashArray: 6,
     },
     tooltip: {
-      x: { format: 'HH:mm:ss' },
+      x: { format: 'HH:mm' },
       y: { formatter: (value) => `${Math.round(value)}` },
       theme: 'light',
     },
@@ -815,18 +806,28 @@ const createStatusCodeChart = () => {
 onMounted(() => {
   loadDashboardSummary()
   loadSecurityEvents()
-  if (!servers.length) {
-    return
-  }
-  createChart()
+  loadBandwidthServers().then(() => {
+    if (bandwidthServers.value.length) {
+      loadBandwidthSeries()
+      bandwidthTimer = window.setInterval(loadBandwidthSeries, bandwidthRefreshMs)
+    }
+  })
   createRequestResponseChart()
   createStatusCodeChart()
-  bandwidthTimer = window.setInterval(updateSeries, intervalMs)
+  loadRequestResponseSeries()
+  loadStatusCodeSeries()
+  trafficTimer = window.setInterval(() => {
+    loadRequestResponseSeries()
+    loadStatusCodeSeries()
+  }, trafficRefreshMs)
 })
 
 onBeforeUnmount(() => {
   if (bandwidthTimer) {
     window.clearInterval(bandwidthTimer)
+  }
+  if (trafficTimer) {
+    window.clearInterval(trafficTimer)
   }
   if (chartInstance) {
     chartInstance.destroy()
@@ -842,40 +843,33 @@ onBeforeUnmount(() => {
   }
 })
 
-watch([requestRange, requestServer], () => {
-  requestResponseSeries.value = createRequestResponseSeries()
-  if (requestResponseChartInstance) {
-    requestResponseChartInstance.updateSeries(requestResponseSeries.value, true)
-    requestResponseChartInstance.updateOptions(
+watch(bandwidthRange, () => {
+  if (chartInstance) {
+    const rangeMs = getBandwidthRangeMs(bandwidthRange.value)
+    chartInstance.updateOptions(
       {
         xaxis: {
-          range: requestRange.value,
+          range: rangeMs,
+          min: Date.now() - rangeMs,
           max: Date.now(),
-          tickAmount: 6,
+          tickAmount: 36,
         },
       },
       false,
       true,
     )
   }
+  loadBandwidthSeries()
+})
+
+watch([requestRange, requestServer], () => {
+  updateRequestResponseAxis()
+  loadRequestResponseSeries()
 })
 
 watch([statusRange, statusServer], () => {
-  statusCodeSeries.value = createStatusCodeSeries()
-  if (statusCodeChartInstance) {
-    statusCodeChartInstance.updateSeries(statusCodeSeries.value, true)
-    statusCodeChartInstance.updateOptions(
-      {
-        xaxis: {
-          range: statusRange.value,
-          max: Date.now(),
-          tickAmount: 6,
-        },
-      },
-      false,
-      true,
-    )
-  }
+  updateStatusCodeAxis()
+  loadStatusCodeSeries()
 })
 </script>
 
@@ -911,6 +905,9 @@ watch([statusRange, statusServer], () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
 .timeline-item {
@@ -990,6 +987,12 @@ watch([statusRange, statusServer], () => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 12px;
+}
+
+.bandwidth-controls {
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 
