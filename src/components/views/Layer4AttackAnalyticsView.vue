@@ -111,46 +111,74 @@
         </div>
       </div>
       
-      <div class="attack-table-card">
-        <h3>Recent Attack Attempts</h3>
-        <table class="attack-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Source IP</th>
-              <th>Attack Type</th>
-              <th>Target Port</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>10:23:45</td>
-              <td>203.0.113.45</td>
-              <td><span class="badge attack-syn">SYN Flood</span></td>
-              <td>80</td>
-              <td><span class="badge status-blocked">Blocked</span></td>
-              <td><button class="action-btn">View</button></td>
-            </tr>
-            <tr>
-              <td>10:20:12</td>
-              <td>198.51.100.23</td>
-              <td><span class="badge attack-udp">UDP Flood</span></td>
-              <td>443</td>
-              <td><span class="badge status-blocked">Blocked</span></td>
-              <td><button class="action-btn">View</button></td>
-            </tr>
-            <tr>
-              <td>10:15:33</td>
-              <td>192.0.2.67</td>
-              <td><span class="badge attack-icmp">ICMP Flood</span></td>
-              <td>22</td>
-              <td><span class="badge status-blocked">Blocked</span></td>
-              <td><button class="action-btn">View</button></td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="attack-table-grid">
+        <div class="attack-table-card">
+          <h3>Recent Attack Attempts</h3>
+          <table class="attack-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Source IP</th>
+                <th>Attack Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>10:23:45</td>
+                <td>203.0.113.45</td>
+                <td><span class="badge attack-syn">SYN Flood</span></td>
+              </tr>
+              <tr>
+                <td>10:20:12</td>
+                <td>198.51.100.23</td>
+                <td><span class="badge attack-udp">UDP Flood</span></td>
+              </tr>
+              <tr>
+                <td>10:15:33</td>
+                <td>192.0.2.67</td>
+                <td><span class="badge attack-icmp">ICMP Flood</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="attack-table-card attack-table-card--scroll">
+          <div class="table-header-row">
+            <h3>Top Seen Attacking IPs</h3>
+            <div class="table-controls">
+              <span>Show</span>
+              <select v-model="seenIpLimit" class="table-select">
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+          <div class="attack-table-scroll">
+            <table class="attack-table">
+              <thead>
+                <tr>
+                  <th>IP Address</th>
+                  <th>Seen Count</th>
+                  <th>Last Seen</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in visibleSeenIps" :key="row.ip">
+                  <td>{{ row.ip }}</td>
+                  <td>{{ row.count }}</td>
+                  <td>{{ row.lastSeen }}</td>
+                  <td>
+                    <button type="button" class="action-btn action-btn--danger" @click="openBlacklistDialog(row.ip)">
+                      Move to blacklist
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
     <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
@@ -174,6 +202,48 @@
         </div>
       </div>
     </div>
+    <div v-if="showBlacklistDialog" class="dialog-overlay" @click.self="closeBlacklistDialog">
+      <div class="dialog-content">
+        <div class="dialog-header">
+          <h3>Add to Blacklist</h3>
+          <button class="dialog-close" @click="closeBlacklistDialog">✕</button>
+        </div>
+        <div class="dialog-body">
+          <label>
+            IP Address
+            <input v-model="blacklistForm.ip" type="text" class="dialog-input" readonly />
+          </label>
+          <label>
+            Reason
+            <input v-model="blacklistForm.reason" type="text" class="dialog-input" placeholder="Reason" />
+          </label>
+          <label>
+            Trigger Rule
+            <input v-model="blacklistForm.triggerRule" type="text" class="dialog-input" placeholder="Rule name" />
+          </label>
+          <label>
+            TTL
+            <select v-model="blacklistForm.ttl" class="dialog-input">
+              <option value="1h">1h</option>
+              <option value="2h">2h</option>
+              <option value="6h">6h</option>
+              <option value="12h">12h</option>
+              <option value="24h">24h</option>
+              <option value="2days">2days</option>
+              <option value="7days">7days</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+          <label v-if="blacklistForm.ttl === 'custom'">
+            Custom TTL
+            <input v-model="blacklistForm.customTtl" type="text" class="dialog-input" placeholder="e.g. 36h" />
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="apply-filter-btn" @click="submitBlacklist">Add</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -181,6 +251,10 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ApexCharts from 'apexcharts'
 import { serverList } from '@/data/servers'
+import { createBlacklistEntry } from '@/api/serverBlacklist'
+import { useNotifications } from '@/stores/notifications'
+
+const notifications = useNotifications()
 
 const selectedServer = ref(serverList?.[0]?.id ?? 'all')
 const selectedTimeRange = ref('1h')
@@ -198,6 +272,15 @@ const trafficChart = ref(null)
 const protocolChart = ref(null)
 let trafficChartInstance = null
 let protocolChartInstance = null
+const seenIpLimit = ref('10')
+const showBlacklistDialog = ref(false)
+const blacklistForm = ref({
+  ip: '',
+  reason: '',
+  triggerRule: '',
+  ttl: '24h',
+  customTtl: '',
+})
 
 const timeRanges = [
   { label: '1h', value: '1h' },
@@ -247,6 +330,77 @@ const selectedRangeLabel = computed(() => {
   const match = timeRanges.find((range) => range.value === selectedTimeRange.value)
   return match?.label ?? 'Custom'
 })
+
+const seenIpRows = [
+  { ip: '203.0.113.45', count: 1280, lastSeen: '10:45:12' },
+  { ip: '198.51.100.23', count: 1104, lastSeen: '10:44:03' },
+  { ip: '192.0.2.67', count: 980, lastSeen: '10:43:27' },
+  { ip: '203.0.113.78', count: 860, lastSeen: '10:42:10' },
+  { ip: '198.51.100.90', count: 720, lastSeen: '10:41:02' },
+  { ip: '192.0.2.45', count: 660, lastSeen: '10:40:18' },
+  { ip: '203.0.113.12', count: 610, lastSeen: '10:39:31' },
+  { ip: '198.51.100.201', count: 590, lastSeen: '10:38:44' },
+  { ip: '192.0.2.144', count: 540, lastSeen: '10:37:05' },
+  { ip: '203.0.113.190', count: 520, lastSeen: '10:36:27' },
+  { ip: '198.51.100.77', count: 480, lastSeen: '10:35:19' },
+  { ip: '192.0.2.18', count: 450, lastSeen: '10:34:12' },
+  { ip: '203.0.113.222', count: 420, lastSeen: '10:33:05' },
+  { ip: '198.51.100.11', count: 400, lastSeen: '10:32:18' },
+  { ip: '192.0.2.98', count: 370, lastSeen: '10:31:04' },
+]
+
+const visibleSeenIps = computed(() => {
+  const limit = Number(seenIpLimit.value) || 10
+  return seenIpRows.slice(0, limit)
+})
+
+const openBlacklistDialog = (ip) => {
+  blacklistForm.value = {
+    ip,
+    reason: '',
+    triggerRule: 'manual',
+    ttl: '24h',
+    customTtl: '',
+  }
+  showBlacklistDialog.value = true
+}
+
+const closeBlacklistDialog = () => {
+  showBlacklistDialog.value = false
+}
+
+const submitBlacklist = async () => {
+  const serverId = Number(selectedServer.value)
+  if (!serverId) {
+    notifications.enqueue('Please select a server first.', 'error')
+    return
+  }
+  const serverName = serverList.find((server) => server.id === serverId)?.name || ''
+  const ttlValue =
+    blacklistForm.value.ttl === 'custom'
+      ? blacklistForm.value.customTtl.trim()
+      : blacklistForm.value.ttl
+  if (!ttlValue) {
+    notifications.enqueue('Please provide a TTL value.', 'error')
+    return
+  }
+
+  try {
+    await createBlacklistEntry({
+      serverId,
+      ipAddress: blacklistForm.value.ip.trim(),
+      geolocation: 'Manual',
+      reason: blacklistForm.value.reason.trim() || 'Manual block',
+      server: serverName,
+      ttl: ttlValue,
+      triggerRule: blacklistForm.value.triggerRule.trim() || 'manual',
+    })
+    notifications.enqueue('Blacklist entry created.', 'success')
+    closeBlacklistDialog()
+  } catch (error) {
+    notifications.enqueue(error?.message || 'Failed to create blacklist entry.', 'error')
+  }
+}
 
 const randomTraffic = (base = 1800) => {
   const jitter = (Math.random() - 0.5) * 500
@@ -707,9 +861,69 @@ onBeforeUnmount(() => {
   margin: 0 0 20px 0;
 }
 
+.table-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.table-header-row h3 {
+  margin: 0;
+}
+
+.table-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.table-select {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  background: #fff;
+  color: #1f2937;
+}
+
 .attack-table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.attack-table-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.attack-table-card--scroll {
+  height: 420px;
+}
+
+.attack-table-scroll {
+  overflow-y: auto;
+  max-height: 320px;
+  padding-right: 4px;
+}
+
+.attack-table-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.attack-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 999px;
+}
+
+.attack-table-scroll::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
 }
 
 .attack-charts {
@@ -842,6 +1056,16 @@ onBeforeUnmount(() => {
 .action-btn:hover {
   background: linear-gradient(135deg, #e5e7eb 0%, #cbd5e0 100%);
   transform: translateY(-1px);
+}
+
+.action-btn--danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ffffff;
+}
+
+.action-btn--danger:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
 }
 </style>
 
