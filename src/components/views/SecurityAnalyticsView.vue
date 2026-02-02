@@ -9,13 +9,7 @@
               {{ server.label }}
             </option>
           </select>
-        </div>
-        <div class="filters-center">
-          <span class="selected-range-label">Selected</span>
-          <span class="selected-range-value">{{ selectedRangeLabel }}</span>
-        </div>
-        <div class="filters-right">
-          <span class="filter-inline-label">Time Range  </span>
+          <span class="filter-inline-label">Time Range</span>
           <div class="time-buttons">
             <button
               v-for="range in timeRanges"
@@ -36,6 +30,12 @@
               Custom
             </button>
           </div>
+        </div>
+        <div class="filters-right">
+          <div class="selected-range-group">
+            <span class="selected-range-label">Selected</span>
+            <span class="selected-range-value">{{ selectedRangeLabel }}</span>
+          </div>
           <button type="button" class="apply-filter-btn" @click="applyFilters">
             Apply
           </button>
@@ -52,7 +52,7 @@
         </div>
         <div class="stat-info">
           <h3>Total Request Counts</h3>
-          <p class="stat-value">{{ sampleStats.totalRequestCounts }}</p>
+          <p class="stat-value">{{ statsDisplay.totalRequestCounts }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -65,7 +65,7 @@
         </div>
         <div class="stat-info">
           <h3>Block Request Counts</h3>
-          <p class="stat-value">{{ sampleStats.blockRequestCounts }}</p>
+          <p class="stat-value">{{ statsDisplay.blockRequestCounts }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -77,7 +77,7 @@
         </div>
         <div class="stat-info">
           <h3>Total IPs</h3>
-          <p class="stat-value">{{ sampleStats.totalIps }}</p>
+          <p class="stat-value">{{ statsDisplay.totalIps }}</p>
         </div>
       </div>
       <div class="stat-card">
@@ -90,7 +90,7 @@
         </div>
         <div class="stat-info">
           <h3>Blacklisted IPs</h3>
-          <p class="stat-value">{{ sampleStats.blacklistedIps }}</p>
+          <p class="stat-value">{{ statsDisplay.blacklistedIps }}</p>
         </div>
       </div>
     </div>
@@ -124,7 +124,7 @@
         <label class="table-title">Top Requests</label>
       </div>
       <div class="top-tables">
-        <div class="table-card table-card--compact">
+        <div class="table-card table-card--compact table-card--tight table-card--scroll">
           <div class="table-title">Requests Top30</div>
           <div class="table-wrap">
             <table class="ip-table">
@@ -137,13 +137,13 @@
               <tbody>
                 <tr v-for="row in topRequestRows" :key="row.area">
                   <td>{{ row.area }}</td>
-                  <td>{{ row.count }}</td>
+                  <td>{{ formatNumber(row.count) }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-        <div class="table-card table-card--compact">
+        <div class="table-card table-card--compact table-card--tight table-card--scroll">
           <div class="table-title">BlockCounts Top30</div>
           <div class="table-wrap">
             <table class="ip-table">
@@ -156,7 +156,7 @@
               <tbody>
                 <tr v-for="row in topBlockRows" :key="row.area">
                   <td>{{ row.area }}</td>
-                  <td>{{ row.count }}</td>
+                  <td>{{ formatNumber(row.count) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -177,7 +177,7 @@
                     :title="`${row.url} — ${row.count}`"
                   ></div>
                 </div>
-                <div class="url-bar-value">{{ row.count }}</div>
+                <div class="url-bar-value">{{ formatNumber(row.count) }}</div>
               </div>
             </div>
           </div>
@@ -191,11 +191,11 @@
                 <div class="url-bar-track">
                   <div
                     class="url-bar-fill url-bar-fill--teal"
-                    :style="{ width: `${urlBarWidth(row.count)}%` }"
+                    :style="{ width: `${refererBarWidth(row.count)}%` }"
                     :title="`${row.referer} — ${row.count}`"
                   ></div>
                 </div>
-                <div class="url-bar-value">{{ row.count }}</div>
+                <div class="url-bar-value">{{ formatNumber(row.count) }}</div>
               </div>
             </div>
           </div>
@@ -209,11 +209,11 @@
                 <div class="url-bar-track">
                   <div
                     class="url-bar-fill url-bar-fill--purple"
-                    :style="{ width: `${urlBarWidth(row.count)}%` }"
+                    :style="{ width: `${userAgentBarWidth(row.count)}%` }"
                     :title="`${row.agent} — ${row.count}`"
                   ></div>
                 </div>
-                <div class="url-bar-value">{{ row.count }}</div>
+                <div class="url-bar-value">{{ formatNumber(row.count) }}</div>
               </div>
             </div>
           </div>
@@ -250,12 +250,17 @@
   </div>
 </template>
 
-  <script setup>
+<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ApexCharts from 'apexcharts'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
-import { serverList } from '@/data/servers'
+import { fetchServers } from '@/api/servers'
+import {
+  fetchSecuritySummary,
+  fetchSecuritySeries,
+  fetchSecuritySummaryGroup,
+} from '@/api/securityAnalytics'
 
 const selectedServer = ref('all')
 const selectedTimeRange = ref('30m')
@@ -270,34 +275,47 @@ const appliedFilters = ref({
   customStart: '',
   customEnd: '',
 })
-const sampleStats = {
-  totalRequestCounts: '1,284,992',
-  blockRequestCounts: '83,210',
-  totalIps: '12,430',
-  blacklistedIps: '214',
-}
+
+const servers = ref([])
+const securityStats = ref({
+  totalRequestCounts: 0,
+  blockRequestCounts: 0,
+  totalIps: 0,
+  blacklistedIps: 0,
+})
+
 const blockCountChart = ref(null)
 let blockCountChartInstance = null
-const countryRequests = [
-  { code: 'US', name: 'United States', count: 120340 },
-  { code: 'BR', name: 'Brazil', count: 53420 },
-  { code: 'GB', name: 'United Kingdom', count: 40210 },
-  { code: 'DE', name: 'Germany', count: 38200 },
-  { code: 'RU', name: 'Russia', count: 44890 },
-  { code: 'IN', name: 'India', count: 61200 },
-  { code: 'CN', name: 'China', count: 72800 },
-  { code: 'JP', name: 'Japan', count: 29110 },
-  { code: 'AU', name: 'Australia', count: 18420 },
-  { code: 'ZA', name: 'South Africa', count: 12600 },
-]
+const blockSeries = ref([])
+
+const countryRequests = ref([])
+const topRequestRows = ref([])
+const topBlockRows = ref([])
+const topUrlRows = ref([])
+const topRefererRows = ref([])
+const topUserAgentRows = ref([])
+
+const formatNumber = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '0'
+  return numeric.toLocaleString()
+}
+
+const statsDisplay = computed(() => ({
+  totalRequestCounts: formatNumber(securityStats.value.totalRequestCounts),
+  blockRequestCounts: formatNumber(securityStats.value.blockRequestCounts),
+  totalIps: formatNumber(securityStats.value.totalIps),
+  blacklistedIps: formatNumber(securityStats.value.blacklistedIps),
+}))
+
 const countryRequestMap = computed(() =>
-  countryRequests.reduce((acc, item) => {
+  countryRequests.value.reduce((acc, item) => {
     acc[item.code.toLowerCase()] = item
     return acc
   }, {})
 )
 const maxCountryCount = computed(() =>
-  Math.max(...countryRequests.map((item) => item.count))
+  Math.max(0, ...countryRequests.value.map((item) => Number(item.count) || 0))
 )
 const hoveredCountry = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
@@ -309,18 +327,18 @@ const colorFromRate = (ratio) => {
   return '#60a5fa'
 }
 const mapLocationAttributes = (location) => {
-  const entry = countryRequestMap.value[location.id]
+  const entry = countryRequestMap.value[location.id.toLowerCase()]
   const ratio = entry && maxCountryCount.value ? entry.count / maxCountryCount.value : 0
   return {
     fill: entry ? colorFromRate(ratio) : 'rgba(148, 163, 184, 0.2)',
     stroke: 'rgba(100, 116, 139, 0.6)',
     'stroke-width': 0.5,
     title: entry
-      ? `${entry.name} — ${entry.count.toLocaleString()} requests`
+      ? `${entry.name} — ${formatNumber(entry.count)} requests`
       : location.name,
     onMouseenter: () => {
       hoveredCountry.value = entry
-        ? `${entry.name} — ${entry.count.toLocaleString()} requests`
+        ? `${entry.name} — ${formatNumber(entry.count)} requests`
         : location.name
     },
     onMousemove: (event) => {
@@ -335,87 +353,100 @@ const mapLocationAttributes = (location) => {
   }
 }
 
-const topRequestRows = [
-  { area: 'United States', count: '120,340' },
-  { area: 'China', count: '72,800' },
-  { area: 'India', count: '61,200' },
-  { area: 'Brazil', count: '53,420' },
-  { area: 'Russia', count: '44,890' },
-  { area: 'Germany', count: '38,200' },
-]
-
-const topBlockRows = [
-  { area: 'United States', count: '12,480' },
-  { area: 'China', count: '8,920' },
-  { area: 'India', count: '6,110' },
-  { area: 'Brazil', count: '5,320' },
-  { area: 'Russia', count: '4,980' },
-  { area: 'Germany', count: '3,740' },
-]
-const topUrlRows = [
-  { url: '/api/login', count: '18,402' },
-  { url: '/api/search', count: '12,980' },
-  { url: '/api/orders', count: '9,440' },
-  { url: '/api/users', count: '8,110' },
-  { url: '/api/config', count: '6,790' },
-  { url: '/api/report', count: '5,340' },
-  { url: '/api/items', count: '4,980' },
-  { url: '/api/metrics', count: '4,210' },
-  { url: '/api/alerts', count: '3,860' },
-  { url: '/api/status', count: '3,420' },
-]
-const topRefererRows = [
-  { referer: 'google.com', count: '18,240' },
-  { referer: 'bing.com', count: '12,560' },
-  { referer: 'yahoo.com', count: '9,310' },
-  { referer: 'duckduckgo.com', count: '7,840' },
-  { referer: 'facebook.com', count: '6,420' },
-  { referer: 'twitter.com', count: '5,980' },
-  { referer: 'linkedin.com', count: '4,760' },
-  { referer: 'reddit.com', count: '4,210' },
-  { referer: 'github.com', count: '3,740' },
-  { referer: 'direct', count: '3,120' },
-]
-const topUserAgentRows = [
-  { agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', count: '16,820' },
-  { agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', count: '12,440' },
-  { agent: 'Mozilla/5.0 (Linux; Android 13; Pixel 7)', count: '9,210' },
-  { agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X)', count: '8,320' },
-  { agent: 'Mozilla/5.0 (iPad; CPU OS 17_2 like Mac OS X)', count: '6,980' },
-  { agent: 'Mozilla/5.0 (Windows NT 6.1; Win64; x64)', count: '5,740' },
-  { agent: 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64)', count: '4,960' },
-  { agent: 'Mozilla/5.0 (Linux; Android 12; SM-G991B)', count: '4,120' },
-  { agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_7_10)', count: '3,880' },
-  { agent: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', count: '3,110' },
-]
 const urlMaxCount = computed(() => {
-  const values = topUrlRows.map((row) => Number(row.count.replace(/,/g, '')) || 0)
+  const values = topUrlRows.value.map((row) => Number(row.count) || 0)
   return Math.max(...values, 1)
 })
 const urlBarWidth = (count) => {
-  const numeric = Number(String(count).replace(/,/g, '')) || 0
+  const numeric = Number(count) || 0
   return Math.round((numeric / urlMaxCount.value) * 100)
 }
 
-const randomBlockCount = (base = 600) => {
-  const jitter = (Math.random() - 0.5) * 200
-  return Math.max(50, Math.round(base + jitter))
+const refererMaxCount = computed(() => {
+  const values = topRefererRows.value.map((row) => Number(row.count) || 0)
+  return Math.max(...values, 1)
+})
+const refererBarWidth = (count) => {
+  const numeric = Number(count) || 0
+  return Math.round((numeric / refererMaxCount.value) * 100)
 }
 
-const buildBlockCountSeries = () => {
-  const points = 24
-  const now = Date.now()
-  const interval = 5 * 60 * 1000
-  const data = Array.from({ length: points }, (_, index) => ({
-    x: now - (points - 1 - index) * interval,
-    y: randomBlockCount(),
-  }))
-  return [{ name: 'Blocked', data }]
+const userAgentMaxCount = computed(() => {
+  const values = topUserAgentRows.value.map((row) => Number(row.count) || 0)
+  return Math.max(...values, 1)
+})
+const userAgentBarWidth = (count) => {
+  const numeric = Number(count) || 0
+  return Math.round((numeric / userAgentMaxCount.value) * 100)
+}
+
+const mapBlockPoints = (points) =>
+  (Array.isArray(points) ? points : [])
+    .map((point) => {
+      const timestamp = point.timestamp ?? point.time ?? point.x
+      const timeValue =
+        typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime()
+      return {
+        x: timeValue,
+        y: Number(point.count ?? point.value ?? point.y ?? 0),
+      }
+    })
+    .filter((point) => Number.isFinite(point.x))
+
+const resolveRangeMs = (filters) => {
+  switch (filters.range) {
+    case '30m':
+      return 30 * 60 * 1000
+    case '1h':
+      return 60 * 60 * 1000
+    case '2h':
+      return 2 * 60 * 60 * 1000
+    case '4h':
+      return 4 * 60 * 60 * 1000
+    case '6h':
+      return 6 * 60 * 60 * 1000
+    case '8h':
+      return 8 * 60 * 60 * 1000
+    case '12h':
+      return 12 * 60 * 60 * 1000
+    case '24h':
+      return 24 * 60 * 60 * 1000
+    case 'today': {
+      const now = new Date()
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      return now.getTime() - start.getTime()
+    }
+    case 'yesterday':
+      return 24 * 60 * 60 * 1000
+    default:
+      return 60 * 60 * 1000
+  }
+}
+
+const resolveRangeWindow = (filters) => {
+  const now = new Date()
+  if (filters.isCustom && filters.customStart && filters.customEnd) {
+    return {
+      start: new Date(filters.customStart),
+      end: new Date(filters.customEnd),
+    }
+  }
+  if (filters.range === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
+  }
+  if (filters.range === 'yesterday') {
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start: new Date(end.getTime() - 24 * 60 * 60 * 1000), end }
+  }
+  const duration = resolveRangeMs(filters)
+  return { start: new Date(now.getTime() - duration), end: now }
 }
 
 const renderBlockCountChart = () => {
   if (!blockCountChart.value) return
-  const series = buildBlockCountSeries()
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = [{ name: 'Blocked', data: mapBlockPoints(blockSeries.value) }]
   const options = {
     chart: {
       type: 'area',
@@ -430,7 +461,12 @@ const renderBlockCountChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: ['#ef4444'],
-    xaxis: { type: 'datetime' },
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
     yaxis: {
       labels: { formatter: (val) => `${Math.round(val)}` },
     },
@@ -450,11 +486,13 @@ const renderBlockCountChart = () => {
   }
 }
 
-watch(appliedFilters, () => {
+watch(blockSeries, () => {
   renderBlockCountChart()
-})
+}, { deep: true })
 
 onMounted(() => {
+  loadServers()
+  loadSecurityAnalytics()
   renderBlockCountChart()
 })
 
@@ -467,7 +505,7 @@ onBeforeUnmount(() => {
 
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
-  ...serverList.map((server) => ({ label: server.name, value: server.id })),
+  ...servers.value.map((server) => ({ label: server.name || `Server ${server.id}`, value: server.id })),
 ])
 
 const selectedRangeLabel = computed(() => {
@@ -507,6 +545,71 @@ const applyCustomRange = () => {
   }
 }
 
+const buildSecurityParams = () => {
+  const filters = appliedFilters.value
+  const params = { serverId: filters.server }
+  if (filters.isCustom && filters.customStart && filters.customEnd) {
+    params.start = filters.customStart
+    params.end = filters.customEnd
+  } else {
+    params.range = filters.range
+  }
+  return params
+}
+
+const loadServers = async () => {
+  try {
+    const list = await fetchServers()
+    servers.value = Array.isArray(list) ? list : []
+  } catch (error) {
+    console.error('Failed to load servers', error)
+    servers.value = []
+  }
+}
+
+const loadSecurityAnalytics = async () => {
+  const params = buildSecurityParams()
+  try {
+    const [
+      summary,
+      blockCounts,
+      countries,
+      topRequests,
+      topBlocks,
+      topUrls,
+      topReferers,
+      topUserAgents,
+    ] = await Promise.all([
+      fetchSecuritySummary(params),
+      fetchSecuritySeries('block-count', params),
+      fetchSecuritySummaryGroup('countries', params),
+      fetchSecuritySummaryGroup('top-requests', params),
+      fetchSecuritySummaryGroup('top-blocks', params),
+      fetchSecuritySummaryGroup('top-urls', params),
+      fetchSecuritySummaryGroup('top-referers', params),
+      fetchSecuritySummaryGroup('top-user-agents', params),
+    ])
+
+    securityStats.value = {
+      totalRequestCounts: Number(summary?.totalRequestCounts ?? 0),
+      blockRequestCounts: Number(summary?.blockRequestCounts ?? 0),
+      totalIps: Number(summary?.totalIps ?? 0),
+      blacklistedIps: Number(summary?.blacklistedIps ?? 0),
+    }
+    blockSeries.value = Array.isArray(blockCounts) ? blockCounts : []
+    countryRequests.value = Array.isArray(countries) ? countries : []
+    topRequestRows.value = Array.isArray(topRequests) ? topRequests : []
+    topBlockRows.value = Array.isArray(topBlocks) ? topBlocks : []
+    topUrlRows.value = Array.isArray(topUrls) ? topUrls : []
+    topRefererRows.value = Array.isArray(topReferers) ? topReferers : []
+    topUserAgentRows.value = Array.isArray(topUserAgents) ? topUserAgents : []
+
+    renderBlockCountChart()
+  } catch (error) {
+    console.error('Failed to load security analytics', error)
+  }
+}
+
 const applyFilters = () => {
   appliedFilters.value = {
     server: selectedServer.value,
@@ -515,6 +618,7 @@ const applyFilters = () => {
     customStart: customStartDate.value,
     customEnd: customEndDate.value,
   }
+  loadSecurityAnalytics()
 }
 </script>
 
@@ -553,12 +657,12 @@ const applyFilters = () => {
 .filters-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .filters-left {
-  flex: 1 1 240px;
+  flex: 1 1 420px;
 }
 
 .filters-center {
@@ -572,9 +676,17 @@ const applyFilters = () => {
 }
 
 .filters-right {
-  flex: 2 1 360px;
+  flex: 0 1 auto;
   justify-content: flex-end;
   margin-left: auto;
+}
+
+.selected-range-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-weight: 600;
 }
 
 .filter-inline-label {
@@ -846,7 +958,8 @@ const applyFilters = () => {
 }
 
 .world-map {
-  margin-top: 16px;
+  width: 100%;
+  height: fit-content;
   border-radius: 16px;
   border: 1px solid rgba(226, 232, 240, 0.8);
   background: #f8fafc;
@@ -855,9 +968,10 @@ const applyFilters = () => {
 }
 
 .world-map :deep(.svg-map) {
-  width: 100%;
+  width: 70%;
   height: auto;
   display: block;
+  margin: 0 auto;
 }
 
 .world-map :deep(.svg-map__location) {
@@ -892,6 +1006,26 @@ const applyFilters = () => {
   border-radius: 14px;
   padding: 16px;
   border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.table-card--tight {
+  padding: 12px;
+}
+
+.table-card--tight .table-title {
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+}
+
+.table-card--tight .ip-table th,
+.table-card--tight .ip-table td {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+
+.table-card--scroll .table-wrap {
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .table-card--spaced {
