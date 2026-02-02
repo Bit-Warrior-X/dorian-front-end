@@ -9,12 +9,6 @@
               {{ server.label }}
             </option>
           </select>
-        </div>
-        <div class="filters-center">
-          <span class="selected-range-label">Selected</span>
-          <span class="selected-range-value">{{ selectedRangeLabel }}</span>
-        </div>
-        <div class="filters-right">
           <span class="filter-inline-label">Time Range</span>
           <div class="time-buttons">
             <button
@@ -36,6 +30,12 @@
               Custom
             </button>
           </div>
+        </div>
+        <div class="filters-right">
+          <div class="selected-range-group">
+            <span class="selected-range-label">Selected</span>
+            <span class="selected-range-value">{{ selectedRangeLabel }}</span>
+          </div>
           <button type="button" class="apply-filter-btn" @click="applyFilters">
             Apply
           </button>
@@ -56,8 +56,8 @@
           </div>
           <div class="attack-info">
             <h3>Total Traffic</h3>
-            <p class="attack-value">2.8 Tbps</p>
-            <span class="attack-change positive">+6% from last week</span>
+          <p class="attack-value">{{ statsDisplay.totalTraffic }}</p>
+          <span class="attack-change positive">{{ statsDisplay.totalTrafficTrend }}</span>
           </div>
         </div>
 
@@ -69,8 +69,8 @@
           </div>
           <div class="attack-info">
             <h3>Allowed Traffic</h3>
-            <p class="attack-value">2.1 Tbps</p>
-            <span class="attack-change positive">+4% from last week</span>
+          <p class="attack-value">{{ statsDisplay.allowedTraffic }}</p>
+          <span class="attack-change positive">{{ statsDisplay.allowedTrafficTrend }}</span>
           </div>
         </div>
 
@@ -84,8 +84,8 @@
           </div>
           <div class="attack-info">
             <h3>Blocked Traffic</h3>
-            <p class="attack-value">0.7 Tbps</p>
-            <span class="attack-change positive">+10% from last week</span>
+          <p class="attack-value">{{ statsDisplay.blockedTraffic }}</p>
+          <span class="attack-change positive">{{ statsDisplay.blockedTrafficTrend }}</span>
           </div>
         </div>
       </div>
@@ -112,34 +112,29 @@
       </div>
       
       <div class="attack-table-grid">
-        <div class="attack-table-card">
+        <div class="attack-table-card attack-table-card--scroll">
           <h3>Recent Attack Attempts</h3>
-          <table class="attack-table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Source IP</th>
-                <th>Attack Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>10:23:45</td>
-                <td>203.0.113.45</td>
-                <td><span class="badge attack-syn">SYN Flood</span></td>
-              </tr>
-              <tr>
-                <td>10:20:12</td>
-                <td>198.51.100.23</td>
-                <td><span class="badge attack-udp">UDP Flood</span></td>
-              </tr>
-              <tr>
-                <td>10:15:33</td>
-                <td>192.0.2.67</td>
-                <td><span class="badge attack-icmp">ICMP Flood</span></td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="attack-table-scroll">
+            <table class="attack-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Source IP</th>
+                  <th>Attack Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in recentAttackRows" :key="`${row.sourceIp}-${row.timestamp}`">
+                  <td>{{ formatDateTime(row.timestamp) }}</td>
+                  <td>{{ row.sourceIp }}</td>
+                  <td><span :class="['badge', attackBadgeClass(row.attackType)]">{{ row.attackType }}</span></td>
+                </tr>
+                <tr v-if="!recentAttackRows.length">
+                  <td colspan="3">No recent attacks</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
         <div class="attack-table-card attack-table-card--scroll">
           <div class="table-header-row">
@@ -167,8 +162,8 @@
               <tbody>
                 <tr v-for="row in visibleSeenIps" :key="row.ip">
                   <td>{{ row.ip }}</td>
-                  <td>{{ row.count }}</td>
-                  <td>{{ row.lastSeen }}</td>
+                  <td>{{ formatNumber(row.count) }}</td>
+                  <td>{{ formatDateTime(row.lastSeen) }}</td>
                   <td>
                     <button type="button" class="action-btn action-btn--danger" @click="openBlacklistDialog(row.ip)">
                       Move to blacklist
@@ -190,11 +185,21 @@
         <div class="dialog-body">
           <label>
             Start
-            <input v-model="customStartDate" type="datetime-local" class="dialog-input" />
+            <FlatPickr
+              v-model="customStartDate"
+              :config="datePickerConfig"
+              class="dialog-input"
+              placeholder="Select start time"
+            />
           </label>
           <label>
             End
-            <input v-model="customEndDate" type="datetime-local" class="dialog-input" />
+            <FlatPickr
+              v-model="customEndDate"
+              :config="datePickerConfig"
+              class="dialog-input"
+              placeholder="Select end time"
+            />
           </label>
         </div>
         <div class="dialog-actions">
@@ -210,6 +215,15 @@
         </div>
         <div class="dialog-body">
           <label>
+            Server
+            <select v-model="blacklistForm.serverId" class="dialog-input">
+              <option value="all">Select Server</option>
+              <option v-for="server in servers" :key="server.id" :value="server.id">
+                {{ server.name || `Server ${server.id}` }}
+              </option>
+            </select>
+          </label>
+          <label>
             IP Address
             <input v-model="blacklistForm.ip" type="text" class="dialog-input" readonly />
           </label>
@@ -219,11 +233,24 @@
           </label>
           <label>
             Trigger Rule
-            <input v-model="blacklistForm.triggerRule" type="text" class="dialog-input" placeholder="Rule name" />
+            <select v-model="blacklistForm.triggerRule" class="dialog-input">
+              <option value="manual">Manual</option>
+              <option value="syn-flood">SYN Flood</option>
+              <option value="udp-flood">UDP Flood</option>
+              <option value="icmp-flood">ICMP Flood</option>
+              <option value="gre-flood">GRE Flood</option>
+              <option value="other">Other</option>
+              <option value="custom">Customize</option>
+            </select>
+          </label>
+          <label v-if="blacklistForm.triggerRule === 'custom'">
+            Custom Trigger Rule
+            <input v-model="blacklistForm.customTriggerRule" type="text" class="dialog-input" placeholder="Rule name" />
           </label>
           <label>
             TTL
             <select v-model="blacklistForm.ttl" class="dialog-input">
+              <option value="permanent">Permanent</option>
               <option value="1h">1h</option>
               <option value="2h">2h</option>
               <option value="6h">6h</option>
@@ -250,21 +277,24 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ApexCharts from 'apexcharts'
-import { serverList } from '@/data/servers'
 import { createBlacklistEntry } from '@/api/serverBlacklist'
+import { fetchServers } from '@/api/servers'
+import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { useNotifications } from '@/stores/notifications'
 
 const notifications = useNotifications()
 
-const selectedServer = ref(serverList?.[0]?.id ?? 'all')
+const selectedServer = ref('all')
 const selectedTimeRange = ref('1h')
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
-const customStartDate = ref('')
-const customEndDate = ref('')
+const customStartDate = ref(null)
+const customEndDate = ref(null)
+const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: selectedServer.value,
   range: selectedTimeRange.value,
+  isCustom: false,
   start: null,
   end: null,
 })
@@ -273,11 +303,23 @@ const protocolChart = ref(null)
 let trafficChartInstance = null
 let protocolChartInstance = null
 const seenIpLimit = ref('10')
+const servers = ref([])
+const l4Summary = ref({
+  totalTraffic: 0,
+  allowedTraffic: 0,
+  blockedTraffic: 0,
+})
+const trafficPoints = ref([])
+const protocolPoints = ref([])
+const recentAttackRows = ref([])
+const seenIpRows = ref([])
 const showBlacklistDialog = ref(false)
 const blacklistForm = ref({
   ip: '',
   reason: '',
-  triggerRule: '',
+  serverId: 'all',
+  triggerRule: 'manual',
+  customTriggerRule: '',
   ttl: '24h',
   customTtl: '',
 })
@@ -293,7 +335,7 @@ const timeRanges = [
 
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
-  ...serverList.map((server) => ({ label: server.name, value: server.id })),
+  ...servers.value.map((server) => ({ label: server.name || `Server ${server.id}`, value: server.id })),
 ])
 
 const selectTimeRange = (value) => {
@@ -308,57 +350,45 @@ const applyCustomRange = () => {
   appliedFilters.value = {
     server: selectedServer.value,
     range: 'custom',
-    start: customStartDate.value,
-    end: customEndDate.value,
+    isCustom: true,
+    start: formatDateInput(customStartDate.value),
+    end: formatDateInput(customEndDate.value),
   }
   showCustomDialog.value = false
+  loadL4Analytics()
 }
 
 const applyFilters = () => {
   appliedFilters.value = {
     server: selectedServer.value,
     range: selectedTimeRange.value,
-    start: isCustomRange.value ? customStartDate.value : null,
-    end: isCustomRange.value ? customEndDate.value : null,
+    isCustom: isCustomRange.value,
+    start: isCustomRange.value ? formatDateInput(customStartDate.value) : null,
+    end: isCustomRange.value ? formatDateInput(customEndDate.value) : null,
   }
+  loadL4Analytics()
 }
 
 const selectedRangeLabel = computed(() => {
   if (isCustomRange.value && customStartDate.value && customEndDate.value) {
-    return `${customStartDate.value} ~ ${customEndDate.value}`
+    return `${formatDateTime(customStartDate.value)} → ${formatDateTime(customEndDate.value)}`
   }
   const match = timeRanges.find((range) => range.value === selectedTimeRange.value)
   return match?.label ?? 'Custom'
 })
 
-const seenIpRows = [
-  { ip: '203.0.113.45', count: 1280, lastSeen: '10:45:12' },
-  { ip: '198.51.100.23', count: 1104, lastSeen: '10:44:03' },
-  { ip: '192.0.2.67', count: 980, lastSeen: '10:43:27' },
-  { ip: '203.0.113.78', count: 860, lastSeen: '10:42:10' },
-  { ip: '198.51.100.90', count: 720, lastSeen: '10:41:02' },
-  { ip: '192.0.2.45', count: 660, lastSeen: '10:40:18' },
-  { ip: '203.0.113.12', count: 610, lastSeen: '10:39:31' },
-  { ip: '198.51.100.201', count: 590, lastSeen: '10:38:44' },
-  { ip: '192.0.2.144', count: 540, lastSeen: '10:37:05' },
-  { ip: '203.0.113.190', count: 520, lastSeen: '10:36:27' },
-  { ip: '198.51.100.77', count: 480, lastSeen: '10:35:19' },
-  { ip: '192.0.2.18', count: 450, lastSeen: '10:34:12' },
-  { ip: '203.0.113.222', count: 420, lastSeen: '10:33:05' },
-  { ip: '198.51.100.11', count: 400, lastSeen: '10:32:18' },
-  { ip: '192.0.2.98', count: 370, lastSeen: '10:31:04' },
-]
-
 const visibleSeenIps = computed(() => {
   const limit = Number(seenIpLimit.value) || 10
-  return seenIpRows.slice(0, limit)
+  return seenIpRows.value.slice(0, limit)
 })
 
 const openBlacklistDialog = (ip) => {
   blacklistForm.value = {
     ip,
     reason: '',
+    serverId: selectedServer.value || 'all',
     triggerRule: 'manual',
+    customTriggerRule: '',
     ttl: '24h',
     customTtl: '',
   }
@@ -370,18 +400,27 @@ const closeBlacklistDialog = () => {
 }
 
 const submitBlacklist = async () => {
-  const serverId = Number(selectedServer.value)
+  const selectedId = blacklistForm.value.serverId || selectedServer.value
+  const serverId = Number(selectedId)
   if (!serverId) {
     notifications.enqueue('Please select a server first.', 'error')
     return
   }
-  const serverName = serverList.find((server) => server.id === serverId)?.name || ''
+  const serverName = servers.value.find((server) => server.id === serverId)?.name || ''
   const ttlValue =
     blacklistForm.value.ttl === 'custom'
       ? blacklistForm.value.customTtl.trim()
       : blacklistForm.value.ttl
+  const triggerRuleValue =
+    blacklistForm.value.triggerRule === 'custom'
+      ? blacklistForm.value.customTriggerRule.trim()
+      : blacklistForm.value.triggerRule.trim()
   if (!ttlValue) {
     notifications.enqueue('Please provide a TTL value.', 'error')
+    return
+  }
+  if (!triggerRuleValue) {
+    notifications.enqueue('Please provide a trigger rule.', 'error')
     return
   }
 
@@ -393,7 +432,7 @@ const submitBlacklist = async () => {
       reason: blacklistForm.value.reason.trim() || 'Manual block',
       server: serverName,
       ttl: ttlValue,
-      triggerRule: blacklistForm.value.triggerRule.trim() || 'manual',
+      triggerRule: triggerRuleValue,
     })
     notifications.enqueue('Blacklist entry created.', 'success')
     closeBlacklistDialog()
@@ -402,53 +441,181 @@ const submitBlacklist = async () => {
   }
 }
 
-const randomTraffic = (base = 1800) => {
-  const jitter = (Math.random() - 0.5) * 500
-  return Math.max(200, Math.round(base + jitter))
+const formatNumber = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '0'
+  return numeric.toLocaleString()
 }
 
-const buildTrafficSeries = (base) => {
-  const points = 24
-  const now = Date.now()
-  const interval = 5 * 60 * 1000
-  const data = Array.from({ length: points }, (_, index) => ({
-    x: now - (points - 1 - index) * interval,
-    y: randomTraffic(base),
-  }))
-  return [{ name: 'Traffic', data }]
+const formatThroughput = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 bps'
+  const units = ['bps', 'Kbps', 'Mbps', 'Gbps', 'Tbps']
+  let index = 0
+  let current = numeric
+  while (current >= 1000 && index < units.length - 1) {
+    current /= 1000
+    index += 1
+  }
+  return `${current.toFixed(current >= 10 ? 0 : 1)} ${units[index]}`
 }
 
-const protocolSeriesNames = ['TCP', 'UDP', 'ICMP', 'GRE', 'OTHER']
-const buildProtocolSeries = () => {
-  const points = 24
-  const now = Date.now()
-  const interval = 5 * 60 * 1000
-  return protocolSeriesNames.map((name, index) => {
-    const base = 900 - index * 140
-    const data = Array.from({ length: points }, (_, idx) => ({
-      x: now - (points - 1 - idx) * interval,
-      y: randomTraffic(base),
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleString()
+}
+
+const formatDateInput = (value) => {
+  if (!value) return ''
+  const parsed = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString()
+}
+
+const attackBadgeClass = (value) => {
+  const normalized = String(value || '').toLowerCase()
+  if (normalized.includes('syn')) return 'attack-syn'
+  if (normalized.includes('udp')) return 'attack-udp'
+  if (normalized.includes('icmp')) return 'attack-icmp'
+  return 'attack-other'
+}
+
+const statsDisplay = computed(() => ({
+  totalTraffic: formatThroughput(l4Summary.value.totalTraffic),
+  allowedTraffic: formatThroughput(l4Summary.value.allowedTraffic),
+  blockedTraffic: formatThroughput(l4Summary.value.blockedTraffic),
+  totalTrafficTrend: '—',
+  allowedTrafficTrend: '—',
+  blockedTrafficTrend: '—',
+}))
+
+const resolveRangeMs = (filters) => {
+  switch (filters.range) {
+    case '1h':
+      return 60 * 60 * 1000
+    case '2h':
+      return 2 * 60 * 60 * 1000
+    case '4h':
+      return 4 * 60 * 60 * 1000
+    case '6h':
+      return 6 * 60 * 60 * 1000
+    case '8h':
+      return 8 * 60 * 60 * 1000
+    case '12h':
+      return 12 * 60 * 60 * 1000
+    case '24h':
+      return 24 * 60 * 60 * 1000
+    case 'today': {
+      const now = new Date()
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      return now.getTime() - start.getTime()
+    }
+    case 'yesterday':
+      return 24 * 60 * 60 * 1000
+    default:
+      return 60 * 60 * 1000
+  }
+}
+
+const resolveRangeWindow = (filters) => {
+  const now = new Date()
+  if (filters.isCustom && filters.start && filters.end) {
+    return { start: new Date(filters.start), end: new Date(filters.end) }
+  }
+  if (filters.range === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
+  }
+  if (filters.range === 'yesterday') {
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start: new Date(end.getTime() - 24 * 60 * 60 * 1000), end }
+  }
+  const duration = resolveRangeMs(filters)
+  return { start: new Date(now.getTime() - duration), end: now }
+}
+
+const mapSeriesPoints = (points, field) =>
+  (Array.isArray(points) ? points : [])
+    .map((point) => ({
+      x: new Date(point.timestamp).getTime(),
+      y: Number(point[field] ?? 0),
     }))
-    return { name, data }
-  })
+    .filter((point) => !Number.isNaN(point.x))
+
+const buildL4Params = () => {
+  const filters = appliedFilters.value
+  const params = { serverId: filters.server }
+  if (filters.isCustom && filters.start && filters.end) {
+    params.start = filters.start
+    params.end = filters.end
+  } else {
+    params.range = filters.range
+  }
+  return params
+}
+
+const loadServers = async () => {
+  try {
+    const list = await fetchServers()
+    servers.value = Array.isArray(list) ? list : []
+  } catch (error) {
+    console.error('Failed to load servers', error)
+    servers.value = []
+  }
+}
+
+const loadL4Analytics = async () => {
+  const params = buildL4Params()
+  try {
+    const [summary, trafficSeries, protocolSeries, recentAttacks, topIps] = await Promise.all([
+      fetchL4Summary(params),
+      fetchL4Series('traffic', params),
+      fetchL4Series('protocols', params),
+      fetchL4Attacks('recent', { ...params, limit: 10 }),
+      fetchL4Attacks('top-ips', { ...params, limit: 50 }),
+    ])
+
+    l4Summary.value = {
+      totalTraffic: Number(summary?.totalTraffic ?? 0),
+      allowedTraffic: Number(summary?.allowedTraffic ?? 0),
+      blockedTraffic: Number(summary?.blockedTraffic ?? 0),
+    }
+    trafficPoints.value = Array.isArray(trafficSeries) ? trafficSeries : []
+    protocolPoints.value = Array.isArray(protocolSeries) ? protocolSeries : []
+    recentAttackRows.value = Array.isArray(recentAttacks) ? recentAttacks : []
+    seenIpRows.value = Array.isArray(topIps) ? topIps : []
+
+    renderTrafficChart()
+    renderProtocolChart()
+  } catch (error) {
+    console.error('Failed to load l4 analytics', error)
+  }
 }
 
 const renderTrafficChart = () => {
   if (!trafficChart.value) return
-  const allowedSeries = buildTrafficSeries(1800)
-  const blockedSeries = buildTrafficSeries(700)
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const allowedSeries = mapSeriesPoints(trafficPoints.value, 'allowedTraffic')
+  const blockedSeries = mapSeriesPoints(trafficPoints.value, 'blockedTraffic')
   const options = {
     chart: {
       type: 'line',
       height: 420,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
+      pan: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     colors: ['#10b981', '#ef4444'],
     xaxis: {
       type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
       tickAmount: 6,
       axisBorder: { show: true, color: '#e2e8f0' },
       axisTicks: { show: true, color: '#e2e8f0' },
@@ -463,13 +630,13 @@ const renderTrafficChart = () => {
     },
     yaxis: {
       labels: {
-        formatter: (val) => `${Math.round(val)} Mbps`,
+        formatter: (val) => formatThroughput(val),
       },
     },
     grid: { borderColor: 'rgba(148, 163, 184, 0.2)' },
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
-      y: { formatter: (val) => `${Math.round(val)} Mbps` },
+      y: { formatter: (val) => formatThroughput(val) },
     },
     legend: {
       position: 'top',
@@ -477,8 +644,8 @@ const renderTrafficChart = () => {
       fontSize: '12px',
     },
     series: [
-      { name: 'Allowed', data: allowedSeries[0].data },
-      { name: 'Blocked', data: blockedSeries[0].data },
+      { name: 'Allowed', data: allowedSeries },
+      { name: 'Blocked', data: blockedSeries },
     ],
   }
 
@@ -492,19 +659,31 @@ const renderTrafficChart = () => {
 
 const renderProtocolChart = () => {
   if (!protocolChart.value) return
-  const series = buildProtocolSeries()
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = [
+    { name: 'TCP', data: mapSeriesPoints(protocolPoints.value, 'tcp') },
+    { name: 'UDP', data: mapSeriesPoints(protocolPoints.value, 'udp') },
+    { name: 'ICMP', data: mapSeriesPoints(protocolPoints.value, 'icmp') },
+    { name: 'GRE', data: mapSeriesPoints(protocolPoints.value, 'gre') },
+    { name: 'OTHER', data: mapSeriesPoints(protocolPoints.value, 'other') },
+  ]
   const options = {
     chart: {
       type: 'line',
       height: 420,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
+      pan: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     colors: ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#64748b'],
     xaxis: {
       type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
       tickAmount: 6,
       axisBorder: { show: true, color: '#e2e8f0' },
       axisTicks: { show: true, color: '#e2e8f0' },
@@ -519,13 +698,13 @@ const renderProtocolChart = () => {
     },
     yaxis: {
       labels: {
-        formatter: (val) => `${Math.round(val)} Mbps`,
+        formatter: (val) => formatThroughput(val),
       },
     },
     grid: { borderColor: 'rgba(148, 163, 184, 0.2)' },
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
-      y: { formatter: (val) => `${Math.round(val)} Mbps` },
+      y: { formatter: (val) => formatThroughput(val) },
     },
     legend: {
       position: 'top',
@@ -546,11 +725,11 @@ const renderProtocolChart = () => {
 watch(appliedFilters, () => {
   renderTrafficChart()
   renderProtocolChart()
-})
+}, { deep: true })
 
 onMounted(() => {
-  renderTrafficChart()
-  renderProtocolChart()
+  loadServers()
+  loadL4Analytics()
 })
 
 onBeforeUnmount(() => {
@@ -592,12 +771,12 @@ onBeforeUnmount(() => {
 .filters-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .filters-left {
-  flex: 1 1 240px;
+  flex: 1 1 420px;
 }
 
 .filters-center {
@@ -611,9 +790,17 @@ onBeforeUnmount(() => {
 }
 
 .filters-right {
-  flex: 2 1 360px;
+  flex: 0 1 auto;
   justify-content: flex-end;
   margin-left: auto;
+}
+
+.selected-range-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-weight: 600;
 }
 
 .filter-inline-label {
@@ -702,14 +889,14 @@ onBeforeUnmount(() => {
   font-weight: 600;
   cursor: pointer;
   color: #ffffff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.25);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .apply-filter-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
 }
 
 .dialog-overlay {
@@ -1034,6 +1221,11 @@ onBeforeUnmount(() => {
 .badge.attack-icmp {
   background: #dbeafe;
   color: #1e40af;
+}
+
+.badge.attack-other {
+  background: rgba(148, 163, 184, 0.2);
+  color: #64748b;
 }
 
 .badge.status-blocked {

@@ -464,11 +464,21 @@
         <div class="dialog-body">
           <div class="dialog-form-group">
             <label>Start Date & Time</label>
-            <input type="datetime-local" v-model="customStartDate" class="dialog-input" />
+            <FlatPickr
+              v-model="customStartDate"
+              :config="datePickerConfig"
+              class="dialog-input"
+              placeholder="Select start time"
+            />
           </div>
           <div class="dialog-form-group">
             <label>End Date & Time</label>
-            <input type="datetime-local" v-model="customEndDate" class="dialog-input" />
+            <FlatPickr
+              v-model="customEndDate"
+              :config="datePickerConfig"
+              class="dialog-input"
+              placeholder="Select end time"
+            />
           </div>
         </div>
         <div class="dialog-footer">
@@ -492,8 +502,9 @@ const selectedServer = ref('all')
 const selectedTimeRange = ref('30m')
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
-const customStartDate = ref('')
-const customEndDate = ref('')
+const customStartDate = ref(null)
+const customEndDate = ref(null)
+const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
   range: '30m',
@@ -647,6 +658,13 @@ const formatDateTime = (value) => {
   return parsed.toLocaleString()
 }
 
+const formatDateInput = (value) => {
+  if (!value) return ''
+  const parsed = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString()
+}
+
 const statsDisplay = computed(() => ({
   totalTraffic: formatMegabytes(analyticsStats.value.totalTraffic),
   bandwidthLast: `${formatNumber(analyticsStats.value.bandwidthLast)} Mbps`,
@@ -661,7 +679,7 @@ const statsDisplay = computed(() => ({
 const selectedRangeLabel = computed(() => {
   if (isCustomRange.value) {
     if (customStartDate.value && customEndDate.value) {
-      return `${customStartDate.value.replace('T', ' ')} → ${customEndDate.value.replace('T', ' ')}`
+      return `${formatDateTime(customStartDate.value)} → ${formatDateTime(customEndDate.value)}`
     }
     return 'Custom'
   }
@@ -698,8 +716,8 @@ const applyFilters = () => {
     server: selectedServer.value,
     range: selectedTimeRange.value,
     isCustom: isCustomRange.value,
-    customStart: customStartDate.value,
-    customEnd: customEndDate.value,
+    customStart: isCustomRange.value ? formatDateInput(customStartDate.value) : '',
+    customEnd: isCustomRange.value ? formatDateInput(customEndDate.value) : '',
   }
   loadAnalyticsData()
 }

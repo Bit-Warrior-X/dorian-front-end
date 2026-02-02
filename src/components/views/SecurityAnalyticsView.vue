@@ -234,11 +234,21 @@
         <div class="dialog-body">
           <div class="dialog-form-group">
             <label>Start Date & Time</label>
-            <input type="datetime-local" v-model="customStartDate" class="dialog-input" />
+            <FlatPickr
+              v-model="customStartDate"
+              :config="datePickerConfig"
+              class="dialog-input"
+              placeholder="Select start time"
+            />
           </div>
           <div class="dialog-form-group">
             <label>End Date & Time</label>
-            <input type="datetime-local" v-model="customEndDate" class="dialog-input" />
+            <FlatPickr
+              v-model="customEndDate"
+              :config="datePickerConfig"
+              class="dialog-input"
+              placeholder="Select end time"
+            />
           </div>
         </div>
         <div class="dialog-footer">
@@ -266,8 +276,9 @@ const selectedServer = ref('all')
 const selectedTimeRange = ref('30m')
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
-const customStartDate = ref('')
-const customEndDate = ref('')
+const customStartDate = ref(null)
+const customEndDate = ref(null)
+const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
   range: '30m',
@@ -299,6 +310,20 @@ const formatNumber = (value) => {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return '0'
   return numeric.toLocaleString()
+}
+
+const formatDateTime = (value) => {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleString()
+}
+
+const formatDateInput = (value) => {
+  if (!value) return ''
+  const parsed = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString()
 }
 
 const statsDisplay = computed(() => ({
@@ -511,7 +536,7 @@ const serverOptions = computed(() => [
 const selectedRangeLabel = computed(() => {
   if (isCustomRange.value) {
     if (customStartDate.value && customEndDate.value) {
-      return `${customStartDate.value.replace('T', ' ')} → ${customEndDate.value.replace('T', ' ')}`
+      return `${formatDateTime(customStartDate.value)} → ${formatDateTime(customEndDate.value)}`
     }
     return 'Custom'
   }
@@ -615,8 +640,8 @@ const applyFilters = () => {
     server: selectedServer.value,
     range: selectedTimeRange.value,
     isCustom: isCustomRange.value,
-    customStart: customStartDate.value,
-    customEnd: customEndDate.value,
+    customStart: isCustomRange.value ? formatDateInput(customStartDate.value) : '',
+    customEnd: isCustomRange.value ? formatDateInput(customEndDate.value) : '',
   }
   loadSecurityAnalytics()
 }
@@ -775,14 +800,14 @@ const applyFilters = () => {
   font-weight: 600;
   cursor: pointer;
   color: #ffffff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.25);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .apply-filter-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
 }
 
 .dialog-overlay {
