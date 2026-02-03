@@ -8,3 +8,6 @@ export const updateL4Config = async (serverId, payload) =>
     method: 'PUT',
     body: JSON.stringify(payload),
   })
+
+export const fetchL4Options = async (serverId) =>
+  apiRequest(`/servers/${serverId}/l4/options`)

@@ -51,13 +51,23 @@
             <div class="l4-form-grid">
               <div class="l4-field">
                 <label for="global-eth-interface">Eth Interface</label>
-                <input
+                <select
                   id="global-eth-interface"
                   v-model="globalForm.ethInterface"
-                  type="text"
                   class="l4-input"
-                  :disabled="!globalForm.enabled"
-                />
+                  :disabled="!globalForm.enabled || l4OptionsLoading || l4Options.interfaces.length === 0"
+                >
+                  <option v-if="l4Options.interfaces.length === 0" value="" disabled>
+                    No interfaces available
+                  </option>
+                  <option
+                    v-for="iface in l4Options.interfaces"
+                    :key="iface"
+                    :value="iface"
+                  >
+                    {{ iface }}
+                  </option>
+                </select>
               </div>
               <div class="l4-field">
                 <label for="global-attach-mode">Attach Mode</label>
@@ -65,12 +75,18 @@
                   id="global-attach-mode"
                   v-model="globalForm.attachMode"
                   class="l4-input"
-                  :disabled="!globalForm.enabled"
+                  :disabled="!globalForm.enabled || l4OptionsLoading || availableAttachModes.length === 0"
                 >
-                  <option value="skb">skb</option>
-                  <option value="native">native</option>
-                  <option value="drv">drv</option>
-                  <option value="hw">hw</option>
+                  <option v-if="availableAttachModes.length === 0" value="" disabled>
+                    No attach modes available
+                  </option>
+                  <option
+                    v-for="mode in availableAttachModes"
+                    :key="mode"
+                    :value="mode"
+                  >
+                    {{ mode }}
+                  </option>
                 </select>
               </div>
               <div class="l4-field">
@@ -847,7 +863,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
-import { fetchL4Config, updateL4Config } from "@/api/l4";
+import { fetchL4Config, fetchL4Options, updateL4Config } from "@/api/l4";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import { useNotifications } from "@/stores/notifications";
 
@@ -861,6 +877,20 @@ const props = defineProps({
 const notifications = useNotifications();
 const isConfirmDialogOpen = ref(false);
 let pendingConfirmAction = null;
+const l4Options = ref({
+  interfaces: [],
+  attachModes: [],
+  attachModesByInterface: {}
+});
+const l4OptionsLoading = ref(false);
+
+const availableAttachModes = computed(() => {
+  const iface = globalForm.value.ethInterface;
+  if (iface && l4Options.value.attachModesByInterface[iface]) {
+    return l4Options.value.attachModesByInterface[iface];
+  }
+  return l4Options.value.attachModes;
+});
 
 const l4Items = [
   { id: "global-config", label: "Global Config" },
@@ -1300,6 +1330,61 @@ const loadConfig = async () => {
   }
 };
 
+const normalizeOptions = (options) => {
+  if (!options || typeof options !== "object") {
+    return { interfaces: [], attachModes: [], attachModesByInterface: {} };
+  }
+  const interfaces = Array.isArray(options.interfaces) ? options.interfaces : [];
+  const attachModes = Array.isArray(options.attachModes) ? options.attachModes : [];
+  const attachModesByInterface =
+    options.attachModesByInterface && typeof options.attachModesByInterface === "object"
+      ? options.attachModesByInterface
+      : {};
+  const normalizedByInterface = {};
+  Object.entries(attachModesByInterface).forEach(([key, value]) => {
+    if (typeof key !== "string" || !Array.isArray(value)) return;
+    normalizedByInterface[key] = value.filter(
+      (item) => typeof item === "string" && item.trim() !== ""
+    );
+  });
+  return {
+    interfaces: interfaces.filter((item) => typeof item === "string" && item.trim() !== ""),
+    attachModes: attachModes.filter((item) => typeof item === "string" && item.trim() !== ""),
+    attachModesByInterface: normalizedByInterface
+  };
+};
+
+const syncL4Options = () => {
+  if (l4Options.value.interfaces.length > 0) {
+    const current = globalForm.value.ethInterface;
+    const match = l4Options.value.interfaces.includes(current)
+      ? current
+      : l4Options.value.interfaces[0];
+    globalForm.value.ethInterface = match;
+  }
+  const modes = availableAttachModes.value;
+  if (modes.length > 0) {
+    const current = globalForm.value.attachMode;
+    const match = modes.includes(current) ? current : modes[0];
+    globalForm.value.attachMode = match;
+  }
+};
+
+const loadOptions = async () => {
+  if (!props.serverId) return;
+  l4OptionsLoading.value = true;
+  try {
+    const data = await fetchL4Options(props.serverId);
+    l4Options.value = normalizeOptions(data);
+    syncL4Options();
+  } catch {
+    l4Options.value = { interfaces: [], attachModes: [], attachModesByInterface: {} };
+    notifications.enqueue("Failed to load L4 interface options.", "error");
+  } finally {
+    l4OptionsLoading.value = false;
+  }
+};
+
 const applyConfig = (config) => {
   if (!config) return;
   globalForm.value.ethInterface = config.dev || "eth0";
@@ -1367,6 +1452,8 @@ const applyConfig = (config) => {
   geoIpForm.value.selectedCountries = Array.isArray(config.geoAllowCountries)
     ? config.geoAllowCountries
     : [];
+
+  syncL4Options();
 };
 
 const saveConfig = async () => {
@@ -1464,13 +1551,22 @@ const parseNumber = (value, fallback) => {
 };
 
 onMounted(() => {
+  void loadOptions();
   void loadConfig();
 });
 
 watch(
   () => props.serverId,
   () => {
+    void loadOptions();
     void loadConfig();
+  }
+);
+
+watch(
+  () => globalForm.value.ethInterface,
+  () => {
+    syncL4Options();
   }
 );
 </script>
