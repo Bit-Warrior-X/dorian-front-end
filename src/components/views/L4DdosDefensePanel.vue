@@ -14,840 +14,1104 @@
     </div>
     <div class="l4-settings">
       <div class="l4-settings-header">
-        <h4>{{ activeL4Data.label }}</h4>
+        <h4>{{ activeL4Label }}</h4>
       </div>
-      <div v-if="isGlobalConfigActive" class="l4-form">
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="global-protection-mode">Protection Mode</label>
-                <select
-                  id="global-protection-mode"
-                  v-model="globalForm.protectionMode"
-                  class="l4-input"
-                  :disabled="!globalForm.enabled"
-                >
-                  <option value="Always On">Always On</option>
-                  <option value="Monitor">Monitor</option>
-                </select>
+      <div class="l4-settings-body">
+        <div v-if="isL4ConfigActive" class="l4-config">
+          <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>Global Config</h5>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="global-protection-mode">
+                      Protection Mode
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Defines how L4 defense reacts to detected traffic."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <select
+                      id="global-protection-mode"
+                      v-model="globalForm.protectionMode"
+                      class="l4-input"
+                      :disabled="!globalForm.enabled"
+                    >
+                      <option value="Always On">Always On</option>
+                      <option value="Monitor">Monitor</option>
+                    </select>
+                  </div>
+                  <div class="l4-field">
+                    <label for="global-sensitivity">
+                      Sensitivity
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Controls how aggressively the system detects threats."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <select
+                      id="global-sensitivity"
+                      v-model="globalForm.sensitivity"
+                      class="l4-input"
+                      :disabled="!globalForm.enabled"
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div class="l4-field">
-                <label for="global-sensitivity">Sensitivity</label>
-                <select
-                  id="global-sensitivity"
-                  v-model="globalForm.sensitivity"
-                  class="l4-input"
-                  :disabled="!globalForm.enabled"
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="global-eth-interface">
+                      Eth Interface
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Network interface that L4 protection attaches to."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <select
+                      id="global-eth-interface"
+                      v-model="globalForm.ethInterface"
+                      class="l4-input"
+                      :disabled="!globalForm.enabled || l4OptionsLoading || l4Options.interfaces.length === 0"
+                    >
+                      <option v-if="l4Options.interfaces.length === 0" value="" disabled>
+                        No interfaces available
+                      </option>
+                      <option
+                        v-for="iface in l4Options.interfaces"
+                        :key="iface"
+                        :value="iface"
+                      >
+                        {{ iface }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="l4-field">
+                    <label for="global-attach-mode">
+                      Attach Mode
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="How the XDP/eBPF hook is attached to the interface."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <select
+                      id="global-attach-mode"
+                      v-model="globalForm.attachMode"
+                      class="l4-input"
+                      :disabled="!globalForm.enabled || l4OptionsLoading || availableAttachModes.length === 0"
+                    >
+                      <option v-if="availableAttachModes.length === 0" value="" disabled>
+                        No attach modes available
+                      </option>
+                      <option
+                        v-for="mode in availableAttachModes"
+                        :key="mode"
+                        :value="mode"
+                      >
+                        {{ mode }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="l4-field">
+                    <label for="global-block-duration">
+                      Block Duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="How long detected IPs remain blocked."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="global-block-duration"
+                      v-model="globalForm.blockDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!globalForm.enabled"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="global-eth-interface">Eth Interface</label>
-                <select
-                  id="global-eth-interface"
-                  v-model="globalForm.ethInterface"
-                  class="l4-input"
-                  :disabled="!globalForm.enabled || l4OptionsLoading || l4Options.interfaces.length === 0"
-                >
-                  <option v-if="l4Options.interfaces.length === 0" value="" disabled>
-                    No interfaces available
-                  </option>
-                  <option
-                    v-for="iface in l4Options.interfaces"
-                    :key="iface"
-                    :value="iface"
-                  >
-                    {{ iface }}
-                  </option>
-                </select>
-              </div>
-              <div class="l4-field">
-                <label for="global-attach-mode">Attach Mode</label>
-                <select
-                  id="global-attach-mode"
-                  v-model="globalForm.attachMode"
-                  class="l4-input"
-                  :disabled="!globalForm.enabled || l4OptionsLoading || availableAttachModes.length === 0"
-                >
-                  <option v-if="availableAttachModes.length === 0" value="" disabled>
-                    No attach modes available
-                  </option>
-                  <option
-                    v-for="mode in availableAttachModes"
-                    :key="mode"
-                    :value="mode"
-                  >
-                    {{ mode }}
-                  </option>
-                </select>
-              </div>
-              <div class="l4-field">
-                <label for="global-block-duration">Block Duration</label>
-                <input
-                  id="global-block-duration"
-                  v-model="globalForm.blockDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!globalForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="button" class="confirm-btn" @click="confirmGlobalSettings">
-          Confirm Settings
-        </button>
-        <div class="l4-description tcp-detailed-description">
-          <ul>
-            <li><strong>Protection Mode:</strong> Defines the operational mode of the defense system.</li>
-            <li><strong>Sensitivity:</strong> Adjusts the aggressiveness of threat detection.</li>
-            <li><strong>Ethernet Interface:</strong> Specifies the network interface to be protected.</li>
-            <li><strong>Attach Mode:</strong> Determines how the eBPF/XDP protection hook is deployed to the interface.</li>
-            <li><strong>Block Duration:</strong> Sets the temporary block time for IP addresses flagged as malicious.</li>
-          </ul>
-        </div>
-      </div>
-      <div v-else-if="isSynFloodActive" class="l4-form">
-        <button
-          type="button"
-          class="l4-toggle"
-          role="switch"
-          :aria-checked="synForm.enabled"
-          @click="synForm.enabled = !synForm.enabled"
-        >
-          <span class="toggle-track" :class="{ off: !synForm.enabled }">
-            <span class="toggle-label on">Enable</span>
-            <span class="toggle-label off">Disable</span>
-            <span class="toggle-knob" :class="{ on: synForm.enabled }"></span>
-          </span>
-        </button>
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="syn-threshold">Threshold</label>
-                <input
-                  id="syn-threshold"
-                  v-model="synForm.threshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!synForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="syn-burst-pkt">Burst Pkt</label>
-                <input
-                  id="syn-burst-pkt"
-                  v-model="synForm.burstPkt"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!synForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="syn-burst-counter">Burst Counter</label>
-                <input
-                  id="syn-burst-counter"
-                  v-model="synForm.burstCounter"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!synForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="syn-fixed-duration">Fixed Duration</label>
-                <input
-                  id="syn-fixed-duration"
-                  v-model="synForm.fixedDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!synForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="syn-fixed-threshold">Fixed Threshold</label>
-                <input
-                  id="syn-fixed-threshold"
-                  v-model="synForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!synForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="syn-challenge-timeout">Challenge Timeout</label>
-                <input
-                  id="syn-challenge-timeout"
-                  v-model="synForm.challengeTimeout"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!synForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="button" class="confirm-btn" @click="confirmSynSettings">
-          Confirm Settings
-        </button>
-      </div>
-      <div v-else-if="isAckFloodActive" class="l4-form">
-        <button
-          type="button"
-          class="l4-toggle"
-          role="switch"
-          :aria-checked="ackForm.enabled"
-          @click="ackForm.enabled = !ackForm.enabled"
-        >
-          <span class="toggle-track" :class="{ off: !ackForm.enabled }">
-            <span class="toggle-label on">Enable</span>
-            <span class="toggle-label off">Disable</span>
-            <span class="toggle-knob" :class="{ on: ackForm.enabled }"></span>
-          </span>
-        </button>
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="ack-threshold">Threshold</label>
-                <input
-                  id="ack-threshold"
-                  v-model="ackForm.threshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!ackForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="ack-burst-pkt">Burst Pkt</label>
-                <input
-                  id="ack-burst-pkt"
-                  v-model="ackForm.burstPkt"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!ackForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="ack-burst-counter">Burst Counter</label>
-                <input
-                  id="ack-burst-counter"
-                  v-model="ackForm.burstCounter"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!ackForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="ack-fixed-duration">Fixed Duration</label>
-                <input
-                  id="ack-fixed-duration"
-                  v-model="ackForm.fixedDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!ackForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="ack-fixed-threshold">Fixed Threshold</label>
-                <input
-                  id="ack-fixed-threshold"
-                  v-model="ackForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!ackForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="button" class="confirm-btn" @click="confirmAckSettings">
-          Confirm Settings
-        </button>
-      </div>
-      <div v-else-if="isRstFloodActive" class="l4-form">
-        <button
-          type="button"
-          class="l4-toggle"
-          role="switch"
-          :aria-checked="rstForm.enabled"
-          @click="rstForm.enabled = !rstForm.enabled"
-        >
-          <span class="toggle-track" :class="{ off: !rstForm.enabled }">
-            <span class="toggle-label on">Enable</span>
-            <span class="toggle-label off">Disable</span>
-            <span class="toggle-knob" :class="{ on: rstForm.enabled }"></span>
-          </span>
-        </button>
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="rst-threshold">Threshold</label>
-                <input
-                  id="rst-threshold"
-                  v-model="rstForm.threshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!rstForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="rst-burst-pkt">Burst Pkt</label>
-                <input
-                  id="rst-burst-pkt"
-                  v-model="rstForm.burstPkt"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!rstForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="rst-burst-counter">Burst Counter</label>
-                <input
-                  id="rst-burst-counter"
-                  v-model="rstForm.burstCounter"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!rstForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="rst-fixed-duration">Fixed Duration</label>
-                <input
-                  id="rst-fixed-duration"
-                  v-model="rstForm.fixedDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!rstForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="rst-fixed-threshold">Fixed Threshold</label>
-                <input
-                  id="rst-fixed-threshold"
-                  v-model="rstForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!rstForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="button" class="confirm-btn" @click="confirmRstSettings">
-          Confirm Settings
-        </button>
-      </div>
-      <div v-else-if="isIcmpFloodActive" class="l4-form">
-        <button
-          type="button"
-          class="l4-toggle"
-          role="switch"
-          :aria-checked="icmpForm.enabled"
-          @click="icmpForm.enabled = !icmpForm.enabled"
-        >
-          <span class="toggle-track" :class="{ off: !icmpForm.enabled }">
-            <span class="toggle-label on">Enable</span>
-            <span class="toggle-label off">Disable</span>
-            <span class="toggle-knob" :class="{ on: icmpForm.enabled }"></span>
-          </span>
-        </button>
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="icmp-threshold">Threshold</label>
-                <input
-                  id="icmp-threshold"
-                  v-model="icmpForm.threshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!icmpForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="icmp-burst-pkt">Burst Pkt</label>
-                <input
-                  id="icmp-burst-pkt"
-                  v-model="icmpForm.burstPkt"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!icmpForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="icmp-burst-counter">Burst Counter</label>
-                <input
-                  id="icmp-burst-counter"
-                  v-model="icmpForm.burstCounter"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!icmpForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="icmp-fixed-duration">Fixed Duration</label>
-                <input
-                  id="icmp-fixed-duration"
-                  v-model="icmpForm.fixedDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!icmpForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="icmp-fixed-threshold">Fixed Threshold</label>
-                <input
-                  id="icmp-fixed-threshold"
-                  v-model="icmpForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!icmpForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="button" class="confirm-btn" @click="confirmIcmpSettings">
-          Confirm Settings
-        </button>
-      </div>
-      <div v-else-if="isUdpFloodActive" class="l4-form">
-        <button
-          type="button"
-          class="l4-toggle"
-          role="switch"
-          :aria-checked="udpForm.enabled"
-          @click="udpForm.enabled = !udpForm.enabled"
-        >
-          <span class="toggle-track" :class="{ off: !udpForm.enabled }">
-            <span class="toggle-label on">Enable</span>
-            <span class="toggle-label off">Disable</span>
-            <span class="toggle-knob" :class="{ on: udpForm.enabled }"></span>
-          </span>
-        </button>
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="udp-threshold">Threshold</label>
-                <input
-                  id="udp-threshold"
-                  v-model="udpForm.threshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!udpForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="udp-burst-pkt">Burst Pkt</label>
-                <input
-                  id="udp-burst-pkt"
-                  v-model="udpForm.burstPkt"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!udpForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="udp-burst-counter">Burst Counter</label>
-                <input
-                  id="udp-burst-counter"
-                  v-model="udpForm.burstCounter"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!udpForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="udp-fixed-duration">Fixed Duration</label>
-                <input
-                  id="udp-fixed-duration"
-                  v-model="udpForm.fixedDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!udpForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="udp-fixed-threshold">Fixed Threshold</label>
-                <input
-                  id="udp-fixed-threshold"
-                  v-model="udpForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!udpForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="button" class="confirm-btn" @click="confirmUdpSettings">
-          Confirm Settings
-        </button>
-      </div>
-      <div v-else-if="isGreFloodActive" class="l4-form">
-        <button
-          type="button"
-          class="l4-toggle"
-          role="switch"
-          :aria-checked="greForm.enabled"
-          @click="greForm.enabled = !greForm.enabled"
-        >
-          <span class="toggle-track" :class="{ off: !greForm.enabled }">
-            <span class="toggle-label on">Enable</span>
-            <span class="toggle-label off">Disable</span>
-            <span class="toggle-knob" :class="{ on: greForm.enabled }"></span>
-          </span>
-        </button>
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="gre-threshold">Threshold</label>
-                <input
-                  id="gre-threshold"
-                  v-model="greForm.threshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!greForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="gre-burst-pkt">Burst Pkt</label>
-                <input
-                  id="gre-burst-pkt"
-                  v-model="greForm.burstPkt"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!greForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="gre-burst-counter">Burst Counter</label>
-                <input
-                  id="gre-burst-counter"
-                  v-model="greForm.burstCounter"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!greForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="gre-fixed-duration">Fixed Duration</label>
-                <input
-                  id="gre-fixed-duration"
-                  v-model="greForm.fixedDuration"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!greForm.enabled"
-                />
-              </div>
-              <div class="l4-field">
-                <label for="gre-fixed-threshold">Fixed Threshold</label>
-                <input
-                  id="gre-fixed-threshold"
-                  v-model="greForm.fixedThreshold"
-                  type="text"
-                  class="l4-input"
-                  :disabled="!greForm.enabled"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button type="button" class="confirm-btn" @click="confirmGreSettings">
-          Confirm Settings
-        </button>
-      </div>
-      <div v-else-if="isTcpDetailedConfigActive" class="l4-form">
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-section-header">
-              <h5>TCP Connection Limit</h5>
-              <button
-                type="button"
-                class="l4-toggle"
-                role="switch"
-                :aria-checked="tcpDetailedForm.connectionLimitEnabled"
-                @click="tcpDetailedForm.connectionLimitEnabled = !tcpDetailedForm.connectionLimitEnabled"
-              >
-                <span class="toggle-track" :class="{ off: !tcpDetailedForm.connectionLimitEnabled }">
-                  <span class="toggle-label on">Enable</span>
-                  <span class="toggle-label off">Disable</span>
-                  <span class="toggle-knob" :class="{ on: tcpDetailedForm.connectionLimitEnabled }"></span>
-                </span>
-              </button>
-            </div>
-            <div class="l4-form-grid">
-              <div class="l4-field">
-                <label for="tcp-connection-limit">Connection Limit Count</label>
-                <input
-                  id="tcp-connection-limit"
-                  v-model="tcpDetailedForm.connectionLimit"
-                  type="number"
-                  min="0"
-                  class="l4-input"
-                  :disabled="!tcpDetailedForm.connectionLimitEnabled"
-                />
-              </div>
-            </div>
-          </div>
-          <div class="l4-section">
-            <h5>TCP Segmentation Check</h5>
+        </section>
+        <div class="l4-config-row">
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>TCP SYN Flood</h5>
             <button
               type="button"
               class="l4-toggle"
               role="switch"
-              :aria-checked="tcpDetailedForm.segmentationCheck"
-              @click="tcpDetailedForm.segmentationCheck = !tcpDetailedForm.segmentationCheck"
+              :aria-checked="synForm.enabled"
+              @click="synForm.enabled = !synForm.enabled"
             >
-              <span class="toggle-track" :class="{ off: !tcpDetailedForm.segmentationCheck }">
+              <span class="toggle-track" :class="{ off: !synForm.enabled }">
                 <span class="toggle-label on">Enable</span>
                 <span class="toggle-label off">Disable</span>
-                <span class="toggle-knob" :class="{ on: tcpDetailedForm.segmentationCheck }"></span>
+                <span class="toggle-knob" :class="{ on: synForm.enabled }"></span>
               </span>
             </button>
           </div>
-        </div>
-        <button type="button" class="confirm-btn" @click="confirmTcpDetailedSettings">
-          Confirm Settings
-        </button>
-        <div class="l4-description tcp-detailed-description">
-          <p>
-            TCP Detailed Config focuses on connection integrity rather than volumetric thresholds.
-            Use the connection limit to cap concurrent sessions per source and reduce resource
-            exhaustion attacks. Enable segmentation checks to detect malformed or abusive TCP segment
-            patterns that often appear in evasion attempts.
-          </p>
-          <p>
-            For most environments, start with conservative limits and enable segmentation checks,
-            then tune upward after observing normal traffic patterns.
-          </p>
-        </div>
-      </div>
-      <div v-else-if="isGeoIpCheckActive" class="l4-form">
-        <button
-          type="button"
-          class="l4-toggle"
-          role="switch"
-          :aria-checked="geoIpForm.enabled"
-          @click="geoIpForm.enabled = !geoIpForm.enabled"
-        >
-          <span class="toggle-track" :class="{ off: !geoIpForm.enabled }">
-            <span class="toggle-label on">Enable</span>
-            <span class="toggle-label off">Disable</span>
-            <span class="toggle-knob" :class="{ on: geoIpForm.enabled }"></span>
-          </span>
-        </button>
-        <div class="l4-form-sections">
-          <div class="l4-section">
-            <div class="l4-section-header">
-              <h5>Allowed Countries</h5>
-              <span class="selection-count">{{ geoIpForm.selectedCountries.length }} selected</span>
-            </div>
-            <div v-if="geoIpForm.selectedCountries.length" class="selected-countries">
-              <span
-                v-for="country in geoIpForm.selectedCountries"
-                :key="country"
-                class="country-chip"
-              >
-                {{ country }}
-              </span>
-            </div>
-            <div class="continent-tabs">
-              <button
-                v-for="continent in geoIpForm.continents"
-                :key="continent"
-                type="button"
-                class="continent-btn"
-                :class="{ active: geoIpForm.activeContinent === continent }"
-                :disabled="!geoIpForm.enabled"
-                @click="geoIpForm.activeContinent = continent"
-              >
-                {{ continent }}
-              </button>
-            </div>
-            <div class="country-grid">
-              <label
-                v-for="country in filteredGeoCountries"
-                :key="country"
-                class="country-option"
-              >
-                <input
-                  type="checkbox"
-                  :value="country"
-                  v-model="geoIpForm.selectedCountries"
-                  :disabled="!geoIpForm.enabled"
-                />
-                <span>{{ country }}</span>
-              </label>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="syn-threshold">
+                      Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Packets per second to trigger SYN flood defense."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="syn-threshold"
+                      v-model="synForm.threshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!synForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="syn-burst-pkt">
+                      Burst Pkt
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="syn-burst-pkt"
+                      v-model="synForm.burstPkt"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!synForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="syn-burst-counter">
+                      Burst Counter
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="syn-burst-counter"
+                      v-model="synForm.burstCounter"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!synForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="syn-fixed-duration">
+                      Fixed Duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="syn-fixed-duration"
+                      v-model="synForm.fixedDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!synForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="syn-fixed-threshold">
+                      Fixed Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="syn-fixed-threshold"
+                      v-model="synForm.fixedThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!synForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="syn-challenge-timeout">
+                      Challenge Timeout
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Time allowed for SYN challenge response."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="syn-challenge-timeout"
+                      v-model="synForm.challengeTimeout"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!synForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+        </section>
+        <div class="l4-config-row">
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>TCP ACK Flood</h5>
+            <button
+              type="button"
+              class="l4-toggle"
+              role="switch"
+              :aria-checked="ackForm.enabled"
+              @click="ackForm.enabled = !ackForm.enabled"
+            >
+              <span class="toggle-track" :class="{ off: !ackForm.enabled }">
+                <span class="toggle-label on">Enable</span>
+                <span class="toggle-label off">Disable</span>
+                <span class="toggle-knob" :class="{ on: ackForm.enabled }"></span>
+              </span>
+            </button>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="ack-threshold">
+                      Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Packets per second to trigger ACK flood defense."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="ack-threshold"
+                      v-model="ackForm.threshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!ackForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="ack-burst-pkt">
+                      Burst Pkt
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="ack-burst-pkt"
+                      v-model="ackForm.burstPkt"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!ackForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="ack-burst-counter">
+                      Burst Counter
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="ack-burst-counter"
+                      v-model="ackForm.burstCounter"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!ackForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="ack-fixed-duration">
+                      Fixed Duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="ack-fixed-duration"
+                      v-model="ackForm.fixedDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!ackForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="ack-fixed-threshold">
+                      Fixed Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="ack-fixed-threshold"
+                      v-model="ackForm.fixedThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!ackForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
         </div>
-        <button type="button" class="confirm-btn" @click="confirmGeoIpSettings">
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>TCP RST Flood</h5>
+            <button
+              type="button"
+              class="l4-toggle"
+              role="switch"
+              :aria-checked="rstForm.enabled"
+              @click="rstForm.enabled = !rstForm.enabled"
+            >
+              <span class="toggle-track" :class="{ off: !rstForm.enabled }">
+                <span class="toggle-label on">Enable</span>
+                <span class="toggle-label off">Disable</span>
+                <span class="toggle-knob" :class="{ on: rstForm.enabled }"></span>
+              </span>
+            </button>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="rst-threshold">
+                      Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Packets per second to trigger RST flood defense."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="rst-threshold"
+                      v-model="rstForm.threshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!rstForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="rst-burst-pkt">
+                      Burst Pkt
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="rst-burst-pkt"
+                      v-model="rstForm.burstPkt"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!rstForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="rst-burst-counter">
+                      Burst Counter
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="rst-burst-counter"
+                      v-model="rstForm.burstCounter"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!rstForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="rst-fixed-duration">
+                      Fixed Duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="rst-fixed-duration"
+                      v-model="rstForm.fixedDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!rstForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="rst-fixed-threshold">
+                      Fixed Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="rst-fixed-threshold"
+                      v-model="rstForm.fixedThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!rstForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div class="l4-config-row">
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>ICMP Flood</h5>
+            <button
+              type="button"
+              class="l4-toggle"
+              role="switch"
+              :aria-checked="icmpForm.enabled"
+              @click="icmpForm.enabled = !icmpForm.enabled"
+            >
+              <span class="toggle-track" :class="{ off: !icmpForm.enabled }">
+                <span class="toggle-label on">Enable</span>
+                <span class="toggle-label off">Disable</span>
+                <span class="toggle-knob" :class="{ on: icmpForm.enabled }"></span>
+              </span>
+            </button>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="icmp-threshold">
+                      Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Packets per second to trigger ICMP flood defense."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="icmp-threshold"
+                      v-model="icmpForm.threshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!icmpForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="icmp-burst-pkt">
+                      Burst Pkt
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="icmp-burst-pkt"
+                      v-model="icmpForm.burstPkt"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!icmpForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="icmp-burst-counter">
+                      Burst Counter
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="icmp-burst-counter"
+                      v-model="icmpForm.burstCounter"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!icmpForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="icmp-fixed-duration">
+                      Fixed Duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="icmp-fixed-duration"
+                      v-model="icmpForm.fixedDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!icmpForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="icmp-fixed-threshold">
+                      Fixed Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="icmp-fixed-threshold"
+                      v-model="icmpForm.fixedThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!icmpForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        </div>
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>UDP Flood</h5>
+            <button
+              type="button"
+              class="l4-toggle"
+              role="switch"
+              :aria-checked="udpForm.enabled"
+              @click="udpForm.enabled = !udpForm.enabled"
+            >
+              <span class="toggle-track" :class="{ off: !udpForm.enabled }">
+                <span class="toggle-label on">Enable</span>
+                <span class="toggle-label off">Disable</span>
+                <span class="toggle-knob" :class="{ on: udpForm.enabled }"></span>
+              </span>
+            </button>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="udp-threshold">
+                      Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Packets per second to trigger UDP flood defense."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="udp-threshold"
+                      v-model="udpForm.threshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!udpForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="udp-burst-pkt">
+                      Burst Pkt
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="udp-burst-pkt"
+                      v-model="udpForm.burstPkt"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!udpForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="udp-burst-counter">
+                      Burst Counter
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="udp-burst-counter"
+                      v-model="udpForm.burstCounter"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!udpForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="udp-fixed-duration">
+                      Fixed Duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="udp-fixed-duration"
+                      v-model="udpForm.fixedDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!udpForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="udp-fixed-threshold">
+                      Fixed Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="udp-fixed-threshold"
+                      v-model="udpForm.fixedThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!udpForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>GRE Flood</h5>
+            <button
+              type="button"
+              class="l4-toggle"
+              role="switch"
+              :aria-checked="greForm.enabled"
+              @click="greForm.enabled = !greForm.enabled"
+            >
+              <span class="toggle-track" :class="{ off: !greForm.enabled }">
+                <span class="toggle-label on">Enable</span>
+                <span class="toggle-label off">Disable</span>
+                <span class="toggle-knob" :class="{ on: greForm.enabled }"></span>
+              </span>
+            </button>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="gre-threshold">
+                      Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Packets per second to trigger GRE flood defense."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="gre-threshold"
+                      v-model="greForm.threshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!greForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="gre-burst-pkt">
+                      Burst Pkt
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="gre-burst-pkt"
+                      v-model="greForm.burstPkt"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!greForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="gre-burst-counter">
+                      Burst Counter
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="gre-burst-counter"
+                      v-model="greForm.burstCounter"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!greForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="gre-fixed-duration">
+                      Fixed Duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="gre-fixed-duration"
+                      v-model="greForm.fixedDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!greForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="gre-fixed-threshold">
+                      Fixed Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="gre-fixed-threshold"
+                      v-model="greForm.fixedThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!greForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>TCP Detailed Config</h5>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-section-header">
+                  <h5>TCP Connection Limit</h5>
+                  <button
+                    type="button"
+                    class="l4-toggle"
+                    role="switch"
+                    :aria-checked="tcpDetailedForm.connectionLimitEnabled"
+                    @click="tcpDetailedForm.connectionLimitEnabled = !tcpDetailedForm.connectionLimitEnabled"
+                  >
+                    <span class="toggle-track" :class="{ off: !tcpDetailedForm.connectionLimitEnabled }">
+                      <span class="toggle-label on">Enable</span>
+                      <span class="toggle-label off">Disable</span>
+                      <span class="toggle-knob" :class="{ on: tcpDetailedForm.connectionLimitEnabled }"></span>
+                    </span>
+                  </button>
+                </div>
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="tcp-connection-limit">
+                      Connection Limit Count
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Caps concurrent TCP connections per source to prevent resource exhaustion attacks."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="tcp-connection-limit"
+                      v-model="tcpDetailedForm.connectionLimit"
+                      type="number"
+                      min="0"
+                      class="l4-input"
+                      :disabled="!tcpDetailedForm.connectionLimitEnabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section l4-inline-toggle">
+                <h5>
+                  TCP Segmentation Check
+                  <button
+                    type="button"
+                    class="tooltip-btn"
+                    title="Validates TCP segment patterns to detect malformed or abusive traffic often used in evasion attempts."
+                  >
+                    i
+                  </button>
+                </h5>
+                <button
+                  type="button"
+                  class="l4-toggle"
+                  role="switch"
+                  :aria-checked="tcpDetailedForm.segmentationCheck"
+                  @click="tcpDetailedForm.segmentationCheck = !tcpDetailedForm.segmentationCheck"
+                >
+                  <span class="toggle-track" :class="{ off: !tcpDetailedForm.segmentationCheck }">
+                    <span class="toggle-label on">Enable</span>
+                    <span class="toggle-label off">Disable</span>
+                    <span class="toggle-knob" :class="{ on: tcpDetailedForm.segmentationCheck }"></span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+        </div>
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>Geo IP Check</h5>
+            <button
+              type="button"
+              class="l4-toggle"
+              role="switch"
+              :aria-checked="geoIpForm.enabled"
+              @click="geoIpForm.enabled = !geoIpForm.enabled"
+            >
+              <span class="toggle-track" :class="{ off: !geoIpForm.enabled }">
+                <span class="toggle-label on">Enable</span>
+                <span class="toggle-label off">Disable</span>
+                <span class="toggle-knob" :class="{ on: geoIpForm.enabled }"></span>
+              </span>
+            </button>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-section-header">
+                  <h5>
+                    Allowed Countries
+                    <button
+                      type="button"
+                      class="tooltip-btn"
+                      title="Geo IP Check evaluates traffic by source region. Select countries that are allowed to reach this service."
+                    >
+                      i
+                    </button>
+                  </h5>
+                  <span class="selection-count">{{ geoIpForm.selectedCountries.length }} selected</span>
+                </div>
+                <div v-if="geoIpForm.selectedCountries.length" class="selected-countries">
+                  <span
+                    v-for="country in geoIpForm.selectedCountries"
+                    :key="country"
+                    class="country-chip"
+                  >
+                    {{ country }}
+                  </span>
+                </div>
+                <div class="continent-tabs">
+                  <button
+                    v-for="continent in geoIpForm.continents"
+                    :key="continent"
+                    type="button"
+                    class="continent-btn"
+                    :class="{ active: geoIpForm.activeContinent === continent }"
+                    :disabled="!geoIpForm.enabled"
+                    @click="geoIpForm.activeContinent = continent"
+                  >
+                    {{ continent }}
+                  </button>
+                </div>
+                <div class="country-grid">
+                  <label
+                    v-for="country in filteredGeoCountries"
+                    :key="country"
+                    class="country-option"
+                  >
+                    <input
+                      type="checkbox"
+                      :value="country"
+                      v-model="geoIpForm.selectedCountries"
+                      :disabled="!geoIpForm.enabled"
+                    />
+                    <span>{{ country }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <button type="button" class="confirm-btn" @click="confirmGlobalSettings">
           Confirm Settings
         </button>
-        <div class="l4-description tcp-detailed-description">
-          <p>
-            Geo IP Check adds a location-aware layer to DDoS defense. When enabled, traffic is
-            evaluated by source region and can be filtered based on your approved countries.
-          </p>
-          <p>
-            Select the countries that should be allowed to reach the service. Disable the feature
-            to accept traffic globally.
-          </p>
         </div>
-      </div>
-      <div v-else class="l4-settings-grid">
-        <div class="l4-setting">
-          <span class="l4-setting-label">Sensitivity</span>
-          <span class="l4-setting-value">{{ activeL4Data.sensitivity }}</span>
-        </div>
-        <div class="l4-setting">
-          <span class="l4-setting-label">Threshold</span>
-          <span class="l4-setting-value">{{ activeL4Data.threshold }}</span>
-        </div>
-        <div class="l4-setting">
-          <span class="l4-setting-label">Action</span>
-          <span class="l4-setting-value">{{ activeL4Data.action }}</span>
-        </div>
-        <div class="l4-setting">
-          <span class="l4-setting-label">Notes</span>
-          <span class="l4-setting-value">{{ activeL4Data.note }}</span>
-        </div>
-      </div>
-      <div v-if="!isTcpDetailedConfigActive && !isGeoIpCheckActive && !isGlobalConfigActive" class="l4-description">
-        <p>
-          DDoS detection runs on a 1-second sampling window. When traffic exceeds the configured
-          threshold, protection mode activates and evaluates burst and fixed rules. If traffic
-          stays below the threshold, protection mode exits and rule checks stop.
-        </p>
-        <div class="l4-description-group">
-          <h5>Burst Mode &amp; Fixed Mode</h5>
-          <ul>
-            <li>
-              <strong>Burst Mode:</strong> Captures short spikes (bursts per second). If a source
-              exceeds the burst limits, it is added to the blacklist.
-              <span class="example-text">Example: 10 bursts/sec and 20 bursts within 1s → blacklist.</span>
-            </li>
-            <li>
-              <strong>Fixed Mode:</strong> Captures sustained traffic over a fixed window. If the
-              packet count exceeds the fixed threshold, the source is blacklisted.
-              <span class="example-text">Example: 2,000 packets within 15s → blacklist.</span>
-            </li>
-          </ul>
-        </div>
-        <div v-if="activeL4Item === 'global-config'" class="l4-description-group">
-          <h5>Global</h5>
-        </div>
-        <div v-else-if="activeL4Item === 'syn-flood'" class="l4-description-group">
-          <h5>SYN Flood Extra Logic</h5>
-          <ul>
-            <li>Discard the first SYN.</li>
-            <li>On the next SYN, send an invalid SYN+ACK.</li>
-            <li>If a third SYN arrives, allow it to pass.</li>
-          </ul>
-        </div>
-        <div v-else-if="activeL4Item === 'ack-flood'" class="l4-description-group">
-          <h5>ACK Flood Extra Logic</h5>
-          <ul>
-            <li>
-              Burst checks apply only to ACK-only packets (excluding SYN, FIN, RST) with connection
-              state new, invalid, or untracked.
-            </li>
-            <li>Targets ACK traffic that is not part of a completed TCP handshake.</li>
-          </ul>
-        </div>
-        <div v-else-if="activeL4Item === 'rst-flood'" class="l4-description-group">
-          <h5>RST Flood Rules</h5>
-          <ul>
-            <li>
-              <strong>Burst Mode:</strong> 10 RST bursts/sec, 20 RST bursts → blacklist the source.
-            </li>
-            <li>
-              <strong>Fixed Mode:</strong> 2,000+ RST packets within 15s → blacklist the source.
-            </li>
-          </ul>
-        </div>
-        <div v-else-if="activeL4Item === 'tcp-detailed-config'" class="l4-description-group">
-          <h5>TCP Detailed Config</h5>
-          <ul>
-            <li>
-              <strong>Connection limit:</strong> Caps concurrent TCP connections per source to
-              prevent exhaustion attacks.
-            </li>
-            <li>
-              <strong>Segmentation check:</strong> Validates TCP segment patterns to detect malformed
-              or abusive traffic.
-            </li>
-          </ul>
-        </div>
-        <div v-else class="l4-description-group">
-          <h5>General Logic</h5>
-          <p>Applies consistently to SYN, ACK, RST, ICMP, UDP, and GRE flood defenses.</p>
-        </div>
+        <L4BlacklistPanel v-else-if="isL4BlacklistActive" :server-id="serverId" />
+        <L4WhitelistPanel v-else-if="isL4WhitelistActive" :server-id="serverId" />
       </div>
     </div>
     <ConfirmDialog
@@ -865,6 +1129,8 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { fetchL4Config, fetchL4Options, updateL4Config } from "@/api/l4";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import L4BlacklistPanel from "./L4BlacklistPanel.vue";
+import L4WhitelistPanel from "./L4WhitelistPanel.vue";
 import { useNotifications } from "@/stores/notifications";
 
 const props = defineProps({
@@ -893,18 +1159,16 @@ const availableAttachModes = computed(() => {
 });
 
 const l4Items = [
-  { id: "global-config", label: "Global Config" },
-  { id: "syn-flood", label: "TCP SYN Flood" },
-  { id: "ack-flood", label: "TCP ACK Flood" },
-  { id: "rst-flood", label: "TCP RST Flood" },
-  { id: "icmp-flood", label: "ICMP Flood" },
-  { id: "udp-flood", label: "UDP Flood" },
-  { id: "gre-flood", label: "GRE Flood" },
-  { id: "tcp-detailed-config", label: "TCP Detailed Config" },
-  { id: "geo-ip-check", label: "Geo IP Check" }
+  { id: "l4-config", label: "L4 Config" },
+  { id: "l4-blacklist", label: "L4 Blacklist" },
+  { id: "l4-whitelist", label: "L4 Whitelist" }
 ];
 
 const activeL4Item = ref(l4Items[0].id);
+const activeL4Label = computed(() => {
+  const match = l4Items.find((item) => item.id === activeL4Item.value);
+  return match?.label || "L4 Config";
+});
 const globalForm = ref({
   enabled: true,
   protectionMode: "Always On",
@@ -1200,91 +1464,9 @@ const geoIpForm = ref({
   }
 });
 
-const l4Settings = {
-  "global-config": {
-    label: "Global Config",
-    enabled: true,
-    sensitivity: "Medium",
-    threshold: "Adaptive",
-    action: "Auto protect",
-    note: "Base L4 protection profile for all services."
-  },
-  "syn-flood": {
-    label: "TCP SYN Flood",
-    enabled: true,
-    sensitivity: "High",
-    threshold: "8k pps",
-    action: "Challenge",
-    note: "Auto-mitigate SYN spikes."
-  },
-  "ack-flood": {
-    label: "TCP ACK Flood",
-    enabled: true,
-    sensitivity: "Medium",
-    threshold: "6k pps",
-    action: "Drop",
-    note: "Blocks abnormal ACK bursts."
-  },
-  "rst-flood": {
-    label: "TCP RST Flood",
-    enabled: true,
-    sensitivity: "Medium",
-    threshold: "5k pps",
-    action: "Drop",
-    note: "Protects against reset storms."
-  },
-  "icmp-flood": {
-    label: "ICMP Flood",
-    enabled: true,
-    sensitivity: "Low",
-    threshold: "3k pps",
-    action: "Rate limit",
-    note: "Limits ICMP echo traffic."
-  },
-  "udp-flood": {
-    label: "UDP Flood",
-    enabled: true,
-    sensitivity: "High",
-    threshold: "10k pps",
-    action: "Drop",
-    note: "Blocks volumetric UDP bursts."
-  },
-  "gre-flood": {
-    label: "GRE Flood",
-    enabled: false,
-    sensitivity: "Medium",
-    threshold: "4k pps",
-    action: "Drop",
-    note: "Enable if GRE is in use."
-  },
-  "tcp-detailed-config": {
-    label: "TCP Detailed Config",
-    enabled: true,
-    sensitivity: "Medium",
-    threshold: "2k pps",
-    action: "Segment check + connection limit",
-    note: "Configure TCP segment validation and connection cap behavior."
-  },
-  "geo-ip-check": {
-    label: "Geo IP Check",
-    enabled: true,
-    sensitivity: "Low",
-    threshold: "Restricted regions",
-    action: "Block",
-    note: "Blocks traffic from restricted zones."
-  }
-};
-
-const activeL4Data = computed(() => l4Settings[activeL4Item.value] || l4Settings["syn-flood"]);
-const isGlobalConfigActive = computed(() => activeL4Item.value === "global-config");
-const isSynFloodActive = computed(() => activeL4Item.value === "syn-flood");
-const isAckFloodActive = computed(() => activeL4Item.value === "ack-flood");
-const isRstFloodActive = computed(() => activeL4Item.value === "rst-flood");
-const isIcmpFloodActive = computed(() => activeL4Item.value === "icmp-flood");
-const isUdpFloodActive = computed(() => activeL4Item.value === "udp-flood");
-const isGreFloodActive = computed(() => activeL4Item.value === "gre-flood");
-const isTcpDetailedConfigActive = computed(() => activeL4Item.value === "tcp-detailed-config");
-const isGeoIpCheckActive = computed(() => activeL4Item.value === "geo-ip-check");
+const isL4ConfigActive = computed(() => activeL4Item.value === "l4-config");
+const isL4BlacklistActive = computed(() => activeL4Item.value === "l4-blacklist");
+const isL4WhitelistActive = computed(() => activeL4Item.value === "l4-whitelist");
 
 const filteredGeoCountries = computed(() => {
   const baseList =
@@ -1292,31 +1474,7 @@ const filteredGeoCountries = computed(() => {
   return baseList;
 });
 
-const confirmSynSettings = () => {
-  openConfirmDialog();
-};
 const confirmGlobalSettings = () => {
-  openConfirmDialog();
-};
-const confirmAckSettings = () => {
-  openConfirmDialog();
-};
-const confirmRstSettings = () => {
-  openConfirmDialog();
-};
-const confirmIcmpSettings = () => {
-  openConfirmDialog();
-};
-const confirmUdpSettings = () => {
-  openConfirmDialog();
-};
-const confirmGreSettings = () => {
-  openConfirmDialog();
-};
-const confirmTcpDetailedSettings = () => {
-  openConfirmDialog();
-};
-const confirmGeoIpSettings = () => {
   openConfirmDialog();
 };
 
@@ -1617,6 +1775,55 @@ watch(
   flex-direction: column;
   gap: 16px;
   background: #fff;
+  height: calc(100vh - 320px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.l4-settings-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.l4-config {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.l4-config-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.l4-config-section {
+  padding: 16px 16px 18px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.7);
+}
+
+.l4-config-section:last-child {
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  padding-bottom: 18px;
+}
+
+.l4-config-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.l4-config-title h5 {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .l4-settings-header {
@@ -1646,10 +1853,10 @@ watch(
 }
 
 .l4-section {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: rgba(248, 250, 252, 0.6);
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 
 .l4-section h5 {
@@ -1668,6 +1875,17 @@ watch(
 }
 
 .l4-section-header h5 {
+  margin: 0;
+}
+
+.l4-inline-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.l4-inline-toggle h5 {
   margin: 0;
 }
 
@@ -1758,14 +1976,16 @@ watch(
 
 .l4-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, max-content));
+  gap: 12px 16px;
+  align-items: end;
 }
 
 .l4-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-width: 220px;
 }
 
 .l4-field label {
@@ -1776,15 +1996,40 @@ watch(
   letter-spacing: 0.04em;
 }
 
+.tooltip-btn {
+  margin-left: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: #fff;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: help;
+}
+
+.tooltip-btn:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 2px;
+}
+
 .l4-input {
   border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.92rem;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 0.85rem;
   color: #1f2937;
   background: #fff;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  max-width: 220px;
 }
 
 .l4-input:focus {
@@ -1810,12 +2055,12 @@ watch(
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
-  width: 148px;
-  height: 34px;
+  width: 108px;
+  height: 28px;
   border-radius: 999px;
   background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
-  padding: 0 8px;
+  padding: 0 6px;
   overflow: hidden;
 }
 
@@ -1825,7 +2070,7 @@ watch(
 
 .toggle-label {
   z-index: 2;
-  font-size: 0.72rem;
+  font-size: 0.64rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.9);
@@ -1840,10 +2085,10 @@ watch(
 
 .toggle-knob {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 68px;
-  height: 26px;
+  top: 3px;
+  left: 3px;
+  width: 50px;
+  height: 22px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
@@ -1852,7 +2097,7 @@ watch(
 }
 
 .toggle-knob.on {
-  transform: translateX(72px);
+  transform: translateX(52px);
 }
 
 .confirm-btn {
