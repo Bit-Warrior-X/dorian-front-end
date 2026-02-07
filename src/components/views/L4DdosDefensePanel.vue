@@ -18,298 +18,373 @@
       </div>
       <div class="l4-settings-body">
         <div v-if="isL4ConfigActive" class="l4-config">
-          <section class="l4-config-section">
-          <div class="l4-config-title">
-            <h5>Global Config</h5>
-          </div>
-          <div class="l4-form">
-            <div class="l4-form-sections">
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="global-protection-mode">
-                      Protection Mode
+          <div class="l4-config-row l4-config-row--global-tcp">
+            <section class="l4-config-section">
+              <div class="l4-config-title">
+                <h5>Global Config</h5>
+              </div>
+              <div class="l4-form">
+                <div class="l4-form-sections">
+                  <div class="l4-section">
+                    <div class="l4-form-grid">
+                      <div class="l4-field">
+                        <label for="global-protection-mode">
+                          Protection Mode
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Defines how L4 defense reacts to detected traffic."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <select
+                          id="global-protection-mode"
+                          v-model="globalForm.protectionMode"
+                          class="l4-input"
+                          :disabled="!globalForm.enabled"
+                        >
+                          <option value="Always On">Always On</option>
+                          <option value="Monitor">Monitor</option>
+                        </select>
+                      </div>
+                      <div class="l4-field">
+                        <label for="global-sensitivity">
+                          Sensitivity
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Controls how aggressively the system detects threats."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <select
+                          id="global-sensitivity"
+                          v-model="globalForm.sensitivity"
+                          class="l4-input"
+                          :disabled="!globalForm.enabled"
+                        >
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="l4-section">
+                    <div class="l4-form-grid">
+                      <div class="l4-field">
+                        <label for="global-eth-interface">
+                          Eth Interface
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Network interface that L4 protection attaches to."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <select
+                          id="global-eth-interface"
+                          v-model="globalForm.ethInterface"
+                          class="l4-input"
+                          :disabled="!globalForm.enabled || l4OptionsLoading || l4Options.interfaces.length === 0"
+                        >
+                          <option v-if="l4Options.interfaces.length === 0" value="" disabled>
+                            No interfaces available
+                          </option>
+                          <option
+                            v-for="iface in l4Options.interfaces"
+                            :key="iface"
+                            :value="iface"
+                          >
+                            {{ iface }}
+                          </option>
+                        </select>
+                      </div>
+                      <div class="l4-field">
+                        <label for="global-attach-mode">
+                          Attach Mode
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="How the XDP/eBPF hook is attached to the interface."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <select
+                          id="global-attach-mode"
+                          v-model="globalForm.attachMode"
+                          class="l4-input"
+                          :disabled="!globalForm.enabled || l4OptionsLoading || availableAttachModes.length === 0"
+                        >
+                          <option v-if="availableAttachModes.length === 0" value="" disabled>
+                            No attach modes available
+                          </option>
+                          <option
+                            v-for="mode in availableAttachModes"
+                            :key="mode"
+                            :value="mode"
+                          >
+                            {{ mode }}
+                          </option>
+                        </select>
+                      </div>
+                      <div class="l4-field">
+                        <label for="global-block-duration">
+                          Block Duration
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="How long detected IPs remain blocked."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <input
+                          id="global-block-duration"
+                          v-model="globalForm.blockDuration"
+                          type="text"
+                          class="l4-input"
+                          :disabled="!globalForm.enabled"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section class="l4-config-section">
+              <div class="l4-config-title">
+                <h5>TCP Detailed Config</h5>
+              </div>
+              <div class="l4-form">
+                <div class="l4-form-sections">
+                  <div class="l4-section">
+                    <div class="l4-section-header">
+                      <h5>TCP Connection Limit</h5>
+                      <button
+                        type="button"
+                        class="l4-toggle"
+                        role="switch"
+                        :aria-checked="tcpDetailedForm.connectionLimitEnabled"
+                        @click="tcpDetailedForm.connectionLimitEnabled = !tcpDetailedForm.connectionLimitEnabled"
+                      >
+                        <span class="toggle-track" :class="{ off: !tcpDetailedForm.connectionLimitEnabled }">
+                          <span class="toggle-label on">Enable</span>
+                          <span class="toggle-label off">Disable</span>
+                          <span class="toggle-knob" :class="{ on: tcpDetailedForm.connectionLimitEnabled }"></span>
+                        </span>
+                      </button>
+                    </div>
+                    <div class="l4-form-grid">
+                      <div class="l4-field">
+                        <label for="tcp-connection-limit">
+                          Connection Limit Count
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Caps concurrent TCP connections per source to prevent resource exhaustion attacks."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <input
+                          id="tcp-connection-limit"
+                          v-model="tcpDetailedForm.connectionLimit"
+                          type="number"
+                          min="0"
+                          class="l4-input"
+                          :disabled="!tcpDetailedForm.connectionLimitEnabled"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="l4-section l4-inline-toggle">
+                    <h5>
+                      TCP Segmentation Check
                       <button
                         type="button"
                         class="tooltip-btn"
-                        title="Defines how L4 defense reacts to detected traffic."
+                        title="Validates TCP segment patterns to detect malformed or abusive traffic often used in evasion attempts."
                       >
                         i
                       </button>
-                    </label>
-                    <select
-                      id="global-protection-mode"
-                      v-model="globalForm.protectionMode"
-                      class="l4-input"
-                      :disabled="!globalForm.enabled"
+                    </h5>
+                    <button
+                      type="button"
+                      class="l4-toggle"
+                      role="switch"
+                      :aria-checked="tcpDetailedForm.segmentationCheck"
+                      @click="tcpDetailedForm.segmentationCheck = !tcpDetailedForm.segmentationCheck"
                     >
-                      <option value="Always On">Always On</option>
-                      <option value="Monitor">Monitor</option>
-                    </select>
-                  </div>
-                  <div class="l4-field">
-                    <label for="global-sensitivity">
-                      Sensitivity
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Controls how aggressively the system detects threats."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <select
-                      id="global-sensitivity"
-                      v-model="globalForm.sensitivity"
-                      class="l4-input"
-                      :disabled="!globalForm.enabled"
-                    >
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                    </select>
+                      <span class="toggle-track" :class="{ off: !tcpDetailedForm.segmentationCheck }">
+                        <span class="toggle-label on">Enable</span>
+                        <span class="toggle-label off">Disable</span>
+                        <span class="toggle-knob" :class="{ on: tcpDetailedForm.segmentationCheck }"></span>
+                      </span>
+                    </button>
                   </div>
                 </div>
               </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="global-eth-interface">
-                      Eth Interface
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Network interface that L4 protection attaches to."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <select
-                      id="global-eth-interface"
-                      v-model="globalForm.ethInterface"
-                      class="l4-input"
-                      :disabled="!globalForm.enabled || l4OptionsLoading || l4Options.interfaces.length === 0"
-                    >
-                      <option v-if="l4Options.interfaces.length === 0" value="" disabled>
-                        No interfaces available
-                      </option>
-                      <option
-                        v-for="iface in l4Options.interfaces"
-                        :key="iface"
-                        :value="iface"
-                      >
-                        {{ iface }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="l4-field">
-                    <label for="global-attach-mode">
-                      Attach Mode
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="How the XDP/eBPF hook is attached to the interface."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <select
-                      id="global-attach-mode"
-                      v-model="globalForm.attachMode"
-                      class="l4-input"
-                      :disabled="!globalForm.enabled || l4OptionsLoading || availableAttachModes.length === 0"
-                    >
-                      <option v-if="availableAttachModes.length === 0" value="" disabled>
-                        No attach modes available
-                      </option>
-                      <option
-                        v-for="mode in availableAttachModes"
-                        :key="mode"
-                        :value="mode"
-                      >
-                        {{ mode }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="l4-field">
-                    <label for="global-block-duration">
-                      Block Duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="How long detected IPs remain blocked."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="global-block-duration"
-                      v-model="globalForm.blockDuration"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!globalForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            </section>
           </div>
-        </section>
-        <div class="l4-config-row">
-        <section class="l4-config-section">
-          <div class="l4-config-title">
-            <h5>TCP SYN Flood</h5>
-            <button
-              type="button"
-              class="l4-toggle"
-              role="switch"
-              :aria-checked="synForm.enabled"
-              @click="synForm.enabled = !synForm.enabled"
-            >
-              <span class="toggle-track" :class="{ off: !synForm.enabled }">
-                <span class="toggle-label on">Enable</span>
-                <span class="toggle-label off">Disable</span>
-                <span class="toggle-knob" :class="{ on: synForm.enabled }"></span>
-              </span>
-            </button>
-          </div>
-          <div class="l4-form">
-            <div class="l4-form-sections">
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="syn-threshold">
-                      Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Packets per second to trigger SYN flood defense."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="syn-threshold"
-                      v-model="synForm.threshold"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!synForm.enabled"
-                    />
+          <div class="l4-config-row l4-config-row--tcp-floods">
+            <section class="l4-config-section">
+              <div class="l4-config-title">
+                <h5>TCP SYN Flood</h5>
+                <button
+                  type="button"
+                  class="l4-toggle"
+                  role="switch"
+                  :aria-checked="synForm.enabled"
+                  @click="synForm.enabled = !synForm.enabled"
+                >
+                  <span class="toggle-track" :class="{ off: !synForm.enabled }">
+                    <span class="toggle-label on">Enable</span>
+                    <span class="toggle-label off">Disable</span>
+                    <span class="toggle-knob" :class="{ on: synForm.enabled }"></span>
+                  </span>
+                </button>
+              </div>
+              <div class="l4-form">
+                <div class="l4-form-sections">
+                  <div class="l4-section">
+                    <div class="l4-form-grid">
+                      <div class="l4-field">
+                        <label for="syn-threshold">
+                          Threshold
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Packets per second to trigger SYN flood defense."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <input
+                          id="syn-threshold"
+                          v-model="synForm.threshold"
+                          type="text"
+                          class="l4-input"
+                          :disabled="!synForm.enabled"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="l4-section">
+                    <div class="l4-form-grid">
+                      <div class="l4-field">
+                        <label for="syn-burst-pkt">
+                          Burst Pkt
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <input
+                          id="syn-burst-pkt"
+                          v-model="synForm.burstPkt"
+                          type="text"
+                          class="l4-input"
+                          :disabled="!synForm.enabled"
+                        />
+                      </div>
+                      <div class="l4-field">
+                        <label for="syn-burst-counter">
+                          Burst Counter
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Burst Counter: Maximum burst events per second before the source is blacklisted."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <input
+                          id="syn-burst-counter"
+                          v-model="synForm.burstCounter"
+                          type="text"
+                          class="l4-input"
+                          :disabled="!synForm.enabled"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="l4-section">
+                    <div class="l4-form-grid">
+                      <div class="l4-field">
+                        <label for="syn-fixed-duration">
+                          Fixed Duration
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <input
+                          id="syn-fixed-duration"
+                          v-model="synForm.fixedDuration"
+                          type="text"
+                          class="l4-input"
+                          :disabled="!synForm.enabled"
+                        />
+                      </div>
+                      <div class="l4-field">
+                        <label for="syn-fixed-threshold">
+                          Fixed Threshold
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <input
+                          id="syn-fixed-threshold"
+                          v-model="synForm.fixedThreshold"
+                          type="text"
+                          class="l4-input"
+                          :disabled="!synForm.enabled"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="l4-section">
+                    <div class="l4-form-grid">
+                      <div class="l4-field">
+                        <label for="syn-challenge-timeout">
+                          Challenge Timeout
+                          <button
+                            type="button"
+                            class="tooltip-btn"
+                            title="Time allowed for SYN challenge response."
+                          >
+                            i
+                          </button>
+                        </label>
+                        <input
+                          id="syn-challenge-timeout"
+                          v-model="synForm.challengeTimeout"
+                          type="text"
+                          class="l4-input"
+                          :disabled="!synForm.enabled"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="syn-burst-pkt">
-                      Burst Pkt
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="syn-burst-pkt"
-                      v-model="synForm.burstPkt"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!synForm.enabled"
-                    />
-                  </div>
-                  <div class="l4-field">
-                    <label for="syn-burst-counter">
-                      Burst Counter
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="syn-burst-counter"
-                      v-model="synForm.burstCounter"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!synForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="syn-fixed-duration">
-                      Fixed Duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="syn-fixed-duration"
-                      v-model="synForm.fixedDuration"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!synForm.enabled"
-                    />
-                  </div>
-                  <div class="l4-field">
-                    <label for="syn-fixed-threshold">
-                      Fixed Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="syn-fixed-threshold"
-                      v-model="synForm.fixedThreshold"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!synForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="syn-challenge-timeout">
-                      Challenge Timeout
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Time allowed for SYN challenge response."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="syn-challenge-timeout"
-                      v-model="synForm.challengeTimeout"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!synForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <div class="l4-config-row">
-        <section class="l4-config-section">
+            </section>
+            <section class="l4-config-section">
           <div class="l4-config-title">
             <h5>TCP ACK Flood</h5>
             <button
@@ -438,7 +513,6 @@
             </div>
           </div>
         </section>
-        </div>
         <section class="l4-config-section">
           <div class="l4-config-title">
             <h5>TCP RST Flood</h5>
@@ -957,80 +1031,6 @@
             </div>
           </div>
         </section>
-        <section class="l4-config-section">
-          <div class="l4-config-title">
-            <h5>TCP Detailed Config</h5>
-          </div>
-          <div class="l4-form">
-            <div class="l4-form-sections">
-              <div class="l4-section">
-                <div class="l4-section-header">
-                  <h5>TCP Connection Limit</h5>
-                  <button
-                    type="button"
-                    class="l4-toggle"
-                    role="switch"
-                    :aria-checked="tcpDetailedForm.connectionLimitEnabled"
-                    @click="tcpDetailedForm.connectionLimitEnabled = !tcpDetailedForm.connectionLimitEnabled"
-                  >
-                    <span class="toggle-track" :class="{ off: !tcpDetailedForm.connectionLimitEnabled }">
-                      <span class="toggle-label on">Enable</span>
-                      <span class="toggle-label off">Disable</span>
-                      <span class="toggle-knob" :class="{ on: tcpDetailedForm.connectionLimitEnabled }"></span>
-                    </span>
-                  </button>
-                </div>
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="tcp-connection-limit">
-                      Connection Limit Count
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Caps concurrent TCP connections per source to prevent resource exhaustion attacks."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="tcp-connection-limit"
-                      v-model="tcpDetailedForm.connectionLimit"
-                      type="number"
-                      min="0"
-                      class="l4-input"
-                      :disabled="!tcpDetailedForm.connectionLimitEnabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section l4-inline-toggle">
-                <h5>
-                  TCP Segmentation Check
-                  <button
-                    type="button"
-                    class="tooltip-btn"
-                    title="Validates TCP segment patterns to detect malformed or abusive traffic often used in evasion attempts."
-                  >
-                    i
-                  </button>
-                </h5>
-                <button
-                  type="button"
-                  class="l4-toggle"
-                  role="switch"
-                  :aria-checked="tcpDetailedForm.segmentationCheck"
-                  @click="tcpDetailedForm.segmentationCheck = !tcpDetailedForm.segmentationCheck"
-                >
-                  <span class="toggle-track" :class="{ off: !tcpDetailedForm.segmentationCheck }">
-                    <span class="toggle-label on">Enable</span>
-                    <span class="toggle-label off">Disable</span>
-                    <span class="toggle-knob" :class="{ on: tcpDetailedForm.segmentationCheck }"></span>
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
         </div>
         <section class="l4-config-section">
           <div class="l4-config-title">
@@ -1110,8 +1110,8 @@
           Confirm Settings
         </button>
         </div>
-        <L4BlacklistPanel v-else-if="isL4BlacklistActive" :server-id="serverId" />
-        <L4WhitelistPanel v-else-if="isL4WhitelistActive" :server-id="serverId" />
+        <L4BlacklistPanel v-if="isL4BlacklistActive" :server-id="serverId" />
+        <L4WhitelistPanel v-if="isL4WhitelistActive" :server-id="serverId" />
       </div>
     </div>
     <ConfirmDialog
@@ -1797,6 +1797,16 @@ watch(
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
+}
+
+.l4-config-row--global-tcp {
+  grid-template-columns: 2fr 1fr;
+}
+
+@media (max-width: 900px) {
+  .l4-config-row--global-tcp {
+    grid-template-columns: 1fr;
+  }
 }
 
 .l4-config-section {
