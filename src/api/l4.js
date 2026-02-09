@@ -22,13 +22,13 @@ export const createL4BlacklistEntry = async (serverId, payload) =>
   })
 
 export const deleteL4BlacklistEntry = async (serverId, entryId) =>
-  apiRequest(`/servers/${serverId}/l4/blacklist/${entryId}`, {
-    method: 'DELETE',
+  apiRequest(`/servers/${serverId}/l4/blacklist/remove/${entryId}`, {
+    method: 'POST',
   })
 
 export const flushL4BlacklistEntries = async (serverId) =>
-  apiRequest(`/servers/${serverId}/l4/blacklist`, {
-    method: 'DELETE',
+  apiRequest(`/servers/${serverId}/l4/blacklist/clear`, {
+    method: 'POST',
   })
 
 export const fetchL4WhitelistEntries = async (serverId) =>
@@ -41,11 +41,11 @@ export const createL4WhitelistEntry = async (serverId, payload) =>
   })
 
 export const deleteL4WhitelistEntry = async (serverId, entryId) =>
-  apiRequest(`/servers/${serverId}/l4/whitelist/${entryId}`, {
-    method: 'DELETE',
+  apiRequest(`/servers/${serverId}/l4/whitelist/remove/${entryId}`, {
+    method: 'POST',
   })
 
 export const clearL4WhitelistEntries = async (serverId) =>
-  apiRequest(`/servers/${serverId}/l4/whitelist`, {
-    method: 'DELETE',
+  apiRequest(`/servers/${serverId}/l4/whitelist/clear`, {
+    method: 'POST',
   })
