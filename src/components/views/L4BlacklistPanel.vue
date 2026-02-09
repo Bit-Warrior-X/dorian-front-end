@@ -3,7 +3,7 @@
     <div class="panel-header">
       <div>
         <h4>L4 Blacklist</h4>
-        <p class="panel-desc">Blocked sources that trigger L4 DDoS defenses.</p>
+        <p class="panel-desc">Blocked source IPs for this server.</p>
       </div>
       <div class="panel-actions">
         <button
@@ -31,8 +31,6 @@
           <tr>
             <th>IP address</th>
             <th>Reason</th>
-            <th>TTL</th>
-            <th>Trigger Rule</th>
             <th>Added</th>
             <th>Action</th>
           </tr>
@@ -41,8 +39,6 @@
           <tr v-for="entry in entries" :key="entry.id">
             <td>{{ entry.ipAddress }}</td>
             <td>{{ entry.reason || "-" }}</td>
-            <td>{{ entry.ttl || "Indefinite" }}</td>
-            <td>{{ entry.triggerRule || "manual" }}</td>
             <td>{{ formatTimestamp(entry.createdAt) }}</td>
             <td>
               <button
@@ -101,32 +97,6 @@
               />
             </div>
           </div>
-          <div class="form-field">
-            <label for="l4-blacklist-ttl">
-              TTL <span class="required">*</span>
-            </label>
-            <div class="field-control">
-              <input
-                id="l4-blacklist-ttl"
-                v-model="formState.ttl"
-                type="text"
-                class="form-input"
-                placeholder="30d"
-              />
-            </div>
-          </div>
-          <div class="form-field">
-            <label for="l4-blacklist-rule">Trigger Rule</label>
-            <div class="field-control">
-              <input
-                id="l4-blacklist-rule"
-                v-model="formState.triggerRule"
-                type="text"
-                class="form-input"
-                placeholder="l4-ddos"
-              />
-            </div>
-          </div>
           <p v-if="validationError" class="field-error">{{ validationError }}</p>
         </div>
         <div class="dialog-footer">
@@ -154,12 +124,11 @@
 import { ref, computed, onMounted, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import {
-  fetchBlacklistEntries,
-  createBlacklistEntry,
-  deleteBlacklistEntry,
-  flushBlacklistEntries
-} from "@/api/serverBlacklist";
-import { fetchServers } from "@/api/servers";
+  fetchL4BlacklistEntries,
+  createL4BlacklistEntry,
+  deleteL4BlacklistEntry,
+  flushL4BlacklistEntries
+} from "@/api/l4";
 import { useNotifications } from "@/stores/notifications";
 
 const props = defineProps({
@@ -171,7 +140,6 @@ const props = defineProps({
 
 const notifications = useNotifications();
 const entries = ref([]);
-const servers = ref([]);
 const isDialogOpen = ref(false);
 const validationError = ref("");
 const isConfirmDialogOpen = ref(false);
@@ -180,15 +148,10 @@ const confirmTargetId = ref(null);
 const formState = ref({
   ipAddress: "",
   reason: "",
-  ttl: "",
   triggerRule: "l4-ddos"
 });
 
 const canInteract = computed(() => Boolean(props.serverId));
-const activeServerName = computed(() => {
-  const match = servers.value.find((server) => String(server.id) === String(props.serverId));
-  return match?.name || "";
-});
 
 const formatTimestamp = (value) => {
   if (!value) return "-";
@@ -203,22 +166,13 @@ const formatTimestamp = (value) => {
   });
 };
 
-const loadServers = async () => {
-  try {
-    const list = await fetchServers();
-    servers.value = Array.isArray(list) ? list : [];
-  } catch (error) {
-    notifications.enqueue(error?.message || "Failed to load servers.", "error");
-  }
-};
-
 const loadEntries = async () => {
   if (!props.serverId) {
     entries.value = [];
     return;
   }
   try {
-    const list = await fetchBlacklistEntries(props.serverId);
+    const list = await fetchL4BlacklistEntries(props.serverId);
     entries.value = Array.isArray(list) ? list : [];
   } catch (error) {
     notifications.enqueue(error?.message || "Failed to load blacklist entries.", "error");
@@ -229,7 +183,6 @@ const resetForm = () => {
   formState.value = {
     ipAddress: "",
     reason: "",
-    ttl: "",
     triggerRule: "l4-ddos"
   };
   validationError.value = "";
@@ -248,20 +201,14 @@ const closeDialog = () => {
 const createEntry = async () => {
   if (!props.serverId) return;
   const ipAddress = formState.value.ipAddress.trim();
-  const ttl = formState.value.ttl.trim();
-  if (!ipAddress || !ttl) {
-    validationError.value = "IP address and TTL are required.";
+  if (!ipAddress) {
+    validationError.value = "IP address is required.";
     return;
   }
   try {
-    await createBlacklistEntry({
-      serverId: Number(props.serverId),
+    await createL4BlacklistEntry(Number(props.serverId), {
       ipAddress,
-      geolocation: "Manual",
-      reason: formState.value.reason.trim() || "Manual block",
-      server: activeServerName.value,
-      ttl,
-      triggerRule: formState.value.triggerRule.trim() || "l4-ddos"
+      reason: formState.value.reason.trim()
     });
     await loadEntries();
     notifications.enqueue("Blacklist entry created.", "success");
@@ -302,10 +249,10 @@ const confirmConfirmText = computed(() => {
 const handleConfirm = async () => {
   try {
     if (confirmAction.value === "flush") {
-      await flushBlacklistEntries(props.serverId);
+      await flushL4BlacklistEntries(props.serverId);
       notifications.enqueue("Blacklist flushed.", "success");
     } else if (confirmAction.value === "remove" && confirmTargetId.value) {
-      await deleteBlacklistEntry(confirmTargetId.value);
+      await deleteL4BlacklistEntry(props.serverId, confirmTargetId.value);
       notifications.enqueue("Blacklist entry removed.", "success");
     }
     await loadEntries();
@@ -322,7 +269,6 @@ const clearConfirm = () => {
 };
 
 onMounted(async () => {
-  await loadServers();
   await loadEntries();
 });
 

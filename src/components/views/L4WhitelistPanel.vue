@@ -3,7 +3,7 @@
     <div class="panel-header">
       <div>
         <h4>L4 Whitelist</h4>
-        <p class="panel-desc">Allow trusted sources to bypass L4 mitigation checks.</p>
+        <p class="panel-desc">Allow trusted source IPs for this server.</p>
       </div>
       <div class="panel-actions">
         <button
@@ -25,8 +25,7 @@
         <thead>
           <tr>
             <th>IP address</th>
-            <th>Description</th>
-            <th>TTL</th>
+            <th>Reason</th>
             <th>Added</th>
             <th>Action</th>
           </tr>
@@ -34,8 +33,7 @@
         <tbody>
           <tr v-for="entry in entries" :key="entry.id">
             <td>{{ entry.ipAddress }}</td>
-            <td>{{ entry.description || "-" }}</td>
-            <td>{{ entry.ttl || "Indefinite" }}</td>
+            <td>{{ entry.reason || "-" }}</td>
             <td>{{ formatTimestamp(entry.createdAt) }}</td>
             <td>
               <button
@@ -83,26 +81,14 @@
             </div>
           </div>
           <div class="form-field">
-            <label for="l4-whitelist-desc">Description</label>
+            <label for="l4-whitelist-desc">Reason</label>
             <div class="field-control">
               <input
                 id="l4-whitelist-desc"
-                v-model="formState.description"
+                v-model="formState.reason"
                 type="text"
                 class="form-input"
                 placeholder="Trusted partner"
-              />
-            </div>
-          </div>
-          <div class="form-field">
-            <label for="l4-whitelist-ttl">TTL</label>
-            <div class="field-control">
-              <input
-                id="l4-whitelist-ttl"
-                v-model="formState.ttl"
-                type="text"
-                class="form-input"
-                placeholder="Indefinite"
               />
             </div>
           </div>
@@ -128,11 +114,26 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import {
+  fetchL4WhitelistEntries,
+  createL4WhitelistEntry,
+  deleteL4WhitelistEntry,
+  clearL4WhitelistEntries
+} from "@/api/l4";
+import { useNotifications } from "@/stores/notifications";
+
+const props = defineProps({
+  serverId: {
+    type: [Number, String],
+    default: null
+  }
+});
+
+const notifications = useNotifications();
 
 const entries = ref([]);
-const nextId = ref(1);
 const isDialogOpen = ref(false);
 const validationError = ref("");
 const isConfirmDialogOpen = ref(false);
@@ -140,8 +141,7 @@ const confirmAction = ref(null);
 const confirmTargetId = ref(null);
 const formState = ref({
   ipAddress: "",
-  description: "",
-  ttl: ""
+  reason: ""
 });
 
 const formatTimestamp = (value) => {
@@ -160,8 +160,7 @@ const formatTimestamp = (value) => {
 const resetForm = () => {
   formState.value = {
     ipAddress: "",
-    description: "",
-    ttl: ""
+    reason: ""
   };
   validationError.value = "";
 };
@@ -176,23 +175,37 @@ const closeDialog = () => {
   validationError.value = "";
 };
 
-const addEntry = () => {
+const loadEntries = async () => {
+  if (!props.serverId) {
+    entries.value = [];
+    return;
+  }
+  try {
+    const list = await fetchL4WhitelistEntries(props.serverId);
+    entries.value = Array.isArray(list) ? list : [];
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to load whitelist entries.", "error");
+  }
+};
+
+const addEntry = async () => {
+  if (!props.serverId) return;
   const ipAddress = formState.value.ipAddress.trim();
   if (!ipAddress) {
     validationError.value = "IP address is required.";
     return;
   }
-  entries.value = [
-    {
-      id: nextId.value++,
+  try {
+    await createL4WhitelistEntry(Number(props.serverId), {
       ipAddress,
-      description: formState.value.description.trim(),
-      ttl: formState.value.ttl.trim(),
-      createdAt: new Date().toISOString()
-    },
-    ...entries.value
-  ];
-  closeDialog();
+      reason: formState.value.reason.trim()
+    });
+    await loadEntries();
+    notifications.enqueue("Whitelist entry added.", "success");
+    closeDialog();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to add whitelist entry.", "error");
+  }
 };
 
 const openConfirm = (action, targetId = null) => {
@@ -223,11 +236,18 @@ const confirmConfirmText = computed(() => {
   return "Confirm";
 });
 
-const handleConfirm = () => {
-  if (confirmAction.value === "clear") {
-    entries.value = [];
-  } else if (confirmAction.value === "remove" && confirmTargetId.value) {
-    entries.value = entries.value.filter((entry) => entry.id !== confirmTargetId.value);
+const handleConfirm = async () => {
+  try {
+    if (confirmAction.value === "clear") {
+      await clearL4WhitelistEntries(props.serverId);
+      notifications.enqueue("Whitelist cleared.", "success");
+    } else if (confirmAction.value === "remove" && confirmTargetId.value) {
+      await deleteL4WhitelistEntry(props.serverId, confirmTargetId.value);
+      notifications.enqueue("Whitelist entry removed.", "success");
+    }
+    await loadEntries();
+  } catch (error) {
+    notifications.enqueue(error?.message || "Failed to update whitelist.", "error");
   }
   clearConfirm();
 };
@@ -237,6 +257,17 @@ const clearConfirm = () => {
   confirmAction.value = null;
   confirmTargetId.value = null;
 };
+
+onMounted(async () => {
+  await loadEntries();
+});
+
+watch(
+  () => props.serverId,
+  async () => {
+    await loadEntries();
+  }
+);
 </script>
 
 <style scoped>
