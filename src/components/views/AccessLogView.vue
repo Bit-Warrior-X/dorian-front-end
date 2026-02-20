@@ -353,13 +353,25 @@ const connectStream = async () => {
 
     socket.onmessage = (event) => {
       if (wsToken.value !== token) return
-      if (isPaused.value) return
       let payload = null
       try {
         payload = JSON.parse(event.data)
       } catch {
         payload = { line: event.data }
       }
+      // Backend sends { Error, Message } on failure (e.g. SSH failed, credentials missing)
+      const err = payload?.Error ?? payload?.error
+      const msg = payload?.Message ?? payload?.message
+      if (err || msg) {
+        status.value = 'Error'
+        notifications.enqueue(msg || err || 'Access log stream failed.', 'error')
+        if (wsRef.value) {
+          wsRef.value.close()
+          wsRef.value = null
+        }
+        return
+      }
+      if (isPaused.value) return
       if (payload?.line) {
         appendLogLine(payload.line)
       }
