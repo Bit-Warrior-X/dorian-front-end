@@ -52,6 +52,7 @@
               <th>IP address</th>
               <th>GeoLocation</th>
               <th>Reason</th>
+              <th>URL</th>
               <th>Source</th>
               <th>Blocked At</th>
               <th>TTL</th>
@@ -64,6 +65,7 @@
               <td>{{ entry.ipAddress }}</td>
               <td>{{ entry.geolocation }}</td>
               <td class="reason-cell">{{ entry.reason }}</td>
+              <td>{{ entry.url || '-' }}</td>
               <td>{{ entry.server || '-' }}</td>
               <td>{{ formatTimestamp(entry.createdAt) }}</td>
               <td>{{ entry.ttl || 'Indefinite' }}</td>
@@ -123,6 +125,15 @@
               v-model="newBlock.reason"
               type="text"
               placeholder="Manual block"
+            />
+          </div>
+          <div class="dialog-field">
+            <label for="block-url">URL</label>
+            <input
+              id="block-url"
+              v-model="newBlock.url"
+              type="text"
+              placeholder="e.g. /api/v1/health (optional)"
             />
           </div>
           <div class="dialog-field">
@@ -212,6 +223,7 @@ const notifications = useNotifications();
 const newBlock = ref({
   ip: "",
   reason: "",
+  url: "",
   server: "",
   ttl: "",
   triggerRule: ""
@@ -268,6 +280,7 @@ const loadBlacklist = async (serverId) => {
       ipAddress: entry.ipAddress || "",
       geolocation: entry.geolocation || "Manual",
       reason: entry.reason || "",
+      url: entry.url || "",
       server: entry.server || "",
       ttl: entry.ttl || "",
       triggerRule: entry.triggerRule || ""
@@ -291,6 +304,7 @@ const blockIp = () => {
   newBlock.value = {
     ip: "",
     reason: "",
+    url: "",
     server: "",
     ttl: "",
     triggerRule: ""
@@ -338,6 +352,7 @@ const createBlock = async () => {
       ipAddress,
       geolocation: "Manual",
       reason,
+      url: newBlock.value.url.trim() || "",
       server: serverName,
       ttl: newBlock.value.ttl.trim() || "Indefinite",
       triggerRule
