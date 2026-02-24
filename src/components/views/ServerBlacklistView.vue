@@ -30,6 +30,7 @@
             <select id="blacklist-rule" v-model="ruleFilter">
               <option value="" disabled>Select Trigger Rule</option>
               <option value="all">All</option>
+              <option value="l4ddos">L4 DDOS</option>
               <option value="blacklist">L7 Blacklist</option>
               <option value="geo">Geo Location</option>
               <option value="antiheader">Anti Header Setting</option>
