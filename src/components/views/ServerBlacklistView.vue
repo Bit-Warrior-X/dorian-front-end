@@ -4,7 +4,7 @@
       <div class="filter-header">
         <h3>Filters</h3>
         <div class="filter-actions">
-          <button class="primary-btn" type="button" @click="blockIp">Block IP</button>
+          <button class="primary-btn" type="button" @click="blockIp" style="display: none;">Block IP</button>
           <button class="danger-btn" type="button" @click="flushAll">Flush All</button>
         </div>
       </div>
@@ -30,9 +30,13 @@
             <select id="blacklist-rule" v-model="ruleFilter">
               <option value="" disabled>Select Trigger Rule</option>
               <option value="all">All</option>
-              <option value="waf-bruteforce">WAF-BruteForce</option>
-              <option value="rate-limit">RateLimit</option>
-              <option value="geo-block">GeoBlock</option>
+              <option value="blacklist">L7 Blacklist</option>
+              <option value="geo">Geo Location</option>
+              <option value="antiheader">Anti Header Setting</option>
+              <option value="intervalfreqlimit">Interval Freq Limit</option>
+              <option value="secondaryfreqlimit">Secondary Freq Limit</option>
+              <option value="responsefreq">Response Freq</option>
+              <option value="useragent">User Agent</option>
             </select>
             <button class="success-btn" type="button" @click="applySearch">Search</button>
           </div>
@@ -50,26 +54,26 @@
           <thead>
             <tr>
               <th>IP address</th>
-              <th>GeoLocation</th>
-              <th>Reason</th>
               <th>URL</th>
-              <th>Source</th>
+              <th>GeoLocation</th>
+              <th>Trigger Rule</th>
               <th>Blocked At</th>
               <th>TTL</th>
-              <th>Trigger Rule</th>
+              <th>Remaining Time</th>
+              <th>Source</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="entry in filteredEntries" :key="entry.id">
               <td>{{ entry.ipAddress }}</td>
-              <td>{{ entry.geolocation }}</td>
-              <td class="reason-cell">{{ entry.reason }}</td>
               <td>{{ entry.url || '-' }}</td>
-              <td>{{ entry.server || '-' }}</td>
+              <td>{{ entry.geolocation }}</td>
+              <td>{{ entry.triggerRule || 'manual' }}</td>
               <td>{{ formatTimestamp(entry.createdAt) }}</td>
               <td>{{ entry.ttl || 'Indefinite' }}</td>
-              <td>{{ entry.triggerRule || 'manual' }}</td>
+              <td>{{ formatRemainingTime(entry) }}</td>
+              <td>{{ entry.server || '-' }}</td>
               <td>
                 <button
                   class="icon-danger-btn"
@@ -198,7 +202,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import { fetchServers } from "@/api/servers";
 import {
@@ -220,6 +224,8 @@ const confirmAction = ref(null);
 const confirmTargetId = ref(null);
 const servers = ref([]);
 const notifications = useNotifications();
+const now = ref(Date.now());
+let remainingTimeTimer = null;
 const newBlock = ref({
   ip: "",
   reason: "",
@@ -253,13 +259,50 @@ const formatTimestamp = (value) => {
   if (Number.isNaN(parsed.getTime())) {
     return value;
   }
-  return parsed.toLocaleString("en-US", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  const pad = (num) => String(num).padStart(2, "0");
+  const year = parsed.getFullYear();
+  const month = pad(parsed.getMonth() + 1);
+  const day = pad(parsed.getDate());
+  const hours = pad(parsed.getHours());
+  const minutes = pad(parsed.getMinutes());
+  const seconds = pad(parsed.getSeconds());
+  return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+};
+
+const formatRemainingTime = (entry) => {
+  if (!entry || !entry.ttl || !entry.createdAt) return "-";
+
+  const ttlSeconds = Number.parseInt(entry.ttl, 10);
+  if (!Number.isFinite(ttlSeconds) || ttlSeconds <= 0) {
+    return "-";
+  }
+
+  const created = new Date(entry.createdAt);
+  if (Number.isNaN(created.getTime())) {
+    return "-";
+  }
+
+  const remainingMs = created.getTime() + ttlSeconds * 1000 - now.value;
+  if (remainingMs <= 0) {
+    return "Expired";
+  }
+
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
 };
 
 const loadServers = async () => {
@@ -418,6 +461,13 @@ const handleConfirmDialog = async () => {
 onMounted(async () => {
   await loadServers();
   await loadBlacklist();
+
+  // Update "Remaining Time" column reactively without needing a full page reload.
+  if (!remainingTimeTimer) {
+    remainingTimeTimer = window.setInterval(() => {
+      now.value = Date.now();
+    }, 1000);
+  }
 });
 
 watch(serverFilter, async (value) => {
@@ -430,6 +480,13 @@ const clearConfirmDialog = () => {
   confirmAction.value = null;
   confirmTargetId.value = null;
 };
+
+onBeforeUnmount(() => {
+  if (remainingTimeTimer) {
+    clearInterval(remainingTimeTimer);
+    remainingTimeTimer = null;
+  }
+});
 </script>
 
 <style scoped>
@@ -796,10 +853,6 @@ const clearConfirmDialog = () => {
   letter-spacing: 0.04em;
   color: #64748b;
   font-weight: 600;
-}
-
-.reason-cell {
-  color: #475569;
 }
 
 .empty-state {
