@@ -44,36 +44,92 @@
     </div>
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon security">
+        <div class="stat-icon warning">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 3v18h18"></path>
-            <path d="M7 13l4-4 4 4 5-6"></path>
+            <circle cx="12" cy="7" r="3.5"></circle>
+            <path d="M12 11v8"></path>
+            <path d="M8.5 15.5L12 19l3.5-3.5"></path>
           </svg>
         </div>
         <div class="stat-info">
-          <h3>Total Traffic</h3>
-          <p class="stat-value">{{ statsDisplay.totalTraffic }}</p>
+          <h3>RX Bandwidth of NIC (Last)</h3>
+          <p class="stat-value">{{ statsDisplay.nicRxBandwidthLast }}</p>
+          <p class="stat-subvalue">{{ statsDisplay.nicRxBandwidthLastTime }}</p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon warning">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 4v16h16"></path>
-            <path d="M4 14h4l4-6 4 3 4-5"></path>
+            <circle cx="12" cy="7" r="3.5"></circle>
+            <path d="M12 11v8"></path>
+            <path d="M9 15l3 4 3-4"></path>
           </svg>
         </div>
         <div class="stat-info">
-          <h3>Bandwidth (Last)</h3>
-          <p class="stat-value">{{ statsDisplay.bandwidthLast }}</p>
-          <p class="stat-subvalue">{{ statsDisplay.bandwidthLastTime }}</p>
+          <h3>RX Bandwidth of L7 (Last)</h3>
+          <p class="stat-value">{{ statsDisplay.l7RxBandwidthLast }} </p>
+          <p class="stat-subvalue">{{ statsDisplay.l7RxBandwidthLastTime }} </p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon security">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="7" r="3.5"></circle>
+            <path d="M12 11v8"></path>
+            <path d="M8.5 15.5L12 19l3.5-3.5"></path>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <h3>RX Traffic of NIC/L7</h3>
+          <p class="stat-value">{{ statsDisplay.totalNicRxTraffic }} / {{ statsDisplay.totalL7RxTraffic }}</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon security">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="17" r="3.5"></circle>
+            <path d="M12 13V5"></path>
+            <path d="M8.5 8.5L12 5l3.5 3.5"></path>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <h3>TX Traffic of NIC/L7</h3>
+          <p class="stat-value">{{ statsDisplay.totalNicTxTraffic }} / {{ statsDisplay.totalL7TxTraffic }}</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon warning">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="17" r="3.5"></circle>
+            <path d="M12 13V5"></path>
+            <path d="M9 8l3-3 3 3"></path>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <h3>TX Bandwidth of NIC (Last)</h3>
+          <p class="stat-value">{{ statsDisplay.nicTxBandwidthLast }} </p>
+          <p class="stat-subvalue">{{ statsDisplay.nicTxBandwidthLastTime }} </p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon warning">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="17" r="3.5"></circle>
+            <path d="M12 13V5"></path>
+            <path d="M8.5 8.5L12 5l3.5 3.5"></path>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <h3>TX Bandwidth of L7 (Last)</h3>
+          <p class="stat-value">{{ statsDisplay.l7TxBandwidthLast }} </p>
+          <p class="stat-subvalue">{{ statsDisplay.l7TxBandwidthLastTime }} </p>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon success">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12h18"></path>
-            <path d="M7 8h10"></path>
-            <path d="M7 16h10"></path>
+            <path d="M4 19h16"></path>
+            <path d="M6 15l3-3 3 3 6-8"></path>
           </svg>
         </div>
         <div class="stat-info">
@@ -84,8 +140,9 @@
       <div class="stat-card">
         <div class="stat-icon security">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3v18"></path>
-            <path d="M3 12h18"></path>
+            <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+            <path d="M8 12h8"></path>
+            <path d="M12 8v8"></path>
           </svg>
         </div>
         <div class="stat-info">
@@ -96,8 +153,8 @@
       <div class="stat-card">
         <div class="stat-icon warning">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"></circle>
-            <path d="M8 12h8"></path>
+            <circle cx="12" cy="8" r="4"></circle>
+            <path d="M4 20c1.5-3 4-4.5 8-4.5s6.5 1.5 8 4.5"></path>
           </svg>
         </div>
         <div class="stat-info">
@@ -108,9 +165,9 @@
       <div class="stat-card">
         <div class="stat-icon success">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 7h16"></path>
-            <path d="M4 12h10"></path>
-            <path d="M4 17h7"></path>
+            <path d="M3 5h18"></path>
+            <path d="M3 12h12"></path>
+            <path d="M3 19h8"></path>
           </svg>
         </div>
         <div class="stat-info">
@@ -121,10 +178,10 @@
       <div class="stat-card">
         <div class="stat-icon security">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 11h18"></path>
-            <path d="M5 7h14"></path>
-            <path d="M7 15h10"></path>
-            <circle cx="12" cy="19" r="2"></circle>
+            <circle cx="7" cy="7" r="3"></circle>
+            <circle cx="17" cy="7" r="3"></circle>
+            <circle cx="7" cy="17" r="3"></circle>
+            <circle cx="17" cy="17" r="3"></circle>
           </svg>
         </div>
         <div class="stat-info">
@@ -137,24 +194,41 @@
       <div class="bandwidth-header">
         <div>
           <h3>Bandwidth by Time</h3>
-          <p>Bandwidth trend based on selected range</p>
+          <p>RX bandwidth trend based on selected range for NIC / L7</p>
         </div>
       </div>
       <div class="bandwidth-chart">
-        <div ref="bandwidthChart"></div>
+        <div ref="rxBandwidthChart"></div>
+      </div>
+      <div class="bandwidth-header">
+        <div>
+          <p>TX bandwidth trend based on selected range for NIC / L7</p>
+        </div>
+      </div>
+      <div class="bandwidth-chart">
+        <div ref="txBandwidthChart"></div>
       </div>
     </div>
     <div class="bandwidth-card">
       <div class="bandwidth-header">
         <div>
-          <h3>Traffic by Time</h3>
-          <p>Traffic trend based on selected range</p>
+          <h3>Traffic by Time</h3>  
+          <p>NIC / L7 RX traffic trend based on selected range</p>
         </div>
       </div>
       <div class="bandwidth-chart">
-        <div ref="trafficChart"></div>
+        <div ref="rxTrafficChart"></div>
+      </div>
+      <div class="bandwidth-header">
+        <div>
+          <p>NIC / L7 TX traffic trend based on selected range</p>
+        </div>
+      </div>
+      <div class="bandwidth-chart">
+        <div ref="txTrafficChart"></div>
       </div>
     </div>
+    
     <div class="bandwidth-card">
       <div class="bandwidth-header">
         <div>
@@ -497,9 +571,10 @@ import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import { fetchServers } from '@/api/servers'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
+import { useNotifications } from '@/stores/notifications'
 
 const selectedServer = ref('all')
-const selectedTimeRange = ref('30m')
+const selectedTimeRange = ref('1h')
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
 const customStartDate = ref(null)
@@ -507,13 +582,19 @@ const customEndDate = ref(null)
 const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
-  range: '30m',
+  range: '1h',
   isCustom: false,
   customStart: '',
   customEnd: '',
 })
-const bandwidthChart = ref(null)
-const trafficChart = ref(null)
+const notifications = useNotifications()
+
+const rxBandwidthChart = ref(null)
+const txBandwidthChart = ref(null)
+
+const rxTrafficChart = ref(null)
+const txTrafficChart = ref(null)
+
 const requestResponseChart = ref(null)
 const statusCodeChart = ref(null)
 const ipCountChart = ref(null)
@@ -525,8 +606,13 @@ const methodPieChart = ref(null)
 const methodChart = ref(null)
 const protocolPieChart = ref(null)
 const protocolChart = ref(null)
-let bandwidthChartInstance = null
-let trafficChartInstance = null
+
+let rxBandwidthChartInstance = null
+let txBandwidthChartInstance = null
+
+let rxTrafficChartInstance = null
+let txTrafficChartInstance = null
+
 let requestResponseChartInstance = null
 let statusCodeChartInstance = null
 let ipCountChartInstance = null
@@ -538,8 +624,14 @@ let methodPieChartInstance = null
 let methodChartInstance = null
 let protocolPieChartInstance = null
 let protocolChartInstance = null
-const bandwidthSeries = ref([{ name: 'Bandwidth', data: [] }])
-const trafficSeries = ref([{ name: 'Traffic', data: [] }])
+const nicRxBandwidthSeries = ref([{ name: 'NIC RX Bandwidth', data: [] }])
+const nicTxBandwidthSeries = ref([{ name: 'NIC TX Bandwidth', data: [] }])
+const l7RxBandwidthSeries = ref([{ name: 'L7 RX Bandwidth', data: [] }])
+const l7TxBandwidthSeries = ref([{ name: 'L7 TX Bandwidth', data: [] }])
+const nicRxTrafficSeries = ref([{ name: 'NIC RX Traffic', data: [] }])
+const nicTxTrafficSeries = ref([{ name: 'NIC TX Traffic', data: [] }])
+const l7RxTrafficSeries = ref([{ name: 'L7 RX Traffic', data: [] }])
+const l7TxTrafficSeries = ref([{ name: 'L7 TX Traffic', data: [] }])
 const requestResponseSeries = ref([
   { name: 'Requests', data: [] },
   { name: 'Responses', data: [] },
@@ -553,16 +645,28 @@ const statusCodeSeries = ref([
 const ipCountSeries = ref([{ name: 'IP Count', data: [] }])
 const methodSeries = ref([])
 const protocolSeries = ref([])
-const analyticsStats = ref({
-  totalTraffic: 0,
-  bandwidthLast: 0,
-  bandwidthLastTime: '',
+
+const createDefaultAnalyticsStats = () => ({
+  totalNicRxTraffic: 0,
+  totalNicTxTraffic: 0,
+  totalL7RxTraffic: 0,
+  totalL7TxTraffic: 0,
+  nicRxBandwidthLast: 0,
+  nicTxBandwidthLast: 0,
+  l7RxBandwidthLast: 0,
+  l7TxBandwidthLast: 0,
+  nicRxBandwidthLastTime: '',
+  nicTxBandwidthLastTime: '',
+  l7RxBandwidthLastTime: '',
+  l7TxBandwidthLastTime: '',
   totalRequest: 0,
   totalResponse: 0,
   ipCount: 0,
   refererCount: 0,
   ispCount: 0,
 })
+
+const analyticsStats = ref(createDefaultAnalyticsStats())
 const ipTableRows = ref([])
 const statusCodeRows = ref([])
 const ispTableRows = ref([])
@@ -651,6 +755,15 @@ const formatMegabytes = (value) => {
   return `${numeric.toFixed(numeric >= 10 ? 0 : 1)} MB`
 }
 
+const formatMegabps = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 Mbps'
+  if (numeric >= 1024) {
+    return `${(numeric / 1024).toFixed(numeric >= 10240 ? 0 : 1)} Gbps`
+  }
+  return `${numeric.toFixed(numeric >= 10 ? 0 : 1)} Mbps`
+}
+
 const formatDateTime = (value) => {
   if (!value) return '-'
   const parsed = new Date(value)
@@ -666,9 +779,18 @@ const formatDateInput = (value) => {
 }
 
 const statsDisplay = computed(() => ({
-  totalTraffic: formatMegabytes(analyticsStats.value.totalTraffic),
-  bandwidthLast: `${formatNumber(analyticsStats.value.bandwidthLast)} Mbps`,
-  bandwidthLastTime: formatDateTime(analyticsStats.value.bandwidthLastTime),
+  totalNicRxTraffic: formatMegabytes(analyticsStats.value.totalNicRxTraffic),
+  totalNicTxTraffic: formatMegabytes(analyticsStats.value.totalNicTxTraffic),
+  totalL7RxTraffic: formatMegabytes(analyticsStats.value.totalL7RxTraffic),
+  totalL7TxTraffic: formatMegabytes(analyticsStats.value.totalL7TxTraffic),
+  nicRxBandwidthLast: formatMegabps(analyticsStats.value.nicRxBandwidthLast),
+  nicTxBandwidthLast: formatMegabps(analyticsStats.value.nicTxBandwidthLast),
+  l7RxBandwidthLast: formatMegabps(analyticsStats.value.l7RxBandwidthLast),
+  l7TxBandwidthLast: formatMegabps(analyticsStats.value.l7TxBandwidthLast),
+  nicRxBandwidthLastTime: formatDateTime(analyticsStats.value.nicRxBandwidthLastTime),
+  nicTxBandwidthLastTime: formatDateTime(analyticsStats.value.nicTxBandwidthLastTime),
+  l7RxBandwidthLastTime: formatDateTime(analyticsStats.value.l7RxBandwidthLastTime),
+  l7TxBandwidthLastTime: formatDateTime(analyticsStats.value.l7TxBandwidthLastTime),
   totalRequest: formatNumber(analyticsStats.value.totalRequest),
   totalResponse: formatNumber(analyticsStats.value.totalResponse),
   ipCount: formatNumber(analyticsStats.value.ipCount),
@@ -787,11 +909,26 @@ const loadServers = async () => {
 
 const loadAnalyticsData = async () => {
   const params = buildAnalyticsParams()
+
+  let summary = null
+  try {
+    summary = await fetchAnalyticsSummary(params)
+  } catch (error) {
+    console.error('Failed to load analytics summary', error)
+    analyticsStats.value = createDefaultAnalyticsStats()
+    notifications.enqueue(error?.message || 'Failed to load analytics summary.', 'error')
+  }
+
   try {
     const [
-      summary,
-      bandwidth,
-      traffic,
+      nicRxBandwidth,
+      nicTxBandwidth,
+      l7RxBandwidth,
+      l7TxBandwidth,
+      nicRxTraffic, 
+      nicTxTraffic,
+      l7RxTraffic,
+      l7TxTraffic,
       requestResponse,
       statusSeries,
       ipCount,
@@ -805,9 +942,14 @@ const loadAnalyticsData = async () => {
       methodSummary,
       protocolSummary,
     ] = await Promise.all([
-      fetchAnalyticsSummary(params),
-      fetchAnalyticsSeries('bandwidth', params),
-      fetchAnalyticsSeries('traffic', params),
+      fetchAnalyticsSeries('nic-rx-bandwidth', params),
+      fetchAnalyticsSeries('nic-tx-bandwidth', params),
+      fetchAnalyticsSeries('l7-rx-bandwidth', params),
+      fetchAnalyticsSeries('l7-tx-bandwidth', params),
+      fetchAnalyticsSeries('nic-rx-traffic', params),
+      fetchAnalyticsSeries('nic-tx-traffic', params),
+      fetchAnalyticsSeries('l7-rx-traffic', params),
+      fetchAnalyticsSeries('l7-tx-traffic', params),
       fetchAnalyticsSeries('request-response', params),
       fetchAnalyticsSeries('status-codes', params),
       fetchAnalyticsSeries('ip-count', params),
@@ -822,22 +964,51 @@ const loadAnalyticsData = async () => {
       fetchAnalyticsSummaryGroup('protocols', params),
     ])
 
+    const summaryData = summary || {}
+
     analyticsStats.value = {
-      totalTraffic: Number(summary?.totalTraffic ?? 0),
-      bandwidthLast: Number(summary?.bandwidthLast ?? 0),
-      bandwidthLastTime: summary?.bandwidthLastTime || '',
-      totalRequest: Number(summary?.totalRequest ?? 0),
-      totalResponse: Number(summary?.totalResponse ?? 0),
-      ipCount: Number(summary?.ipCount ?? 0),
-      refererCount: Number(summary?.refererCount ?? 0),
-      ispCount: Number(summary?.ispCount ?? 0),
+      totalNicRxTraffic: Number(summaryData?.totalNicRxTraffic ?? 0),
+      totalNicTxTraffic: Number(summaryData?.totalNicTxTraffic ?? 0),
+      totalL7RxTraffic: Number(summaryData?.totalL7RxTraffic ?? 0),
+      totalL7TxTraffic: Number(summaryData?.totalL7TxTraffic ?? 0),
+      nicRxBandwidthLast: Number(summaryData?.nicRxBandwidthLast ?? 0),
+      nicTxBandwidthLast: Number(summaryData?.nicTxBandwidthLast ?? 0),
+      l7RxBandwidthLast: Number(summaryData?.l7RxBandwidthLast ?? 0),
+      l7TxBandwidthLast: Number(summaryData?.l7TxBandwidthLast ?? 0),
+      nicRxBandwidthLastTime: summaryData?.nicRxBandwidthLastTime || '',
+      nicTxBandwidthLastTime: summaryData?.nicTxBandwidthLastTime || '',
+      l7RxBandwidthLastTime: summaryData?.l7RxBandwidthLastTime || '',
+      l7TxBandwidthLastTime: summaryData?.l7TxBandwidthLastTime || '',
+      totalRequest: Number(summaryData?.totalRequest ?? 0),
+      totalResponse: Number(summaryData?.totalResponse ?? 0),
+      ipCount: Number(summaryData?.ipCount ?? 0),
+      refererCount: Number(summaryData?.refererCount ?? 0),
+      ispCount: Number(summaryData?.ispCount ?? 0),
     }
 
-    bandwidthSeries.value = [
-      { name: 'Bandwidth', data: mapSeriesPoints(Array.isArray(bandwidth) ? bandwidth : [], 'traffic') },
+    nicRxBandwidthSeries.value = [
+      { name: 'NIC RX Bandwidth', data: mapSeriesPoints(Array.isArray(nicRxBandwidth) ? nicRxBandwidth : [], 'traffic') },
     ]
-    trafficSeries.value = [
-      { name: 'Traffic', data: mapSeriesPoints(Array.isArray(traffic) ? traffic : [], 'traffic') },
+    nicTxBandwidthSeries.value = [
+      { name: 'NIC TX Bandwidth', data: mapSeriesPoints(Array.isArray(nicTxBandwidth) ? nicTxBandwidth : [], 'traffic') },
+    ]
+    l7RxBandwidthSeries.value = [
+      { name: 'L7 RX Bandwidth', data: mapSeriesPoints(Array.isArray(l7RxBandwidth) ? l7RxBandwidth : [], 'traffic') },
+    ]
+    l7TxBandwidthSeries.value = [
+      { name: 'L7 TX Bandwidth', data: mapSeriesPoints(Array.isArray(l7TxBandwidth) ? l7TxBandwidth : [], 'traffic') },
+    ]
+    nicRxTrafficSeries.value = [
+      { name: 'NIC RX Traffic', data: mapSeriesPoints(Array.isArray(nicRxTraffic) ? nicRxTraffic : [], 'traffic') },
+    ]
+    nicTxTrafficSeries.value = [
+      { name: 'NIC TX Traffic', data: mapSeriesPoints(Array.isArray(nicTxTraffic) ? nicTxTraffic : [], 'traffic') },
+    ]
+    l7RxTrafficSeries.value = [
+      { name: 'L7 RX Traffic', data: mapSeriesPoints(Array.isArray(l7RxTraffic) ? l7RxTraffic : [], 'traffic') },
+    ]
+    l7TxTrafficSeries.value = [
+      { name: 'L7 TX Traffic', data: mapSeriesPoints(Array.isArray(l7TxTraffic) ? l7TxTraffic : [], 'traffic') },
     ]
     requestResponseSeries.value = [
       {
@@ -910,8 +1081,10 @@ const loadAnalyticsData = async () => {
     }))
     protocolTableRows.value = buildRateRows(protocolRows)
 
-    renderBandwidthChart()
-    renderTrafficChart()
+    renderRxBandwidthChart()
+    renderTxBandwidthChart()
+    renderRxTrafficChart()
+    renderTxTrafficChart()
     renderRequestResponseChart()
     renderStatusCodeChart()
     renderIpCountChart()
@@ -925,6 +1098,7 @@ const loadAnalyticsData = async () => {
     renderProtocolPie()
   } catch (error) {
     console.error('Failed to load analytics data', error)
+    notifications.enqueue(error?.message || 'Failed to load analytics data.', 'error')
   }
 }
 
@@ -983,10 +1157,13 @@ const buildRateRows = (rows) => {
   })
 }
 
-const renderBandwidthChart = () => {
-  if (!bandwidthChart.value) return
+const renderRxBandwidthChart = () => {
+  if (!rxBandwidthChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = bandwidthSeries.value
+  const series = [
+    ...(nicRxBandwidthSeries.value.length ? [{ name: 'NIC RX Bandwidth', data: nicRxBandwidthSeries.value[0].data }] : []),
+    ...(l7RxBandwidthSeries.value.length ? [{ name: 'L7 RX Bandwidth', data: l7RxBandwidthSeries.value[0].data }] : []),
+  ]
   const options = {
     chart: {
       type: 'area',
@@ -1002,7 +1179,7 @@ const renderBandwidthChart = () => {
       type: 'gradient',
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
-    colors: ['#2563eb'],
+    colors: ['#3b82f6', '#f97316'],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1017,6 +1194,13 @@ const renderBandwidthChart = () => {
     grid: {
       borderColor: 'rgba(148, 163, 184, 0.2)',
     },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '11px',
+      itemMargin: { horizontal: 8, vertical: 4 },
+    },
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
@@ -1026,18 +1210,22 @@ const renderBandwidthChart = () => {
     series,
   }
 
-  if (bandwidthChartInstance) {
-    bandwidthChartInstance.updateOptions(options, true, true)
+  if (rxBandwidthChartInstance) {
+    rxBandwidthChartInstance.updateOptions(options, true, true)
   } else {
-    bandwidthChartInstance = new ApexCharts(bandwidthChart.value, options)
-    bandwidthChartInstance.render()
+    rxBandwidthChartInstance = new ApexCharts(rxBandwidthChart.value, options)
+    rxBandwidthChartInstance.render()
   }
 }
 
-const renderTrafficChart = () => {
-  if (!trafficChart.value) return
+
+const renderTxBandwidthChart = () => {
+  if (!txBandwidthChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = trafficSeries.value
+  const series = [
+    ...(nicTxBandwidthSeries.value.length ? [{ name: 'NIC TX Bandwidth', data: nicTxBandwidthSeries.value[0].data }] : []),
+    ...(l7TxBandwidthSeries.value.length ? [{ name: 'L7 TX Bandwidth', data: l7TxBandwidthSeries.value[0].data }] : []),
+  ]
   const options = {
     chart: {
       type: 'area',
@@ -1053,7 +1241,68 @@ const renderTrafficChart = () => {
       type: 'gradient',
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
-    colors: ['#16a34a'],
+    colors: ['#3b82f6', '#f97316'],
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
+    yaxis: {
+      labels: {
+        formatter: (val) => `${Math.round(val)} Mbps`,
+      },
+    },
+    grid: {
+      borderColor: 'rgba(148, 163, 184, 0.2)',
+    },
+    tooltip: {
+      x: { format: 'yyyy/MM/dd HH:mm' },
+      y: {
+        formatter: (val) => `${Math.round(val)} Mbps`,
+      },
+    },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '11px',
+      itemMargin: { horizontal: 8, vertical: 4 },
+    },
+    series,
+  }
+
+  if (txBandwidthChartInstance) {
+    txBandwidthChartInstance.updateOptions(options, true, true)
+  } else {
+    txBandwidthChartInstance = new ApexCharts(txBandwidthChart.value, options)
+    txBandwidthChartInstance.render()
+  }
+}
+
+const renderRxTrafficChart = () => {
+  if (!rxTrafficChart.value) return
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = [
+    ...(nicRxTrafficSeries.value.length ? [{ name: 'NIC RX Traffic', data: nicRxTrafficSeries.value[0].data }] : []),
+    ...(l7RxTrafficSeries.value.length ? [{ name: 'L7 RX Traffic', data: l7RxTrafficSeries.value[0].data }] : []),
+  ]
+  const options = {
+    chart: {
+      type: 'area',
+      height: 280,
+      toolbar: { show: false },
+      animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
+    },
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 2 },
+    fill: {
+      type: 'gradient',
+      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
+    },
+    colors: ['#22c55e', '#facc15'],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1074,14 +1323,83 @@ const renderTrafficChart = () => {
         formatter: (val) => formatMegabytes(val),
       },
     },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '11px',
+      itemMargin: { horizontal: 8, vertical: 4 },
+    },
     series,
   }
 
-  if (trafficChartInstance) {
-    trafficChartInstance.updateOptions(options, true, true)
+  if (rxTrafficChartInstance) {
+    rxTrafficChartInstance.updateOptions(options, true, true)
   } else {
-    trafficChartInstance = new ApexCharts(trafficChart.value, options)
-    trafficChartInstance.render()
+    rxTrafficChartInstance = new ApexCharts(rxTrafficChart.value, options)
+    rxTrafficChartInstance.render()
+  }
+}
+
+
+const renderTxTrafficChart = () => {
+  if (!txTrafficChart.value) return
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const series = [
+    ...(nicTxTrafficSeries.value.length ? [{ name: 'NIC TX Traffic', data: nicTxTrafficSeries.value[0].data }] : []),
+    ...(l7TxTrafficSeries.value.length ? [{ name: 'L7 TX Traffic', data: l7TxTrafficSeries.value[0].data }] : []),
+  ]
+  const options = {
+    chart: {
+      type: 'area',
+      height: 280,
+      toolbar: { show: false },
+      animations: { enabled: true },
+      zoom: { enabled: false },
+      selection: { enabled: false },
+    },
+    dataLabels: { enabled: false },
+    stroke: { curve: 'smooth', width: 2 },
+    fill: {
+      type: 'gradient',
+      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
+    },
+    colors: ['#22c55e', '#facc15'],
+    xaxis: {
+      type: 'datetime',
+      min: start.getTime(),
+      max: end.getTime(),
+      tickAmount: 20,
+    },
+    yaxis: {
+      labels: {
+        formatter: (val) => formatMegabytes(val),
+      },
+    },
+    grid: {
+      borderColor: 'rgba(148, 163, 184, 0.2)',
+    },
+    tooltip: {
+      x: { format: 'yyyy/MM/dd HH:mm' },
+      y: {
+        formatter: (val) => formatMegabytes(val),
+      },
+    },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '11px',
+      itemMargin: { horizontal: 8, vertical: 4 },
+    },
+    series,
+  }
+
+  if (txTrafficChartInstance) {
+    txTrafficChartInstance.updateOptions(options, true, true)
+  } else {
+    txTrafficChartInstance = new ApexCharts(txTrafficChart.value, options)
+    txTrafficChartInstance.render()
   }
 }
 
@@ -1618,13 +1936,21 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (bandwidthChartInstance) {
-    bandwidthChartInstance.destroy()
-    bandwidthChartInstance = null
+  if (rxBandwidthChartInstance) {
+    rxBandwidthChartInstance.destroy()
+    rxBandwidthChartInstance = null
   }
-  if (trafficChartInstance) {
-    trafficChartInstance.destroy()
-    trafficChartInstance = null
+  if (txBandwidthChartInstance) {
+    txBandwidthChartInstance.destroy()
+    txBandwidthChartInstance = null
+  }
+  if (rxTrafficChartInstance) {
+    rxTrafficChartInstance.destroy()
+    rxTrafficChartInstance = null
+  }
+  if (txTrafficChartInstance) {
+    txTrafficChartInstance.destroy()
+    txTrafficChartInstance = null
   }
   if (requestResponseChartInstance) {
     requestResponseChartInstance.destroy()
