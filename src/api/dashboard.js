@@ -17,6 +17,38 @@ export const fetchBandwidthSeries = async (range, serverId = 'all') => {
   return apiRequest(`/dashboard/bandwidth${query ? `?${query}` : ''}`)
 }
 
+export const fetchBandwidthNicRxSeries = async (range, serverId = 'all') => {
+  const params = new URLSearchParams()
+  if (range) params.set('range', range)
+  if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
+  const query = params.toString()
+  return apiRequest(`/dashboard/bandwidth-nic-rx${query ? `?${query}` : ''}`)
+}
+
+export const fetchBandwidthNicTxSeries = async (range, serverId = 'all') => {
+  const params = new URLSearchParams()
+  if (range) params.set('range', range)
+  if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
+  const query = params.toString()
+  return apiRequest(`/dashboard/bandwidth-nic-tx${query ? `?${query}` : ''}`)
+}
+
+export const fetchBandwidthL7RxSeries = async (range, serverId = 'all') => {
+  const params = new URLSearchParams()
+  if (range) params.set('range', range)
+  if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
+  const query = params.toString()
+  return apiRequest(`/dashboard/bandwidth-l7-rx${query ? `?${query}` : ''}`)
+}
+
+export const fetchBandwidthL7TxSeries = async (range, serverId = 'all') => {
+  const params = new URLSearchParams()
+  if (range) params.set('range', range)
+  if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
+  const query = params.toString()
+  return apiRequest(`/dashboard/bandwidth-l7-tx${query ? `?${query}` : ''}`)
+}
+
 export const fetchRequestResponseSeries = async (range, serverId = 'all') => {
   const params = new URLSearchParams()
   if (range) params.set('range', String(range))

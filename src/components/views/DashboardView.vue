@@ -139,8 +139,41 @@
           <span class="bandwidth-pill">Live</span>
         </div>
       </div>
-      <div class="bandwidth-chart">
-        <div ref="bandwidthChart"></div>
+      <div class="bandwidth-sections-row">
+        <div class="bandwidth-section">
+          <div class="bandwidth-subheader">
+            <h4>NIC RX</h4>
+          </div>
+          <div class="bandwidth-chart">
+            <div ref="bandwidthNicRxChart"></div>
+          </div>
+        </div>
+        <div class="bandwidth-section">
+          <div class="bandwidth-subheader">
+            <h4>NIC TX</h4>
+          </div>
+          <div class="bandwidth-chart">
+            <div ref="bandwidthNicTxChart"></div>
+          </div>
+        </div>
+      </div>
+      <div class="bandwidth-sections-row">
+        <div class="bandwidth-section">
+          <div class="bandwidth-subheader">
+            <h4>L7 RX</h4>
+          </div>
+          <div class="bandwidth-chart">
+            <div ref="bandwidthL7RxChart"></div>
+          </div>
+        </div>
+        <div class="bandwidth-section">
+          <div class="bandwidth-subheader">
+            <h4>L7 TX</h4>
+          </div>
+          <div class="bandwidth-chart">
+            <div ref="bandwidthL7TxChart"></div>
+          </div>
+        </div>
       </div>
       <div class="bandwidth-legend">
         <button
@@ -153,7 +186,13 @@
         >
           <span class="legend-swatch" :style="{ background: server.color }"></span>
           <span class="legend-label">{{ server.label }}</span>
-          <span class="legend-value">{{ hiddenServers.has(server.id) ? 'Hidden' : `${latestValues[index]} Mbps` }}</span>
+          <span class="legend-value">
+            {{
+              hiddenServers.has(server.id)
+                ? 'Hidden'
+                : `NIC: ${latestValuesNicRx[index]} / ${latestValuesNicTx[index]} Mbps · L7: ${latestValuesL7Rx[index]} / ${latestValuesL7Tx[index]} Mbps`
+            }}
+          </span>
         </button>
       </div>
     </div>
@@ -211,10 +250,22 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ApexCharts from 'apexcharts'
-import { fetchBandwidthSeries, fetchDashboardSummary, fetchRequestResponseSeries, fetchSecurityEvents, fetchStatusCodeSeries } from '@/api/dashboard'
+import {
+  fetchBandwidthL7RxSeries,
+  fetchBandwidthL7TxSeries,
+  fetchBandwidthNicRxSeries,
+  fetchBandwidthNicTxSeries,
+  fetchDashboardSummary,
+  fetchRequestResponseSeries,
+  fetchSecurityEvents,
+  fetchStatusCodeSeries,
+} from '@/api/dashboard'
 import { fetchServers } from '@/api/servers'
 
-const bandwidthChart = ref(null)
+const bandwidthNicRxChart = ref(null)
+const bandwidthNicTxChart = ref(null)
+const bandwidthL7RxChart = ref(null)
+const bandwidthL7TxChart = ref(null)
 const requestResponseChart = ref(null)
 const statusCodeChart = ref(null)
 const securityEvents = ref([])
@@ -233,7 +284,10 @@ const bandwidthServers = ref([])
 const bandwidthRefreshMs = 60 * 1000
 const trafficRefreshMs = 60 * 1000
 
-let chartInstance = null
+let nicRxChartInstance = null
+let nicTxChartInstance = null
+let l7RxChartInstance = null
+let l7TxChartInstance = null
 let bandwidthTimer = null
 let trafficTimer = null
 let requestResponseChartInstance = null
@@ -282,19 +336,43 @@ const loadBandwidthServers = async () => {
       label: server.name || `Server ${server.id}`,
       color: palette[index % palette.length],
     }))
-    bandwidthSeries.value = createEmptyBandwidthSeries()
-    latestValues.value = bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0)
+    bandwidthNicRxSeries.value = createEmptyBandwidthSeries()
+    bandwidthNicTxSeries.value = createEmptyBandwidthSeries()
+    bandwidthL7RxSeries.value = createEmptyBandwidthSeries()
+    bandwidthL7TxSeries.value = createEmptyBandwidthSeries()
+    latestValuesNicRx.value = bandwidthNicRxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesNicTx.value = bandwidthNicTxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesL7Rx.value = bandwidthL7RxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesL7Tx.value = bandwidthL7TxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
     hiddenServers.value = new Set()
-    if (chartInstance) {
-      chartInstance.destroy()
-      chartInstance = null
+    if (nicRxChartInstance) {
+      nicRxChartInstance.destroy()
+      nicRxChartInstance = null
     }
-    createChart()
+    if (nicTxChartInstance) {
+      nicTxChartInstance.destroy()
+      nicTxChartInstance = null
+    }
+    if (l7RxChartInstance) {
+      l7RxChartInstance.destroy()
+      l7RxChartInstance = null
+    }
+    if (l7TxChartInstance) {
+      l7TxChartInstance.destroy()
+      l7TxChartInstance = null
+    }
+    createBandwidthCharts()
   } catch (error) {
     console.error('Failed to load servers for bandwidth', error)
     bandwidthServers.value = []
-    bandwidthSeries.value = []
-    latestValues.value = []
+    bandwidthNicRxSeries.value = []
+    bandwidthNicTxSeries.value = []
+    bandwidthL7RxSeries.value = []
+    bandwidthL7TxSeries.value = []
+    latestValuesNicRx.value = []
+    latestValuesNicTx.value = []
+    latestValuesL7Rx.value = []
+    latestValuesL7Tx.value = []
   }
 }
 
@@ -329,6 +407,7 @@ const bandwidthRangeOptions = [
   { label: '8h', value: '8h' },
   { label: '12h', value: '12h' },
   { label: '24h', value: '24h' },
+  { label: '48h', value: '48h' },
 ]
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
@@ -354,6 +433,8 @@ const getBandwidthRangeMs = (value) => {
       return 12 * 60 * 60 * 1000
     case '24h':
       return 24 * 60 * 60 * 1000
+    case '48h':
+      return 48 * 60 * 60 * 1000
     default:
       return 30 * 60 * 1000
   }
@@ -365,8 +446,14 @@ const createEmptyBandwidthSeries = () =>
     data: [],
   }))
 
-const bandwidthSeries = ref([])
-const latestValues = ref([])
+const bandwidthNicRxSeries = ref([])
+const bandwidthNicTxSeries = ref([])
+const bandwidthL7RxSeries = ref([])
+const bandwidthL7TxSeries = ref([])
+const latestValuesNicRx = ref([])
+const latestValuesNicTx = ref([])
+const latestValuesL7Rx = ref([])
+const latestValuesL7Tx = ref([])
 const hiddenServers = ref(new Set())
 
 const requestResponseSeries = ref([
@@ -380,63 +467,135 @@ const statusCodeSeries = ref([
   { name: '5xx', data: [] },
 ])
 
+const mapPayloadToSeries = (payload) => {
+  const seriesMap = new Map()
+  if (Array.isArray(payload)) {
+    payload.forEach((entry) => {
+      const points = Array.isArray(entry?.points) ? entry.points : []
+      seriesMap.set(Number(entry?.serverId), points)
+    })
+  }
+  return bandwidthServers.value.map((server) => {
+    const points = seriesMap.get(server.id) || []
+    const data = points
+      .map((point) => ({
+        x: new Date(point.timestamp).getTime(),
+        y: Number(point.bandwidth ?? 0),
+      }))
+      .filter((point) => !Number.isNaN(point.x))
+    return { name: server.label, data }
+  })
+}
+
+/** Max Y across multiple series arrays; returns a nice axis max (min 10). */
+const getSharedYMax = (...seriesArrays) => {
+  let max = 0
+  for (const arr of seriesArrays) {
+    for (const s of arr) {
+      for (const p of s.data || []) {
+        if (typeof p.y === 'number' && p.y > max) max = p.y
+      }
+    }
+  }
+  if (max <= 0) return 10
+  const magnitude = 10 ** Math.floor(Math.log10(max))
+  const normalized = max / magnitude
+  const nice = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude
+  return Math.ceil(max / nice) * nice || 10
+}
+
 const loadBandwidthSeries = async () => {
   if (!bandwidthServers.value.length) {
     return
   }
   try {
-    const payload = await fetchBandwidthSeries(bandwidthRange.value)
-    const seriesMap = new Map()
-    if (Array.isArray(payload)) {
-      payload.forEach((entry) => {
-        const points = Array.isArray(entry?.points) ? entry.points : []
-        seriesMap.set(Number(entry?.serverId), points)
+    const [payloadNicRx, payloadNicTx, payloadL7Rx, payloadL7Tx] = await Promise.all([
+      fetchBandwidthNicRxSeries(bandwidthRange.value),
+      fetchBandwidthNicTxSeries(bandwidthRange.value),
+      fetchBandwidthL7RxSeries(bandwidthRange.value),
+      fetchBandwidthL7TxSeries(bandwidthRange.value),
+    ])
+
+    bandwidthNicRxSeries.value = mapPayloadToSeries(payloadNicRx)
+    bandwidthNicTxSeries.value = mapPayloadToSeries(payloadNicTx)
+    bandwidthL7RxSeries.value = mapPayloadToSeries(payloadL7Rx)
+    bandwidthL7TxSeries.value = mapPayloadToSeries(payloadL7Tx)
+    latestValuesNicRx.value = bandwidthNicRxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesNicTx.value = bandwidthNicTxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesL7Rx.value = bandwidthL7RxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesL7Tx.value = bandwidthL7TxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+
+    const xaxisOpts = {
+      range: getBandwidthRangeMs(bandwidthRange.value),
+      min: Date.now() - getBandwidthRangeMs(bandwidthRange.value),
+      max: Date.now(),
+      tickAmount: 20,
+    }
+    const nicYMax = getSharedYMax(bandwidthNicRxSeries.value, bandwidthNicTxSeries.value)
+    const l7YMax = getSharedYMax(bandwidthL7RxSeries.value, bandwidthL7TxSeries.value)
+    const rangeOptsNic = {
+      xaxis: xaxisOpts,
+      yaxis: { min: 0, max: nicYMax },
+    }
+    const rangeOptsL7 = {
+      xaxis: xaxisOpts,
+      yaxis: { min: 0, max: l7YMax },
+    }
+
+    const applyHidden = (chartInstance) => {
+      if (!chartInstance) return
+      hiddenServers.value.forEach((serverId) => {
+        const server = bandwidthServers.value.find((item) => item.id === serverId)
+        if (server) chartInstance.hideSeries(server.label)
       })
     }
 
-    bandwidthSeries.value = bandwidthServers.value.map((server) => {
-      const points = seriesMap.get(server.id) || []
-      const data = points
-        .map((point) => ({
-          x: new Date(point.timestamp).getTime(),
-          y: Number(point.bandwidth ?? 0),
-        }))
-        .filter((point) => !Number.isNaN(point.x))
-      return {
-        name: server.label,
-        data,
-      }
-    })
-
-    latestValues.value = bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0)
-
-    if (chartInstance) {
-      chartInstance.updateSeries(bandwidthSeries.value, true)
-      chartInstance.updateOptions(
-        {
-          xaxis: {
-            range: getBandwidthRangeMs(bandwidthRange.value),
-            min: Date.now() - getBandwidthRangeMs(bandwidthRange.value),
-            max: Date.now(),
-            tickAmount: 6,
-          },
-        },
-        false,
-        true,
-      )
-      hiddenServers.value.forEach((serverId) => {
-        const server = bandwidthServers.value.find((item) => item.id === serverId)
-        if (server) {
-          chartInstance.hideSeries(server.label)
-        }
-      })
+    if (nicRxChartInstance) {
+      nicRxChartInstance.updateSeries(bandwidthNicRxSeries.value, true)
+      nicRxChartInstance.updateOptions(rangeOptsNic, false, true)
+      applyHidden(nicRxChartInstance)
+    }
+    if (nicTxChartInstance) {
+      nicTxChartInstance.updateSeries(bandwidthNicTxSeries.value, true)
+      nicTxChartInstance.updateOptions(rangeOptsNic, false, true)
+      applyHidden(nicTxChartInstance)
+    }
+    if (l7RxChartInstance) {
+      l7RxChartInstance.updateSeries(bandwidthL7RxSeries.value, true)
+      l7RxChartInstance.updateOptions(rangeOptsL7, false, true)
+      applyHidden(l7RxChartInstance)
+    }
+    if (l7TxChartInstance) {
+      l7TxChartInstance.updateSeries(bandwidthL7TxSeries.value, true)
+      l7TxChartInstance.updateOptions(rangeOptsL7, false, true)
+      applyHidden(l7TxChartInstance)
     }
   } catch (error) {
     console.error('Failed to load bandwidth series', error)
-    bandwidthSeries.value = createEmptyBandwidthSeries()
-    latestValues.value = bandwidthSeries.value.map((series) => series.data[series.data.length - 1]?.y ?? 0)
-    if (chartInstance) {
-      chartInstance.updateSeries(bandwidthSeries.value, true)
+    bandwidthNicRxSeries.value = createEmptyBandwidthSeries()
+    bandwidthNicTxSeries.value = createEmptyBandwidthSeries()
+    bandwidthL7RxSeries.value = createEmptyBandwidthSeries()
+    bandwidthL7TxSeries.value = createEmptyBandwidthSeries()
+    latestValuesNicRx.value = bandwidthNicRxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesNicTx.value = bandwidthNicTxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesL7Rx.value = bandwidthL7RxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    latestValuesL7Tx.value = bandwidthL7TxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
+    const resetY = { yaxis: { min: 0, max: 10 } }
+    if (nicRxChartInstance) {
+      nicRxChartInstance.updateSeries(bandwidthNicRxSeries.value, true)
+      nicRxChartInstance.updateOptions(resetY, false, true)
+    }
+    if (nicTxChartInstance) {
+      nicTxChartInstance.updateSeries(bandwidthNicTxSeries.value, true)
+      nicTxChartInstance.updateOptions(resetY, false, true)
+    }
+    if (l7RxChartInstance) {
+      l7RxChartInstance.updateSeries(bandwidthL7RxSeries.value, true)
+      l7RxChartInstance.updateOptions(resetY, false, true)
+    }
+    if (l7TxChartInstance) {
+      l7TxChartInstance.updateSeries(bandwidthL7TxSeries.value, true)
+      l7TxChartInstance.updateOptions(resetY, false, true)
     }
   }
 }
@@ -570,10 +729,10 @@ const loadStatusCodeSeries = async () => {
 }
 
 const toggleServerSeries = (server) => {
-  if (!chartInstance) {
-    return
-  }
-  chartInstance.toggleSeries(server.label)
+  if (nicRxChartInstance) nicRxChartInstance.toggleSeries(server.label)
+  if (nicTxChartInstance) nicTxChartInstance.toggleSeries(server.label)
+  if (l7RxChartInstance) l7RxChartInstance.toggleSeries(server.label)
+  if (l7TxChartInstance) l7TxChartInstance.toggleSeries(server.label)
   const next = new Set(hiddenServers.value)
   if (next.has(server.id)) {
     next.delete(server.id)
@@ -581,82 +740,95 @@ const toggleServerSeries = (server) => {
     next.add(server.id)
   }
   hiddenServers.value = next
-  chartInstance.updateOptions(
-    {},
-    false,
-    true,
-  )
+  if (nicRxChartInstance) nicRxChartInstance.updateOptions({}, false, true)
+  if (nicTxChartInstance) nicTxChartInstance.updateOptions({}, false, true)
+  if (l7RxChartInstance) l7RxChartInstance.updateOptions({}, false, true)
+  if (l7TxChartInstance) l7TxChartInstance.updateOptions({}, false, true)
 }
 
-const createChart = () => {
-  if (!bandwidthChart.value || !bandwidthServers.value.length) {
-    return
-  }
-
+const defaultBandwidthChartOptions = () => {
   const now = Date.now()
-  chartInstance = new ApexCharts(bandwidthChart.value, {
+  return {
     chart: {
       type: 'line',
-      height: 320,
+      height: 280,
       animations: {
         enabled: true,
         easing: 'easeinout',
         speed: 1500,
-        dynamicAnimation: {
-          speed: 1500,
-        },
+        dynamicAnimation: { speed: 1500 },
       },
       toolbar: { show: false },
       zoom: { enabled: false },
     },
-    stroke: {
-      curve: 'smooth',
-      width: 2,
-    },
-    markers: {
-      size: 0,
-      hover: { size: 4 },
-    },
-    colors: bandwidthServers.value.map((server) => server.color),
-    series: bandwidthSeries.value,
+    stroke: { curve: 'smooth', width: 2 },
+    markers: { size: 0, hover: { size: 4 } },
+    colors: bandwidthServers.value.map((s) => s.color),
     xaxis: {
       type: 'datetime',
       labels: {
         show: true,
         datetimeUTC: false,
-        style: { colors: '#94a3b8' },
-        formatter: (value) => {
-          const date = new Date(value)
-          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        },
+        style: { colors: '#94a3b8', fontSize: '13px' },
+        formatter: (value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
       axisBorder: { show: false },
       axisTicks: { show: false },
       range: getBandwidthRangeMs(bandwidthRange.value),
       min: now - getBandwidthRangeMs(bandwidthRange.value),
       max: now,
-      tickAmount: 36,
+      tickAmount: 12,
     },
     yaxis: {
+      min: 0,
+      max: 10,
       opposite: true,
       labels: {
         formatter: (value) => `${Math.round(value)} Mbps`,
-        style: { colors: '#94a3b8' },
+        style: { colors: '#94a3b8', fontSize: '13px' },
       },
     },
-    grid: {
-      borderColor: 'rgba(148, 163, 184, 0.35)',
-      strokeDashArray: 6,
-    },
+    grid: { borderColor: 'rgba(148, 163, 184, 0.35)', strokeDashArray: 6 },
     tooltip: {
       x: { format: 'HH:mm:ss' },
       y: { formatter: (value) => `${Math.round(value)} Mbps` },
       theme: 'light',
     },
     legend: { show: false },
-  })
+  }
+}
 
-  chartInstance.render()
+const createBandwidthCharts = () => {
+  if (
+    !bandwidthNicRxChart.value ||
+    !bandwidthNicTxChart.value ||
+    !bandwidthL7RxChart.value ||
+    !bandwidthL7TxChart.value ||
+    !bandwidthServers.value.length
+  ) {
+    return
+  }
+  const opts = defaultBandwidthChartOptions()
+  nicRxChartInstance = new ApexCharts(bandwidthNicRxChart.value, {
+    ...opts,
+    series: bandwidthNicRxSeries.value,
+  })
+  nicTxChartInstance = new ApexCharts(bandwidthNicTxChart.value, {
+    ...opts,
+    series: bandwidthNicTxSeries.value,
+  })
+  l7RxChartInstance = new ApexCharts(bandwidthL7RxChart.value, {
+    ...opts,
+    series: bandwidthL7RxSeries.value,
+  })
+  l7TxChartInstance = new ApexCharts(bandwidthL7TxChart.value, {
+    ...opts,
+    series: bandwidthL7TxSeries.value,
+  })
+  nicRxChartInstance.render()
+  nicTxChartInstance.render()
+  l7RxChartInstance.render()
+  l7TxChartInstance.render()
 }
 
 const createRequestResponseChart = () => {
@@ -829,9 +1001,21 @@ onBeforeUnmount(() => {
   if (trafficTimer) {
     window.clearInterval(trafficTimer)
   }
-  if (chartInstance) {
-    chartInstance.destroy()
-    chartInstance = null
+  if (nicRxChartInstance) {
+    nicRxChartInstance.destroy()
+    nicRxChartInstance = null
+  }
+  if (nicTxChartInstance) {
+    nicTxChartInstance.destroy()
+    nicTxChartInstance = null
+  }
+  if (l7RxChartInstance) {
+    l7RxChartInstance.destroy()
+    l7RxChartInstance = null
+  }
+  if (l7TxChartInstance) {
+    l7TxChartInstance.destroy()
+    l7TxChartInstance = null
   }
   if (requestResponseChartInstance) {
     requestResponseChartInstance.destroy()
@@ -844,21 +1028,19 @@ onBeforeUnmount(() => {
 })
 
 watch(bandwidthRange, () => {
-  if (chartInstance) {
-    const rangeMs = getBandwidthRangeMs(bandwidthRange.value)
-    chartInstance.updateOptions(
-      {
-        xaxis: {
-          range: rangeMs,
-          min: Date.now() - rangeMs,
-          max: Date.now(),
-          tickAmount: 36,
-        },
-      },
-      false,
-      true,
-    )
+  const rangeMs = getBandwidthRangeMs(bandwidthRange.value)
+  const rangeOpts = {
+    xaxis: {
+      range: rangeMs,
+      min: Date.now() - rangeMs,
+      max: Date.now(),
+      tickAmount: 20,
+    },
   }
+  if (nicRxChartInstance) nicRxChartInstance.updateOptions(rangeOpts, false, true)
+  if (nicTxChartInstance) nicTxChartInstance.updateOptions(rangeOpts, false, true)
+  if (l7RxChartInstance) l7RxChartInstance.updateOptions(rangeOpts, false, true)
+  if (l7TxChartInstance) l7TxChartInstance.updateOptions(rangeOpts, false, true)
   loadBandwidthSeries()
 })
 
@@ -1007,6 +1189,32 @@ watch([statusRange, statusServer], () => {
   margin: 6px 0 0;
   color: #64748b;
   font-size: 0.9rem;
+}
+
+.bandwidth-section {
+  margin-top: 20px;
+  flex: 1 1 0;
+}
+
+.bandwidth-section:first-of-type {
+  margin-top: 0;
+}
+
+.bandwidth-sections-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bandwidth-subheader {
+  margin-bottom: 10px;
+}
+
+.bandwidth-subheader h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #475569;
 }
 
 .bandwidth-pill {
