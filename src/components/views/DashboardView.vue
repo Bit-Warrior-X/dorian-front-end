@@ -1192,12 +1192,8 @@ watch([statusRange, statusServer], () => {
 }
 
 .bandwidth-section {
-  margin-top: 20px;
+  margin-top: 0px;
   flex: 1 1 0;
-}
-
-.bandwidth-section:first-of-type {
-  margin-top: 0;
 }
 
 .bandwidth-sections-row {
