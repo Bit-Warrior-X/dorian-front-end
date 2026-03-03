@@ -94,7 +94,6 @@
         <div class="attack-chart-card attack-chart-card--single">
           <div class="chart-header">
             <h3>Allowed vs Blocked Traffic by Time</h3>
-            <span class="chart-pill">Sample</span>
           </div>
           <div class="chart-body">
             <div ref="trafficChart"></div>
@@ -103,7 +102,6 @@
         <div class="attack-chart-card attack-chart-card--single">
           <div class="chart-header">
             <h3>IP Protocols by Time</h3>
-            <span class="chart-pill">Sample</span>
           </div>
           <div class="chart-body">
             <div ref="protocolChart"></div>
@@ -112,7 +110,7 @@
       </div>
       
       <div class="attack-table-grid">
-        <div class="attack-table-card attack-table-card--scroll">
+        <div class="attack-chart-card attack-table-card--scroll">
           <h3>Recent Attack Attempts</h3>
           <div class="attack-table-scroll">
             <table class="attack-table">
@@ -136,7 +134,7 @@
             </table>
           </div>
         </div>
-        <div class="attack-table-card attack-table-card--scroll">
+        <div class="attack-chart-card attack-table-card--scroll">
           <div class="table-header-row">
             <h3>Top Seen Attacking IPs</h3>
             <div class="table-controls">
@@ -165,7 +163,11 @@
                   <td>{{ formatNumber(row.count) }}</td>
                   <td>{{ formatDateTime(row.lastSeen) }}</td>
                   <td>
-                    <button type="button" class="action-btn action-btn--danger" @click="openBlacklistDialog(row.ip)">
+                    <button
+                      type="button"
+                      class="action-btn action-btn--danger"
+                      @click="openBlacklistDialog(row.ip)"
+                    >
                       Move to blacklist
                     </button>
                   </td>
@@ -231,40 +233,6 @@
             Reason
             <input v-model="blacklistForm.reason" type="text" class="dialog-input" placeholder="Reason" />
           </label>
-          <label>
-            Trigger Rule
-            <select v-model="blacklistForm.triggerRule" class="dialog-input">
-              <option value="manual">Manual</option>
-              <option value="syn-flood">SYN Flood</option>
-              <option value="udp-flood">UDP Flood</option>
-              <option value="icmp-flood">ICMP Flood</option>
-              <option value="gre-flood">GRE Flood</option>
-              <option value="other">Other</option>
-              <option value="custom">Customize</option>
-            </select>
-          </label>
-          <label v-if="blacklistForm.triggerRule === 'custom'">
-            Custom Trigger Rule
-            <input v-model="blacklistForm.customTriggerRule" type="text" class="dialog-input" placeholder="Rule name" />
-          </label>
-          <label>
-            TTL
-            <select v-model="blacklistForm.ttl" class="dialog-input">
-              <option value="permanent">Permanent</option>
-              <option value="1h">1h</option>
-              <option value="2h">2h</option>
-              <option value="6h">6h</option>
-              <option value="12h">12h</option>
-              <option value="24h">24h</option>
-              <option value="2days">2days</option>
-              <option value="7days">7days</option>
-              <option value="custom">Custom</option>
-            </select>
-          </label>
-          <label v-if="blacklistForm.ttl === 'custom'">
-            Custom TTL
-            <input v-model="blacklistForm.customTtl" type="text" class="dialog-input" placeholder="e.g. 36h" />
-          </label>
         </div>
         <div class="dialog-actions">
           <button type="button" class="apply-filter-btn" @click="submitBlacklist">Add</button>
@@ -277,7 +245,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import ApexCharts from 'apexcharts'
-import { createBlacklistEntry } from '@/api/serverBlacklist'
+import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchServers } from '@/api/servers'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { useNotifications } from '@/stores/notifications'
@@ -406,38 +374,24 @@ const submitBlacklist = async () => {
     notifications.enqueue('Please select a server first.', 'error')
     return
   }
-  const serverName = servers.value.find((server) => server.id === serverId)?.name || ''
-  const ttlValue =
-    blacklistForm.value.ttl === 'custom'
-      ? blacklistForm.value.customTtl.trim()
-      : blacklistForm.value.ttl
-  const triggerRuleValue =
-    blacklistForm.value.triggerRule === 'custom'
-      ? blacklistForm.value.customTriggerRule.trim()
-      : blacklistForm.value.triggerRule.trim()
-  if (!ttlValue) {
-    notifications.enqueue('Please provide a TTL value.', 'error')
-    return
-  }
-  if (!triggerRuleValue) {
-    notifications.enqueue('Please provide a trigger rule.', 'error')
+
+  const ipAddress = String(blacklistForm.value.ip || '').trim()
+  if (!ipAddress) {
+    notifications.enqueue('IP address is missing.', 'error')
     return
   }
 
+  const reason = blacklistForm.value.reason.trim() || 'Manual block'
+
   try {
-    await createBlacklistEntry({
-      serverId,
-      ipAddress: blacklistForm.value.ip.trim(),
-      geolocation: 'Manual',
-      reason: blacklistForm.value.reason.trim() || 'Manual block',
-      server: serverName,
-      ttl: ttlValue,
-      triggerRule: triggerRuleValue,
+    await createL4BlacklistEntry(serverId, {
+      ipAddress,
+      reason,
     })
-    notifications.enqueue('Blacklist entry created.', 'success')
+    notifications.enqueue('IP added to L4 DDoS blacklist.', 'success')
     closeBlacklistDialog()
   } catch (error) {
-    notifications.enqueue(error?.message || 'Failed to create blacklist entry.', 'error')
+    notifications.enqueue(error?.message || 'Failed to add IP to L4 DDoS blacklist.', 'error')
   }
 }
 
@@ -449,8 +403,8 @@ const formatNumber = (value) => {
 
 const formatThroughput = (value) => {
   const numeric = Number(value)
-  if (!Number.isFinite(numeric) || numeric <= 0) return '0 bps'
-  const units = ['bps', 'Kbps', 'Mbps', 'Gbps', 'Tbps']
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 bytes'
+  const units = ['bytes', 'KB', 'MB', 'GB', 'TB']
   let index = 0
   let current = numeric
   while (current >= 1000 && index < units.length - 1) {
@@ -596,9 +550,18 @@ const loadL4Analytics = async () => {
 
 const renderTrafficChart = () => {
   if (!trafficChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+
   const allowedSeries = mapSeriesPoints(trafficPoints.value, 'allowedTraffic')
   const blockedSeries = mapSeriesPoints(trafficPoints.value, 'blockedTraffic')
+
+  // Derive x‑axis bounds from actual data for consistency
+  // with the protocol chart and to avoid empty renders when
+  // the backend window differs slightly from the frontend.
+  const allPoints = [...allowedSeries, ...blockedSeries]
+  const hasPoints = allPoints.length > 0
+  const minX = hasPoints ? Math.min(...allPoints.map((p) => p.x)) : null
+  const maxX = hasPoints ? Math.max(...allPoints.map((p) => p.x)) : null
+
   const options = {
     chart: {
       type: 'line',
@@ -614,8 +577,7 @@ const renderTrafficChart = () => {
     colors: ['#10b981', '#ef4444'],
     xaxis: {
       type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
+      ...(hasPoints && { min: minX, max: maxX }),
       tickAmount: 6,
       axisBorder: { show: true, color: '#e2e8f0' },
       axisTicks: { show: true, color: '#e2e8f0' },
@@ -659,7 +621,7 @@ const renderTrafficChart = () => {
 
 const renderProtocolChart = () => {
   if (!protocolChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+
   const series = [
     { name: 'TCP', data: mapSeriesPoints(protocolPoints.value, 'tcp') },
     { name: 'UDP', data: mapSeriesPoints(protocolPoints.value, 'udp') },
@@ -667,6 +629,14 @@ const renderProtocolChart = () => {
     { name: 'GRE', data: mapSeriesPoints(protocolPoints.value, 'gre') },
     { name: 'OTHER', data: mapSeriesPoints(protocolPoints.value, 'other') },
   ]
+
+  // Derive x‑axis bounds from actual data so the chart
+  // always renders even if the frontend/backend windows differ.
+  const allPoints = series.flatMap((s) => s.data)
+  const hasPoints = allPoints.length > 0
+  const minX = hasPoints ? Math.min(...allPoints.map((p) => p.x)) : null
+  const maxX = hasPoints ? Math.max(...allPoints.map((p) => p.x)) : null
+
   const options = {
     chart: {
       type: 'line',
@@ -682,8 +652,7 @@ const renderProtocolChart = () => {
     colors: ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#64748b'],
     xaxis: {
       type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
+      ...(hasPoints && { min: minX, max: maxX }),
       tickAmount: 6,
       axisBorder: { show: true, color: '#e2e8f0' },
       axisTicks: { show: true, color: '#e2e8f0' },
@@ -698,13 +667,13 @@ const renderProtocolChart = () => {
     },
     yaxis: {
       labels: {
-        formatter: (val) => formatThroughput(val),
+        formatter: (val) => formatNumber(val),
       },
     },
     grid: { borderColor: 'rgba(148, 163, 184, 0.2)' },
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
-      y: { formatter: (val) => formatThroughput(val) },
+      y: { formatter: (val) => formatNumber(val) },
     },
     legend: {
       position: 'top',
@@ -1085,7 +1054,7 @@ onBeforeUnmount(() => {
 
 .attack-table-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  #grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 20px;
 }
 
