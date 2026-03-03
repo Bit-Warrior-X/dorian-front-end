@@ -733,10 +733,23 @@ const formatNumber = (value) => {
   return numeric.toLocaleString()
 }
 
-const formatBytes = (value) => {
+const formatKiloBytes = (value) => {
   const numeric = Number(value)
-  if (!Number.isFinite(numeric) || numeric <= 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 KB'
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let index = 0
+  let current = numeric
+  while (current >= 1024 && index < units.length - 1) {
+    current /= 1024
+    index += 1
+  }
+  return `${current.toFixed(current >= 10 ? 0 : 1)} ${units[index]}`
+}
+
+const formatKiloBps = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 Kbps'
+  const units = ['KBps', 'MBps', 'GBps', 'TBps']
   let index = 0
   let current = numeric
   while (current >= 1024 && index < units.length - 1) {
@@ -779,14 +792,14 @@ const formatDateInput = (value) => {
 }
 
 const statsDisplay = computed(() => ({
-  totalNicRxTraffic: formatMegabytes(analyticsStats.value.totalNicRxTraffic),
-  totalNicTxTraffic: formatMegabytes(analyticsStats.value.totalNicTxTraffic),
-  totalL7RxTraffic: formatMegabytes(analyticsStats.value.totalL7RxTraffic),
-  totalL7TxTraffic: formatMegabytes(analyticsStats.value.totalL7TxTraffic),
-  nicRxBandwidthLast: formatMegabps(analyticsStats.value.nicRxBandwidthLast),
-  nicTxBandwidthLast: formatMegabps(analyticsStats.value.nicTxBandwidthLast),
-  l7RxBandwidthLast: formatMegabps(analyticsStats.value.l7RxBandwidthLast),
-  l7TxBandwidthLast: formatMegabps(analyticsStats.value.l7TxBandwidthLast),
+  totalNicRxTraffic: formatKiloBytes(analyticsStats.value.totalNicRxTraffic),
+  totalNicTxTraffic: formatKiloBytes(analyticsStats.value.totalNicTxTraffic),
+  totalL7RxTraffic: formatKiloBytes(analyticsStats.value.totalL7RxTraffic),
+  totalL7TxTraffic: formatKiloBytes(analyticsStats.value.totalL7TxTraffic),
+  nicRxBandwidthLast: formatKiloBps(analyticsStats.value.nicRxBandwidthLast),
+  nicTxBandwidthLast: formatKiloBps(analyticsStats.value.nicTxBandwidthLast),
+  l7RxBandwidthLast: formatKiloBps(analyticsStats.value.l7RxBandwidthLast),
+  l7TxBandwidthLast: formatKiloBps(analyticsStats.value.l7TxBandwidthLast),
   nicRxBandwidthLastTime: formatDateTime(analyticsStats.value.nicRxBandwidthLastTime),
   nicTxBandwidthLastTime: formatDateTime(analyticsStats.value.nicTxBandwidthLastTime),
   l7RxBandwidthLastTime: formatDateTime(analyticsStats.value.l7RxBandwidthLastTime),
@@ -1188,7 +1201,7 @@ const renderRxBandwidthChart = () => {
     },
     yaxis: {
       labels: {
-        formatter: (val) => `${Math.round(val)} Mbps`,
+        formatter: (val) => formatKiloBps(val),
       },
     },
     grid: {
@@ -1204,7 +1217,7 @@ const renderRxBandwidthChart = () => {
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
-        formatter: (val) => `${Math.round(val)} Mbps`,
+        formatter: (val) => formatKiloBps(val),
       },
     },
     series,
@@ -1250,7 +1263,7 @@ const renderTxBandwidthChart = () => {
     },
     yaxis: {
       labels: {
-        formatter: (val) => `${Math.round(val)} Mbps`,
+        formatter: (val) => formatKiloBps(val),
       },
     },
     grid: {
@@ -1259,7 +1272,7 @@ const renderTxBandwidthChart = () => {
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
-        formatter: (val) => `${Math.round(val)} Mbps`,
+        formatter: (val) => formatKiloBps(val),
       },
     },
     legend: {
@@ -1311,7 +1324,7 @@ const renderRxTrafficChart = () => {
     },
     yaxis: {
       labels: {
-        formatter: (val) => formatMegabytes(val),
+        formatter: (val) => formatKiloBytes(val),
       },
     },
     grid: {
@@ -1320,7 +1333,7 @@ const renderRxTrafficChart = () => {
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
-        formatter: (val) => formatMegabytes(val),
+        formatter: (val) => formatKiloBytes(val),
       },
     },
     legend: {
@@ -1373,7 +1386,7 @@ const renderTxTrafficChart = () => {
     },
     yaxis: {
       labels: {
-        formatter: (val) => formatMegabytes(val),
+        formatter: (val) => formatKiloBytes(val),
       },
     },
     grid: {
@@ -1382,7 +1395,7 @@ const renderTxTrafficChart = () => {
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
-        formatter: (val) => formatMegabytes(val),
+        formatter: (val) => formatKiloBytes(val),
       },
     },
     legend: {
