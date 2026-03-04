@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-view">
+  <div class="dashboard-view" ref="dashboardRoot">
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-icon users">
@@ -128,7 +128,7 @@
       <div class="bandwidth-header">
         <div>
           <h3>Realtime Bandwidth by Server</h3>
-          <p>Live throughput updated every 5 minutes (Mbps)</p>
+          <p>Live throughput updated every 1 minutes (Kbps)</p>
         </div>
         <div class="bandwidth-controls">
           <select v-model="bandwidthRange" class="chart-select">
@@ -148,6 +148,8 @@
             <div ref="bandwidthNicRxChart"></div>
           </div>
         </div>
+      </div>
+      <div class="bandwidth-sections-row">
         <div class="bandwidth-section">
           <div class="bandwidth-subheader">
             <h4>NIC TX</h4>
@@ -166,6 +168,8 @@
             <div ref="bandwidthL7RxChart"></div>
           </div>
         </div>
+      </div>
+      <div class="bandwidth-sections-row">
         <div class="bandwidth-section">
           <div class="bandwidth-subheader">
             <h4>L7 TX</h4>
@@ -190,7 +194,11 @@
             {{
               hiddenServers.has(server.id)
                 ? 'Hidden'
-                : `NIC: ${latestValuesNicRx[index]} / ${latestValuesNicTx[index]} Mbps · L7: ${latestValuesL7Rx[index]} / ${latestValuesL7Tx[index]} Mbps`
+                : `NIC: ${formatBandwidthValue(latestValuesNicRx[index])} / ${formatBandwidthValue(
+                    latestValuesNicTx[index],
+                  )} · L7: ${formatBandwidthValue(latestValuesL7Rx[index])} / ${formatBandwidthValue(
+                    latestValuesL7Tx[index],
+                  )}`
             }}
           </span>
         </button>
@@ -268,6 +276,7 @@ const bandwidthL7RxChart = ref(null)
 const bandwidthL7TxChart = ref(null)
 const requestResponseChart = ref(null)
 const statusCodeChart = ref(null)
+const dashboardRoot = ref(null)
 const securityEvents = ref([])
 const dashboardStats = ref({
   totalUsers: 0,
@@ -292,11 +301,34 @@ let bandwidthTimer = null
 let trafficTimer = null
 let requestResponseChartInstance = null
 let statusCodeChartInstance = null
+let layoutResizeObserver = null
 
 const formatNumber = (value) => {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return '0'
   return numeric.toLocaleString()
+}
+
+const formatBandwidthValue = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 Kbps'
+
+  const formatWithUnit = (v, divisor, unit) => {
+    const scaled = v / divisor
+    const withOneDecimal = scaled.toFixed(1)
+    const trimmed = withOneDecimal.replace(/\.0$/, '')
+    return `${trimmed} ${unit}`
+  }
+
+  if (numeric >= 1024 * 1024) {
+    // 1024 * 1024 Kbps = 1 Gbps
+    return formatWithUnit(numeric, 1024 * 1024, 'Gbps')
+  }
+  if (numeric >= 1024) {
+    // 1024 Kbps = 1 Mbps
+    return formatWithUnit(numeric, 1024, 'Mbps')
+  }
+  return `${Math.round(numeric)} Kbps`
 }
 
 const loadDashboardSummary = async () => {
@@ -483,25 +515,9 @@ const mapPayloadToSeries = (payload) => {
         y: Number(point.bandwidth ?? 0),
       }))
       .filter((point) => !Number.isNaN(point.x))
+      .sort((a, b) => a.x - b.x)
     return { name: server.label, data }
   })
-}
-
-/** Max Y across multiple series arrays; returns a nice axis max (min 10). */
-const getSharedYMax = (...seriesArrays) => {
-  let max = 0
-  for (const arr of seriesArrays) {
-    for (const s of arr) {
-      for (const p of s.data || []) {
-        if (typeof p.y === 'number' && p.y > max) max = p.y
-      }
-    }
-  }
-  if (max <= 0) return 10
-  const magnitude = 10 ** Math.floor(Math.log10(max))
-  const normalized = max / magnitude
-  const nice = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude
-  return Math.ceil(max / nice) * nice || 10
 }
 
 const loadBandwidthSeries = async () => {
@@ -529,17 +545,13 @@ const loadBandwidthSeries = async () => {
       range: getBandwidthRangeMs(bandwidthRange.value),
       min: Date.now() - getBandwidthRangeMs(bandwidthRange.value),
       max: Date.now(),
-      tickAmount: 20,
+      tickAmount: 24,
     }
-    const nicYMax = getSharedYMax(bandwidthNicRxSeries.value, bandwidthNicTxSeries.value)
-    const l7YMax = getSharedYMax(bandwidthL7RxSeries.value, bandwidthL7TxSeries.value)
-    const rangeOptsNic = {
+    const rangeOpts = {
       xaxis: xaxisOpts,
-      yaxis: { min: 0, max: nicYMax },
-    }
-    const rangeOptsL7 = {
-      xaxis: xaxisOpts,
-      yaxis: { min: 0, max: l7YMax },
+      // Let ApexCharts choose a suitable max based on the current data,
+      // while always anchoring the axis at zero so the graph remains readable.
+      yaxis: { min: 0 },
     }
 
     const applyHidden = (chartInstance) => {
@@ -552,52 +564,49 @@ const loadBandwidthSeries = async () => {
 
     if (nicRxChartInstance) {
       nicRxChartInstance.updateSeries(bandwidthNicRxSeries.value, true)
-      nicRxChartInstance.updateOptions(rangeOptsNic, false, true)
+      nicRxChartInstance.updateOptions(rangeOpts, false, true)
       applyHidden(nicRxChartInstance)
     }
     if (nicTxChartInstance) {
       nicTxChartInstance.updateSeries(bandwidthNicTxSeries.value, true)
-      nicTxChartInstance.updateOptions(rangeOptsNic, false, true)
+      nicTxChartInstance.updateOptions(rangeOpts, false, true)
       applyHidden(nicTxChartInstance)
     }
     if (l7RxChartInstance) {
       l7RxChartInstance.updateSeries(bandwidthL7RxSeries.value, true)
-      l7RxChartInstance.updateOptions(rangeOptsL7, false, true)
+      l7RxChartInstance.updateOptions(rangeOpts, false, true)
       applyHidden(l7RxChartInstance)
     }
     if (l7TxChartInstance) {
       l7TxChartInstance.updateSeries(bandwidthL7TxSeries.value, true)
-      l7TxChartInstance.updateOptions(rangeOptsL7, false, true)
+      l7TxChartInstance.updateOptions(rangeOpts, false, true)
       applyHidden(l7TxChartInstance)
     }
   } catch (error) {
+    // If a refresh fails, keep showing the last successfully loaded data and axis scale
+    // instead of clearing the series and collapsing the Y-axis.
     console.error('Failed to load bandwidth series', error)
-    bandwidthNicRxSeries.value = createEmptyBandwidthSeries()
-    bandwidthNicTxSeries.value = createEmptyBandwidthSeries()
-    bandwidthL7RxSeries.value = createEmptyBandwidthSeries()
-    bandwidthL7TxSeries.value = createEmptyBandwidthSeries()
-    latestValuesNicRx.value = bandwidthNicRxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
-    latestValuesNicTx.value = bandwidthNicTxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
-    latestValuesL7Rx.value = bandwidthL7RxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
-    latestValuesL7Tx.value = bandwidthL7TxSeries.value.map((s) => s.data[s.data.length - 1]?.y ?? 0)
-    const resetY = { yaxis: { min: 0, max: 10 } }
-    if (nicRxChartInstance) {
-      nicRxChartInstance.updateSeries(bandwidthNicRxSeries.value, true)
-      nicRxChartInstance.updateOptions(resetY, false, true)
-    }
-    if (nicTxChartInstance) {
-      nicTxChartInstance.updateSeries(bandwidthNicTxSeries.value, true)
-      nicTxChartInstance.updateOptions(resetY, false, true)
-    }
-    if (l7RxChartInstance) {
-      l7RxChartInstance.updateSeries(bandwidthL7RxSeries.value, true)
-      l7RxChartInstance.updateOptions(resetY, false, true)
-    }
-    if (l7TxChartInstance) {
-      l7TxChartInstance.updateSeries(bandwidthL7TxSeries.value, true)
-      l7TxChartInstance.updateOptions(resetY, false, true)
-    }
   }
+}
+
+const handleLayoutResize = () => {
+  // Fully refresh layout-sensitive charts when the surrounding layout changes
+  // (e.g. sidebar hide/show) so Apex recalculates widths and redraws correctly.
+  loadBandwidthSeries()
+  loadRequestResponseSeries()
+  loadStatusCodeSeries()
+
+  const resize = (instance) => {
+    if (!instance || typeof instance.resize !== 'function') return
+    instance.resize()
+  }
+
+  resize(nicRxChartInstance)
+  resize(nicTxChartInstance)
+  resize(l7RxChartInstance)
+  resize(l7TxChartInstance)
+  resize(requestResponseChartInstance)
+  resize(statusCodeChartInstance)
 }
 
 const updateRequestResponseAxis = () => {
@@ -611,7 +620,7 @@ const updateRequestResponseAxis = () => {
         range: rangeMs,
         min: Date.now() - rangeMs,
         max: Date.now(),
-        tickAmount: 36,
+        tickAmount: 24,
       },
     },
     false,
@@ -630,7 +639,7 @@ const updateStatusCodeAxis = () => {
         range: rangeMs,
         min: Date.now() - rangeMs,
         max: Date.now(),
-        tickAmount: 36,
+        tickAmount: 24,
       },
     },
     false,
@@ -751,7 +760,7 @@ const defaultBandwidthChartOptions = () => {
   return {
     chart: {
       type: 'line',
-      height: 280,
+      height: 320,
       animations: {
         enabled: true,
         easing: 'easeinout',
@@ -777,21 +786,20 @@ const defaultBandwidthChartOptions = () => {
       range: getBandwidthRangeMs(bandwidthRange.value),
       min: now - getBandwidthRangeMs(bandwidthRange.value),
       max: now,
-      tickAmount: 12,
+      tickAmount: 24,
     },
     yaxis: {
       min: 0,
-      max: 10,
       opposite: true,
       labels: {
-        formatter: (value) => `${Math.round(value)} Mbps`,
+        formatter: (value) => formatBandwidthValue(value),
         style: { colors: '#94a3b8', fontSize: '13px' },
       },
     },
     grid: { borderColor: 'rgba(148, 163, 184, 0.35)', strokeDashArray: 6 },
     tooltip: {
       x: { format: 'HH:mm:ss' },
-      y: { formatter: (value) => `${Math.round(value)} Mbps` },
+      y: { formatter: (value) => formatBandwidthValue(value) },
       theme: 'light',
     },
     legend: { show: false },
@@ -879,7 +887,7 @@ const createRequestResponseChart = () => {
       range: rangeMs,
       min: now - rangeMs,
       max: now,
-      tickAmount: 36,
+      tickAmount: 24,
     },
     yaxis: {
       opposite: true,
@@ -951,7 +959,7 @@ const createStatusCodeChart = () => {
       range: rangeMs,
       min: now - rangeMs,
       max: now,
-      tickAmount: 36,
+      tickAmount: 24,
     },
     yaxis: {
       opposite: true,
@@ -992,6 +1000,13 @@ onMounted(() => {
     loadRequestResponseSeries()
     loadStatusCodeSeries()
   }, trafficRefreshMs)
+
+  if (typeof window !== 'undefined' && 'ResizeObserver' in window && dashboardRoot.value) {
+    layoutResizeObserver = new ResizeObserver(() => {
+      handleLayoutResize()
+    })
+    layoutResizeObserver.observe(dashboardRoot.value)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -1025,6 +1040,11 @@ onBeforeUnmount(() => {
     statusCodeChartInstance.destroy()
     statusCodeChartInstance = null
   }
+  if (layoutResizeObserver && dashboardRoot.value) {
+    layoutResizeObserver.unobserve(dashboardRoot.value)
+    layoutResizeObserver.disconnect()
+    layoutResizeObserver = null
+  }
 })
 
 watch(bandwidthRange, () => {
@@ -1034,7 +1054,7 @@ watch(bandwidthRange, () => {
       range: rangeMs,
       min: Date.now() - rangeMs,
       max: Date.now(),
-      tickAmount: 20,
+      tickAmount: 24,
     },
   }
   if (nicRxChartInstance) nicRxChartInstance.updateOptions(rangeOpts, false, true)

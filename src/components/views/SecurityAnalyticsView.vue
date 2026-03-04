@@ -478,6 +478,9 @@ const renderBlockCountChart = () => {
       height: 400,
       toolbar: { show: false },
       animations: { enabled: true },
+      zoom: {
+        enabled: false,
+      },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
@@ -490,7 +493,7 @@ const renderBlockCountChart = () => {
       type: 'datetime',
       min: start.getTime(),
       max: end.getTime(),
-      tickAmount: 20,
+      tickAmount: 24,
     },
     yaxis: {
       labels: { formatter: (val) => `${Math.round(val)}` },
