@@ -1616,6 +1616,12 @@ const applyConfig = (config) => {
 
 const saveConfig = async () => {
   if (!props.serverId) return;
+
+  if (geoIpForm.value.enabled && (!geoIpForm.value.selectedCountries || geoIpForm.value.selectedCountries.length === 0)) {
+    notifications.enqueue("Please select at least one country for geo location protection.", "error");
+    return;
+  }
+  
   try {
     await updateL4Config(props.serverId, buildPayload());
     notifications.enqueue("L4 settings updated.", "success");
