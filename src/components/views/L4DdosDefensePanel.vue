@@ -1052,17 +1052,31 @@
           <div class="l4-form">
             <div class="l4-form-sections">
               <div class="l4-section">
-                <div class="l4-section-header">
-                  <h5>
-                    Allowed Countries
-                    <button
-                      type="button"
-                      class="tooltip-btn"
-                      title="Geo IP Check evaluates traffic by source region. Select countries that are allowed to reach this service."
+                <div class="l4-form-grid l4-geo-mode-row">
+                  <div class="l4-field l4-field--wide">
+                    <label for="geo-country-list-mode">
+                      Allowed / blocked countries
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Choose whether traffic from the selected countries is allowed (allowlist) or blocked (blocklist). Other regions follow the opposite rule."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <select
+                      id="geo-country-list-mode"
+                      v-model="geoIpForm.countryListMode"
+                      class="l4-input"
+                      :disabled="!geoIpForm.enabled"
                     >
-                      i
-                    </button>
-                  </h5>
+                      <option value="allow">Allowed countries</option>
+                      <option value="block">Blocked countries</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="l4-section-header">
+                  <h5>Select countries</h5>
                   <span class="selection-count">{{ geoIpForm.selectedCountries.length }} selected</span>
                 </div>
                 <div v-if="geoIpForm.selectedCountries.length" class="selected-countries">
@@ -1239,6 +1253,7 @@ const tcpDetailedForm = ref({
 });
 const geoIpForm = ref({
   enabled: true,
+  countryListMode: "allow",
   selectedCountries: ["United States", "Canada", "United Kingdom"],
   activeContinent: "North America",
   geoDbIpv4Path: "geodb/ipv4.csv",
@@ -1610,6 +1625,8 @@ const applyConfig = (config) => {
   geoIpForm.value.selectedCountries = Array.isArray(config.geoAllowCountries)
     ? config.geoAllowCountries
     : [];
+  geoIpForm.value.countryListMode =
+    config.geoCountriesBlockMode === true ? "block" : "allow";
 
   syncL4Options();
 };
@@ -1618,7 +1635,12 @@ const saveConfig = async () => {
   if (!props.serverId) return;
 
   if (geoIpForm.value.enabled && (!geoIpForm.value.selectedCountries || geoIpForm.value.selectedCountries.length === 0)) {
-    notifications.enqueue("Please select at least one country for geo location protection.", "error");
+    const modeLabel =
+      geoIpForm.value.countryListMode === "block" ? "blocked" : "allowed";
+    notifications.enqueue(
+      `Please select at least one ${modeLabel} country for geo location protection.`,
+      "error"
+    );
     return;
   }
   
@@ -1696,6 +1718,7 @@ const buildPayload = () => ({
   geoDbIpv4Path: geoIpForm.value.geoDbIpv4Path,
   geoDbLocationPath: geoIpForm.value.geoDbLocationPath,
   geoAllowCountries: [...geoIpForm.value.selectedCountries],
+  geoCountriesBlockMode: geoIpForm.value.countryListMode === "block",
   tcpConnectionLimitCheck: Boolean(tcpDetailedForm.value.connectionLimitEnabled),
   tcpConnectionLimitCnt: parseNumber(tcpDetailedForm.value.connectionLimit, 0)
 });
@@ -2002,6 +2025,14 @@ watch(
   flex-direction: column;
   gap: 6px;
   max-width: 220px;
+}
+
+.l4-field--wide {
+  max-width: min(100%, 320px);
+}
+
+.l4-geo-mode-row {
+  margin-bottom: 4px;
 }
 
 .l4-field label {
