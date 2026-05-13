@@ -11,6 +11,20 @@ export const fetchServers = async () => {
   return apiRequest('/servers')
 }
 
+/** Product versions from deploy_license (proxied by Go GET /api/v1/deploy-versions). */
+export const fetchDeployVersions = async () => {
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    return {
+      versions: [
+        { uuid: 'mock-uuid-1', version: '0.1.3', full_name: 'dorian-ddos-firewall-0.1.3', path: '/opt/mock' },
+        { uuid: 'mock-uuid-2', version: '0.1.2', full_name: 'dorian-ddos-firewall-0.1.2', path: '/opt/mock2' },
+      ],
+    }
+  }
+  return apiRequest('/api/v1/deploy-versions')
+}
+
 export const updateServerUsers = async (serverId, userIds) =>
   apiRequest(`/servers/${serverId}/users`, {
     method: 'PUT',
@@ -27,6 +41,31 @@ export const createServer = async (payload, extraHeaders = {}) => {
     opts.signal = AbortSignal.timeout(960_000)
   }
   return apiRequest('/servers', opts)
+}
+
+export const upgradeServer = async (serverId, body, extraHeaders = {}) => {
+  const opts = {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { ...extraHeaders },
+  }
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(960_000)
+  }
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    return {
+      id: Number(serverId),
+      name: 'Mock server',
+      ip: '127.0.0.1',
+      version: '0.99.0-mock',
+      serviceStatus: 'running',
+      statusLabel: 'Running',
+      statusClass: 'running',
+    }
+  }
+  return apiRequest(`/servers/${serverId}/upgrade`, opts)
 }
 
 export const updateServer = async (serverId, payload) =>

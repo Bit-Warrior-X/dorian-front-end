@@ -102,7 +102,7 @@
                     <button class="row-menu-item" @click="openEditServer(server)">
                       Edit
                     </button>
-                    <button class="row-menu-item" @click="requestUpgradeConfirm(server)">
+                    <button class="row-menu-item" @click="openUpgradeDialog(server)">
                       Upgrade
                     </button>
                     <button class="row-menu-item">License</button>
@@ -465,6 +465,83 @@
     @confirm="handleConfirmDialog"
     @cancel="clearConfirmDialog"
   />
+
+  <div
+    v-if="isUpgradeDialogOpen"
+    class="dialog-backdrop"
+    @click="!isLoadingUpgradeVersions && !isUpgradingServer && closeUpgradeDialog()"
+  >
+    <div
+      class="dialog-card"
+      :class="{ 'dialog-card--busy': isLoadingUpgradeVersions || isUpgradingServer }"
+      @click.stop
+    >
+      <div class="dialog-header">
+        <h3>Upgrade server</h3>
+        <button
+          class="dialog-close"
+          type="button"
+          aria-label="Close dialog"
+          @click="closeUpgradeDialog"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <p v-if="upgradeTargetServer" class="upgrade-server-line">
+          <strong>{{ upgradeTargetServer.name }}</strong>
+          <span class="muted-text">({{ upgradeTargetServer.ip }})</span>
+        </p>
+        <p class="muted-text upgrade-hint">
+          Select a Dorian product version. Current: {{ upgradeTargetServer?.version || '—' }}
+        </p>
+        <div v-if="isLoadingUpgradeVersions" class="dialog-deploy-status" role="status">
+          Loading available versions…
+        </div>
+        <div v-else-if="isUpgradingServer" class="dialog-deploy-status" role="status">
+          Upgrading remote server (this may take several minutes)…
+        </div>
+        <div v-else-if="upgradeVersionsError" class="upgrade-error">
+          {{ upgradeVersionsError }}
+        </div>
+        <div v-else-if="!upgradeVersions.length" class="muted-text">No versions available.</div>
+        <div v-else class="dialog-field">
+          <label for="upgrade-version-select">Version</label>
+          <select
+            id="upgrade-version-select"
+            v-model="selectedUpgradeVersionUuid"
+            class="upgrade-version-select"
+            :disabled="isUpgradingServer"
+          >
+            <option v-for="v in upgradeVersions" :key="v.uuid" :value="v.uuid">
+              {{ v.version }}
+            </option>
+          </select>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button
+          class="secondary-btn"
+          type="button"
+          :disabled="isLoadingUpgradeVersions || isUpgradingServer"
+          @click="closeUpgradeDialog"
+        >
+          Cancel
+        </button>
+        <button
+          class="primary-btn"
+          type="button"
+          :disabled="isLoadingUpgradeVersions || isUpgradingServer || !upgradeVersions.length"
+          @click="submitUpgradeVersionChoice"
+        >
+          Upgrade
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -473,6 +550,8 @@ import ConfirmDialog from '../ConfirmDialog.vue'
 import {
   createServer as createServerApi,
   fetchServers,
+  fetchDeployVersions,
+  upgradeServer,
   deleteServer,
   updateServer,
   updateServerUsers,
@@ -507,6 +586,14 @@ const editServer = ref({
 const isConfirmDialogOpen = ref(false)
 const confirmAction = ref(null)
 const confirmTarget = ref(null)
+
+const isUpgradeDialogOpen = ref(false)
+const isLoadingUpgradeVersions = ref(false)
+const isUpgradingServer = ref(false)
+const upgradeTargetServer = ref(null)
+const upgradeVersions = ref([])
+const upgradeVersionsError = ref('')
+const selectedUpgradeVersionUuid = ref('')
 const servers = ref([])
 const pageSize = ref(6)
 const currentPage = ref(1)
@@ -540,16 +627,12 @@ const filteredAvailableUsers = computed(() => {
 })
 
 const confirmTitle = computed(() => {
-  if (confirmAction.value === 'upgrade') return 'Upgrade server'
   if (confirmAction.value === 'delete') return 'Delete server'
   if (confirmAction.value === 'edit') return 'Server is modified'
   return 'Confirm action'
 })
 
 const confirmMessage = computed(() => {
-  if (confirmAction.value === 'upgrade') {
-    return 'Do you want to upgrade this server with latest version of our proxy service?'
-  }
   if (confirmAction.value === 'delete') {
     return 'Are you sure you want to delete this server? This action cannot be undone.'
   }
@@ -560,7 +643,6 @@ const confirmMessage = computed(() => {
 })
 
 const confirmConfirmText = computed(() => {
-  if (confirmAction.value === 'upgrade') return 'Upgrade'
   if (confirmAction.value === 'delete') return 'Delete'
   if (confirmAction.value === 'edit') return 'Apply'
   return 'Confirm'
@@ -796,7 +878,12 @@ const createServer = async () => {
       await nextTick()
       isNewServerDialogOpen.value = false
     } else {
-      enqueueNotification(error?.message || 'Failed to create server.', 'error')
+      const msg = error?.message || 'Failed to create server.'
+      enqueueNotification(msg, 'error')
+      isCreatingServer.value = false
+      await nextTick()
+      isNewServerDialogOpen.value = false
+      void loadServers()
     }
   } finally {
     isCreatingServer.value = false
@@ -810,11 +897,58 @@ const requestEditConfirm = () => {
   isConfirmDialogOpen.value = true
 }
 
-const requestUpgradeConfirm = (server) => {
-  confirmAction.value = 'upgrade'
-  confirmTarget.value = server
-  isConfirmDialogOpen.value = true
+const closeUpgradeDialog = () => {
+  isUpgradeDialogOpen.value = false
+  upgradeTargetServer.value = null
+  upgradeVersions.value = []
+  upgradeVersionsError.value = ''
+  selectedUpgradeVersionUuid.value = ''
+  isUpgradingServer.value = false
+}
+
+const openUpgradeDialog = async (server) => {
   activeRowMenu.value = null
+  upgradeTargetServer.value = server
+  upgradeVersions.value = []
+  upgradeVersionsError.value = ''
+  selectedUpgradeVersionUuid.value = ''
+  isUpgradeDialogOpen.value = true
+  isLoadingUpgradeVersions.value = true
+  try {
+    const data = await fetchDeployVersions()
+    const list = Array.isArray(data?.versions) ? data.versions : []
+    upgradeVersions.value = list
+    if (list.length) {
+      selectedUpgradeVersionUuid.value = list[0].uuid
+    }
+  } catch (error) {
+    const msg = error?.message || 'Failed to load versions from deploy_license.'
+    upgradeVersionsError.value = msg
+    enqueueNotification(msg, 'error')
+  } finally {
+    isLoadingUpgradeVersions.value = false
+  }
+}
+
+const submitUpgradeVersionChoice = async () => {
+  const server = upgradeTargetServer.value
+  const uuid = selectedUpgradeVersionUuid.value
+  const v = upgradeVersions.value.find((item) => item.uuid === uuid)
+  if (!server || !uuid || !v) {
+    enqueueNotification('Please select a version.', 'error')
+    return
+  }
+  isUpgradingServer.value = true
+  try {
+    await upgradeServer(server.id, { versionUuid: uuid })
+    enqueueNotification(`Server ${server.name} upgraded to version ${v.version}.`, 'success')
+    closeUpgradeDialog()
+    void loadServers()
+  } catch (error) {
+    enqueueNotification(error?.message || 'Upgrade failed.', 'error')
+  } finally {
+    isUpgradingServer.value = false
+  }
 }
 
 const requestDeleteConfirm = (server) => {
@@ -863,8 +997,6 @@ const applyEditServer = async () => {
 const handleConfirmDialog = async () => {
   if (confirmAction.value === 'edit') {
     await applyEditServer()
-  } else if (confirmAction.value === 'upgrade') {
-    handleUpgradeServer()
   } else if (confirmAction.value === 'delete') {
     handleDeleteServer()
   }
@@ -875,11 +1007,6 @@ const clearConfirmDialog = () => {
   isConfirmDialogOpen.value = false
   confirmAction.value = null
   confirmTarget.value = null
-}
-
-const handleUpgradeServer = () => {
-  if (!confirmTarget.value) return
-  // Placeholder for upgrade action; integrate API call here when available.
 }
 
 const handleDeleteServer = async () => {
@@ -1082,6 +1209,39 @@ const nextPage = () => {
   color: #4338ca;
   font-size: 0.9rem;
   line-height: 1.45;
+}
+
+.upgrade-server-line {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.upgrade-hint {
+  margin: 0 0 16px 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.upgrade-error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.upgrade-version-select {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  font-size: 0.92rem;
+  color: #1f2937;
+  background: #fff;
 }
 
 .btn-spinner {
