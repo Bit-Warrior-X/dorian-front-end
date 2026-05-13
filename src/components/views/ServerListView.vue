@@ -136,18 +136,25 @@
   <div
     v-if="isNewServerDialogOpen"
     class="dialog-backdrop"
-    @click="closeNewServerDialog"
+    @click="!isCreatingServer && closeNewServerDialog()"
   >
-    <div class="dialog-card" @click.stop>
+    <div class="dialog-card" :class="{ 'dialog-card--busy': isCreatingServer }" @click.stop>
       <div class="dialog-header">
         <h3>New Server</h3>
-        <button class="dialog-close" @click="closeNewServerDialog" aria-label="Close dialog">
+        <button
+          class="dialog-close"
+          type="button"
+          :disabled="isCreatingServer"
+          @click="closeNewServerDialog"
+          aria-label="Close dialog"
+        >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
+      <form class="new-server-dialog-form" @submit.prevent="createServer">
       <div class="dialog-body">
         <div class="dialog-section">
           <h4>Basic Setting</h4>
@@ -158,6 +165,7 @@
                 id="new-server-name"
                 v-model="newServer.name"
                 type="text"
+                autocomplete="off"
                 placeholder="Enter server name"
               />
             </div>
@@ -294,10 +302,29 @@
           </div>
         </div>
       </div>
+      <p v-if="isCreatingServer" class="dialog-deploy-status" role="status">
+        <span class="btn-spinner btn-spinner--inline" aria-hidden="true"></span>
+        Deploying package to the target host… This may take a minute.
+      </p>
       <div class="dialog-footer">
-        <button class="secondary-btn" @click="closeNewServerDialog">Cancel</button>
-        <button class="primary-btn" @click="createServer">Create</button>
+        <button
+          class="secondary-btn"
+          type="button"
+          :disabled="isCreatingServer"
+          @click="closeNewServerDialog"
+        >
+          Cancel
+        </button>
+        <button
+          class="primary-btn"
+          type="submit"
+          :disabled="isCreatingServer"
+        >
+          <span v-if="isCreatingServer" class="btn-spinner" aria-hidden="true"></span>
+          {{ isCreatingServer ? 'Creating…' : 'Create' }}
+        </button>
       </div>
+      </form>
     </div>
   </div>
 
@@ -441,7 +468,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import {
   createServer as createServerApi,
@@ -453,7 +480,11 @@ import {
 import { fetchUsers } from '@/api/users'
 import { useAuth } from '@/stores/auth'
 
+/** Synchronous guard: reactive isCreatingServer can still allow parallel createServer() in the same tick. */
+let createServerSyncLock = false
+
 const isNewServerDialogOpen = ref(false)
+const isCreatingServer = ref(false)
 const auth = useAuth()
 const notifications = ref([])
 const allUsers = ref([])
@@ -573,6 +604,7 @@ const openNewServerDialog = () => {
 }
 
 const closeNewServerDialog = () => {
+  if (isCreatingServer.value) return
   isNewServerDialogOpen.value = false
 }
 
@@ -678,6 +710,7 @@ watch(
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutsideMenu)
+  createServerSyncLock = false
 })
 
 const openLicensePicker = () => {
@@ -710,11 +743,21 @@ const formatDate = (date) =>
   date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
 
 const createServer = async () => {
+  if (createServerSyncLock) return
+  createServerSyncLock = true
+  isCreatingServer.value = true
+  const idempotencyKey =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const payload = {
     name: newServer.value.name?.trim() || '',
     ip: newServer.value.ip?.trim() || '',
     status: 'Normal',
-    licenseType: licenseOption.value === 'trial' ? 'Trial' : 'Enterprise',
+    licenseType:
+      licenseOption.value === 'trial'
+        ? 'Trial'
+        : 'Enterprise', // existing file: UI label; Go maps Enterprise → paid for deploy_license
     licenseFile: licenseFileName.value || '',
     version: '',
     sshUser: newServer.value.username?.trim() || '',
@@ -724,13 +767,40 @@ const createServer = async () => {
   }
 
   try {
-    await createServerApi(payload)
-    await loadServers()
-    enqueueNotification('Server created successfully.', 'success')
+    const created = await createServerApi(payload, { 'Idempotency-Key': idempotencyKey })
+    const detailParts = []
+    if (created?.license) detailParts.push(`license: ${created.license}`)
+    if (created?.version) detailParts.push(`version: ${created.version}`)
+    if (created?.expiredDate) detailParts.push(`expires: ${created.expiredDate}`)
+    const detail = detailParts.length ? ` ${detailParts.join(' · ')}` : ''
+    enqueueNotification(`Server created successfully.${detail}`, 'success')
     currentPage.value = 1
-    closeNewServerDialog()
+    // Clear busy state before closing so the dialog is not stuck behind pointer-events: none.
+    isCreatingServer.value = false
+    await nextTick()
+    isNewServerDialogOpen.value = false
+    void loadServers()
   } catch (error) {
-    enqueueNotification(error?.message || 'Failed to create server.', 'error')
+    const isAbort =
+      error?.name === 'AbortError' ||
+      (typeof DOMException !== 'undefined' &&
+        error instanceof DOMException &&
+        (error.name === 'TimeoutError' || error.name === 'AbortError'))
+    if (isAbort) {
+      enqueueNotification(
+        'The create request timed out in the browser, but the server may already have created it. Refreshing the list.',
+        'error'
+      )
+      void loadServers()
+      isCreatingServer.value = false
+      await nextTick()
+      isNewServerDialogOpen.value = false
+    } else {
+      enqueueNotification(error?.message || 'Failed to create server.', 'error')
+    }
+  } finally {
+    isCreatingServer.value = false
+    createServerSyncLock = false
   }
 }
 
@@ -945,6 +1015,10 @@ const nextPage = () => {
 }
 
 .primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
   color: white;
   border: none;
@@ -960,6 +1034,81 @@ const nextPage = () => {
 .primary-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 20px rgba(22, 163, 74, 0.3);
+}
+
+.primary-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+}
+
+.primary-btn:disabled:hover {
+  transform: none;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+}
+
+.secondary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dialog-close:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dialog-card--busy {
+  pointer-events: none;
+}
+
+.new-server-dialog-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+}
+
+.dialog-deploy-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(102, 126, 234, 0.08);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  color: #4338ca;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.btn-spinner {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+}
+
+.btn-spinner--inline {
+  border-color: rgba(67, 56, 202, 0.25);
+  border-top-color: #4338ca;
+  margin-top: 2px;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.primary-btn:disabled:hover {
+  transform: none;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
 }
 
 .filter-bar {
@@ -1111,6 +1260,21 @@ const nextPage = () => {
 .status-pill.maintenance {
   background: rgba(245, 158, 11, 0.18);
   color: #b45309;
+}
+
+.status-pill.running {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.status-pill.deployed {
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.status-pill.stopped {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
 }
 
 .server-users {

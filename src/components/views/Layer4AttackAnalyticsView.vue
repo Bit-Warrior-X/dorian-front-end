@@ -667,13 +667,13 @@ const renderProtocolChart = () => {
     },
     yaxis: {
       labels: {
-        formatter: (val) => formatNumber(val),
+        formatter: (val) => formatThroughput(val),
       },
     },
     grid: { borderColor: 'rgba(148, 163, 184, 0.2)' },
     tooltip: {
       x: { format: 'yyyy/MM/dd HH:mm' },
-      y: { formatter: (val) => formatNumber(val) },
+      y: { formatter: (val) => formatThroughput(val) },
     },
     legend: {
       position: 'top',

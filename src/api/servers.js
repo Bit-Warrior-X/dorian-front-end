@@ -17,11 +17,17 @@ export const updateServerUsers = async (serverId, userIds) =>
     body: JSON.stringify({ userIds }),
   })
 
-export const createServer = async (payload) =>
-  apiRequest('/servers', {
+export const createServer = async (payload, extraHeaders = {}) => {
+  const opts = {
     method: 'POST',
     body: JSON.stringify(payload),
-  })
+    headers: { ...extraHeaders },
+  }
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(960_000)
+  }
+  return apiRequest('/servers', opts)
+}
 
 export const updateServer = async (serverId, payload) =>
   apiRequest(`/servers/${serverId}`, {
