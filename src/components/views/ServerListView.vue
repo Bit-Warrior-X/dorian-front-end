@@ -38,9 +38,10 @@
           <label for="license-filter">License Type</label>
           <select id="license-filter">
             <option value="">All</option>
-            <option value="enterprise">Enterprise</option>
-            <option value="professional">Professional</option>
-            <option value="trial">Trial</option>
+            <option value="Trial">Trial</option>
+            <option value="L4">L4</option>
+            <option value="L7">L7</option>
+            <option value="Unified">Unified</option>
           </select>
         </div>
       </div>
@@ -265,40 +266,54 @@
         <div class="dialog-section">
           <h4>License management</h4>
           <div class="license-options">
-            <label class="radio-option">
+            <label
+              v-for="tier in licenseTiers"
+              :key="tier"
+              class="radio-option"
+            >
               <input
                 type="radio"
-                name="license-management"
-                value="trial"
-                v-model="licenseOption"
+                name="license-tier"
+                :value="tier"
+                v-model="licenseTier"
+                @change="onLicenseTierChange"
               />
-              <span>Trial</span>
-            </label>
-            <label class="radio-option">
-              <input
-                type="radio"
-                name="license-management"
-                value="existing"
-                v-model="licenseOption"
-                @change="openLicensePicker"
-              />
-              <span>Load existing license file</span>
+              <span>{{ tier }}</span>
             </label>
           </div>
-          <div v-if="licenseOption === 'existing'" class="license-file">
-            <input
-              ref="licenseInput"
-              type="file"
-              class="license-input"
-              accept=".lic,.txt"
-              @change="handleLicenseFile"
-            />
-            <button class="secondary-btn" type="button" @click="openLicensePicker">
-              Choose file
-            </button>
-            <span class="license-path">
-              {{ licenseFileName ? licenseFileName : 'No file selected' }}
-            </span>
+          <p class="license-tier-hint">
+            <template v-if="licenseTier === 'Trial'">
+              A new 3-day trial license will be generated and bound to the target host.
+            </template>
+            <template v-else>
+              A new {{ licenseTier }} license (365 days) will be generated for the target host.
+              Optionally load an existing license file to reuse it instead.
+            </template>
+          </p>
+          <div v-if="licenseTier !== 'Trial'" class="license-existing-row">
+            <label class="checkbox-option">
+              <input
+                type="checkbox"
+                v-model="useExistingLicense"
+                @change="onUseExistingLicenseChange"
+              />
+              <span>Load existing license file instead of generating</span>
+            </label>
+            <div v-if="useExistingLicense" class="license-file">
+              <input
+                ref="licenseInput"
+                type="file"
+                class="license-input"
+                accept=".lic,.txt"
+                @change="handleLicenseFile"
+              />
+              <button class="secondary-btn" type="button" @click="openLicensePicker">
+                Choose file
+              </button>
+              <span class="license-path">
+                {{ licenseFileName ? licenseFileName : 'No file selected' }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -569,7 +584,9 @@ const notifications = ref([])
 const allUsers = ref([])
 const selectedUsers = ref([])
 const isUserDropdownOpen = ref(false)
-const licenseOption = ref('trial')
+const licenseTiers = ['Trial', 'L4', 'L7', 'Unified']
+const licenseTier = ref('Trial')
+const useExistingLicense = ref(false)
 const licenseFileName = ref('')
 const licenseInput = ref(null)
 const userSearch = ref('')
@@ -670,7 +687,8 @@ const openNewServerDialog = () => {
   selectedUsers.value = []
   userSearch.value = ''
   isUserDropdownOpen.value = false
-  licenseOption.value = 'trial'
+  licenseTier.value = 'Trial'
+  useExistingLicense.value = false
   licenseFileName.value = ''
   newServer.value = {
     name: '',
@@ -797,13 +815,30 @@ onBeforeUnmount(() => {
 
 const openLicensePicker = () => {
   if (!licenseInput.value) return
-  licenseOption.value = 'existing'
+  useExistingLicense.value = true
   licenseInput.value.click()
 }
 
 const handleLicenseFile = (event) => {
   const file = event.target.files?.[0]
   licenseFileName.value = file ? file.name : ''
+}
+
+// When the tier switches back to Trial, clear any previously picked file
+// so the next submit does not accidentally carry an L4/L7/Unified selection.
+const onLicenseTierChange = () => {
+  if (licenseTier.value === 'Trial') {
+    useExistingLicense.value = false
+    licenseFileName.value = ''
+  }
+}
+
+const onUseExistingLicenseChange = () => {
+  if (!useExistingLicense.value) {
+    licenseFileName.value = ''
+  } else {
+    openLicensePicker()
+  }
 }
 
 const enqueueNotification = (message, type = 'success') => {
@@ -836,11 +871,15 @@ const createServer = async () => {
     name: newServer.value.name?.trim() || '',
     ip: newServer.value.ip?.trim() || '',
     status: 'Normal',
-    licenseType:
-      licenseOption.value === 'trial'
-        ? 'Trial'
-        : 'Enterprise', // existing file: UI label; Go maps Enterprise → paid for deploy_license
-    licenseFile: licenseFileName.value || '',
+    // licenseType: one of 'Trial' | 'L4' | 'L7' | 'Unified'.
+    // The Go backend lowercases this and forwards it to deploy_license as license_type.
+    licenseType: licenseTier.value,
+    // licenseFile is only meaningful for non-Trial tiers when the user opted to reuse
+    // an existing license. The Go backend forwards it as license_string to deploy_license.
+    licenseFile:
+      licenseTier.value !== 'Trial' && useExistingLicense.value
+        ? licenseFileName.value || ''
+        : '',
     version: '',
     sshUser: newServer.value.username?.trim() || '',
     sshPassword: newServer.value.password?.trim() || '',
@@ -1727,21 +1766,39 @@ const nextPage = () => {
 
 .license-options {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
-.radio-option {
+.radio-option,
+.checkbox-option {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 0.95rem;
   color: #1f2937;
+  cursor: pointer;
 }
 
-.radio-option input {
+.radio-option input,
+.checkbox-option input {
   width: 16px;
   height: 16px;
+}
+
+.license-tier-hint {
+  margin: 0 0 12px 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.license-existing-row {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.4);
 }
 
 .license-file {
