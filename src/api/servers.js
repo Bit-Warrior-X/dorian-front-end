@@ -68,6 +68,33 @@ export const upgradeServer = async (serverId, body, extraHeaders = {}) => {
   return apiRequest(`/servers/${serverId}/upgrade`, opts)
 }
 
+/** Regenerate license tier via deploy_license POST /upgrade_license (proxied by Go POST /servers/:id/upgrade-license). */
+export const upgradeServerLicense = async (serverId, body, extraHeaders = {}) => {
+  const opts = {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { ...extraHeaders },
+  }
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(960_000)
+  }
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    return {
+      id: Number(serverId),
+      name: 'Mock server',
+      license: body?.licenseType || 'Trial',
+      version: '0.99.0-mock',
+      serviceStatus: 'deployed',
+      statusLabel: 'Deployed',
+      statusClass: 'deployed',
+      expiredDate: new Date(Date.now() + 86400000).toISOString(),
+    }
+  }
+  return apiRequest(`/servers/${serverId}/upgrade-license`, opts)
+}
+
 export const updateServer = async (serverId, payload) =>
   apiRequest(`/servers/${serverId}`, {
     method: 'PUT',

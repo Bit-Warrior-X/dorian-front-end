@@ -39,6 +39,19 @@
           <L4DdosDefensePanel v-if="activeTab === 'l4-ddos'" :server-id="selectedServer" />
           <WafPanel v-else-if="activeTab === 'waf'" :server-id="selectedServer" />
           <UpstreamServersPanel v-else-if="activeTab === 'upstream'" :server-id="selectedServer" />
+          <div v-else-if="activeTab === 'license' && selectedServerData" class="license-tab-body">
+            <p class="license-tab-lead">
+              Choose a new plan for <strong>{{ selectedServerData.name || selectedServerData.ip }}</strong>.
+              Current tier: <strong>{{ selectedServerData.license || '—' }}</strong>.
+              Applying generates a new license on the deploy service and runs a license-only remote deploy.
+            </p>
+            <LicenseTierUpgradePanel
+              :server="selectedServerData"
+              :show-cancel="false"
+              ok-label="OK"
+              @success="onLicenseTierSuccess"
+            />
+          </div>
           <table v-else class="config-table">
             <thead>
               <tr>
@@ -67,12 +80,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import { fetchServers } from "@/api/servers";
+import { useNotifications } from "@/stores/notifications";
 import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
 import WafPanel from "./WafPanel.vue";
 import UpstreamServersPanel from "./UpstreamServersPanel.vue";
+import LicenseTierUpgradePanel from "../LicenseTierUpgradePanel.vue";
 
+const route = useRoute();
+const notifications = useNotifications();
 const serverOptions = ref([]);
 const selectedServer = ref("");
 const selectedServerData = computed(() =>
@@ -144,6 +162,11 @@ const tabs = [
     ]
   },
   {
+    id: "license",
+    label: "License",
+    rows: []
+  },
+  {
     id: "info",
     label: "Server Information",
     rows: getServerInfoRows()
@@ -154,12 +177,40 @@ const activeTab = ref(tabs[0].id);
 const activeConfigRows = computed(() => {
   const active = tabs.find((tab) => tab.id === activeTab.value);
   if (!active) return [];
+  if (active.id === "license") return [];
   if (active.id !== "info") return active.rows;
   return getServerInfoRows();
 });
 
+const applyRouteQuery = () => {
+  const raw = route.query.server;
+  if (raw != null && String(raw).trim() !== "") {
+    const id = Number(raw);
+    if (!Number.isNaN(id)) {
+      selectedServer.value = id;
+    }
+  }
+  if (String(route.query.tab || "").toLowerCase() === "license") {
+    activeTab.value = "license";
+  }
+};
+
+const onLicenseTierSuccess = async (updated) => {
+  await loadServers();
+  notifications.enqueue(`License updated to ${updated?.license || "new tier"}.`, "success");
+};
+
+watch(
+  () => route.fullPath,
+  () => {
+    applyRouteQuery();
+  }
+);
+
 onMounted(() => {
-  void loadServers();
+  void loadServers().then(() => {
+    applyRouteQuery();
+  });
 });
 </script>
 
@@ -356,6 +407,17 @@ onMounted(() => {
   margin: 0;
   color: #4a5568;
   font-size: 0.98rem;
+}
+
+.license-tab-body {
+  padding: 8px 4px 4px;
+}
+
+.license-tab-lead {
+  margin: 0 0 18px;
+  font-size: 0.95rem;
+  color: #475569;
+  line-height: 1.55;
 }
 </style>
 

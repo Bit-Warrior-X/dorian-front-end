@@ -106,7 +106,9 @@
                     <button class="row-menu-item" @click="openUpgradeDialog(server)">
                       Upgrade
                     </button>
-                    <button class="row-menu-item">License</button>
+                    <button class="row-menu-item" @click="openLicenseUpgradeDialog(server)">
+                      License
+                    </button>
                     <button class="row-menu-item danger" @click="requestDeleteConfirm(server)">
                       Delete
                     </button>
@@ -557,11 +559,58 @@
       </div>
     </div>
   </div>
+
+  <div
+    v-if="isLicenseUpgradeDialogOpen"
+    class="dialog-backdrop"
+    @click="!isLicenseUpgrading && closeLicenseUpgradeDialog()"
+  >
+    <div
+      class="dialog-card"
+      :class="{ 'dialog-card--busy': isLicenseUpgrading }"
+      @click.stop
+    >
+      <div class="dialog-header">
+        <h3>Change license type</h3>
+        <button
+          class="dialog-close"
+          type="button"
+          aria-label="Close dialog"
+          :disabled="isLicenseUpgrading"
+          @click="closeLicenseUpgradeDialog"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="dialog-body">
+        <p v-if="licenseUpgradeTarget" class="upgrade-server-line">
+          <strong>{{ licenseUpgradeTarget.name }}</strong>
+          <span class="muted-text">({{ licenseUpgradeTarget.ip }})</span>
+        </p>
+        <p class="muted-text upgrade-hint">
+          Current license: <strong>{{ licenseUpgradeTarget?.license || '—' }}</strong>
+        </p>
+        <LicenseTierUpgradePanel
+          v-if="licenseUpgradeTarget"
+          :server="licenseUpgradeTarget"
+          :intro="''"
+          ok-label="OK"
+          @pending="isLicenseUpgrading = $event"
+          @close="closeLicenseUpgradeDialog"
+          @success="onLicenseUpgradeSuccess"
+        />
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import LicenseTierUpgradePanel from '../LicenseTierUpgradePanel.vue'
 import {
   createServer as createServerApi,
   fetchServers,
@@ -611,6 +660,9 @@ const upgradeTargetServer = ref(null)
 const upgradeVersions = ref([])
 const upgradeVersionsError = ref('')
 const selectedUpgradeVersionUuid = ref('')
+const isLicenseUpgradeDialogOpen = ref(false)
+const licenseUpgradeTarget = ref(null)
+const isLicenseUpgrading = ref(false)
 const servers = ref([])
 const pageSize = ref(6)
 const currentPage = ref(1)
@@ -988,6 +1040,29 @@ const submitUpgradeVersionChoice = async () => {
   } finally {
     isUpgradingServer.value = false
   }
+}
+
+const closeLicenseUpgradeDialog = () => {
+  if (isLicenseUpgrading.value) return
+  isLicenseUpgradeDialogOpen.value = false
+  licenseUpgradeTarget.value = null
+  isLicenseUpgrading.value = false
+}
+
+const openLicenseUpgradeDialog = (server) => {
+  activeRowMenu.value = null
+  licenseUpgradeTarget.value = server
+  isLicenseUpgrading.value = false
+  isLicenseUpgradeDialogOpen.value = true
+}
+
+const onLicenseUpgradeSuccess = async (updated) => {
+  const label = updated?.license || 'new tier'
+  enqueueNotification(`License updated to ${label}.`, 'success')
+  isLicenseUpgrading.value = false
+  isLicenseUpgradeDialogOpen.value = false
+  licenseUpgradeTarget.value = null
+  void loadServers()
 }
 
 const requestDeleteConfirm = (server) => {
