@@ -346,52 +346,37 @@ onMounted(() => {
 .users-view {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-gap-lg, 14px);
 }
 
 .users-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  padding: var(--space-card, 14px 16px);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 28px;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-gap-lg, 14px);
 }
 
 .card-header h2 {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #1a202c 0%, #4a5568 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--app-heading);
   margin: 0;
   letter-spacing: -0.5px;
 }
 
 .add-button {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.add-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+  /* colors from theme.css */
 }
 
 .users-table {
@@ -404,29 +389,29 @@ table {
 }
 
 thead {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  background: var(--app-surface-muted);
 }
 
 th {
-  padding: 16px;
+  padding: 12px 14px;
   text-align: left;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 2px solid #e5e7eb;
-  letter-spacing: 0.5px;
+  color: var(--app-text-muted);
+  border-bottom: 2px solid var(--app-border-strong);
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 td {
-  padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
-  color: #1a202c;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--app-border-strong);
+  color: var(--app-text);
   transition: background 0.2s;
 }
 
 tbody tr:hover {
-  background: rgba(102, 126, 234, 0.02);
+  background: var(--app-surface-hover);
 }
 
 .badge {
@@ -464,7 +449,7 @@ tbody tr:hover {
 }
 
 .muted-text {
-  color: #94a3b8;
+  color: var(--app-text-muted);
   font-size: 0.85rem;
 }
 
@@ -479,9 +464,9 @@ tbody tr:hover {
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #1e3a8a;
-  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-  border: 1px solid rgba(165, 180, 252, 0.7);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
+  border: 1px solid var(--app-border);
 }
 
 .actions {
@@ -491,14 +476,8 @@ tbody tr:hover {
 }
 
 .action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: var(--app-surface-hover);
+  border: 1px solid var(--app-border-strong);
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
@@ -506,9 +485,7 @@ tbody tr:hover {
 }
 
 .action-btn:hover {
-  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--app-border-strong);
 }
 
 .action-btn svg {
@@ -549,7 +526,8 @@ tbody tr:hover {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--app-overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -560,10 +538,10 @@ tbody tr:hover {
 .dialog-card {
   width: 100%;
   max-width: 560px;
-  background: white;
+  background: var(--app-surface-solid);
   border-radius: 18px;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 24px 48px var(--app-shadow);
+  border: 1px solid var(--app-border-strong);
   padding: 24px;
 }
 
@@ -582,13 +560,13 @@ tbody tr:hover {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .dialog-close {
   border: none;
-  background: rgba(148, 163, 184, 0.15);
-  color: #475569;
+  background: var(--app-surface-hover);
+  color: var(--app-text-muted);
   width: 32px;
   height: 32px;
   border-radius: 10px;
@@ -600,13 +578,13 @@ tbody tr:hover {
 }
 
 .dialog-close:hover {
-  background: rgba(148, 163, 184, 0.25);
-  color: #1f2937;
+  background: var(--app-border-strong);
+  color: var(--app-text);
 }
 
 .dialog-text {
   margin: 4px 0 16px;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-size: 0.95rem;
 }
 
@@ -628,18 +606,18 @@ tbody tr:hover {
 
 .dialog-field label {
   font-size: 0.85rem;
-  color: #718096;
+  color: var(--app-text-muted);
   font-weight: 500;
 }
 
 .dialog-field input,
 .dialog-field select {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.9rem;
-  color: #1f2937;
-  background: #fff;
+  color: var(--app-text);
+  background: var(--app-input-bg);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -655,28 +633,28 @@ tbody tr:hover {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-muted);
   font-size: 0.85rem;
-  color: #1f2937;
+  color: var(--app-text);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .server-option input {
-  accent-color: #6366f1;
+  accent-color: var(--app-accent);
 }
 
 .server-option:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  background: rgba(224, 231, 255, 0.45);
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
 .dialog-field input:focus,
 .dialog-field select:focus {
   outline: none;
-  border-color: rgba(99, 102, 241, 0.7);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .dialog-actions {
@@ -687,54 +665,51 @@ tbody tr:hover {
 }
 
 .ghost-btn {
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: white;
-  color: #475569;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-hover);
+  color: var(--app-text-secondary);
   transition: all 0.2s ease;
 }
 
 .ghost-btn:hover {
-  border-color: rgba(148, 163, 184, 0.6);
-  color: #1f2937;
-  background: rgba(226, 232, 240, 0.35);
+  border-color: var(--app-border-strong);
+  color: var(--app-text);
+  background: var(--app-border-strong);
 }
 
-.danger-btn {
-  border: none;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
-  padding: 10px 18px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
-  transition: all 0.2s ease;
-}
-
-.danger-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.4);
-}
-
+.danger-btn,
 .primary-btn {
-  border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 10px 18px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.35);
-  transition: all 0.2s ease;
+  /* colors from theme.css */
 }
 
-.primary-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.4);
+[data-theme='dark'] .badge.admin {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+[data-theme='dark'] .badge.user {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .badge.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+
+[data-theme='dark'] .badge.pending {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+[data-theme='dark'] .badge.blocked {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+[data-theme='dark'] .action-btn--delete,
+[data-theme='dark'] .action-btn--block {
+  color: var(--app-btn-danger-bg);
 }
 </style>
 

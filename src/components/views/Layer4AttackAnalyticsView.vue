@@ -42,10 +42,7 @@
         </div>
       </div>
     </div>
-    <div class="view-card">
-      <h2>Layer 4 Attack Analytics</h2>
-      
-      <div class="attack-stats">
+    <div class="attack-stats">
         <div class="attack-stat-card">
           <div class="attack-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -90,7 +87,7 @@
         </div>
       </div>
 
-      <div class="attack-charts">
+    <div class="attack-charts">
         <div class="attack-chart-card attack-chart-card--single">
           <div class="chart-header">
             <h3>Allowed vs Blocked Traffic by Time</h3>
@@ -109,7 +106,7 @@
         </div>
       </div>
       
-      <div class="attack-table-grid">
+    <div class="attack-table-grid">
         <div class="attack-chart-card attack-table-card--scroll">
           <h3>Recent Attack Attempts</h3>
           <div class="attack-table-scroll">
@@ -177,7 +174,6 @@
           </div>
         </div>
       </div>
-    </div>
     <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
       <div class="dialog-content">
         <div class="dialog-header">
@@ -249,6 +245,43 @@ import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchServers } from '@/api/servers'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { useNotifications } from '@/stores/notifications'
+
+const chartGridColor = () => {
+  if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() ||
+    'rgba(148, 163, 184, 0.2)'
+  )
+}
+
+const chartLabelColor = () => {
+  if (typeof document === 'undefined') return '#64748b'
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue('--chart-label').trim() ||
+    '#64748b'
+  )
+}
+
+const chartTooltipTheme = () =>
+  typeof document !== 'undefined' &&
+  document.documentElement.getAttribute('data-theme') === 'dark'
+    ? 'dark'
+    : 'light'
+
+const chartDatetimeXaxis = () => ({
+  type: 'datetime',
+  tickAmount: 6,
+  axisBorder: { show: true, color: chartGridColor() },
+  axisTicks: { show: true, color: chartGridColor() },
+  labels: {
+    show: true,
+    datetimeUTC: false,
+    format: 'HH:mm',
+    hideOverlappingLabels: false,
+    rotate: 0,
+    style: { colors: chartLabelColor(), fontSize: '11px' },
+  },
+})
 
 const notifications = useNotifications()
 
@@ -568,6 +601,7 @@ const renderTrafficChart = () => {
       height: 420,
       toolbar: { show: false },
       animations: { enabled: true },
+      foreColor: chartLabelColor(),
       zoom: { enabled: false },
       selection: { enabled: false },
       pan: { enabled: false },
@@ -576,27 +610,18 @@ const renderTrafficChart = () => {
     stroke: { curve: 'smooth', width: 2 },
     colors: ['#10b981', '#ef4444'],
     xaxis: {
-      type: 'datetime',
+      ...chartDatetimeXaxis(),
       ...(hasPoints && { min: minX, max: maxX }),
-      tickAmount: 6,
-      axisBorder: { show: true, color: '#e2e8f0' },
-      axisTicks: { show: true, color: '#e2e8f0' },
-      labels: {
-        show: true,
-        datetimeUTC: false,
-        format: 'HH:mm',
-        hideOverlappingLabels: false,
-        rotate: 0,
-        style: { colors: '#64748b', fontSize: '11px' },
-      },
     },
     yaxis: {
       labels: {
+        style: { colors: chartLabelColor() },
         formatter: (val) => formatThroughput(val),
       },
     },
-    grid: { borderColor: 'rgba(148, 163, 184, 0.2)' },
+    grid: { borderColor: chartGridColor() },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: { formatter: (val) => formatThroughput(val) },
     },
@@ -604,6 +629,7 @@ const renderTrafficChart = () => {
       position: 'top',
       horizontalAlign: 'left',
       fontSize: '12px',
+      labels: { colors: chartLabelColor() },
     },
     series: [
       { name: 'Allowed', data: allowedSeries },
@@ -643,6 +669,7 @@ const renderProtocolChart = () => {
       height: 420,
       toolbar: { show: false },
       animations: { enabled: true },
+      foreColor: chartLabelColor(),
       zoom: { enabled: false },
       selection: { enabled: false },
       pan: { enabled: false },
@@ -651,27 +678,18 @@ const renderProtocolChart = () => {
     stroke: { curve: 'smooth', width: 2 },
     colors: ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#64748b'],
     xaxis: {
-      type: 'datetime',
+      ...chartDatetimeXaxis(),
       ...(hasPoints && { min: minX, max: maxX }),
-      tickAmount: 6,
-      axisBorder: { show: true, color: '#e2e8f0' },
-      axisTicks: { show: true, color: '#e2e8f0' },
-      labels: {
-        show: true,
-        datetimeUTC: false,
-        format: 'HH:mm',
-        hideOverlappingLabels: false,
-        rotate: 0,
-        style: { colors: '#64748b', fontSize: '11px' },
-      },
     },
     yaxis: {
       labels: {
+        style: { colors: chartLabelColor() },
         formatter: (val) => formatThroughput(val),
       },
     },
-    grid: { borderColor: 'rgba(148, 163, 184, 0.2)' },
+    grid: { borderColor: chartGridColor() },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: { formatter: (val) => formatThroughput(val) },
     },
@@ -679,6 +697,7 @@ const renderProtocolChart = () => {
       position: 'top',
       horizontalAlign: 'left',
       fontSize: '12px',
+      labels: { colors: chartLabelColor() },
     },
     series,
   }
@@ -696,12 +715,19 @@ watch(appliedFilters, () => {
   renderProtocolChart()
 }, { deep: true })
 
+const rerenderCharts = () => {
+  renderTrafficChart()
+  renderProtocolChart()
+}
+
 onMounted(() => {
   loadServers()
   loadL4Analytics()
+  window.addEventListener('cdnproxy-theme-change', rerenderCharts)
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('cdnproxy-theme-change', rerenderCharts)
   if (trafficChartInstance) {
     trafficChartInstance.destroy()
     trafficChartInstance = null
@@ -717,15 +743,15 @@ onBeforeUnmount(() => {
 .layer4-attack-view {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-gap-lg, 14px);
 }
 
 .filters-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .filters-row {
@@ -754,7 +780,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   flex: 0 1 auto;
   justify-content: center;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-weight: 600;
 }
 
@@ -768,38 +794,38 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-weight: 600;
 }
 
 .filter-inline-label {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--app-text-muted);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .inline-select {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 8px 12px;
   font-size: 0.95rem;
-  background: white;
-  color: #1a202c;
+  background: var(--app-input-bg);
+  color: var(--app-text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   min-width: 200px;
 }
 
 .inline-select:focus {
-  border-color: rgba(102, 126, 234, 0.6);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .selected-range-label {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--app-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
@@ -807,8 +833,8 @@ onBeforeUnmount(() => {
 .selected-range-value {
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #4f46e5;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -820,29 +846,25 @@ onBeforeUnmount(() => {
 }
 
 .time-btn {
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  border: 1px solid var(--app-border-strong);
   cursor: pointer;
-  background: white;
-  color: #374151;
+  background: var(--app-surface-solid);
+  color: var(--app-text-secondary);
   transition: all 0.2s ease;
 }
 
 .time-btn:hover {
-  border-color: #cbd5f5;
+  border-color: var(--app-accent);
+  background: var(--app-surface-hover);
+  color: var(--app-text);
 }
 
 .time-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-color: transparent;
+  /* primary fill from theme.css */
 }
 
 .custom-btn {
-  border-left: 2px solid #e5e7eb;
+  border-left: 2px solid var(--app-border-strong);
   margin-left: 4px;
 }
 
@@ -851,27 +873,14 @@ onBeforeUnmount(() => {
 }
 
 .apply-filter-btn {
-  padding: 10px 18px;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
   cursor: pointer;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.apply-filter-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
 }
 
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--app-overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -879,13 +888,15 @@ onBeforeUnmount(() => {
 }
 
 .dialog-content {
-  background: #ffffff;
+  background: var(--app-surface-solid);
+  border: 1px solid var(--app-border-strong);
   padding: 20px;
   border-radius: 16px;
   min-width: 320px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-shadow: 0 20px 60px var(--app-shadow);
 }
 
 .dialog-header {
@@ -893,13 +904,14 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   font-weight: 700;
+  color: var(--app-heading);
 }
 
 .dialog-body {
   display: grid;
   gap: 12px;
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--app-text-secondary);
 }
 
 .dialog-body label {
@@ -911,7 +923,15 @@ onBeforeUnmount(() => {
 .dialog-input {
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
+  border: 1px solid var(--app-input-border);
+  background: var(--app-input-bg);
+  color: var(--app-text);
+}
+
+.dialog-input:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
+  outline: none;
 }
 
 .dialog-actions {
@@ -924,43 +944,24 @@ onBeforeUnmount(() => {
   background: transparent;
   font-size: 1rem;
   cursor: pointer;
-}
-
-.view-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-}
-
-.view-card h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1a202c 0%, #4a5568 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 28px 0;
-  letter-spacing: -0.5px;
+  color: var(--app-text-muted);
 }
 
 .attack-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
+  gap: var(--space-gap-lg, 14px);
 }
 
 .attack-stat-card {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-  border-radius: 12px;
-  padding: 24px;
+  background: var(--app-surface);
+  border-radius: 16px;
+  padding: var(--space-card, 14px 16px);
   display: flex;
   align-items: center;
   gap: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--app-border);
+  box-shadow: 0 4px 20px var(--app-shadow);
 }
 
 .attack-icon {
@@ -989,7 +990,7 @@ onBeforeUnmount(() => {
 
 .attack-info h3 {
   font-size: 0.875rem;
-  color: #718096;
+  color: var(--app-text-muted);
   margin: 0 0 6px 0;
   font-weight: 500;
 }
@@ -997,7 +998,7 @@ onBeforeUnmount(() => {
 .attack-value {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1a202c;
+  color: var(--app-heading);
   margin: 0 0 6px 0;
 }
 
@@ -1010,10 +1011,11 @@ onBeforeUnmount(() => {
   color: #10b981;
 }
 
+.attack-chart-card h3,
 .attack-table-card h3 {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1a202c;
+  color: var(--app-heading);
   margin: 0 0 20px 0;
 }
 
@@ -1034,17 +1036,17 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-weight: 600;
 }
 
 .table-select {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--app-input-border);
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 0.85rem;
-  background: #fff;
-  color: #1f2937;
+  background: var(--app-input-bg);
+  color: var(--app-text);
 }
 
 .attack-table {
@@ -1054,8 +1056,8 @@ onBeforeUnmount(() => {
 
 .attack-table-grid {
   display: grid;
-  #grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-gap-lg, 14px);
 }
 
 .attack-table-card--scroll {
@@ -1066,27 +1068,21 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   max-height: 320px;
   padding-right: 4px;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-.attack-table-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.attack-table-scroll::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.5);
-  border-radius: 999px;
-}
-
-.attack-table-scroll::-webkit-scrollbar-track {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 999px;
+.attack-table-scroll .attack-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--app-surface-muted);
+  box-shadow: 0 1px 0 var(--app-border-strong);
 }
 
 .attack-charts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
+  gap: var(--space-gap-lg, 14px);
 }
 
 .attack-chart-card--single {
@@ -1094,10 +1090,10 @@ onBeforeUnmount(() => {
 }
 
 .attack-chart-card {
-  background: rgba(248, 250, 252, 0.9);
+  background: var(--app-surface-muted);
   border-radius: 14px;
   padding: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid var(--app-border);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1114,7 +1110,7 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .chart-pill {
@@ -1135,8 +1131,8 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 440px;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background: #ffffff;
+  border: 1px solid var(--app-border);
+  background: var(--chart-surface, var(--app-surface-elevated));
   overflow: hidden;
 }
 
@@ -1145,8 +1141,14 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+.chart-body :deep(.apexcharts-canvas),
+.chart-body :deep(.apexcharts-svg),
+.chart-body :deep(.apexcharts-inner) {
+  background: transparent !important;
+}
+
 .attack-table thead {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  background: var(--app-surface-muted);
 }
 
 .attack-table th {
@@ -1154,19 +1156,19 @@ onBeforeUnmount(() => {
   text-align: left;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 2px solid #e5e7eb;
+  color: var(--app-text-secondary);
+  border-bottom: 2px solid var(--app-border-strong);
 }
 
 .attack-table td {
   padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
-  color: #1a202c;
+  border-bottom: 1px solid var(--app-border-strong);
+  color: var(--app-text);
   font-size: 0.9rem;
 }
 
 .attack-table tbody tr:hover {
-  background: rgba(102, 126, 234, 0.02);
+  background: var(--app-surface-hover);
 }
 
 .badge {
@@ -1204,29 +1206,52 @@ onBeforeUnmount(() => {
 
 .action-btn {
   padding: 6px 14px;
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: var(--app-surface-hover);
+  border: 1px solid var(--app-border-strong);
   border-radius: 6px;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  color: #374151;
-}
-
-.action-btn:hover {
-  background: linear-gradient(135deg, #e5e7eb 0%, #cbd5e0 100%);
-  transform: translateY(-1px);
+  color: var(--app-text-secondary);
 }
 
 .action-btn--danger {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #ffffff;
+  color: var(--app-btn-danger-bg);
 }
 
-.action-btn--danger:hover {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+[data-theme='dark'] .badge.attack-syn {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+[data-theme='dark'] .badge.attack-udp {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+[data-theme='dark'] .badge.attack-icmp {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+[data-theme='dark'] .badge.attack-other {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .chart-pill {
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.2);
+}
+
+[data-theme='dark'] .chart-pill.danger {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+[data-theme='dark'] .attack-change.positive {
+  color: #4ade80;
 }
 </style>
 

@@ -17,8 +17,27 @@ export const fetchDeployVersions = async () => {
   if (useMocks) {
     return {
       versions: [
-        { uuid: 'mock-uuid-1', version: '0.1.3', full_name: 'dorian-ddos-firewall-0.1.3', path: '/opt/mock' },
-        { uuid: 'mock-uuid-2', version: '0.1.2', full_name: 'dorian-ddos-firewall-0.1.2', path: '/opt/mock2' },
+        {
+          uuid: 'mock-uuid-1',
+          version: '0.1.3',
+          full_name: 'dorian-ddos-firewall-0.1.3',
+          path: '/opt/dorian/0.1.3',
+          updated: '2025-04-15T10:30:00Z',
+        },
+        {
+          uuid: 'mock-uuid-2',
+          version: '0.1.2',
+          full_name: 'dorian-ddos-firewall-0.1.2',
+          path: '/opt/dorian/0.1.2',
+          updated: '2025-02-01T08:00:00Z',
+        },
+        {
+          uuid: 'mock-uuid-3',
+          version: '0.1.1',
+          full_name: 'dorian-ddos-firewall-0.1.1',
+          path: '/opt/dorian/0.1.1',
+          updated: '2024-11-20T14:15:00Z',
+        },
       ],
     }
   }

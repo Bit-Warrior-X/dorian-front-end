@@ -207,6 +207,8 @@
                 class="toggle-switch"
                 role="switch"
                 :aria-checked="formState.enabled"
+                :aria-label="formState.enabled ? 'Disable rule' : 'Enable rule'"
+                :title="formState.enabled ? 'Click to disable' : 'Click to enable'"
                 @click="formState.enabled = !formState.enabled"
               >
                 <span class="toggle-track" :class="{ off: !formState.enabled }">
@@ -603,12 +605,12 @@ watch(
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .waf-section-desc {
   margin: 6px 0 0 0;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.92rem;
 }
 
@@ -625,32 +627,18 @@ watch(
   gap: 10px;
 }
 
-.primary-btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  cursor: pointer;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+.primary-btn,
+.primary-btn:hover:not(:disabled) {
+  /* flat styles from theme.css */
 }
 
-.primary-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 20px rgba(37, 99, 235, 0.3);
+.danger-btn:not(.primary-btn) {
+  /* outline danger from theme.css */
 }
 
-.danger-btn {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.25);
-}
-
-.danger-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 20px rgba(239, 68, 68, 0.3);
+.danger-btn.primary-btn,
+.primary-btn.danger-btn {
+  /* solid danger from theme.css */
 }
 
 .danger-btn:disabled {
@@ -660,18 +648,18 @@ watch(
 }
 
 .secondary-btn {
-  border: 1px solid rgba(148, 163, 184, 0.6);
+  border: 1px solid var(--app-border-strong);
   border-radius: 10px;
   padding: 9px 14px;
   font-size: 0.9rem;
   font-weight: 600;
-  background: #fff;
-  color: #475569;
+  background: var(--app-surface-solid);
+  color: var(--app-text-secondary);
   cursor: pointer;
 }
 
 .secondary-btn:hover {
-  background: rgba(148, 163, 184, 0.12);
+  background: var(--app-surface-hover);
 }
 
 .secondary-btn:disabled {
@@ -682,7 +670,7 @@ watch(
 .waf-table-wrapper {
   overflow: auto;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border-strong);
   width: 100%;
   flex: 1;
   min-height: 0;
@@ -701,8 +689,8 @@ watch(
 .waf-table td {
   padding: 12px 14px;
   text-align: left;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
-  color: #1f2937;
+  border-bottom: 1px solid var(--app-border-strong);
+  color: var(--app-heading);
   word-break: break-word;
 }
 
@@ -720,8 +708,8 @@ watch(
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
-  background: rgba(248, 250, 252, 0.8);
+  color: var(--app-text-muted);
+  background: var(--app-surface-muted);
 }
 
 .waf-table tr:last-child td {
@@ -734,8 +722,8 @@ watch(
 }
 
 .icon-action-btn {
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: #fff;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-solid);
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -744,7 +732,7 @@ watch(
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  color: #2563eb;
+  color: var(--app-accent);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -755,8 +743,7 @@ watch(
 }
 
 .icon-action-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 12px rgba(37, 99, 235, 0.15);
+  background: var(--app-surface-hover);
 }
 
 .icon-action-btn.danger {
@@ -765,7 +752,7 @@ watch(
 
 .empty-cell {
   text-align: center;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   font-style: italic;
 }
 
@@ -776,8 +763,8 @@ watch(
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #475569;
-  background: rgba(148, 163, 184, 0.18);
+  color: var(--app-text-secondary);
+  background: var(--app-surface-hover);
 }
 
 .status-pill.on {
@@ -788,7 +775,7 @@ watch(
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--app-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -799,7 +786,7 @@ watch(
 .dialog-card {
   width: min(720px, 100%);
   max-height: 80vh;
-  background: #fff;
+  background: var(--app-surface-solid);
   border-radius: 16px;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
   display: flex;
@@ -823,13 +810,13 @@ watch(
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--app-heading);
 }
 
 .icon-btn {
   border: none;
-  background: rgba(148, 163, 184, 0.2);
-  color: #334155;
+  background: var(--app-surface-hover);
+  color: var(--app-text-secondary);
   width: 32px;
   height: 32px;
   border-radius: 8px;
@@ -847,7 +834,7 @@ watch(
 
 .confirm-text {
   margin: 0;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-size: 0.95rem;
 }
 
@@ -862,7 +849,7 @@ watch(
 .field-label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--app-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-top: 8px;
@@ -873,26 +860,26 @@ watch(
 }
 
 .form-input {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border-strong);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.92rem;
-  color: #1f2937;
-  background: #fff;
+  color: var(--app-heading);
+  background: var(--app-surface-solid);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   resize: vertical;
 }
 
 .form-input:focus {
-  border-color: rgba(59, 130, 246, 0.6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .field-help {
   margin: 0;
   font-size: 0.82rem;
-  color: #64748b;
+  color: var(--app-text-muted);
   line-height: 1.4;
 }
 
@@ -916,9 +903,9 @@ watch(
 }
 
 .option-btn {
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: #fff;
-  color: #475569;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-solid);
+  color: var(--app-text-secondary);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 0.85rem;
@@ -928,67 +915,9 @@ watch(
 }
 
 .option-btn.active {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.5);
-  color: #1d4ed8;
-}
-
-.toggle-switch {
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  align-self: flex-start;
-}
-
-.toggle-track {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  width: 148px;
-  height: 34px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
-  padding: 0 8px;
-  overflow: hidden;
-}
-
-.toggle-track.off {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.toggle-label {
-  z-index: 2;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.9);
-  text-align: center;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-.toggle-label.off {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.toggle-knob {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 68px;
-  height: 26px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
-  transition: transform 0.2s ease;
-  z-index: 1;
-}
-
-.toggle-knob.on {
-  transform: translateX(72px);
+  background: var(--app-accent-soft);
+  border-color: rgba(124, 58, 237, 0.5);
+  color: var(--app-accent);
 }
 
 .dialog-footer {

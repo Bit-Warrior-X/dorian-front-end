@@ -269,6 +269,12 @@ import {
   fetchStatusCodeSeries,
 } from '@/api/dashboard'
 import { fetchServers } from '@/api/servers'
+import {
+  getApexAxisLabelStyle,
+  getApexBaseChartOptions,
+  getApexChartColors,
+  getApexThemePatch,
+} from '@/utils/chartTheme'
 
 const bandwidthNicRxChart = ref(null)
 const bandwidthNicTxChart = ref(null)
@@ -757,8 +763,11 @@ const toggleServerSeries = (server) => {
 
 const defaultBandwidthChartOptions = () => {
   const now = Date.now()
+  const base = getApexBaseChartOptions()
   return {
+    ...base,
     chart: {
+      ...base.chart,
       type: 'line',
       height: 320,
       animations: {
@@ -778,7 +787,7 @@ const defaultBandwidthChartOptions = () => {
       labels: {
         show: true,
         datetimeUTC: false,
-        style: { colors: '#94a3b8', fontSize: '13px' },
+        style: getApexAxisLabelStyle(),
         formatter: (value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
       axisBorder: { show: false },
@@ -793,14 +802,13 @@ const defaultBandwidthChartOptions = () => {
       opposite: true,
       labels: {
         formatter: (value) => formatBandwidthValue(value),
-        style: { colors: '#94a3b8', fontSize: '13px' },
+        style: getApexAxisLabelStyle(),
       },
     },
-    grid: { borderColor: 'rgba(148, 163, 184, 0.35)', strokeDashArray: 6 },
     tooltip: {
+      ...base.tooltip,
       x: { format: 'HH:mm:ss' },
       y: { formatter: (value) => formatBandwidthValue(value) },
-      theme: 'light',
     },
     legend: { show: false },
   }
@@ -846,8 +854,11 @@ const createRequestResponseChart = () => {
 
   const now = Date.now()
   const rangeMs = getBandwidthRangeMs(requestRange.value)
+  const base = getApexBaseChartOptions()
   requestResponseChartInstance = new ApexCharts(requestResponseChart.value, {
+    ...base,
     chart: {
+      ...base.chart,
       type: 'line',
       height: 320,
       animations: {
@@ -876,7 +887,7 @@ const createRequestResponseChart = () => {
       labels: {
         show: true,
         datetimeUTC: false,
-        style: { colors: '#94a3b8' },
+        style: getApexAxisLabelStyle(),
         formatter: (value) => {
           const date = new Date(value)
           return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -893,17 +904,13 @@ const createRequestResponseChart = () => {
       opposite: true,
       labels: {
         formatter: (value) => `${Math.round(value)} rps`,
-        style: { colors: '#94a3b8' },
+        style: getApexAxisLabelStyle(),
       },
     },
-    grid: {
-      borderColor: 'rgba(148, 163, 184, 0.35)',
-      strokeDashArray: 6,
-    },
     tooltip: {
+      ...base.tooltip,
       x: { format: 'HH:mm' },
       y: { formatter: (value) => `${Math.round(value)} rps` },
-      theme: 'light',
     },
     legend: { show: false },
   })
@@ -918,8 +925,11 @@ const createStatusCodeChart = () => {
 
   const now = Date.now()
   const rangeMs = getBandwidthRangeMs(statusRange.value)
+  const base = getApexBaseChartOptions()
   statusCodeChartInstance = new ApexCharts(statusCodeChart.value, {
+    ...base,
     chart: {
+      ...base.chart,
       type: 'line',
       height: 320,
       animations: {
@@ -948,7 +958,7 @@ const createStatusCodeChart = () => {
       labels: {
         show: true,
         datetimeUTC: false,
-        style: { colors: '#94a3b8' },
+        style: getApexAxisLabelStyle(),
         formatter: (value) => {
           const date = new Date(value)
           return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -965,17 +975,13 @@ const createStatusCodeChart = () => {
       opposite: true,
       labels: {
         formatter: (value) => `${Math.round(value)}`,
-        style: { colors: '#94a3b8' },
+        style: getApexAxisLabelStyle(),
       },
     },
-    grid: {
-      borderColor: 'rgba(148, 163, 184, 0.35)',
-      strokeDashArray: 6,
-    },
     tooltip: {
+      ...base.tooltip,
       x: { format: 'HH:mm' },
       y: { formatter: (value) => `${Math.round(value)}` },
-      theme: 'light',
     },
     legend: { show: false },
   })
@@ -983,7 +989,24 @@ const createStatusCodeChart = () => {
   statusCodeChartInstance.render()
 }
 
+const refreshChartTheme = () => {
+  const patch = getApexThemePatch()
+  const charts = [
+    nicRxChartInstance,
+    nicTxChartInstance,
+    l7RxChartInstance,
+    l7TxChartInstance,
+    requestResponseChartInstance,
+    statusCodeChartInstance,
+  ]
+  charts.forEach((chart) => {
+    if (!chart) return
+    chart.updateOptions(patch, false, false)
+  })
+}
+
 onMounted(() => {
+  window.addEventListener('cdnproxy-theme-change', refreshChartTheme)
   loadDashboardSummary()
   loadSecurityEvents()
   loadBandwidthServers().then(() => {
@@ -1010,6 +1033,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('cdnproxy-theme-change', refreshChartTheme)
   if (bandwidthTimer) {
     window.clearInterval(bandwidthTimer)
   }
@@ -1089,18 +1113,18 @@ watch([statusRange, statusServer], () => {
 }
 
 .analytics-card {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--app-surface);
   border-radius: 18px;
   padding: 24px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--app-border);
+  box-shadow: 0 4px 18px var(--app-shadow);
 }
 
 .analytics-card h2 {
   margin: 0 0 18px;
   font-size: 1.2rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .timeline {
@@ -1110,6 +1134,7 @@ watch([statusRange, statusServer], () => {
   max-height: 360px;
   overflow-y: auto;
   padding-right: 6px;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .timeline-item {
@@ -1125,7 +1150,7 @@ watch([statusRange, statusServer], () => {
   top: 40px;
   width: 2px;
   height: calc(100% + 4px);
-  background: #e5e7eb;
+  background: var(--app-border-strong);
 }
 
 .timeline-marker {
@@ -1150,36 +1175,36 @@ watch([statusRange, statusServer], () => {
 
 .timeline-content {
   flex: 1;
-  background: #f7fafc;
+  background: var(--app-surface-elevated);
   padding: 16px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--app-border);
 }
 
 .timeline-content h4 {
   margin: 0 0 6px;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .timeline-content p {
   margin: 0 0 8px;
   font-size: 0.9rem;
-  color: #718096;
+  color: var(--app-text-muted);
 }
 
 .timeline-time {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: var(--app-text-muted);
 }
 
 .bandwidth-card {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--app-surface);
   border-radius: 18px;
   padding: 24px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--app-border);
+  box-shadow: 0 4px 18px var(--app-shadow);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1202,12 +1227,12 @@ watch([statusRange, statusServer], () => {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .bandwidth-header p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.9rem;
 }
 
@@ -1230,7 +1255,7 @@ watch([statusRange, statusServer], () => {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--app-text-secondary);
 }
 
 .bandwidth-pill {
@@ -1247,14 +1272,20 @@ watch([statusRange, statusServer], () => {
   height: 320px;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background: #ffffff;
+  border: 1px solid var(--app-border);
+  background: var(--chart-surface, var(--app-surface-elevated));
 }
 
 .bandwidth-chart div {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.bandwidth-chart :deep(.apexcharts-canvas),
+.bandwidth-chart :deep(.apexcharts-svg),
+.bandwidth-chart :deep(.apexcharts-inner) {
+  background: transparent !important;
 }
 
 .bandwidth-legend {
@@ -1270,11 +1301,11 @@ watch([statusRange, statusServer], () => {
 }
 
 .chart-card {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--app-surface);
   border-radius: 18px;
   padding: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--app-border);
+  box-shadow: 0 4px 18px var(--app-shadow);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1291,12 +1322,12 @@ watch([statusRange, statusServer], () => {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .chart-header p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.88rem;
 }
 
@@ -1315,9 +1346,9 @@ watch([statusRange, statusServer], () => {
 }
 
 .range-btn {
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  background: white;
-  color: #334155;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-elevated);
+  color: var(--app-text);
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 0.75rem;
@@ -1328,18 +1359,23 @@ watch([statusRange, statusServer], () => {
 
 .range-btn.active,
 .range-btn:hover {
-  border-color: rgba(99, 102, 241, 0.5);
-  color: #4338ca;
-  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
 .chart-select {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 0.8rem;
-  color: #1f2937;
-  background: white;
+  color: var(--app-text);
+  background: var(--app-input-bg);
+}
+
+.chart-select option {
+  background: var(--app-surface-solid);
+  color: var(--app-text);
 }
 
 .legend-item {
@@ -1348,10 +1384,10 @@ watch([statusRange, statusServer], () => {
   gap: 8px;
   padding: 6px 10px;
   border-radius: 12px;
-  background: rgba(248, 250, 252, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: var(--app-surface-elevated);
+  border: 1px solid var(--app-border);
   font-size: 0.85rem;
-  color: #1f2937;
+  color: var(--app-text);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -1362,8 +1398,8 @@ watch([statusRange, statusServer], () => {
 }
 
 .legend-item:hover {
-  border-color: rgba(99, 102, 241, 0.35);
-  background: rgba(224, 231, 255, 0.25);
+  border-color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
 .legend-swatch {
@@ -1377,27 +1413,41 @@ watch([statusRange, statusServer], () => {
 }
 
 .legend-value {
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.8rem;
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 28px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 20px var(--app-shadow);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid var(--app-border);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(102, 126, 234, 0.2);
-  border-color: rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8px 30px var(--app-shadow);
+  border-color: var(--app-accent);
+}
+
+.stat-info h3 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--app-text-muted);
+}
+
+.stat-value {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--app-heading);
 }
 
 .stat-icon {

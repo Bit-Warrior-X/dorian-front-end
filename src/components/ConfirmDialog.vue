@@ -69,10 +69,10 @@ const handleConfirm = () => {
 .confirm-card {
   width: 100%;
   max-width: 420px;
-  background: white;
+  background: var(--app-surface-solid);
   border-radius: 18px;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 24px 48px var(--app-shadow);
+  border: 1px solid var(--app-border);
   padding: 22px;
 }
 
@@ -110,7 +110,7 @@ const handleConfirm = () => {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .confirm-close {
@@ -134,7 +134,7 @@ const handleConfirm = () => {
 
 .confirm-message {
   margin: 0 0 20px 0;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-size: 0.95rem;
 }
 
@@ -144,40 +144,15 @@ const handleConfirm = () => {
   gap: 12px;
 }
 
-.primary-btn {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 18px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 20px rgba(22, 163, 74, 0.25);
-}
-
-.primary-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 22px rgba(22, 163, 74, 0.32);
-}
-
+.primary-btn,
 .secondary-btn {
-  background: rgba(254, 242, 242, 0.9);
-  color: #b91c1c;
-  border: 1px solid rgba(239, 68, 68, 0.6);
-  border-radius: 10px;
-  padding: 10px 18px;
-  font-size: 0.95rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .secondary-btn:hover {
-  border-color: rgba(220, 38, 38, 0.8);
-  color: #991b1b;
-  background: rgba(239, 68, 68, 0.16);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 </style>
 

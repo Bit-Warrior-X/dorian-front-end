@@ -272,6 +272,34 @@ import {
   fetchSecuritySummaryGroup,
 } from '@/api/securityAnalytics'
 
+const chartGridColor = () => {
+  if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() ||
+    'rgba(148, 163, 184, 0.2)'
+  )
+}
+
+const chartLabelColor = () => {
+  if (typeof document === 'undefined') return '#64748b'
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue('--chart-label').trim() ||
+    '#64748b'
+  )
+}
+
+const chartTooltipTheme = () =>
+  typeof document !== 'undefined' &&
+  document.documentElement.getAttribute('data-theme') === 'dark'
+    ? 'dark'
+    : 'light'
+
+const mapEmptyFill = () =>
+  typeof document !== 'undefined' &&
+  document.documentElement.getAttribute('data-theme') === 'dark'
+    ? 'rgba(255, 255, 255, 0.08)'
+    : 'rgba(148, 163, 184, 0.2)'
+
 const selectedServer = ref('all')
 const selectedTimeRange = ref('30m')
 const isCustomRange = ref(false)
@@ -355,7 +383,7 @@ const mapLocationAttributes = (location) => {
   const entry = countryRequestMap.value[location.id.toLowerCase()]
   const ratio = entry && maxCountryCount.value ? entry.count / maxCountryCount.value : 0
   return {
-    fill: entry ? colorFromRate(ratio) : 'rgba(148, 163, 184, 0.2)',
+    fill: entry ? colorFromRate(ratio) : mapEmptyFill(),
     stroke: 'rgba(100, 116, 139, 0.6)',
     'stroke-width': 0.5,
     title: entry
@@ -478,6 +506,7 @@ const renderBlockCountChart = () => {
       height: 400,
       toolbar: { show: false },
       animations: { enabled: true },
+      foreColor: chartLabelColor(),
       zoom: {
         enabled: false,
       },
@@ -494,12 +523,17 @@ const renderBlockCountChart = () => {
       min: start.getTime(),
       max: end.getTime(),
       tickAmount: 24,
+      labels: { style: { colors: chartLabelColor() } },
     },
     yaxis: {
-      labels: { formatter: (val) => `${Math.round(val)}` },
+      labels: {
+        style: { colors: chartLabelColor() },
+        formatter: (val) => `${Math.round(val)}`,
+      },
     },
-    grid: { borderColor: 'rgba(148, 163, 184, 0.2)' },
+    grid: { borderColor: chartGridColor() },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: { formatter: (val) => `${Math.round(val)}` },
     },
@@ -518,13 +552,19 @@ watch(blockSeries, () => {
   renderBlockCountChart()
 }, { deep: true })
 
+const rerenderBlockCountChart = () => {
+  renderBlockCountChart()
+}
+
 onMounted(() => {
   loadServers()
   loadSecurityAnalytics()
   renderBlockCountChart()
+  window.addEventListener('cdnproxy-theme-change', rerenderBlockCountChart)
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('cdnproxy-theme-change', rerenderBlockCountChart)
   if (blockCountChartInstance) {
     blockCountChartInstance.destroy()
     blockCountChartInstance = null
@@ -658,19 +698,19 @@ const applyFilters = () => {
 }
 
 .filters-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .filters-header h3 {
   margin: 0 0 16px 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .filters-row {
@@ -699,7 +739,7 @@ const applyFilters = () => {
   gap: 8px;
   flex: 0 1 auto;
   justify-content: center;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-weight: 600;
 }
 
@@ -713,38 +753,38 @@ const applyFilters = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-weight: 600;
 }
 
 .filter-inline-label {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--app-text-muted);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .inline-select {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 8px 12px;
   font-size: 0.95rem;
-  background: white;
-  color: #1a202c;
+  background: var(--app-input-bg);
+  color: var(--app-text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   min-width: 200px;
 }
 
 .inline-select:focus {
-  border-color: rgba(102, 126, 234, 0.6);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .selected-range-label {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--app-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
@@ -752,8 +792,8 @@ const applyFilters = () => {
 .selected-range-value {
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #4f46e5;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -765,29 +805,25 @@ const applyFilters = () => {
 }
 
 .time-btn {
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  border: 1px solid var(--app-border-strong);
   cursor: pointer;
-  background: white;
-  color: #374151;
+  background: var(--app-surface-solid);
+  color: var(--app-text-secondary);
   transition: all 0.2s ease;
 }
 
 .time-btn:hover {
-  border-color: #cbd5f5;
+  border-color: var(--app-accent);
+  background: var(--app-surface-hover);
+  color: var(--app-text);
 }
 
 .time-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-color: transparent;
+  /* primary fill from theme.css */
 }
 
 .custom-btn {
-  border-left: 2px solid #e5e7eb;
+  border-left: 2px solid var(--app-border-strong);
   margin-left: 4px;
 }
 
@@ -796,21 +832,7 @@ const applyFilters = () => {
 }
 
 .apply-filter-btn {
-  padding: 10px 18px;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
   cursor: pointer;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.apply-filter-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
 }
 
 .dialog-overlay {
@@ -819,7 +841,7 @@ const applyFilters = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--app-overlay);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -828,9 +850,10 @@ const applyFilters = () => {
 }
 
 .dialog-content {
-  background: white;
+  background: var(--app-surface-solid);
+  border: 1px solid var(--app-border-strong);
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px var(--app-shadow);
   width: 90%;
   max-width: 500px;
 }
@@ -840,14 +863,14 @@ const applyFilters = () => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--app-border-strong);
 }
 
 .dialog-header h3 {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #1a202c;
+  color: var(--app-heading);
 }
 
 .dialog-close {
@@ -858,7 +881,7 @@ const applyFilters = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--app-text-muted);
   border-radius: 6px;
 }
 
@@ -875,15 +898,22 @@ const applyFilters = () => {
 
 .dialog-form-group label {
   font-size: 0.85rem;
-  color: #4b5563;
+  color: var(--app-text-secondary);
 }
 
 .dialog-input {
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--app-input-border);
   border-radius: 8px;
   font-size: 0.95rem;
   outline: none;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+}
+
+.dialog-input:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .dialog-footer {
@@ -891,7 +921,7 @@ const applyFilters = () => {
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 24px 24px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--app-border-strong);
 }
 
 .dialog-btn {
@@ -904,13 +934,12 @@ const applyFilters = () => {
 }
 
 .cancel-btn {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--app-surface-hover);
+  color: var(--app-text-secondary);
 }
 
 .apply-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  /* primary fill from theme.css */
 }
 
 .stats-grid {
@@ -920,21 +949,21 @@ const applyFilters = () => {
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 28px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 8px 30px var(--app-shadow), 0 0 0 1px var(--app-accent-soft);
 }
 
 .stat-icon {
@@ -966,7 +995,7 @@ const applyFilters = () => {
 
 .stat-info h3 {
   font-size: 0.875rem;
-  color: #718096;
+  color: var(--app-text-muted);
   margin: 0 0 8px 0;
   font-weight: 500;
 }
@@ -974,7 +1003,7 @@ const applyFilters = () => {
 .stat-value {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1a202c;
+  color: var(--app-heading);
   margin: 0;
 }
 
@@ -989,8 +1018,8 @@ const applyFilters = () => {
   width: 100%;
   height: fit-content;
   border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background: #f8fafc;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-muted);
   padding: 12px;
   position: relative;
 }
@@ -1029,11 +1058,18 @@ const applyFilters = () => {
   gap: 16px;
 }
 
-.table-card--compact {
-  background: rgba(248, 250, 252, 0.9);
+.table-card {
+  background: var(--app-surface-muted);
   border-radius: 14px;
   padding: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border: 1px solid var(--app-border);
+}
+
+.table-card--compact {
+  background: var(--app-surface-muted);
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid var(--app-border);
 }
 
 .table-card--tight {
@@ -1056,6 +1092,14 @@ const applyFilters = () => {
   overflow-y: auto;
 }
 
+.table-card--scroll .ip-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--app-surface-muted);
+  box-shadow: 0 1px 0 var(--app-border-strong);
+}
+
 .table-card--spaced {
   margin-top: 16px;
 }
@@ -1070,7 +1114,7 @@ const applyFilters = () => {
 .table-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--app-heading);
   margin-bottom: 12px;
 }
 
@@ -1088,15 +1132,15 @@ const applyFilters = () => {
   text-align: left;
   padding: 10px 12px;
   font-size: 0.9rem;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  color: #1f2937;
+  border-bottom: 1px solid var(--app-border-strong);
+  color: var(--app-text);
 }
 
 .ip-table th {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6b7280;
+  color: var(--app-text-muted);
 }
 
 .ip-table--nowrap th,
@@ -1135,7 +1179,7 @@ const applyFilters = () => {
 .url-bar-track {
   width: 100%;
   height: 16px;
-  background: rgba(226, 232, 240, 0.6);
+  background: var(--app-border-strong);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -1159,14 +1203,20 @@ const applyFilters = () => {
   height: 280px;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background: #ffffff;
+  border: 1px solid var(--app-border);
+  background: var(--chart-surface, var(--app-surface-elevated));
 }
 
 .bandwidth-chart div {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.bandwidth-chart :deep(.apexcharts-canvas),
+.bandwidth-chart :deep(.apexcharts-svg),
+.bandwidth-chart :deep(.apexcharts-inner) {
+  background: transparent !important;
 }
 
 .bandwidth-chart--tall {
@@ -1176,7 +1226,7 @@ const applyFilters = () => {
 .url-bar-label {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--app-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1184,8 +1234,16 @@ const applyFilters = () => {
 
 .url-bar-value {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-weight: 600;
+}
+
+[data-theme='dark'] .world-map :deep(.svg-map__location:hover) {
+  fill: rgba(168, 85, 247, 0.85);
+}
+
+[data-theme='dark'] .stat-subvalue {
+  color: #4ade80;
 }
 </style>
 

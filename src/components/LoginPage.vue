@@ -1,7 +1,8 @@
 <template>
   <div class="login-container">
+    <ThemeToggleButton variant="on-login" />
     <div class="login-card">
-      <p class="login-title">Welcome to CDNProxy</p>
+      <p class="login-title">Welcome to Dorian</p>
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
@@ -57,6 +58,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { login } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
+import ThemeToggleButton from './ThemeToggleButton.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -123,7 +125,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--app-login-bg, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
   padding: 16px;
   box-sizing: border-box;
 }
@@ -134,7 +136,7 @@ const handleLogin = async () => {
 }
 
 .login-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--app-login-card, rgba(255, 255, 255, 0.95));
   backdrop-filter: blur(20px);
   border-radius: 24px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.2);
@@ -260,45 +262,8 @@ const handleLogin = async () => {
 }
 
 .login-button {
-  padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-top: 12px;
   width: 100%;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-}
-
-.login-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s;
-}
-
-.login-button:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
-}
-
-.login-button:hover:not(:disabled)::before {
-  left: 100%;
-}
-
-.login-button:active:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .login-button:disabled {

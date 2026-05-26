@@ -1767,8 +1767,8 @@ watch(
 
 
 .l4-list {
-  border-right: 1px solid rgba(226, 232, 240, 0.9);
-  background: rgba(248, 250, 252, 0.9);
+  border-right: 1px solid var(--app-border-strong);
+  background: var(--app-surface-muted);
   display: flex;
   flex-direction: column;
   padding: 12px;
@@ -1778,7 +1778,7 @@ watch(
 .l4-item {
   border: 1px solid transparent;
   background: transparent;
-  color: #334155;
+  color: var(--app-text-secondary);
   text-align: left;
   padding: 10px 12px;
   border-radius: 10px;
@@ -1788,14 +1788,14 @@ watch(
 }
 
 .l4-item:hover {
-  background: rgba(226, 232, 240, 0.6);
+  background: var(--app-surface-hover);
 }
 
 .l4-item.active {
-  background: #fff;
-  border-color: rgba(99, 102, 241, 0.3);
-  color: #1d4ed8;
-  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.12);
+  background: var(--app-surface-solid);
+  border-color: rgba(124, 58, 237, 0.35);
+  color: var(--app-accent);
+  box-shadow: 0 8px 16px rgba(124, 58, 237, 0.12);
 }
 
 .l4-settings {
@@ -1803,7 +1803,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: var(--app-surface);
   height: calc(100vh - 320px);
   min-height: 0;
   overflow: hidden;
@@ -1840,13 +1840,13 @@ watch(
 
 .l4-config-section {
   padding: 16px 16px 18px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border-strong);
   border-radius: 14px;
-  background: rgba(248, 250, 252, 0.7);
+  background: var(--app-surface-elevated);
 }
 
 .l4-config-section:last-child {
-  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  border-bottom: 1px solid var(--app-border-strong);
   padding-bottom: 18px;
 }
 
@@ -1862,7 +1862,7 @@ watch(
   margin: 0;
   font-size: 0.98rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .l4-settings-header {
@@ -1876,7 +1876,7 @@ watch(
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .l4-form {
@@ -1902,7 +1902,7 @@ watch(
   margin: 0 0 10px 0;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .l4-section-header {
@@ -1930,7 +1930,7 @@ watch(
 
 .selection-count {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-weight: 600;
 }
 
@@ -1946,8 +1946,8 @@ watch(
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
   font-size: 0.82rem;
   font-weight: 600;
 }
@@ -1960,9 +1960,9 @@ watch(
 }
 
 .continent-btn {
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: #fff;
-  color: #475569;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-solid);
+  color: var(--app-text-secondary);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 0.85rem;
@@ -1972,9 +1972,9 @@ watch(
 }
 
 .continent-btn.active {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.5);
-  color: #1d4ed8;
+  background: var(--app-accent-soft);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
 }
 
 .continent-btn:disabled {
@@ -1995,10 +1995,10 @@ watch(
   gap: 8px;
   padding: 8px 10px;
   border-radius: 10px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: rgba(248, 250, 252, 0.7);
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-elevated);
   font-size: 0.9rem;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .country-option input {
@@ -2008,7 +2008,7 @@ watch(
 
 .l4-section-desc {
   margin: -4px 0 12px 0;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -2038,7 +2038,7 @@ watch(
 .l4-field label {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--app-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -2048,9 +2048,9 @@ watch(
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  background: #fff;
-  color: #64748b;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-solid);
+  color: var(--app-text-muted);
   font-size: 0.7rem;
   font-weight: 700;
   line-height: 1;
@@ -2067,12 +2067,12 @@ watch(
 }
 
 .l4-input {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border-strong);
   border-radius: 8px;
   padding: 7px 10px;
   font-size: 0.85rem;
-  color: #1f2937;
-  background: #fff;
+  color: var(--app-heading);
+  background: var(--app-surface-solid);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   width: 100%;
@@ -2080,90 +2080,19 @@ watch(
 }
 
 .l4-input:focus {
-  border-color: rgba(59, 130, 246, 0.6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .l4-input:disabled {
-  background: rgba(226, 232, 240, 0.5);
-  color: #94a3b8;
+  background: var(--app-surface-hover);
+  color: var(--app-text-muted);
   cursor: not-allowed;
-}
-
-.l4-toggle {
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-}
-
-.toggle-track {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  width: 108px;
-  height: 28px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
-  padding: 0 6px;
-  overflow: hidden;
-}
-
-.toggle-track.off {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.toggle-label {
-  z-index: 2;
-  font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.9);
-  text-align: center;
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-.toggle-label.off {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.toggle-knob {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 50px;
-  height: 22px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
-  transition: transform 0.2s ease;
-  z-index: 1;
-}
-
-.toggle-knob.on {
-  transform: translateX(52px);
 }
 
 .confirm-btn {
   align-self: flex-start;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.confirm-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 20px rgba(37, 99, 235, 0.3);
 }
 
 .l4-settings-grid {
@@ -2176,7 +2105,7 @@ watch(
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px dashed rgba(148, 163, 184, 0.5);
-  color: #475569;
+  color: var(--app-text-secondary);
   font-size: 0.92rem;
   line-height: 1.6;
 }
@@ -2188,7 +2117,7 @@ watch(
 .l4-description code {
   font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.85rem;
-  background: rgba(148, 163, 184, 0.18);
+  background: var(--app-surface-hover);
   padding: 2px 6px;
   border-radius: 6px;
 }
@@ -2196,7 +2125,7 @@ watch(
 .l4-description-group h5 {
   margin: 6px 0 8px 0;
   font-size: 0.95rem;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .l4-description-group ul {
@@ -2211,7 +2140,7 @@ watch(
 .example-text {
   display: block;
   margin-top: 6px;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.88rem;
 }
 
@@ -2221,21 +2150,21 @@ watch(
   gap: 6px;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: rgba(248, 250, 252, 0.7);
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-elevated);
 }
 
 .l4-setting-label {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-weight: 600;
 }
 
 .l4-setting-value {
   font-size: 0.95rem;
-  color: #1f2937;
+  color: var(--app-heading);
   font-weight: 600;
 }
 
@@ -2246,8 +2175,8 @@ watch(
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #475569;
-  background: rgba(148, 163, 184, 0.18);
+  color: var(--app-text-secondary);
+  background: var(--app-surface-hover);
 }
 
 .value-pill.on {

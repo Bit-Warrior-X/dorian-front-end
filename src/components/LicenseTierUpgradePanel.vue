@@ -2,21 +2,11 @@
   <div class="license-tier-panel">
     <p v-if="intro" class="intro">{{ intro }}</p>
     <p v-if="errorMessage" class="error-banner" role="alert">{{ errorMessage }}</p>
-    <div class="tier-grid" role="radiogroup" :aria-label="'License type for ' + (server?.name || 'server')">
-      <button
-        v-for="plan in licensePlans"
-        :key="plan.id"
-        type="button"
-        class="tier-card"
-        :class="{ selected: selectedTier === plan.id, disabled: isSubmitting }"
-        :disabled="isSubmitting"
-        :aria-pressed="selectedTier === plan.id"
-        @click="selectedTier = plan.id"
-      >
-        <span class="tier-title">{{ plan.title }}</span>
-        <span class="tier-desc">{{ plan.description }}</span>
-      </button>
-    </div>
+    <LicenseTierSelector
+      v-model="selectedTier"
+      :disabled="isSubmitting"
+      :aria-label="'License type for ' + (server?.name || 'server')"
+    />
     <p v-if="isSubmitting" class="status-line" role="status">
       <span class="spinner" aria-hidden="true"></span>
       Regenerating license and deploying to the host… This may take several minutes.
@@ -46,13 +36,14 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { upgradeServerLicense } from '@/api/servers'
+import { normalizeLicenseTier } from '@/data/licensePlans'
+import LicenseTierSelector from './LicenseTierSelector.vue'
 
 const props = defineProps({
   server: {
     type: Object,
     required: true,
   },
-  /** Shown above the tier grid (e.g. current server summary). */
   intro: {
     type: String,
     default: '',
@@ -69,53 +60,14 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'success', 'pending'])
 
-const licensePlans = [
-  {
-    id: 'Trial',
-    title: 'Trial',
-    description:
-      'Short evaluation tier. A new 3-day trial license is generated for this host and pushed with deploy (license-only).',
-  },
-  {
-    id: 'L4',
-    title: 'L4',
-    description:
-      'Layer 4 protection focus. A new annual L4 license is generated, bound to the host, and installed remotely.',
-  },
-  {
-    id: 'L7',
-    title: 'L7',
-    description:
-      'Application-layer (L7) feature set. A new annual L7 license replaces the previous file on the server.',
-  },
-  {
-    id: 'Unified',
-    title: 'Unified',
-    description:
-      'Combined L4 and L7 capabilities. A new annual unified license is deployed without reinstalling the full product bundle.',
-  },
-]
-
-function normalizeTier(raw) {
-  const t = String(raw || 'Trial').trim().toLowerCase()
-  if (t === 'trial') return 'Trial'
-  if (t === 'l4') return 'L4'
-  if (t === 'l7') return 'L7'
-  if (t === 'unified') return 'Unified'
-  const cap = String(raw || 'Trial').trim()
-  const known = ['Trial', 'L4', 'L7', 'Unified']
-  const hit = known.find((k) => k.toLowerCase() === cap.toLowerCase())
-  return hit || 'Trial'
-}
-
-const selectedTier = ref(normalizeTier(props.server?.license))
+const selectedTier = ref(normalizeLicenseTier(props.server?.license))
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 
 watch(
   () => [props.server?.id, props.server?.license],
   () => {
-    selectedTier.value = normalizeTier(props.server?.license)
+    selectedTier.value = normalizeLicenseTier(props.server?.license)
     errorMessage.value = ''
   }
 )
@@ -124,7 +76,7 @@ watch(isSubmitting, (v) => {
   emit('pending', v)
 })
 
-const initialTier = computed(() => normalizeTier(props.server?.license))
+const initialTier = computed(() => normalizeLicenseTier(props.server?.license))
 
 const canSubmit = computed(() => selectedTier.value !== initialTier.value)
 
@@ -152,7 +104,8 @@ const submit = async () => {
 .license-tier-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  width: 100%;
 }
 
 .intro {
@@ -171,55 +124,6 @@ const submit = async () => {
   color: #991b1b;
   font-size: 0.9rem;
   font-weight: 600;
-}
-
-.tier-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.tier-card {
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 2px solid rgba(226, 232, 240, 0.95);
-  background: #fff;
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  font: inherit;
-  color: #1e293b;
-}
-
-.tier-card:hover:not(.disabled) {
-  border-color: rgba(99, 102, 241, 0.45);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.12);
-}
-
-.tier-card.selected {
-  border-color: rgba(79, 70, 229, 0.75);
-  background: rgba(238, 242, 255, 0.65);
-  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.15);
-}
-
-.tier-card.disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.tier-title {
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: #0f172a;
-}
-
-.tier-desc {
-  font-size: 0.85rem;
-  color: #64748b;
-  line-height: 1.45;
 }
 
 .status-line {
@@ -266,8 +170,8 @@ const submit = async () => {
 .btn-primary {
   border: none;
   color: #fff;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  background: var(--app-btn-primary-bg, linear-gradient(135deg, #a855f7 0%, #7c3aed 100%));
+  box-shadow: 0 4px 14px var(--app-btn-primary-shadow, rgba(168, 85, 247, 0.35));
 }
 
 .btn-primary:disabled {
@@ -277,9 +181,9 @@ const submit = async () => {
 }
 
 .btn-secondary {
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  background: #fff;
-  color: #475569;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-elevated);
+  color: var(--app-text);
 }
 
 .btn-secondary:disabled {

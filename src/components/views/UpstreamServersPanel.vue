@@ -242,17 +242,17 @@ watch(
 }
 
 .content-card {
-  background: rgba(248, 250, 252, 0.9);
+  background: var(--app-surface-muted);
   border-radius: 14px;
   padding: 18px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border-strong);
 }
 
 .content-card h4 {
   margin: 0 0 14px 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .list-header {
@@ -269,7 +269,7 @@ watch(
 
 .helper-text {
   margin: 0 0 14px 0;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.9rem;
 }
 
@@ -288,30 +288,30 @@ watch(
 
 .form-field label {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-weight: 500;
 }
 
 .form-field input {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.95rem;
-  color: #1a202c;
+  color: var(--app-text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  background: #fff;
+  background: var(--app-input-bg);
 }
 
 .form-field input:focus {
-  border-color: rgba(59, 130, 246, 0.6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--app-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -322,10 +322,10 @@ watch(
 .dialog-card {
   width: 100%;
   max-width: 520px;
-  background: white;
+  background: var(--app-surface-solid);
   border-radius: 18px;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 24px 48px var(--app-shadow);
+  border: 1px solid var(--app-border-strong);
   padding: 24px;
 }
 
@@ -340,13 +340,13 @@ watch(
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .dialog-close {
   border: none;
-  background: rgba(148, 163, 184, 0.15);
-  color: #475569;
+  background: var(--app-surface-hover);
+  color: var(--app-text-muted);
   width: 32px;
   height: 32px;
   border-radius: 10px;
@@ -358,8 +358,8 @@ watch(
 }
 
 .dialog-close:hover {
-  background: rgba(148, 163, 184, 0.25);
-  color: #1f2937;
+  background: var(--app-surface-elevated);
+  color: var(--app-text);
 }
 
 .dialog-actions {
@@ -370,9 +370,9 @@ watch(
 }
 
 .ghost-btn {
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  background: white;
-  color: #334155;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-solid);
+  color: var(--app-text-secondary);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 0.85rem;
@@ -381,9 +381,9 @@ watch(
 }
 
 .ghost-btn:hover {
-  border-color: rgba(59, 130, 246, 0.7);
-  color: #1d4ed8;
-  background: rgba(59, 130, 246, 0.08);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
 .panel-header {
@@ -402,37 +402,23 @@ watch(
   margin: 0 0 6px 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .panel-header p {
   margin: 0;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.92rem;
 }
 
-.primary-btn {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.25);
-  white-space: nowrap;
-}
-
-.primary-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 20px rgba(22, 163, 74, 0.3);
+.primary-btn,
+.primary-btn:hover:not(:disabled) {
+  /* flat styles from theme.css */
 }
 
 .table-wrap {
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border-strong);
   overflow: hidden;
 }
 
@@ -443,7 +429,7 @@ watch(
 }
 
 .upstream-table thead {
-  background: rgba(248, 250, 252, 0.9);
+  background: var(--app-surface-muted);
 }
 
 .upstream-table th,
@@ -451,20 +437,20 @@ watch(
   text-align: left;
   padding: 12px 16px;
   font-size: 0.92rem;
-  color: #1f2937;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  color: var(--app-text);
+  border-bottom: 1px solid var(--app-border-strong);
 }
 
 .upstream-table th {
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-weight: 600;
 }
 
 .description-cell {
-  color: #475569;
+  color: var(--app-text-secondary);
   font-size: 0.9rem;
 }
 
@@ -524,7 +510,7 @@ watch(
 .empty-state {
   padding: 18px;
   text-align: center;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   font-size: 0.92rem;
 }
 </style>

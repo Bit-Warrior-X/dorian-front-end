@@ -55,9 +55,10 @@
         <table class="servers-table">
           <thead>
             <tr>
+              <th class="col-layer-dots" aria-label="L4 and L7 status"></th>
               <th>Name</th>
               <th>IP</th>
-              <th>Status</th>
+              <th>Angelos</th>
               <th>Users</th>
               <th>License</th>
               <th>Version</th>
@@ -68,10 +69,26 @@
           </thead>
           <tbody>
             <tr v-for="server in paginatedServers" :key="server.id">
+              <td class="col-layer-dots">
+                <span class="layer-status-dots">
+                  <LayerStatusDot
+                    layer="l4"
+                    :status="resolveLayerStatus(server, 'l4')"
+                    :description="layerDotDescription(server, 'l4')"
+                    :aria-label="layerDotTitle(server, 'l4')"
+                  />
+                  <LayerStatusDot
+                    layer="l7"
+                    :status="resolveLayerStatus(server, 'l7')"
+                    :description="layerDotDescription(server, 'l7')"
+                    :aria-label="layerDotTitle(server, 'l7')"
+                  />
+                </span>
+              </td>
               <td>{{ server.name }}</td>
               <td>{{ server.ip }}</td>
               <td>
-                <span class="status-pill" :class="server.statusClass">
+                <span class="status-pill server-status-pill" :class="server.statusClass">
                   {{ server.statusLabel }}
                 </span>
               </td>
@@ -84,7 +101,7 @@
                 <span v-else class="muted-text">—</span>
               </td>
               <td>{{ server.license }}</td>
-              <td>{{ server.version }}</td>
+              <td>{{ displayServerVersion(server.version) }}</td>
               <td>{{ server.expiredDate }}</td>
               <td>{{ server.created }}</td>
               <td>
@@ -92,7 +109,7 @@
                   <button
                     class="icon-btn"
                     title="Settings"
-                    @click="toggleRowMenu(server.id)"
+                    @click.stop="toggleRowMenu(server.id)"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="3"></circle>
@@ -141,7 +158,11 @@
     class="dialog-backdrop"
     @click="!isCreatingServer && closeNewServerDialog()"
   >
-    <div class="dialog-card" :class="{ 'dialog-card--busy': isCreatingServer }" @click.stop>
+    <div
+      class="dialog-card dialog-card--wide dialog-card--form"
+      :class="{ 'dialog-card--busy': isCreatingServer }"
+      @click.stop
+    >
       <div class="dialog-header">
         <h3>New Server</h3>
         <button
@@ -265,24 +286,14 @@
           </div>
         </div>
 
-        <div class="dialog-section">
-          <h4>License management</h4>
-          <div class="license-options">
-            <label
-              v-for="tier in licenseTiers"
-              :key="tier"
-              class="radio-option"
-            >
-              <input
-                type="radio"
-                name="license-tier"
-                :value="tier"
-                v-model="licenseTier"
-                @change="onLicenseTierChange"
-              />
-              <span>{{ tier }}</span>
-            </label>
-          </div>
+        <div class="dialog-section dialog-section--license">
+          <h4>License</h4>
+          <LicenseTierSelector
+            v-model="licenseTier"
+            compact
+            aria-label="License type for new server"
+            @update:model-value="onLicenseTierChange"
+          />
           <p class="license-tier-hint">
             <template v-if="licenseTier === 'Trial'">
               A new 3-day trial license will be generated and bound to the target host.
@@ -489,7 +500,7 @@
     @click="!isLoadingUpgradeVersions && !isUpgradingServer && closeUpgradeDialog()"
   >
     <div
-      class="dialog-card"
+      class="dialog-card dialog-card--wide dialog-card--upgrade"
       :class="{ 'dialog-card--busy': isLoadingUpgradeVersions || isUpgradingServer }"
       @click.stop
     >
@@ -524,19 +535,15 @@
         <div v-else-if="upgradeVersionsError" class="upgrade-error">
           {{ upgradeVersionsError }}
         </div>
-        <div v-else-if="!upgradeVersions.length" class="muted-text">No versions available.</div>
-        <div v-else class="dialog-field">
-          <label for="upgrade-version-select">Version</label>
-          <select
-            id="upgrade-version-select"
+        <p v-else-if="!upgradeVersions.length" class="muted-text">No versions available.</p>
+        <div v-else class="upgrade-version-panels">
+          <VersionPanelSelector
             v-model="selectedUpgradeVersionUuid"
-            class="upgrade-version-select"
+            :versions="upgradeVersions"
+            :current-version="upgradeTargetServer?.version"
             :disabled="isUpgradingServer"
-          >
-            <option v-for="v in upgradeVersions" :key="v.uuid" :value="v.uuid">
-              {{ v.version }}
-            </option>
-          </select>
+            aria-label="Product version to install"
+          />
         </div>
       </div>
       <div class="dialog-footer">
@@ -551,7 +558,7 @@
         <button
           class="primary-btn"
           type="button"
-          :disabled="isLoadingUpgradeVersions || isUpgradingServer || !upgradeVersions.length"
+          :disabled="isLoadingUpgradeVersions || isUpgradingServer || !canSubmitVersionUpgrade"
           @click="submitUpgradeVersionChoice"
         >
           Upgrade
@@ -566,7 +573,7 @@
     @click="!isLicenseUpgrading && closeLicenseUpgradeDialog()"
   >
     <div
-      class="dialog-card"
+      class="dialog-card dialog-card--wide"
       :class="{ 'dialog-card--busy': isLicenseUpgrading }"
       @click.stop
     >
@@ -610,7 +617,20 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import LayerStatusDot from '../LayerStatusDot.vue'
 import LicenseTierUpgradePanel from '../LicenseTierUpgradePanel.vue'
+import LicenseTierSelector from '../LicenseTierSelector.vue'
+import VersionPanelSelector from '../VersionPanelSelector.vue'
+import {
+  formatServerVersionDisplay,
+  isSameProductVersion,
+  latestDeployVersionFromList,
+} from '@/utils/deployVersions'
+import {
+  layerDotDescription,
+  layerDotTitle,
+  resolveLayerStatus,
+} from '@/utils/serverLayerStatus'
 import {
   createServer as createServerApi,
   fetchServers,
@@ -633,7 +653,6 @@ const notifications = ref([])
 const allUsers = ref([])
 const selectedUsers = ref([])
 const isUserDropdownOpen = ref(false)
-const licenseTiers = ['Trial', 'L4', 'L7', 'Unified']
 const licenseTier = ref('Trial')
 const useExistingLicense = ref(false)
 const licenseFileName = ref('')
@@ -660,10 +679,18 @@ const upgradeTargetServer = ref(null)
 const upgradeVersions = ref([])
 const upgradeVersionsError = ref('')
 const selectedUpgradeVersionUuid = ref('')
+
+const canSubmitVersionUpgrade = computed(() => {
+  if (!upgradeVersions.value.length || !selectedUpgradeVersionUuid.value) return false
+  const picked = upgradeVersions.value.find((v) => v.uuid === selectedUpgradeVersionUuid.value)
+  if (!picked) return false
+  return !isSameProductVersion(picked.version, upgradeTargetServer.value?.version)
+})
 const isLicenseUpgradeDialogOpen = ref(false)
 const licenseUpgradeTarget = ref(null)
 const isLicenseUpgrading = ref(false)
 const servers = ref([])
+const deployVersionsCatalog = ref([])
 const pageSize = ref(6)
 const currentPage = ref(1)
 const newServer = ref({
@@ -811,6 +838,22 @@ const handleClickOutsideMenu = (event) => {
   }
 }
 
+const latestDeployVersion = computed(() =>
+  latestDeployVersionFromList(deployVersionsCatalog.value)
+)
+
+const displayServerVersion = (version) =>
+  formatServerVersionDisplay(version, latestDeployVersion.value)
+
+const loadDeployVersionsCatalog = async () => {
+  try {
+    const data = await fetchDeployVersions()
+    deployVersionsCatalog.value = Array.isArray(data?.versions) ? data.versions : []
+  } catch {
+    deployVersionsCatalog.value = []
+  }
+}
+
 const loadServers = async () => {
   try {
     const data = await fetchServers()
@@ -851,6 +894,7 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutsideMenu)
   void loadServers()
   void loadUsers()
+  void loadDeployVersionsCatalog()
 })
 
 watch(
@@ -1009,8 +1053,11 @@ const openUpgradeDialog = async (server) => {
     const data = await fetchDeployVersions()
     const list = Array.isArray(data?.versions) ? data.versions : []
     upgradeVersions.value = list
+    deployVersionsCatalog.value = list
     if (list.length) {
-      selectedUpgradeVersionUuid.value = list[0].uuid
+      const current = server?.version
+      const preferred = list.find((v) => !isSameProductVersion(v.version, current))
+      selectedUpgradeVersionUuid.value = (preferred || list[0]).uuid
     }
   } catch (error) {
     const msg = error?.message || 'Failed to load versions from deploy_license.'
@@ -1029,12 +1076,17 @@ const submitUpgradeVersionChoice = async () => {
     enqueueNotification('Please select a version.', 'error')
     return
   }
+  if (isSameProductVersion(v.version, server.version)) {
+    enqueueNotification('This version is already installed on the server.', 'error')
+    return
+  }
   isUpgradingServer.value = true
   try {
     await upgradeServer(server.id, { versionUuid: uuid })
     enqueueNotification(`Server ${server.name} upgraded to version ${v.version}.`, 'success')
     closeUpgradeDialog()
     void loadServers()
+    void loadDeployVersionsCatalog()
   } catch (error) {
     enqueueNotification(error?.message || 'Upgrade failed.', 'error')
   } finally {
@@ -1171,10 +1223,10 @@ const nextPage = () => {
   border-radius: 12px;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #1f2937;
-  background: #ffffff;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  color: var(--app-text);
+  background: var(--app-surface-solid);
+  box-shadow: 0 12px 24px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .toast.success {
@@ -1197,12 +1249,12 @@ const nextPage = () => {
 
 
 .content-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 28px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .card-header {
@@ -1216,7 +1268,7 @@ const nextPage = () => {
 .content-card h2 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1a202c;
+  color: var(--app-heading);
   margin: 0 0 6px 0;
 }
 
@@ -1231,7 +1283,7 @@ const nextPage = () => {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .filter-header {
@@ -1246,35 +1298,22 @@ const nextPage = () => {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .content-card p {
   margin: 0;
-  color: #4a5568;
+  color: var(--app-text-secondary);
   font-size: 0.98rem;
 }
 
-.primary-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.25);
+.muted-text {
+  color: var(--app-text-muted);
+  font-size: 0.9rem;
 }
 
-.primary-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 20px rgba(22, 163, 74, 0.3);
+.primary-btn {
+  /* colors from theme.css */
 }
 
 .primary-btn:disabled {
@@ -1303,12 +1342,59 @@ const nextPage = () => {
   pointer-events: none;
 }
 
+.dialog-card--form {
+  max-height: min(92vh, 880px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.dialog-card--form .dialog-header {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--app-border);
+}
+
 .new-server-dialog-form {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
   margin: 0;
+  overflow: hidden;
+}
+
+.new-server-dialog-form .dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+.new-server-dialog-form .dialog-deploy-status {
+  flex-shrink: 0;
+  margin: 0 16px 8px;
+}
+
+.new-server-dialog-form .dialog-footer {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--app-border);
+  background: var(--app-surface-solid);
+}
+
+.dialog-section--license .license-tier-hint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+}
+
+.dialog-section--license .license-existing-row {
+  margin-top: 8px;
+  padding-top: 8px;
 }
 
 .dialog-deploy-status {
@@ -1318,9 +1404,9 @@ const nextPage = () => {
   margin: 0;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(102, 126, 234, 0.08);
-  border: 1px solid rgba(102, 126, 234, 0.2);
-  color: #4338ca;
+  background: var(--app-accent-soft);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  color: var(--app-accent);
   font-size: 0.9rem;
   line-height: 1.45;
 }
@@ -1328,34 +1414,58 @@ const nextPage = () => {
 .upgrade-server-line {
   margin: 0 0 8px 0;
   font-size: 0.95rem;
-  color: #1f2937;
+  color: var(--app-text);
 }
 
 .upgrade-hint {
   margin: 0 0 16px 0;
   font-size: 0.88rem;
   line-height: 1.45;
+  color: var(--app-text-muted);
 }
 
 .upgrade-error {
   margin: 0;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
   font-size: 0.9rem;
 }
 
-.upgrade-version-select {
-  width: 100%;
+.upgrade-version-panels {
   margin-top: 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.55);
-  font-size: 0.92rem;
-  color: #1f2937;
-  background: #fff;
+}
+
+.dialog-card--upgrade {
+  max-height: min(92vh, 900px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.dialog-card--upgrade .dialog-header {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.dialog-card--upgrade .dialog-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+
+.dialog-card--upgrade .dialog-footer {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--app-border);
+  background: var(--app-surface-solid);
 }
 
 .btn-spinner {
@@ -1369,8 +1479,8 @@ const nextPage = () => {
 }
 
 .btn-spinner--inline {
-  border-color: rgba(67, 56, 202, 0.25);
-  border-top-color: #4338ca;
+  border-color: var(--app-border);
+  border-top-color: var(--app-accent);
   margin-top: 2px;
 }
 
@@ -1403,34 +1513,38 @@ const nextPage = () => {
 
 .filter-field label {
   font-size: 0.85rem;
-  color: #718096;
+  color: var(--app-text-muted);
   font-weight: 500;
 }
 
 .filter-field input,
 .filter-field select {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.95rem;
-  background: white;
-  color: #1a202c;
+  background: var(--app-input-bg);
+  color: var(--app-text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.filter-field input::placeholder {
+  color: var(--app-text-muted);
+}
+
 .filter-field input:focus,
 .filter-field select:focus {
-  border-color: rgba(102, 126, 234, 0.6);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .table-wrap {
   overflow-x: auto;
+  overflow-y: visible;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border);
   flex: 1;
-  overflow-y: auto;
 }
 
 .servers-table {
@@ -1440,7 +1554,7 @@ const nextPage = () => {
 }
 
 .servers-table thead {
-  background: rgba(248, 250, 252, 0.9);
+  background: var(--app-surface-elevated);
 }
 
 .servers-table th,
@@ -1448,20 +1562,20 @@ const nextPage = () => {
   text-align: left;
   padding: 14px 16px;
   font-size: 0.92rem;
-  color: #1f2937;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  color: var(--app-text);
+  border-bottom: 1px solid var(--app-border);
 }
 
 .servers-table th {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-weight: 600;
 }
 
 .servers-table tbody tr:hover {
-  background: rgba(248, 250, 252, 0.7);
+  background: var(--app-surface-hover);
 }
 
 .table-footer {
@@ -1473,7 +1587,7 @@ const nextPage = () => {
 }
 
 .pagination-info {
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.9rem;
 }
 
@@ -1484,20 +1598,16 @@ const nextPage = () => {
 }
 
 .pagination-btn {
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  background: white;
-  color: #334155;
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.85rem;
-  cursor: pointer;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-elevated);
+  color: var(--app-text);
   transition: all 0.2s ease;
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: rgba(102, 126, 234, 0.6);
-  color: #4c51bf;
-  background: rgba(102, 126, 234, 0.08);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
 .pagination-btn:disabled {
@@ -1506,49 +1616,14 @@ const nextPage = () => {
 }
 
 .pagination-page {
-  color: #475569;
+  color: var(--app-text-muted);
   font-size: 0.85rem;
 }
 
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: rgba(100, 116, 139, 0.12);
-  color: #475569;
-}
-
-.status-pill.active {
-  background: rgba(34, 197, 94, 0.15);
-  color: #15803d;
-}
-
-.status-pill.inactive {
-  background: rgba(239, 68, 68, 0.15);
-  color: #b91c1c;
-}
-
-.status-pill.maintenance {
-  background: rgba(245, 158, 11, 0.18);
-  color: #b45309;
-}
-
-.status-pill.running {
-  background: rgba(34, 197, 94, 0.15);
-  color: #15803d;
-}
-
-.status-pill.deployed {
-  background: rgba(59, 130, 246, 0.15);
-  color: #1d4ed8;
-}
-
-.status-pill.stopped {
-  background: rgba(239, 68, 68, 0.15);
-  color: #b91c1c;
+.col-layer-dots {
+  width: 52px;
+  padding-left: 12px !important;
+  padding-right: 8px !important;
 }
 
 .server-users {
@@ -1562,18 +1637,18 @@ const nextPage = () => {
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #1e3a8a;
-  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-  border: 1px solid rgba(165, 180, 252, 0.7);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
+  border: 1px solid rgba(168, 85, 247, 0.25);
 }
 
 .icon-btn {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: rgba(248, 250, 252, 0.9);
-  color: #4b5563;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-elevated);
+  color: var(--app-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1587,62 +1662,68 @@ const nextPage = () => {
 }
 
 .icon-btn:hover {
-  border-color: rgba(102, 126, 234, 0.7);
-  color: #4c51bf;
-  background: rgba(102, 126, 234, 0.12);
-  box-shadow: 0 6px 14px rgba(102, 126, 234, 0.18);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
+  box-shadow: 0 4px 12px var(--app-shadow);
   transform: translateY(-1px);
 }
 
 .menu-wrap {
   position: relative;
   display: inline-flex;
+  z-index: 1;
+}
+
+.menu-wrap:has(.row-menu) {
+  z-index: 60;
 }
 
 .row-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 160px;
-  background: white;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  min-width: 168px;
+  background: var(--app-surface-solid);
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
-  padding: 8px;
-  z-index: 6;
+  box-shadow: 0 12px 32px var(--app-shadow);
+  padding: 6px;
+  z-index: 50;
 }
 
 .row-menu-item {
   width: 100%;
   text-align: left;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 8px;
   border: none;
   background: transparent;
-  font-size: 0.92rem;
-  color: #1f2937;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--app-text);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .row-menu-item:hover {
-  background: rgba(102, 126, 234, 0.08);
-  color: #4c51bf;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
 }
 
 .row-menu-item.danger {
-  color: #b91c1c;
+  color: #f87171;
 }
 
 .row-menu-item.danger:hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
 }
 
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--app-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1653,11 +1734,15 @@ const nextPage = () => {
 .dialog-card {
   width: 100%;
   max-width: 520px;
-  background: white;
+  background: var(--app-surface-solid);
   border-radius: 18px;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.2);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 24px 48px var(--app-shadow);
+  border: 1px solid var(--app-border);
   padding: 24px;
+}
+
+.dialog-card--wide {
+  max-width: 1180px;
 }
 
 .dialog-header {
@@ -1671,13 +1756,13 @@ const nextPage = () => {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .dialog-close {
   border: none;
-  background: rgba(148, 163, 184, 0.15);
-  color: #475569;
+  background: var(--app-surface-elevated);
+  color: var(--app-text-muted);
   width: 32px;
   height: 32px;
   border-radius: 10px;
@@ -1686,11 +1771,12 @@ const nextPage = () => {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  border: 1px solid var(--app-border);
 }
 
 .dialog-close:hover {
-  background: rgba(148, 163, 184, 0.25);
-  color: #1f2937;
+  background: var(--app-surface-hover);
+  color: var(--app-text);
 }
 
 .dialog-body {
@@ -1703,7 +1789,7 @@ const nextPage = () => {
   margin: 0 0 12px 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .dialog-grid {
@@ -1720,32 +1806,33 @@ const nextPage = () => {
 
 .dialog-field label {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-weight: 500;
 }
 
 .dialog-field input {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.95rem;
-  color: #1a202c;
+  color: var(--app-text);
+  background: var(--app-input-bg);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dialog-field input:focus {
-  border-color: rgba(102, 126, 234, 0.6);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .dialog-field select {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.95rem;
-  background: white;
-  color: #1a202c;
+  background: var(--app-input-bg);
+  color: var(--app-text);
   outline: none;
   min-height: 44px;
 }
@@ -1765,7 +1852,7 @@ const nextPage = () => {
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
-  color: #64748b;
+  color: var(--app-text-muted);
 }
 
 .combobox-arrow svg {
@@ -1778,24 +1865,25 @@ const nextPage = () => {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  background: white;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: var(--app-surface-solid);
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
-  padding: 8px;
+  box-shadow: 0 12px 32px var(--app-shadow);
+  padding: 6px;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 5;
+  z-index: 50;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .combobox-option {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 8px;
   font-size: 0.9rem;
-  color: #1f2937;
+  color: var(--app-text);
   cursor: pointer;
   background: transparent;
   border: none;
@@ -1804,12 +1892,13 @@ const nextPage = () => {
 }
 
 .combobox-option:hover {
-  background: rgba(102, 126, 234, 0.08);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
 }
 
 .combobox-empty {
   padding: 10px 12px;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   font-size: 0.9rem;
 }
 
@@ -1825,18 +1914,18 @@ const nextPage = () => {
   align-items: center;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(102, 126, 234, 0.12);
-  color: #4c51bf;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
   font-size: 0.85rem;
   font-weight: 600;
-  border: none;
+  border: 1px solid rgba(168, 85, 247, 0.2);
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .user-chip:hover {
-  background: rgba(102, 126, 234, 0.18);
-  color: #4338ca;
+  background: rgba(168, 85, 247, 0.25);
+  color: var(--app-accent-hover);
 }
 
 .license-options {
@@ -1853,7 +1942,7 @@ const nextPage = () => {
   align-items: center;
   gap: 8px;
   font-size: 0.95rem;
-  color: #1f2937;
+  color: var(--app-text);
   cursor: pointer;
 }
 
@@ -1866,14 +1955,14 @@ const nextPage = () => {
 .license-tier-hint {
   margin: 0 0 12px 0;
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--app-text-muted);
   line-height: 1.4;
 }
 
 .license-existing-row {
   margin-top: 8px;
   padding-top: 12px;
-  border-top: 1px dashed rgba(148, 163, 184, 0.4);
+  border-top: 1px dashed var(--app-border);
 }
 
 .license-file {
@@ -1889,9 +1978,10 @@ const nextPage = () => {
 }
 
 .license-path {
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.9rem;
 }
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
@@ -1900,20 +1990,16 @@ const nextPage = () => {
 }
 
 .secondary-btn {
-  background: rgba(254, 242, 242, 0.9);
-  border: 1px solid rgba(239, 68, 68, 0.6);
-  color: #b91c1c;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 0.95rem;
-  cursor: pointer;
+  background: var(--app-surface-elevated);
+  border: 1px solid var(--app-border-strong);
+  color: var(--app-text);
   transition: all 0.2s ease;
 }
 
-.secondary-btn:hover {
-  border-color: rgba(220, 38, 38, 0.8);
-  color: #991b1b;
-  background: rgba(239, 68, 68, 0.16);
+.secondary-btn:hover:not(:disabled) {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
 @media (max-width: 768px) {

@@ -299,12 +299,12 @@ watch(
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .panel-desc {
   margin: 6px 0 0 0;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.92rem;
 }
 
@@ -317,9 +317,10 @@ watch(
 .table-wrap {
   overflow: auto;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border-strong);
   width: 100%;
   max-height: 520px;
+  background: var(--app-surface);
 }
 
 .list-table {
@@ -333,8 +334,8 @@ watch(
 .list-table td {
   padding: 12px 14px;
   text-align: left;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
-  color: #1f2937;
+  border-bottom: 1px solid var(--app-border-strong);
+  color: var(--app-text);
   word-break: break-word;
 }
 
@@ -342,8 +343,8 @@ watch(
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
-  background: rgba(248, 250, 252, 0.8);
+  color: var(--app-text-muted);
+  background: var(--app-surface-muted);
 }
 
 .list-table tr:last-child td {
@@ -352,20 +353,13 @@ watch(
 
 .empty-cell {
   text-align: center;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   font-style: italic;
 }
 
-.primary-btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  cursor: pointer;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+.primary-btn,
+.primary-btn:hover:not(:disabled) {
+  /* flat styles from theme.css */
 }
 
 .primary-btn:disabled {
@@ -375,14 +369,21 @@ watch(
 }
 
 .secondary-btn {
-  border: 1px solid rgba(148, 163, 184, 0.6);
+  border: 1px solid var(--app-border-strong);
   border-radius: 10px;
   padding: 9px 14px;
   font-size: 0.9rem;
   font-weight: 600;
-  background: #fff;
-  color: #475569;
+  background: var(--app-surface-solid);
+  color: var(--app-text-secondary);
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: var(--app-surface-hover);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
 }
 
 .secondary-btn:disabled {
@@ -391,8 +392,8 @@ watch(
 }
 
 .icon-action-btn {
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: #fff;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-solid);
   width: 34px;
   height: 34px;
   border-radius: 10px;
@@ -401,7 +402,13 @@ watch(
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  color: #2563eb;
+  color: var(--app-accent);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.icon-action-btn:hover {
+  background: var(--app-surface-hover);
+  border-color: var(--app-accent);
 }
 
 .icon-action-btn svg {
@@ -414,10 +421,16 @@ watch(
   color: #dc2626;
 }
 
+.icon-action-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ef4444;
+}
+
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: var(--app-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -427,9 +440,10 @@ watch(
 
 .dialog-card {
   width: min(520px, 100%);
-  background: #fff;
+  background: var(--app-surface-solid);
+  border: 1px solid var(--app-border-strong);
   border-radius: 16px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+  box-shadow: 0 20px 50px var(--app-shadow);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -447,18 +461,24 @@ watch(
   margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--app-heading);
 }
 
 .icon-btn {
   border: none;
-  background: rgba(148, 163, 184, 0.2);
-  color: #334155;
+  background: var(--app-surface-hover);
+  color: var(--app-text-secondary);
   width: 32px;
   height: 32px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: var(--app-surface-elevated);
+  color: var(--app-text);
 }
 
 .dialog-body {
@@ -477,7 +497,7 @@ watch(
 .form-field label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--app-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-top: 8px;
@@ -488,13 +508,19 @@ watch(
 }
 
 .form-input {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 0.92rem;
-  color: #1f2937;
-  background: #fff;
+  color: var(--app-text);
+  background: var(--app-input-bg);
   outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .field-control {

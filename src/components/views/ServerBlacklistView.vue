@@ -596,25 +596,8 @@ onBeforeUnmount(() => {
   min-width: 180px;
 }
 
-.search-group .primary-btn {
-  padding: 10px 16px;
-}
-
 .success-btn {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 8px 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.success-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(22, 163, 74, 0.25);
+  /* neutral outline from theme.css */
 }
 
 .icon-danger-btn {
@@ -643,39 +626,9 @@ onBeforeUnmount(() => {
   background: rgba(239, 68, 68, 0.16);
 }
 
-.primary-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 8px 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.primary-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
-}
-
+.primary-btn,
 .danger-btn {
-  background: rgba(254, 242, 242, 0.9);
-  border: 1px solid rgba(239, 68, 68, 0.6);
-  color: #b91c1c;
-  border-radius: 10px;
-  padding: 8px 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.danger-btn:hover {
-  border-color: rgba(220, 38, 38, 0.8);
-  color: #991b1b;
-  background: rgba(239, 68, 68, 0.16);
+  /* colors from theme.css */
 }
 
 .dialog-backdrop {

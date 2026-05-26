@@ -78,21 +78,18 @@ const handleExport = () => {
 }
 
 .view-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  padding: var(--space-card, 14px 16px);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .view-card h2 {
   font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #1a202c 0%, #4a5568 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--app-heading);
   margin: 0 0 28px 0;
   letter-spacing: -0.5px;
 }
@@ -106,7 +103,7 @@ const handleExport = () => {
 .form-section h3 {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1a202c;
+  color: var(--app-heading);
   margin: 0 0 20px 0;
 }
 
@@ -120,7 +117,7 @@ const handleExport = () => {
 .form-group label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--app-text-secondary);
 }
 
 .date-inputs {
@@ -132,17 +129,20 @@ const handleExport = () => {
 .date-inputs input {
   flex: 1;
   padding: 12px 16px;
-  border: 2px solid #e5e7eb;
+  border: 1px solid var(--app-input-border);
   border-radius: 8px;
   font-size: 0.95rem;
+  background: var(--app-input-bg);
+  color: var(--app-text);
 }
 
 .form-select {
   padding: 12px 16px;
-  border: 2px solid #e5e7eb;
+  border: 1px solid var(--app-input-border);
   border-radius: 8px;
   font-size: 0.95rem;
-  background: white;
+  background: var(--app-input-bg);
+  color: var(--app-text);
   cursor: pointer;
 }
 
@@ -157,7 +157,7 @@ const handleExport = () => {
   gap: 8px;
   cursor: pointer;
   font-size: 0.95rem;
-  color: #374151;
+  color: var(--app-text-secondary);
 }
 
 .radio-label input[type="radio"] {
@@ -167,30 +167,7 @@ const handleExport = () => {
 }
 
 .export-button {
-  padding: 14px 28px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
   align-self: flex-start;
-}
-
-.export-button svg {
-  width: 20px;
-  height: 20px;
-}
-
-.export-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
 }
 </style>
 

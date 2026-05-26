@@ -14,8 +14,22 @@
           </option>
         </select>
         <div v-if="selectedServerData" class="filter-meta">
-          <span class="meta-pill status" :class="selectedServerData.statusClass">
-            Status: {{ selectedServerData.statusLabel }}
+          <span class="layer-status-dots layer-status-dots--meta">
+            <LayerStatusDot
+              layer="l4"
+              :status="resolveLayerStatus(selectedServerData, 'l4')"
+              :description="layerDotDescription(selectedServerData, 'l4')"
+              :aria-label="layerDotTitle(selectedServerData, 'l4')"
+            />
+            <LayerStatusDot
+              layer="l7"
+              :status="resolveLayerStatus(selectedServerData, 'l7')"
+              :description="layerDotDescription(selectedServerData, 'l7')"
+              :aria-label="layerDotTitle(selectedServerData, 'l7')"
+            />
+          </span>
+          <span class="meta-pill status server-status-pill" :class="selectedServerData.statusClass">
+            Angelos: {{ selectedServerData.statusLabel }}
           </span>
           <span class="meta-pill license">License: {{ selectedServerData.license }}</span>
         </div>
@@ -88,6 +102,12 @@ import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
 import WafPanel from "./WafPanel.vue";
 import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 import LicenseTierUpgradePanel from "../LicenseTierUpgradePanel.vue";
+import LayerStatusDot from "../LayerStatusDot.vue";
+import {
+  layerDotDescription,
+  layerDotTitle,
+  resolveLayerStatus,
+} from "@/utils/serverLayerStatus";
 
 const route = useRoute();
 const notifications = useNotifications();
@@ -222,18 +242,18 @@ onMounted(() => {
 }
 
 .content-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 28px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .content-card h2 {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1a202c;
+  color: var(--app-heading);
   margin: 0 0 12px 0;
 }
 
@@ -252,23 +272,24 @@ onMounted(() => {
 .filter-label {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #2d3748;
+  color: var(--app-text-secondary);
 }
 
 .filter-select {
   min-width: 220px;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   padding: 8px 12px;
   font-size: 0.95rem;
-  color: #1a202c;
-  background: #fff;
-  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.06);
+  color: var(--app-text);
+  background: var(--app-input-bg);
+  box-shadow: 0 1px 6px var(--app-shadow);
 }
 
 .filter-select:focus {
-  outline: 2px solid rgba(66, 153, 225, 0.35);
+  outline: 2px solid var(--app-accent-soft);
   outline-offset: 2px;
+  border-color: var(--app-accent);
 }
 
 .filter-meta {
@@ -278,35 +299,22 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
-.meta-pill {
+.layer-status-dots--meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.meta-pill.license {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 0.85rem;
   font-weight: 600;
-  background: rgba(148, 163, 184, 0.18);
-  color: #334155;
-}
-
-.meta-pill.status.active {
-  background: rgba(34, 197, 94, 0.15);
-  color: #15803d;
-}
-
-.meta-pill.status.inactive {
-  background: rgba(239, 68, 68, 0.15);
-  color: #b91c1c;
-}
-
-.meta-pill.status.maintenance {
-  background: rgba(245, 158, 11, 0.18);
-  color: #b45309;
-}
-
-.meta-pill.license {
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+  border: 1px solid rgba(124, 58, 237, 0.28);
 }
 
 .settings-tabs {
@@ -322,9 +330,9 @@ onMounted(() => {
 }
 
 .tab-btn {
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: #fff;
-  color: #475569;
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-solid);
+  color: var(--app-text-muted);
   border-radius: 999px;
   padding: 8px 14px;
   font-size: 0.9rem;
@@ -334,26 +342,29 @@ onMounted(() => {
 }
 
 .tab-btn.active {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.5);
-  color: #1d4ed8;
-  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.12);
+  background: var(--app-accent-soft);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  box-shadow: 0 6px 14px rgba(124, 58, 237, 0.15);
 }
 
 .tab-btn:hover:not(.active) {
-  border-color: rgba(100, 116, 139, 0.6);
-  color: #334155;
+  border-color: var(--app-border-strong);
+  color: var(--app-text);
+  background: var(--app-surface-hover);
 }
 
 .tabs-body {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-border-strong);
   border-radius: 14px;
   overflow: hidden;
+  background: var(--app-surface);
 }
 
 .tabs-body.no-outline {
   border: none;
   border-radius: 0;
+  background: transparent;
 }
 
 .config-table {
@@ -363,7 +374,7 @@ onMounted(() => {
 }
 
 .config-table thead {
-  background: rgba(248, 250, 252, 0.9);
+  background: var(--app-surface-muted);
 }
 
 .config-table th,
@@ -371,20 +382,20 @@ onMounted(() => {
   text-align: left;
   padding: 12px 16px;
   font-size: 0.92rem;
-  color: #1f2937;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  color: var(--app-text);
+  border-bottom: 1px solid var(--app-border-strong);
 }
 
 .config-table th {
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-weight: 600;
 }
 
 .config-note {
-  color: #64748b;
+  color: var(--app-text-muted);
 }
 
 .value-pill {
@@ -394,7 +405,7 @@ onMounted(() => {
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--app-text-secondary);
   background: rgba(148, 163, 184, 0.18);
 }
 
@@ -405,18 +416,19 @@ onMounted(() => {
 
 .content-card p {
   margin: 0;
-  color: #4a5568;
+  color: var(--app-text-secondary);
   font-size: 0.98rem;
 }
 
 .license-tab-body {
-  padding: 8px 4px 4px;
+  padding: 12px 8px 8px;
+  max-width: 1180px;
 }
 
 .license-tab-lead {
-  margin: 0 0 18px;
+  margin: 0 0 22px;
   font-size: 0.95rem;
-  color: #475569;
+  color: var(--app-text-secondary);
   line-height: 1.55;
 }
 </style>

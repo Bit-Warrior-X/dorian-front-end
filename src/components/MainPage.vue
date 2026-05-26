@@ -6,7 +6,7 @@
     <!-- Left Panel -->
     <aside :class="['left-panel', { 'panel-hidden': !isPanelOpen }]">
       <div class="panel-header">
-        <h2>CDNProxy</h2>
+        <h2>Dorian</h2>
         <button class="panel-toggle-btn" @click="togglePanel" title="Toggle Panel">
           <svg v-if="isPanelOpen" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6"></polyline>
@@ -174,7 +174,9 @@
           </svg>
         </button>
         <h1>{{ currentViewTitle }}</h1>
-        <div ref="userMenuRef" class="user-info">
+        <div class="view-header-actions">
+          <ThemeToggleButton />
+          <div ref="userMenuRef" class="user-info">
           <button class="user-menu-button" type="button" @click="toggleUserMenu">
             <span class="user-avatar">{{ userInitials }}</span>
             <span class="user-name">{{ displayName }}</span>
@@ -192,6 +194,7 @@
               Log out
             </button>
           </div>
+          </div>
         </div>
       </div>
       <div class="view-content">
@@ -206,6 +209,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/stores/auth'
 import { useNotifications } from '@/stores/notifications'
+import ThemeToggleButton from './ThemeToggleButton.vue'
 
 const auth = useAuth()
 const notifications = useNotifications()
@@ -342,7 +346,7 @@ onBeforeUnmount(() => {
 .left-panel {
   width: 280px;
   min-width: 280px;
-  background: linear-gradient(180deg, #1a202c 0%, #2d3748 100%);
+  background: var(--app-sidebar-bg, linear-gradient(180deg, #0a0a0a 0%, #171717 100%));
   color: white;
   display: flex;
   flex-direction: column;
@@ -384,7 +388,7 @@ onBeforeUnmount(() => {
 }
 
 .panel-header {
-  padding: 28px 24px;
+  padding: 16px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
@@ -431,8 +435,9 @@ onBeforeUnmount(() => {
 
 .panel-nav {
   flex: 1;
-  padding: 20px 0;
+  padding: 12px 0;
   overflow-y: auto;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .nav-list {
@@ -448,8 +453,8 @@ onBeforeUnmount(() => {
 .nav-item a {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 24px;
+  gap: 12px;
+  padding: 10px 18px;
   color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -603,7 +608,10 @@ onBeforeUnmount(() => {
 }
 
 .panel-footer {
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -637,7 +645,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #f7fafc 0%, #edf2f7 100%);
+  background: var(--app-bg-gradient);
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
@@ -666,10 +674,10 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #1f2937;
-  background: #ffffff;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  color: var(--app-text);
+  background: var(--app-surface-solid);
+  box-shadow: 0 12px 24px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .toast.success {
@@ -684,16 +692,27 @@ onBeforeUnmount(() => {
   color: #b91c1c;
 }
 
+.view-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.view-header h1 {
+  color: var(--app-heading, #1a202c);
+}
+
 .view-header {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-header-bg, rgba(255, 255, 255, 0.9));
   backdrop-filter: blur(20px);
-  padding: 24px 40px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding: var(--space-header-y, 10px) var(--space-header-x, 20px);
+  border-bottom: 1px solid var(--app-border, rgba(226, 232, 240, 0.8));
   display: flex;
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  gap: 16px;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -765,7 +784,6 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-
 .user-info {
   position: relative;
   display: flex;
@@ -779,9 +797,9 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid rgba(102, 126, 234, 0.25);
-  background: #ffffff;
-  color: #1f2937;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-solid);
+  color: var(--app-text);
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 0.9rem;
@@ -832,8 +850,8 @@ onBeforeUnmount(() => {
   right: 0;
   top: calc(100% + 10px);
   min-width: 180px;
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: var(--app-surface-solid);
+  border: 1px solid var(--app-border);
   border-radius: 12px;
   box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
   padding: 8px;
@@ -846,7 +864,7 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   border: none;
   background: transparent;
-  color: #1f2937;
+  color: var(--app-text);
   font-size: 0.9rem;
   border-radius: 8px;
   cursor: pointer;
@@ -863,27 +881,10 @@ onBeforeUnmount(() => {
 
 .view-content {
   flex: 1;
-  padding: 40px;
+  padding: var(--space-page-y, 12px) var(--space-page-x, 16px);
   overflow-y: auto;
   background: transparent;
-}
-
-.view-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.view-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-}
-
-.view-content::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 4px;
-}
-
-.view-content::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 /* Responsive Design */
@@ -909,7 +910,7 @@ onBeforeUnmount(() => {
   }
 
   .view-content {
-    padding: 20px;
+    padding: 10px 12px;
   }
   
   .panel-toggle-btn {

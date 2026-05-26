@@ -573,6 +573,218 @@ import { fetchServers } from '@/api/servers'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
 import { useNotifications } from '@/stores/notifications'
 
+const chartGridColor = () => {
+  if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() ||
+    'rgba(148, 163, 184, 0.2)'
+  )
+}
+
+const chartLabelColor = () => {
+  if (typeof document === 'undefined') return '#64748b'
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue('--chart-label').trim() ||
+    '#64748b'
+  )
+}
+
+const chartTooltipTheme = () =>
+  typeof document !== 'undefined' &&
+  document.documentElement.getAttribute('data-theme') === 'dark'
+    ? 'dark'
+    : 'light'
+
+const isDarkTheme = () =>
+  typeof document !== 'undefined' &&
+  document.documentElement.getAttribute('data-theme') === 'dark'
+
+const pieEmptyColor = () => (isDarkTheme() ? '#2a2a2a' : '#e2e8f0')
+
+const pieSliceStrokeColor = () => (isDarkTheme() ? '#0a0a0a' : '#ffffff')
+
+const PIE_COLORS_TOP_IPS = [
+  '#8b5cf6',
+  '#f59e0b',
+  '#22c55e',
+  '#ef4444',
+  '#38bdf8',
+  '#ec4899',
+  '#14b8a6',
+]
+
+const PIE_COLORS_STATUS = [
+  '#8b5cf6',
+  '#f59e0b',
+  '#22c55e',
+  '#ef4444',
+  '#3b82f6',
+  '#06b6d4',
+  '#ec4899',
+  '#84cc16',
+  '#f97316',
+  '#e11d48',
+  '#a855f7',
+  '#64748b',
+  '#14b8a6',
+  '#dc2626',
+  '#2563eb',
+  '#0f766e',
+]
+
+const PIE_COLORS_ISP = ['#22c55e', '#f59e0b', '#8b5cf6', '#38bdf8', '#ef4444']
+const PIE_COLORS_REFERER = ['#3b82f6', '#f59e0b', '#8b5cf6', '#22c55e', '#ef4444']
+const PIE_COLORS_METHOD = [
+  '#2563eb',
+  '#16a34a',
+  '#ef4444',
+  '#f59e0b',
+  '#0ea5e9',
+  '#8b5cf6',
+  '#22c55e',
+  '#64748b',
+]
+const PIE_COLORS_PROTOCOL = ['#8b5cf6', '#f59e0b', '#22c55e', '#3b82f6', '#ef4444']
+
+const PIE_BOX_HEIGHT = 208
+const PIE_CHART_MIN_HEIGHT = 120
+const PIE_CHART_DEFAULT_HEIGHT = PIE_BOX_HEIGHT
+
+/** Drawable height: fill `.top-ips-pie` (fills pie card below title). */
+const getPieChartHeight = (mountEl) => {
+  const wrap = mountEl?.parentElement
+  if (!wrap) return PIE_CHART_DEFAULT_HEIGHT
+  const styles = getComputedStyle(wrap)
+  const paddingY =
+    (parseFloat(styles.paddingTop) || 0) + (parseFloat(styles.paddingBottom) || 0)
+  const inner = Math.floor(wrap.clientHeight - paddingY)
+  if (inner >= PIE_CHART_MIN_HEIGHT) return inner
+  return PIE_CHART_DEFAULT_HEIGHT
+}
+
+const buildPieChartOptions = (labels, series, hasData, palette, mountEl) => {
+  const safeLabels = hasData ? labels : ['No data']
+  const safeSeries = hasData ? series : [1]
+  const colors = hasData ? palette : [pieEmptyColor()]
+  const chartHeight = getPieChartHeight(mountEl)
+
+  return {
+    safeLabels,
+    safeSeries,
+    chartHeight,
+    options: {
+      chart: {
+        foreColor: chartLabelColor(),
+        type: 'pie',
+        height: chartHeight,
+        width: '100%',
+        toolbar: { show: false },
+        background: 'transparent',
+        offsetX: 0,
+        offsetY: 0,
+      },
+      labels: safeLabels,
+      series: safeSeries,
+      colors,
+      legend: { show: false },
+      dataLabels: { enabled: false },
+      stroke: {
+        show: true,
+        width: 1,
+        colors: [pieSliceStrokeColor()],
+      },
+      plotOptions: {
+        pie: {
+          expandOnClick: false,
+          offsetX: 0,
+          offsetY: 0,
+          customScale: 1,
+          dataLabels: {
+            offset: 0,
+          },
+        },
+      },
+      states: {
+        hover: {
+          filter: {
+            type: 'lighten',
+          },
+        },
+        active: {
+          filter: {
+            type: 'darken',
+          },
+        },
+      },
+      tooltip: {
+        theme: chartTooltipTheme(),
+        y: {
+          formatter: (val) => `${Math.round(val)}`,
+        },
+      },
+    },
+  }
+}
+
+const pieChartPatchOptions = (built, chartHeight) => ({
+  chart: {
+    foreColor: chartLabelColor(),
+    height: chartHeight,
+    width: '100%',
+  },
+  labels: built.safeLabels,
+  colors: built.options.colors,
+  stroke: built.options.stroke,
+  plotOptions: built.options.plotOptions,
+  tooltip: built.options.tooltip,
+})
+
+const updatePieChartInstance = (instance, el, built) => {
+  if (!el) return instance
+
+  const apply = (current) => {
+    const chartHeight = getPieChartHeight(el)
+    built.options.chart.height = chartHeight
+
+    if (current) {
+      current.updateOptions(pieChartPatchOptions(built, chartHeight), false, true)
+      current.updateSeries(built.safeSeries, true)
+      return current
+    }
+    const chart = new ApexCharts(el, built.options)
+    chart.render()
+    return chart
+  }
+
+  let chart = apply(instance)
+  const wrap = el.parentElement
+  if (wrap && wrap.clientHeight < PIE_CHART_MIN_HEIGHT) {
+    requestAnimationFrame(() => {
+      apply(chart)
+    })
+  }
+
+  return chart
+}
+
+const rerenderAllCharts = () => {
+  renderRxBandwidthChart()
+  renderTxBandwidthChart()
+  renderRxTrafficChart()
+  renderTxTrafficChart()
+  renderRequestResponseChart()
+  renderStatusCodeChart()
+  renderIpCountChart()
+  renderMethodChart()
+  renderProtocolChart()
+  renderTopIpsPie()
+  renderStatusCodePie()
+  renderIspPie()
+  renderRefererPie()
+  renderMethodPie()
+  renderProtocolPie()
+}
+
 const selectedServer = ref('all')
 const selectedTimeRange = ref('1h')
 const isCustomRange = ref(false)
@@ -1179,6 +1391,7 @@ const renderRxBandwidthChart = () => {
   ]
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'area',
       height: 280,
       toolbar: { show: false },
@@ -1205,7 +1418,7 @@ const renderRxBandwidthChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     legend: {
       show: true,
@@ -1215,6 +1428,7 @@ const renderRxBandwidthChart = () => {
       itemMargin: { horizontal: 8, vertical: 4 },
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => formatKiloBps(val),
@@ -1241,6 +1455,7 @@ const renderTxBandwidthChart = () => {
   ]
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'area',
       height: 280,
       toolbar: { show: false },
@@ -1267,9 +1482,10 @@ const renderTxBandwidthChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => formatKiloBps(val),
@@ -1302,6 +1518,7 @@ const renderRxTrafficChart = () => {
   ]
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'area',
       height: 280,
       toolbar: { show: false },
@@ -1328,9 +1545,10 @@ const renderRxTrafficChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => formatKiloBytes(val),
@@ -1364,6 +1582,7 @@ const renderTxTrafficChart = () => {
   ]
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'area',
       height: 280,
       toolbar: { show: false },
@@ -1390,9 +1609,10 @@ const renderTxTrafficChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => formatKiloBytes(val),
@@ -1422,6 +1642,7 @@ const renderRequestResponseChart = () => {
   const series = requestResponseSeries.value
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'line',
       height: 280,
       toolbar: { show: false },
@@ -1444,9 +1665,10 @@ const renderRequestResponseChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1469,6 +1691,7 @@ const renderStatusCodeChart = () => {
   const series = statusCodeSeries.value
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'line',
       height: 280,
       toolbar: { show: false },
@@ -1490,9 +1713,10 @@ const renderStatusCodeChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1521,6 +1745,7 @@ const renderIpCountChart = () => {
   const series = ipCountSeries.value
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'area',
       height: 280,
       toolbar: { show: false },
@@ -1547,9 +1772,10 @@ const renderIpCountChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => `${Math.round(val)} IPs`,
@@ -1572,6 +1798,7 @@ const renderMethodChart = () => {
   const series = methodSeries.value
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'line',
       height: 280,
       toolbar: { show: false },
@@ -1593,9 +1820,10 @@ const renderMethodChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1623,43 +1851,12 @@ const renderProtocolPie = () => {
   const labels = protocolTableRows.value.map((row) => row.protocol || 'Unknown')
   const series = protocolTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const safeLabels = hasData ? labels : ['No data']
-  const safeSeries = hasData ? series : [1]
-  const options = {
-    chart: {
-      type: 'pie',
-      height: 220,
-      toolbar: { show: false },
-    },
-    labels: safeLabels,
-    series: safeSeries,
-    legend: { show: false },
-    dataLabels: { enabled: false },
-    colors: ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6'],
-    tooltip: {
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-  }
-
-  if (protocolPieChartInstance) {
-    protocolPieChartInstance.updateOptions(
-      {
-        labels: safeLabels,
-        colors: options.colors,
-        tooltip: options.tooltip,
-        dataLabels: options.dataLabels,
-        legend: options.legend,
-      },
-      false,
-      true,
-    )
-    protocolPieChartInstance.updateSeries(safeSeries, true)
-  } else {
-    protocolPieChartInstance = new ApexCharts(protocolPieChart.value, options)
-    protocolPieChartInstance.render()
-  }
+  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_PROTOCOL, protocolPieChart.value)
+  protocolPieChartInstance = updatePieChartInstance(
+    protocolPieChartInstance,
+    protocolPieChart.value,
+    built,
+  )
 }
 
 const renderProtocolChart = () => {
@@ -1668,6 +1865,7 @@ const renderProtocolChart = () => {
   const series = protocolSeries.value
   const options = {
     chart: {
+      foreColor: chartLabelColor(),
       type: 'line',
       height: 280,
       toolbar: { show: false },
@@ -1689,9 +1887,10 @@ const renderProtocolChart = () => {
       },
     },
     grid: {
-      borderColor: 'rgba(148, 163, 184, 0.2)',
+      borderColor: chartGridColor(),
     },
     tooltip: {
+      theme: chartTooltipTheme(),
       x: { format: 'yyyy/MM/dd HH:mm' },
       y: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1719,45 +1918,12 @@ const renderTopIpsPie = () => {
   const labels = ipTableRows.value.map((row) => row.ip || 'Unknown')
   const series = ipTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const safeLabels = hasData ? labels : ['No data']
-  const safeSeries = hasData ? series : [1]
-  const options = {
-    chart: {
-      type: 'pie',
-      height: 220,
-      toolbar: { show: false },
-    },
-    labels: safeLabels,
-    series: safeSeries,
-    legend: { show: false },
-    dataLabels: { enabled: false },
-    colors: hasData
-      ? ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#0ea5e9']
-      : ['#e2e8f0'],
-    tooltip: {
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-  }
-
-  if (topIpsPieChartInstance) {
-    topIpsPieChartInstance.updateOptions(
-      {
-        labels: safeLabels,
-        colors: options.colors,
-        tooltip: options.tooltip,
-        dataLabels: options.dataLabels,
-        legend: options.legend,
-      },
-      false,
-      true,
-    )
-    topIpsPieChartInstance.updateSeries(safeSeries, true)
-  } else {
-    topIpsPieChartInstance = new ApexCharts(topIpsPieChart.value, options)
-    topIpsPieChartInstance.render()
-  }
+  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_TOP_IPS, topIpsPieChart.value)
+  topIpsPieChartInstance = updatePieChartInstance(
+    topIpsPieChartInstance,
+    topIpsPieChart.value,
+    built,
+  )
 }
 
 const renderStatusCodePie = () => {
@@ -1765,47 +1931,12 @@ const renderStatusCodePie = () => {
   const labels = statusCodeRows.value.map((row) => row.code || 'Unknown')
   const series = statusCodeRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const safeLabels = hasData ? labels : ['No data']
-  const safeSeries = hasData ? series : [1]
-  const options = {
-    chart: {
-      type: 'pie',
-      height: 220,
-      toolbar: { show: false },
-    },
-    labels: safeLabels,
-    series: safeSeries,
-    legend: { show: false },
-    dataLabels: { enabled: false },
-    colors: [
-      '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#0ea5e9', '#a855f7',
-      '#22c55e', '#f97316', '#e11d48', '#1d4ed8', '#14b8a6', '#9333ea',
-      '#f43f5e', '#64748b', '#0f766e', '#b91c1c',
-    ],
-    tooltip: {
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-  }
-
-  if (statusCodePieChartInstance) {
-    statusCodePieChartInstance.updateOptions(
-      {
-        labels: safeLabels,
-        colors: options.colors,
-        tooltip: options.tooltip,
-        dataLabels: options.dataLabels,
-        legend: options.legend,
-      },
-      false,
-      true,
-    )
-    statusCodePieChartInstance.updateSeries(safeSeries, true)
-  } else {
-    statusCodePieChartInstance = new ApexCharts(statusCodePieChart.value, options)
-    statusCodePieChartInstance.render()
-  }
+  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_STATUS, statusCodePieChart.value)
+  statusCodePieChartInstance = updatePieChartInstance(
+    statusCodePieChartInstance,
+    statusCodePieChart.value,
+    built,
+  )
 }
 
 const renderIspPie = () => {
@@ -1813,43 +1944,8 @@ const renderIspPie = () => {
   const labels = ispTableRows.value.map((row) => row.isp || 'Unknown')
   const series = ispTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const safeLabels = hasData ? labels : ['No data']
-  const safeSeries = hasData ? series : [1]
-  const options = {
-    chart: {
-      type: 'pie',
-      height: 220,
-      toolbar: { show: false },
-    },
-    labels: safeLabels,
-    series: safeSeries,
-    legend: { show: false },
-    dataLabels: { enabled: false },
-    colors: hasData ? ['#22c55e', '#f59e0b', '#e2e8f0'] : ['#e2e8f0'],
-    tooltip: {
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-  }
-
-  if (ispPieChartInstance) {
-    ispPieChartInstance.updateOptions(
-      {
-        labels: safeLabels,
-        colors: options.colors,
-        tooltip: options.tooltip,
-        dataLabels: options.dataLabels,
-        legend: options.legend,
-      },
-      false,
-      true,
-    )
-    ispPieChartInstance.updateSeries(safeSeries, true)
-  } else {
-    ispPieChartInstance = new ApexCharts(ispPieChart.value, options)
-    ispPieChartInstance.render()
-  }
+  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_ISP, ispPieChart.value)
+  ispPieChartInstance = updatePieChartInstance(ispPieChartInstance, ispPieChart.value, built)
 }
 
 const renderRefererPie = () => {
@@ -1857,43 +1953,12 @@ const renderRefererPie = () => {
   const labels = refererTableRows.value.map((row) => row.referer || 'Unknown')
   const series = refererTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const safeLabels = hasData ? labels : ['No data']
-  const safeSeries = hasData ? series : [1]
-  const options = {
-    chart: {
-      type: 'pie',
-      height: 220,
-      toolbar: { show: false },
-    },
-    labels: safeLabels,
-    series: safeSeries,
-    legend: { show: false },
-    dataLabels: { enabled: false },
-    colors: hasData ? ['#3b82f6', '#f59e0b', '#e2e8f0'] : ['#e2e8f0'],
-    tooltip: {
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-  }
-
-  if (refererPieChartInstance) {
-    refererPieChartInstance.updateOptions(
-      {
-        labels: safeLabels,
-        colors: options.colors,
-        tooltip: options.tooltip,
-        dataLabels: options.dataLabels,
-        legend: options.legend,
-      },
-      false,
-      true,
-    )
-    refererPieChartInstance.updateSeries(safeSeries, true)
-  } else {
-    refererPieChartInstance = new ApexCharts(refererPieChart.value, options)
-    refererPieChartInstance.render()
-  }
+  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_REFERER, refererPieChart.value)
+  refererPieChartInstance = updatePieChartInstance(
+    refererPieChartInstance,
+    refererPieChart.value,
+    built,
+  )
 }
 
 const renderMethodPie = () => {
@@ -1901,43 +1966,12 @@ const renderMethodPie = () => {
   const labels = methodTableRows.value.map((row) => row.method || 'Unknown')
   const series = methodTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const safeLabels = hasData ? labels : ['No data']
-  const safeSeries = hasData ? series : [1]
-  const options = {
-    chart: {
-      type: 'pie',
-      height: 220,
-      toolbar: { show: false },
-    },
-    labels: safeLabels,
-    series: safeSeries,
-    legend: { show: false },
-    dataLabels: { enabled: false },
-    colors: ['#2563eb', '#16a34a', '#ef4444', '#f59e0b', '#0ea5e9', '#8b5cf6', '#22c55e', '#64748b'],
-    tooltip: {
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-  }
-
-  if (methodPieChartInstance) {
-    methodPieChartInstance.updateOptions(
-      {
-        labels: safeLabels,
-        colors: options.colors,
-        tooltip: options.tooltip,
-        dataLabels: options.dataLabels,
-        legend: options.legend,
-      },
-      false,
-      true,
-    )
-    methodPieChartInstance.updateSeries(safeSeries, true)
-  } else {
-    methodPieChartInstance = new ApexCharts(methodPieChart.value, options)
-    methodPieChartInstance.render()
-  }
+  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_METHOD, methodPieChart.value)
+  methodPieChartInstance = updatePieChartInstance(
+    methodPieChartInstance,
+    methodPieChart.value,
+    built,
+  )
 }
 
 onMounted(() => {
@@ -1946,9 +1980,11 @@ onMounted(() => {
   renderTopIpsPie()
   renderIspPie()
   renderRefererPie()
+  window.addEventListener('cdnproxy-theme-change', rerenderAllCharts)
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('cdnproxy-theme-change', rerenderAllCharts)
   if (rxBandwidthChartInstance) {
     rxBandwidthChartInstance.destroy()
     rxBandwidthChartInstance = null
@@ -2020,19 +2056,19 @@ onBeforeUnmount(() => {
 }
 
 .filters-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
 }
 
 .filters-header h3 {
   margin: 0 0 16px 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .filters-row {
@@ -2067,38 +2103,38 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #475569;
+  color: var(--app-text-secondary);
   font-weight: 600;
 }
 
 .filter-inline-label {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--app-text-muted);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
 .inline-select {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 8px 12px;
   font-size: 0.95rem;
-  background: white;
-  color: #1a202c;
+  background: var(--app-input-bg);
+  color: var(--app-text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   min-width: 200px;
 }
 
 .inline-select:focus {
-  border-color: rgba(102, 126, 234, 0.6);
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .selected-range-label {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--app-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
@@ -2106,8 +2142,8 @@ onBeforeUnmount(() => {
 .selected-range-value {
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #4f46e5;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
   font-size: 0.85rem;
   font-weight: 600;
 }
@@ -2119,29 +2155,25 @@ onBeforeUnmount(() => {
 }
 
 .time-btn {
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  border: 1px solid var(--app-border-strong);
   cursor: pointer;
-  background: white;
-  color: #374151;
+  background: var(--app-surface-solid);
+  color: var(--app-text-secondary);
   transition: all 0.2s ease;
 }
 
 .time-btn:hover {
-  border-color: #cbd5f5;
+  border-color: var(--app-accent);
+  background: var(--app-surface-hover);
+  color: var(--app-text);
 }
 
 .time-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border-color: transparent;
+  /* primary fill from theme.css */
 }
 
 .custom-btn {
-  border-left: 2px solid #e5e7eb;
+  border-left: 2px solid var(--app-border-strong);
   margin-left: 4px;
 }
 
@@ -2150,21 +2182,7 @@ onBeforeUnmount(() => {
 }
 
 .apply-filter-btn {
-  padding: 10px 18px;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
   cursor: pointer;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.apply-filter-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 26px rgba(239, 68, 68, 0.45);
 }
 
 .dialog-overlay {
@@ -2173,7 +2191,7 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--app-overlay);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -2182,9 +2200,10 @@ onBeforeUnmount(() => {
 }
 
 .dialog-content {
-  background: white;
+  background: var(--app-surface-solid);
+  border: 1px solid var(--app-border-strong);
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px var(--app-shadow);
   width: 90%;
   max-width: 500px;
 }
@@ -2194,14 +2213,14 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--app-border-strong);
 }
 
 .dialog-header h3 {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: #1a202c;
+  color: var(--app-heading);
 }
 
 .dialog-close {
@@ -2212,7 +2231,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--app-text-muted);
   border-radius: 6px;
 }
 
@@ -2229,15 +2248,22 @@ onBeforeUnmount(() => {
 
 .dialog-form-group label {
   font-size: 0.85rem;
-  color: #4b5563;
+  color: var(--app-text-secondary);
 }
 
 .dialog-input {
   padding: 10px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--app-input-border);
   border-radius: 8px;
   font-size: 0.95rem;
   outline: none;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+}
+
+.dialog-input:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .dialog-footer {
@@ -2245,7 +2271,7 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 24px 24px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--app-border-strong);
 }
 
 .dialog-btn {
@@ -2258,13 +2284,12 @@ onBeforeUnmount(() => {
 }
 
 .cancel-btn {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--app-surface-hover);
+  color: var(--app-text-secondary);
 }
 
 .apply-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  /* primary fill from theme.css */
 }
 
 .stats-grid {
@@ -2274,11 +2299,11 @@ onBeforeUnmount(() => {
 }
 
 .bandwidth-card {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--app-surface);
   border-radius: 18px;
   padding: 24px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--app-border);
+  box-shadow: 0 4px 18px var(--app-shadow);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2295,12 +2320,12 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .bandwidth-header p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 0.9rem;
 }
 
@@ -2318,8 +2343,8 @@ onBeforeUnmount(() => {
   height: 280px;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background: #ffffff;
+  border: 1px solid var(--app-border);
+  background: var(--chart-surface, var(--app-surface-elevated));
 }
 
 .bandwidth-chart div {
@@ -2328,12 +2353,29 @@ onBeforeUnmount(() => {
   display: block;
 }
 
+.bandwidth-chart :deep(.apexcharts-canvas),
+.bandwidth-chart :deep(.apexcharts-svg),
+.bandwidth-chart :deep(.apexcharts-inner) {
+  background: transparent !important;
+}
+
+.top-ips-pie :deep(.apexcharts-canvas),
+.top-ips-pie :deep(.apexcharts-svg),
+.top-ips-pie :deep(.apexcharts-inner),
+.top-ips-pie :deep(.apexcharts-graphical) {
+  background: transparent !important;
+}
+
+.top-ips-pie :deep(.apexcharts-pie-series path) {
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
 .world-map {
   width: 100%;
   height: fit-content;
   border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  background: #f8fafc;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-muted);
   padding: 12px;
   position: relative;
 }
@@ -2367,45 +2409,98 @@ onBeforeUnmount(() => {
 }
 
 .table-card {
-  background: rgba(248, 250, 252, 0.9);
+  background: var(--app-surface-muted);
   border-radius: 14px;
   padding: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-}
-
-.table-card--compact {
-  height: 260px;
-  display: flex;
-  flex-direction: column;
+  border: 1px solid var(--app-border);
 }
 
 .ip-table-layout {
+  --analytics-pie-box: 208px;
+  --analytics-summary-title: 30px;
+  --analytics-panel-padding: 32px;
+  --analytics-panel-height: calc(
+    var(--analytics-panel-padding) + var(--analytics-summary-title) + var(--analytics-pie-box)
+  );
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  grid-template-columns: minmax(240px, 300px) minmax(240px, 1fr);
   gap: 16px;
+  align-items: start;
+}
+
+.table-card--compact {
+  height: var(--analytics-panel-height);
+  max-height: var(--analytics-panel-height);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.table-card--compact .table-title {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.table-card--compact:has(.top-ips-pie) {
+  padding-bottom: 12px;
 }
 
 .top-ips-pie {
   width: 100%;
-  height: 220px;
-  margin-bottom: 12px;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  margin-bottom: 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--chart-surface, var(--app-surface-elevated));
+  overflow: visible;
+  padding: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
 }
 
-.top-ips-pie div {
-  width: 100%;
-  height: 100%;
+.top-ips-pie > div {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.top-ips-pie :deep(.apexcharts-canvas),
+.top-ips-pie :deep(svg.apexcharts-svg) {
+  margin: 0 auto;
 }
 
 .table-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--app-heading);
   margin-bottom: 12px;
+}
+
+.ip-table-layout .table-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ip-table-layout .ip-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--app-surface-muted);
+  box-shadow: 0 1px 0 var(--app-border-strong);
 }
 
 .table-wrap {
   overflow-x: auto;
-  flex: 1;
 }
 
 .ip-table {
@@ -2418,32 +2513,32 @@ onBeforeUnmount(() => {
   text-align: left;
   padding: 10px 12px;
   font-size: 0.9rem;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  color: #1f2937;
+  border-bottom: 1px solid var(--app-border-strong);
+  color: var(--app-text);
 }
 
 .ip-table th {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6b7280;
+  color: var(--app-text-muted);
 }
 .stat-card {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--app-surface);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 28px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px var(--app-shadow);
+  border: 1px solid var(--app-border);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 8px 30px var(--app-shadow), 0 0 0 1px var(--app-accent-soft);
 }
 
 .stat-icon {
@@ -2475,7 +2570,7 @@ onBeforeUnmount(() => {
 
 .stat-info h3 {
   font-size: 0.875rem;
-  color: #718096;
+  color: var(--app-text-muted);
   margin: 0 0 8px 0;
   font-weight: 500;
 }
@@ -2483,7 +2578,7 @@ onBeforeUnmount(() => {
 .stat-value {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #1a202c;
+  color: var(--app-heading);
   margin: 0;
 }
 
@@ -2492,6 +2587,39 @@ onBeforeUnmount(() => {
   font-size: 0.8rem;
   font-weight: 600;
   color: #10b981;
+}
+
+@media (max-width: 900px) {
+  .ip-table-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ip-table-layout .table-card--compact {
+    height: auto;
+    max-height: none;
+  }
+
+  .ip-table-layout .table-wrap {
+    max-height: var(--analytics-pie-box);
+  }
+}
+
+[data-theme='dark'] .bandwidth-pill {
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.2);
+}
+
+[data-theme='dark'] .stat-subvalue {
+  color: #4ade80;
+}
+
+[data-theme='dark'] .world-map :deep(.svg-map__location) {
+  fill: #1a1a2e;
+  stroke: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme='dark'] .world-map :deep(.svg-map__location:hover) {
+  fill: rgba(168, 85, 247, 0.85);
 }
 
 </style>

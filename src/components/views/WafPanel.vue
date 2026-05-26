@@ -81,8 +81,8 @@ const activeWafLabel = computed(() => {
 }
 
 .waf-list {
-  border-right: 1px solid rgba(226, 232, 240, 0.9);
-  background: rgba(248, 250, 252, 0.9);
+  border-right: 1px solid var(--app-border-strong);
+  background: var(--app-surface-muted);
   display: flex;
   flex-direction: column;
   padding: 12px;
@@ -92,7 +92,7 @@ const activeWafLabel = computed(() => {
 .waf-item {
   border: 1px solid transparent;
   background: transparent;
-  color: #334155;
+  color: var(--app-text-secondary);
   text-align: left;
   padding: 10px 12px;
   border-radius: 10px;
@@ -102,19 +102,19 @@ const activeWafLabel = computed(() => {
 }
 
 .waf-item:hover {
-  background: rgba(226, 232, 240, 0.6);
+  background: var(--app-surface-hover);
 }
 
 .waf-item.active {
-  background: #fff;
-  border-color: rgba(99, 102, 241, 0.3);
-  color: #1d4ed8;
-  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.12);
+  background: var(--app-surface-solid);
+  border-color: rgba(124, 58, 237, 0.35);
+  color: var(--app-accent);
+  box-shadow: 0 8px 16px rgba(124, 58, 237, 0.12);
 }
 
 .waf-content {
   padding: 18px 20px;
-  background: #fff;
+  background: var(--app-surface);
 }
 
 .waf-section-card {
@@ -127,7 +127,7 @@ const activeWafLabel = computed(() => {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--app-heading);
 }
 
 .empty-state {
@@ -135,7 +135,7 @@ const activeWafLabel = computed(() => {
   justify-content: center;
   text-align: center;
   padding: 40px 12px;
-  color: #64748b;
+  color: var(--app-text-muted);
 }
 
 </style>
