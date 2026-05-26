@@ -31,7 +31,7 @@
             <th>Time (s)</th>
             <th>Response Count</th>
             <th>Behavior</th>
-            <th>Enable/Disable</th>
+            <th>Yes / No</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -53,7 +53,7 @@
             <td>{{ rule.behavior }}</td>
             <td>
               <span class="status-pill" :class="{ on: rule.enabled }">
-                {{ rule.enabled ? "Enabled" : "Disabled" }}
+                {{ rule.enabled ? "Yes" : "No" }}
               </span>
             </td>
             <td class="action-cell">
@@ -199,7 +199,7 @@
           </div>
           <div class="form-field">
             <label>
-              Enable/Disable
+              Yes / No
             </label>
             <div class="field-control">
               <button
@@ -207,13 +207,13 @@
                 class="toggle-switch"
                 role="switch"
                 :aria-checked="formState.enabled"
-                :aria-label="formState.enabled ? 'Disable rule' : 'Enable rule'"
-                :title="formState.enabled ? 'Click to disable' : 'Click to enable'"
+                :aria-label="formState.enabled ? 'Yes, click for No' : 'No, click for Yes'"
+                :title="formState.enabled ? 'Click for No' : 'Click for Yes'"
                 @click="formState.enabled = !formState.enabled"
               >
                 <span class="toggle-track" :class="{ off: !formState.enabled }">
-                  <span class="toggle-label on">Enable</span>
-                  <span class="toggle-label off">Disable</span>
+                  <span class="toggle-label on">Yes</span>
+                  <span class="toggle-label off">No</span>
                   <span class="toggle-knob" :class="{ on: formState.enabled }"></span>
                 </span>
               </button>

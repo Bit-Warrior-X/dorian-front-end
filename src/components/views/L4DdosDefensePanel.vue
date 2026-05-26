@@ -173,8 +173,8 @@
                         @click="tcpDetailedForm.connectionLimitEnabled = !tcpDetailedForm.connectionLimitEnabled"
                       >
                         <span class="toggle-track" :class="{ off: !tcpDetailedForm.connectionLimitEnabled }">
-                          <span class="toggle-label on">Enable</span>
-                          <span class="toggle-label off">Disable</span>
+                          <span class="toggle-label on">Yes</span>
+                          <span class="toggle-label off">No</span>
                           <span class="toggle-knob" :class="{ on: tcpDetailedForm.connectionLimitEnabled }"></span>
                         </span>
                       </button>
@@ -221,8 +221,8 @@
                       @click="tcpDetailedForm.segmentationCheck = !tcpDetailedForm.segmentationCheck"
                     >
                       <span class="toggle-track" :class="{ off: !tcpDetailedForm.segmentationCheck }">
-                        <span class="toggle-label on">Enable</span>
-                        <span class="toggle-label off">Disable</span>
+                        <span class="toggle-label on">Yes</span>
+                        <span class="toggle-label off">No</span>
                         <span class="toggle-knob" :class="{ on: tcpDetailedForm.segmentationCheck }"></span>
                       </span>
                     </button>
@@ -243,8 +243,8 @@
                   @click="synForm.enabled = !synForm.enabled"
                 >
                   <span class="toggle-track" :class="{ off: !synForm.enabled }">
-                    <span class="toggle-label on">Enable</span>
-                    <span class="toggle-label off">Disable</span>
+                    <span class="toggle-label on">Yes</span>
+                    <span class="toggle-label off">No</span>
                     <span class="toggle-knob" :class="{ on: synForm.enabled }"></span>
                   </span>
                 </button>
@@ -395,8 +395,8 @@
               @click="ackForm.enabled = !ackForm.enabled"
             >
               <span class="toggle-track" :class="{ off: !ackForm.enabled }">
-                <span class="toggle-label on">Enable</span>
-                <span class="toggle-label off">Disable</span>
+                <span class="toggle-label on">Yes</span>
+                <span class="toggle-label off">No</span>
                 <span class="toggle-knob" :class="{ on: ackForm.enabled }"></span>
               </span>
             </button>
@@ -524,8 +524,8 @@
               @click="rstForm.enabled = !rstForm.enabled"
             >
               <span class="toggle-track" :class="{ off: !rstForm.enabled }">
-                <span class="toggle-label on">Enable</span>
-                <span class="toggle-label off">Disable</span>
+                <span class="toggle-label on">Yes</span>
+                <span class="toggle-label off">No</span>
                 <span class="toggle-knob" :class="{ on: rstForm.enabled }"></span>
               </span>
             </button>
@@ -654,8 +654,8 @@
               @click="icmpForm.enabled = !icmpForm.enabled"
             >
               <span class="toggle-track" :class="{ off: !icmpForm.enabled }">
-                <span class="toggle-label on">Enable</span>
-                <span class="toggle-label off">Disable</span>
+                <span class="toggle-label on">Yes</span>
+                <span class="toggle-label off">No</span>
                 <span class="toggle-knob" :class="{ on: icmpForm.enabled }"></span>
               </span>
             </button>
@@ -784,8 +784,8 @@
               @click="udpForm.enabled = !udpForm.enabled"
             >
               <span class="toggle-track" :class="{ off: !udpForm.enabled }">
-                <span class="toggle-label on">Enable</span>
-                <span class="toggle-label off">Disable</span>
+                <span class="toggle-label on">Yes</span>
+                <span class="toggle-label off">No</span>
                 <span class="toggle-knob" :class="{ on: udpForm.enabled }"></span>
               </span>
             </button>
@@ -913,8 +913,8 @@
               @click="greForm.enabled = !greForm.enabled"
             >
               <span class="toggle-track" :class="{ off: !greForm.enabled }">
-                <span class="toggle-label on">Enable</span>
-                <span class="toggle-label off">Disable</span>
+                <span class="toggle-label on">Yes</span>
+                <span class="toggle-label off">No</span>
                 <span class="toggle-knob" :class="{ on: greForm.enabled }"></span>
               </span>
             </button>
@@ -1043,8 +1043,8 @@
               @click="geoIpForm.enabled = !geoIpForm.enabled"
             >
               <span class="toggle-track" :class="{ off: !geoIpForm.enabled }">
-                <span class="toggle-label on">Enable</span>
-                <span class="toggle-label off">Disable</span>
+                <span class="toggle-label on">Yes</span>
+                <span class="toggle-label off">No</span>
                 <span class="toggle-knob" :class="{ on: geoIpForm.enabled }"></span>
               </span>
             </button>

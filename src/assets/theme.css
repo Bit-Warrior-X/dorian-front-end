@@ -92,20 +92,22 @@
   --btn-icon-size-sm: 32px;
   --btn-icon-size-md: 36px;
   --btn-icon-svg: 16px;
-  /* Enable/Disable segmented toggle */
-  --toggle-width: 100px;
-  --toggle-height: 22px;
-  --toggle-padding: 2px;
-  --toggle-font-size: 0.625rem;
-  --toggle-on-bg: #16a34a;
-  --toggle-on-border: #15803d;
+  /* Yes/No segmented toggle */
+  --toggle-width: 72px;
+  --toggle-height: 28px;
+  --toggle-padding: 3px;
+  --toggle-font-size: 0.6875rem;
+  --toggle-on-bg: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  --toggle-on-border: rgba(22, 163, 74, 0.55);
   --toggle-on-label: #ffffff;
   --toggle-off-bg: var(--app-surface-elevated);
   --toggle-off-border: var(--app-border-strong);
   --toggle-off-label: var(--app-text-muted);
-  --toggle-off-label-active: #b91c1c;
+  --toggle-off-label-active: #dc2626;
   --toggle-knob-bg: #ffffff;
-  --toggle-knob-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+  --toggle-knob-border: rgba(15, 23, 42, 0.08);
+  --toggle-knob-shadow: 0 2px 6px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --toggle-track-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
   --app-tooltip-bg: #ffffff;
   --app-tooltip-text: #171717;
   --app-tooltip-border: #e2e8f0;
@@ -154,14 +156,16 @@
   --app-btn-warning-shadow: transparent;
   --app-btn-success-bg: var(--app-btn-primary-bg);
   --app-btn-success-shadow: transparent;
-  --toggle-on-bg: #22c55e;
-  --toggle-on-border: rgba(34, 197, 94, 0.45);
-  --toggle-off-bg: #111111;
+  --toggle-on-bg: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+  --toggle-on-border: rgba(74, 222, 128, 0.35);
+  --toggle-off-bg: #141414;
   --toggle-off-border: var(--app-border-strong);
   --toggle-off-label: var(--app-text-muted);
   --toggle-off-label-active: #f87171;
-  --toggle-knob-bg: #ffffff;
-  --toggle-knob-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  --toggle-knob-bg: #f4f4f5;
+  --toggle-knob-border: rgba(255, 255, 255, 0.12);
+  --toggle-knob-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --toggle-track-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
   --app-header-bg: rgba(0, 0, 0, 0.95);
   --app-sidebar-bg: #000000;
   --app-login-bg: radial-gradient(ellipse at 50% 0%, rgba(168, 85, 247, 0.22) 0%, transparent 50%), #000000;
@@ -915,7 +919,7 @@ button.danger-btn.confirm-action {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Enable/Disable toggle (compact segmented switch)                            */
+/* Yes/No toggle (compact segmented switch)                                    */
 /* -------------------------------------------------------------------------- */
 
 .toggle-switch,
@@ -929,10 +933,25 @@ button.danger-btn.confirm-action {
   flex-shrink: 0;
 }
 
+.toggle-switch:hover .toggle-track,
+.l4-toggle:hover .toggle-track {
+  filter: brightness(1.03);
+}
+
+.toggle-switch:active .toggle-knob,
+.l4-toggle:active .toggle-knob {
+  transform: scale(0.96);
+}
+
+.toggle-switch:active .toggle-knob.on,
+.l4-toggle:active .toggle-knob.on {
+  transform: translateX(calc(100% + var(--toggle-padding))) scale(0.96);
+}
+
 .toggle-switch:focus-visible,
 .l4-toggle:focus-visible {
   outline: 2px solid var(--app-accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
   border-radius: var(--btn-radius-pill);
 }
 
@@ -949,9 +968,11 @@ button.danger-btn.confirm-action {
   padding: 0 var(--toggle-padding);
   overflow: hidden;
   box-sizing: border-box;
+  box-shadow: var(--toggle-track-shadow);
   transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+    background 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .toggle-track.off {
@@ -962,31 +983,37 @@ button.danger-btn.confirm-action {
 .toggle-label {
   z-index: 2;
   font-size: var(--toggle-font-size);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-align: center;
   white-space: nowrap;
-  text-transform: uppercase;
+  text-transform: none;
   line-height: 1;
   pointer-events: none;
   user-select: none;
-  transition: color 0.2s ease;
+  transition:
+    color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .toggle-track:not(.off) .toggle-label.on {
   color: var(--toggle-on-label);
+  opacity: 1;
 }
 
 .toggle-track:not(.off) .toggle-label.off {
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 0.85;
 }
 
 .toggle-track.off .toggle-label.on {
   color: var(--toggle-off-label);
+  opacity: 0.65;
 }
 
 .toggle-track.off .toggle-label.off {
   color: var(--toggle-off-label-active);
+  opacity: 1;
 }
 
 .toggle-knob {
@@ -997,8 +1024,11 @@ button.danger-btn.confirm-action {
   height: calc(100% - var(--toggle-padding) * 2);
   border-radius: var(--btn-radius-pill);
   background: var(--toggle-knob-bg);
+  border: 1px solid var(--toggle-knob-border);
   box-shadow: var(--toggle-knob-shadow);
-  transition: transform 0.2s ease;
+  transition:
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
 }
 
