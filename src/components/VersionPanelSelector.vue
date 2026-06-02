@@ -58,6 +58,8 @@
         <section class="version-section version-section--release">
           <h4 class="version-section-label">Release</h4>
           <div class="release-block">
+            <span v-if="formatVersionOs(item.os)" class="release-label">OS</span>
+            <span v-if="formatVersionOs(item.os)" class="release-date release-os">{{ formatVersionOs(item.os) }}</span>
             <span class="release-label">Updated</span>
             <span class="release-date">{{ formatVersionUpdated(item.updated) }}</span>
           </div>
@@ -69,6 +71,7 @@
 
 <script setup>
 import {
+  formatVersionOs,
   formatVersionUpdated,
   isSameProductVersion,
   versionPackageLabel,
@@ -350,6 +353,10 @@ const select = (uuid) => {
   font-weight: 700;
   color: var(--app-heading, #0f172a);
   line-height: 1.35;
+}
+
+.release-os {
+  margin-bottom: 6px;
 }
 
 .version-card.selected .release-block {

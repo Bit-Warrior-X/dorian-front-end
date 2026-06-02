@@ -62,6 +62,7 @@
               <th>Users</th>
               <th>License</th>
               <th>Version</th>
+              <th>OS</th>
               <th>Expired Date</th>
               <th>Created</th>
               <th>Settings</th>
@@ -102,6 +103,7 @@
               </td>
               <td>{{ server.license }}</td>
               <td>{{ displayServerVersion(server.version) }}</td>
+              <td>{{ displayServerOs(server.os) }}</td>
               <td>{{ server.expiredDate }}</td>
               <td>{{ server.created }}</td>
               <td>
@@ -160,7 +162,7 @@
   >
     <div
       class="dialog-card dialog-card--wide dialog-card--form"
-      :class="{ 'dialog-card--busy': isCreatingServer }"
+      :class="{ 'dialog-card--busy': isCreatingServer || isLoadingCreateVersions }"
       @click.stop
     >
       <div class="dialog-header">
@@ -286,6 +288,28 @@
           </div>
         </div>
 
+        <div class="dialog-section">
+          <h4>Product version</h4>
+          <p class="license-tier-hint">
+            Choose the Dorian build (version and target OS) to deploy on this host.
+          </p>
+          <div v-if="isLoadingCreateVersions" class="dialog-deploy-status" role="status">
+            <span class="btn-spinner btn-spinner--inline" aria-hidden="true"></span>
+            Loading available versions…
+          </div>
+          <div v-else-if="createVersionsError" class="upgrade-error">
+            {{ createVersionsError }}
+          </div>
+          <p v-else-if="!createVersions.length" class="muted-text">No versions available.</p>
+          <div v-else class="upgrade-version-panels">
+            <VersionPanelSelector
+              v-model="selectedCreateVersionUuid"
+              :versions="createVersions"
+              aria-label="Product version to deploy"
+            />
+          </div>
+        </div>
+
         <div class="dialog-section dialog-section--license">
           <h4>License</h4>
           <LicenseTierSelector
@@ -346,7 +370,7 @@
         <button
           class="primary-btn"
           type="submit"
-          :disabled="isCreatingServer"
+          :disabled="isCreatingServer || !canSubmitCreateServer"
         >
           <span v-if="isCreatingServer" class="btn-spinner" aria-hidden="true"></span>
           {{ isCreatingServer ? 'Creating…' : 'Create' }}
@@ -524,7 +548,9 @@
           <span class="muted-text">({{ upgradeTargetServer.ip }})</span>
         </p>
         <p class="muted-text upgrade-hint">
-          Select a Dorian product version. Current: {{ upgradeTargetServer?.version || '—' }}
+          Select a Dorian product version for
+          <strong>{{ upgradeTargetOsLabel }}</strong>.
+          Current: {{ upgradeTargetServer?.version || '—' }}
         </p>
         <div v-if="isLoadingUpgradeVersions" class="dialog-deploy-status" role="status">
           Loading available versions…
@@ -535,7 +561,9 @@
         <div v-else-if="upgradeVersionsError" class="upgrade-error">
           {{ upgradeVersionsError }}
         </div>
-        <p v-else-if="!upgradeVersions.length" class="muted-text">No versions available.</p>
+        <p v-else-if="!upgradeVersions.length" class="muted-text">
+          No versions available for {{ upgradeTargetOsLabel }}.
+        </p>
         <div v-else class="upgrade-version-panels">
           <VersionPanelSelector
             v-model="selectedUpgradeVersionUuid"
@@ -623,6 +651,8 @@ import LicenseTierSelector from '../LicenseTierSelector.vue'
 import VersionPanelSelector from '../VersionPanelSelector.vue'
 import {
   formatServerVersionDisplay,
+  formatVersionOs,
+  filterVersionsForServerOs,
   isSameProductVersion,
   latestDeployVersionFromList,
 } from '@/utils/deployVersions'
@@ -680,11 +710,28 @@ const upgradeVersions = ref([])
 const upgradeVersionsError = ref('')
 const selectedUpgradeVersionUuid = ref('')
 
+const createVersions = ref([])
+const isLoadingCreateVersions = ref(false)
+const createVersionsError = ref('')
+const selectedCreateVersionUuid = ref('')
+
+const canSubmitCreateServer = computed(() => {
+  if (!selectedCreateVersionUuid.value || !createVersions.value.length) return false
+  if (!newServer.value.name?.trim() || !newServer.value.ip?.trim()) return false
+  if (!newServer.value.username?.trim() || !newServer.value.password?.trim()) return false
+  return true
+})
+
 const canSubmitVersionUpgrade = computed(() => {
   if (!upgradeVersions.value.length || !selectedUpgradeVersionUuid.value) return false
   const picked = upgradeVersions.value.find((v) => v.uuid === selectedUpgradeVersionUuid.value)
   if (!picked) return false
   return !isSameProductVersion(picked.version, upgradeTargetServer.value?.version)
+})
+
+const upgradeTargetOsLabel = computed(() => {
+  const label = formatVersionOs(upgradeTargetServer.value?.os)
+  return label || 'this platform'
 })
 const isLicenseUpgradeDialogOpen = ref(false)
 const licenseUpgradeTarget = ref(null)
@@ -761,6 +808,28 @@ const pageEnd = computed(() =>
   Math.min(currentPage.value * pageSize.value, servers.value.length)
 )
 
+const loadCreateVersions = async () => {
+  isLoadingCreateVersions.value = true
+  createVersionsError.value = ''
+  createVersions.value = []
+  selectedCreateVersionUuid.value = ''
+  try {
+    const data = await fetchDeployVersions()
+    const list = Array.isArray(data?.versions) ? data.versions : []
+    createVersions.value = list
+    deployVersionsCatalog.value = list
+    if (list.length) {
+      selectedCreateVersionUuid.value = list[0].uuid
+    }
+  } catch (error) {
+    const msg = error?.message || 'Failed to load versions from deploy_license.'
+    createVersionsError.value = msg
+    createVersions.value = []
+  } finally {
+    isLoadingCreateVersions.value = false
+  }
+}
+
 const openNewServerDialog = () => {
   // Reset dialog state each time it's opened
   selectedUsers.value = []
@@ -769,6 +838,9 @@ const openNewServerDialog = () => {
   licenseTier.value = 'Trial'
   useExistingLicense.value = false
   licenseFileName.value = ''
+  createVersions.value = []
+  createVersionsError.value = ''
+  selectedCreateVersionUuid.value = ''
   newServer.value = {
     name: '',
     ip: '',
@@ -780,6 +852,7 @@ const openNewServerDialog = () => {
     licenseInput.value.value = ''
   }
   isNewServerDialogOpen.value = true
+  void loadCreateVersions()
 }
 
 const closeNewServerDialog = () => {
@@ -844,6 +917,8 @@ const latestDeployVersion = computed(() =>
 
 const displayServerVersion = (version) =>
   formatServerVersionDisplay(version, latestDeployVersion.value)
+
+const displayServerOs = (os) => formatVersionOs(os) || '—'
 
 const loadDeployVersionsCatalog = async () => {
   try {
@@ -957,6 +1032,15 @@ const formatDate = (date) =>
 
 const createServer = async () => {
   if (createServerSyncLock) return
+  if (!canSubmitCreateServer.value) {
+    enqueueNotification('Please select a product version and fill required fields.', 'error')
+    return
+  }
+  const pickedVersion = createVersions.value.find((v) => v.uuid === selectedCreateVersionUuid.value)
+  if (!pickedVersion) {
+    enqueueNotification('Please select a product version.', 'error')
+    return
+  }
   createServerSyncLock = true
   isCreatingServer.value = true
   const idempotencyKey =
@@ -977,6 +1061,8 @@ const createServer = async () => {
         ? licenseFileName.value || ''
         : '',
     version: '',
+    versionUuid: pickedVersion.uuid,
+    os: pickedVersion.os || '',
     sshUser: newServer.value.username?.trim() || '',
     sshPassword: newServer.value.password?.trim() || '',
     sshPort: newServer.value.sshPort?.toString().trim() || '',
@@ -988,6 +1074,7 @@ const createServer = async () => {
     const detailParts = []
     if (created?.license) detailParts.push(`license: ${created.license}`)
     if (created?.version) detailParts.push(`version: ${created.version}`)
+    if (created?.os) detailParts.push(`os: ${displayServerOs(created.os)}`)
     if (created?.expiredDate) detailParts.push(`expires: ${created.expiredDate}`)
     const detail = detailParts.length ? ` ${detailParts.join(' · ')}` : ''
     enqueueNotification(`Server created successfully.${detail}`, 'success')
@@ -1051,9 +1138,10 @@ const openUpgradeDialog = async (server) => {
   isLoadingUpgradeVersions.value = true
   try {
     const data = await fetchDeployVersions()
-    const list = Array.isArray(data?.versions) ? data.versions : []
+    const all = Array.isArray(data?.versions) ? data.versions : []
+    deployVersionsCatalog.value = all
+    const list = filterVersionsForServerOs(all, server?.os)
     upgradeVersions.value = list
-    deployVersionsCatalog.value = list
     if (list.length) {
       const current = server?.version
       const preferred = list.find((v) => !isSameProductVersion(v.version, current))

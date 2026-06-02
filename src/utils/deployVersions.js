@@ -60,10 +60,38 @@ export function formatVersionUpdated(updated) {
   })
 }
 
-/** Short package label from full_name or version. */
+/** Human-readable OS label (e.g. ubuntu-22.04 → Ubuntu 22.04). */
+export function formatVersionOs(os) {
+  const raw = String(os ?? '').trim().toLowerCase()
+  if (!raw) return ''
+  const m = raw.match(/^([a-z]+)-(\d+(?:\.\d+)*)$/)
+  if (!m) return raw
+  const distro = m[1].charAt(0).toUpperCase() + m[1].slice(1)
+  return `${distro} ${m[2]}`
+}
+
+/** Normalize OS slug for comparison (e.g. Ubuntu-22.04 → ubuntu-22.04). */
+export function normalizeOsLabel(os) {
+  return String(os ?? '').trim().toLowerCase()
+}
+
+export function isSameProductOs(a, b) {
+  return normalizeOsLabel(a) === normalizeOsLabel(b)
+}
+
+/** Keep catalog rows that match the server's target OS (empty matches legacy/no-os builds). */
+export function filterVersionsForServerOs(versions, serverOs) {
+  if (!Array.isArray(versions)) return []
+  const target = normalizeOsLabel(serverOs)
+  return versions.filter((item) => normalizeOsLabel(item?.os) === target)
+}
+
+/** Short package label from full_name or version + os. */
 export function versionPackageLabel(item) {
   const full = String(item?.full_name || '').trim()
   if (full) return full
   const ver = String(item?.version || '').trim()
+  const os = formatVersionOs(item?.os)
+  if (ver && os) return `dorian-ddos-firewall-${ver} (${os})`
   return ver ? `dorian-ddos-firewall-${ver}` : 'Dorian product build'
 }
