@@ -90,6 +90,25 @@ export const upgradeServer = async (serverId, body, extraHeaders = {}) => {
   return apiRequest(`/servers/${serverId}/upgrade`, opts)
 }
 
+/** Re-probe angelos/sparta/athens on the remote host and update stored runtime statuses. */
+export const refreshServerRuntimeStatus = async (serverId) => {
+  const opts = { method: 'POST' }
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(180_000)
+  }
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    return {
+      id: Number(serverId),
+      serviceStatus: 'running',
+      l4Status: 'running',
+      l7Status: 'running',
+    }
+  }
+  return apiRequest(`/servers/${serverId}/refresh-runtime-status`, opts)
+}
+
 /** Regenerate license tier via deploy_license POST /upgrade_license (proxied by Go POST /servers/:id/upgrade-license). */
 export const upgradeServerLicense = async (serverId, body, extraHeaders = {}) => {
   const opts = {

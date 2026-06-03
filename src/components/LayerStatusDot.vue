@@ -39,6 +39,10 @@ const props = defineProps({
     type: String,
     default: 'unknown',
   },
+  loading: {
+    type: Boolean,
+    default: false,
+  },
   layer: {
     type: String,
     required: true,
@@ -54,12 +58,16 @@ const anchorRef = ref(null)
 const visible = ref(false)
 const tooltipStyle = ref({})
 
-const dotClasses = computed(() => [
-  'layer-dot',
-  `layer-dot--${props.layer}`,
-  props.legend ? 'layer-dot--legend' : '',
-  `layer-dot--${props.status}`,
-])
+const dotClasses = computed(() => {
+  const base = ['layer-dot', `layer-dot--${props.layer}`]
+  if (props.legend) base.push('layer-dot--legend')
+  if (props.loading) {
+    base.push('layer-dot--loading')
+    return base
+  }
+  base.push(`layer-dot--${props.status}`)
+  return base
+})
 
 let repositionHandler = null
 

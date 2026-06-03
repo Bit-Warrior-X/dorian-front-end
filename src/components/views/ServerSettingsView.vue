@@ -28,8 +28,8 @@
               :aria-label="layerDotTitle(selectedServerData, 'l7')"
             />
           </span>
-          <span class="meta-pill status server-status-pill" :class="selectedServerData.statusClass">
-            Angelos: {{ selectedServerData.statusLabel }}
+          <span class="meta-pill status server-status-pill" :class="angelosStatusClass(selectedServerData)">
+            Angelos: {{ angelosStatusLabel(selectedServerData) }}
           </span>
           <span class="meta-pill license">License: {{ selectedServerData.license }}</span>
         </div>
@@ -104,6 +104,8 @@ import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 import LicenseTierUpgradePanel from "../LicenseTierUpgradePanel.vue";
 import LayerStatusDot from "../LayerStatusDot.vue";
 import {
+  angelosStatusClass,
+  angelosStatusLabel,
   layerDotDescription,
   layerDotTitle,
   resolveLayerStatus,

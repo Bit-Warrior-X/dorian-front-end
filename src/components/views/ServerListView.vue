@@ -71,26 +71,35 @@
           <tbody>
             <tr v-for="server in paginatedServers" :key="server.id">
               <td class="col-layer-dots">
-                <span class="layer-status-dots">
+                <span class="layer-status-dots" :aria-busy="isRuntimeStatusRefreshing(server.id)">
                   <LayerStatusDot
                     layer="l4"
+                    :loading="isRuntimeStatusRefreshing(server.id)"
                     :status="resolveLayerStatus(server, 'l4')"
-                    :description="layerDotDescription(server, 'l4')"
-                    :aria-label="layerDotTitle(server, 'l4')"
+                    :description="runtimeStatusDotDescription(server, 'l4')"
+                    :aria-label="runtimeStatusAriaLabel(server, 'l4')"
                   />
                   <LayerStatusDot
                     layer="l7"
+                    :loading="isRuntimeStatusRefreshing(server.id)"
                     :status="resolveLayerStatus(server, 'l7')"
-                    :description="layerDotDescription(server, 'l7')"
-                    :aria-label="layerDotTitle(server, 'l7')"
+                    :description="runtimeStatusDotDescription(server, 'l7')"
+                    :aria-label="runtimeStatusAriaLabel(server, 'l7')"
                   />
                 </span>
               </td>
               <td>{{ server.name }}</td>
               <td>{{ server.ip }}</td>
               <td>
-                <span class="status-pill server-status-pill" :class="server.statusClass">
-                  {{ server.statusLabel }}
+                <span
+                  class="status-pill server-status-pill"
+                  :class="isRuntimeStatusRefreshing(server.id) ? 'runtime-status-loading' : angelosStatusClass(server)"
+                  :aria-busy="isRuntimeStatusRefreshing(server.id)"
+                  :aria-label="isRuntimeStatusRefreshing(server.id) ? 'Angelos: checking status' : undefined"
+                >
+                  <template v-if="!isRuntimeStatusRefreshing(server.id)">
+                    {{ angelosStatusLabel(server) }}
+                  </template>
                 </span>
               </td>
               <td>
@@ -124,6 +133,13 @@
                     </button>
                     <button class="row-menu-item" @click="openUpgradeDialog(server)">
                       Upgrade
+                    </button>
+                    <button
+                      class="row-menu-item"
+                      :disabled="isRuntimeStatusRefreshing(server.id)"
+                      @click="refreshRuntimeStatus(server)"
+                    >
+                      {{ isRuntimeStatusRefreshing(server.id) ? 'Refreshing…' : 'Refresh status' }}
                     </button>
                     <button class="row-menu-item" @click="openLicenseUpgradeDialog(server)">
                       License
@@ -657,6 +673,8 @@ import {
   latestDeployVersionFromList,
 } from '@/utils/deployVersions'
 import {
+  angelosStatusClass,
+  angelosStatusLabel,
   layerDotDescription,
   layerDotTitle,
   resolveLayerStatus,
@@ -666,6 +684,7 @@ import {
   fetchServers,
   fetchDeployVersions,
   upgradeServer,
+  refreshServerRuntimeStatus,
   deleteServer,
   updateServer,
   updateServerUsers,
@@ -689,6 +708,7 @@ const licenseFileName = ref('')
 const licenseInput = ref(null)
 const userSearch = ref('')
 const activeRowMenu = ref(null)
+const runtimeStatusRefreshingIds = ref(new Set())
 const isEditServerDialogOpen = ref(false)
 const editServerId = ref(null)
 const editServer = ref({
@@ -1126,6 +1146,64 @@ const closeUpgradeDialog = () => {
   upgradeVersionsError.value = ''
   selectedUpgradeVersionUuid.value = ''
   isUpgradingServer.value = false
+}
+
+const isRuntimeStatusRefreshing = (serverId) => runtimeStatusRefreshingIds.value.has(serverId)
+
+const setRuntimeStatusRefreshing = (serverId, refreshing) => {
+  const next = new Set(runtimeStatusRefreshingIds.value)
+  if (refreshing) {
+    next.add(serverId)
+  } else {
+    next.delete(serverId)
+  }
+  runtimeStatusRefreshingIds.value = next
+}
+
+const runtimeStatusAriaLabel = (server, layer) => {
+  if (isRuntimeStatusRefreshing(server?.id)) {
+    const name = layer === 'l4' ? 'L4 (Sparta)' : 'L7 (Athens)'
+    return `${name}: checking status`
+  }
+  return layerDotTitle(server, layer)
+}
+
+const runtimeStatusDotDescription = (server, layer) => {
+  if (isRuntimeStatusRefreshing(server?.id)) {
+    const name = layer === 'l4' ? 'L4 · Sparta' : 'L7 · Athens'
+    return `${name}\nChecking service status on the remote host…`
+  }
+  return layerDotDescription(server, layer)
+}
+
+const mergeServerRuntimeStatus = (serverId, updated) => {
+  if (!updated || typeof updated !== 'object') return
+  const index = servers.value.findIndex((item) => item.id === serverId)
+  if (index === -1) return
+  servers.value[index] = {
+    ...servers.value[index],
+    ...updated,
+    serviceStatus: updated.serviceStatus ?? updated.service_status ?? servers.value[index].serviceStatus,
+    l4Status: updated.l4Status ?? updated.l4_status ?? servers.value[index].l4Status,
+    l7Status: updated.l7Status ?? updated.l7_status ?? servers.value[index].l7Status,
+  }
+}
+
+const refreshRuntimeStatus = async (server) => {
+  activeRowMenu.value = null
+  if (!server?.id || isRuntimeStatusRefreshing(server.id)) return
+  setRuntimeStatusRefreshing(server.id, true)
+  try {
+    const updated = await refreshServerRuntimeStatus(server.id)
+    mergeServerRuntimeStatus(server.id, updated)
+    enqueueNotification(`Runtime status refreshed for ${server.name}.`, 'success')
+    await loadServers()
+  } catch (error) {
+    const msg = error?.message || 'Failed to refresh runtime status.'
+    enqueueNotification(msg, 'error')
+  } finally {
+    setRuntimeStatusRefreshing(server.id, false)
+  }
 }
 
 const openUpgradeDialog = async (server) => {
