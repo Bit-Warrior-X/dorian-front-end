@@ -47,6 +47,44 @@ export const fetchDeployVersions = async () => {
   return apiRequest('/api/v1/deploy-versions')
 }
 
+const mockDeployVersions = () => [
+  {
+    uuid: 'mock-uuid-1',
+    version: '0.1.7',
+    os: 'ubuntu-24.04',
+    full_name: 'dorian-ddos-firewall-0.1.7-ubuntu-24.04-payload-mock.tar.gz',
+    path: '/opt/dorian/0.1.7-ubuntu-24.04',
+    updated: '2025-04-15T10:30:00Z',
+  },
+  {
+    uuid: 'mock-uuid-2',
+    version: '0.1.7',
+    os: 'ubuntu-22.04',
+    full_name: 'dorian-ddos-firewall-0.1.7-ubuntu-22.04-payload-mock.tar.gz',
+    path: '/opt/dorian/0.1.7-ubuntu-22.04',
+    updated: '2025-04-10T10:30:00Z',
+  },
+]
+
+/** SSH to target host, detect OS, return matching deploy versions (POST /api/v1/servers/probe-host-versions). */
+export const probeHostVersions = async (payload) => {
+  const opts = {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(60_000)
+  }
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    const os = 'ubuntu-22.04'
+    const versions = mockDeployVersions().filter((item) => item.os === os)
+    return { os, versions }
+  }
+  return apiRequest('/api/v1/servers/probe-host-versions', opts)
+}
+
 export const updateServerUsers = async (serverId, userIds) =>
   apiRequest(`/servers/${serverId}/users`, {
     method: 'PUT',

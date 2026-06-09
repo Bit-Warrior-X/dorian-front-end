@@ -149,7 +149,7 @@
               <td>
                 <span :class="['badge', entry.methodClass]">{{ entry.method }}</span>
               </td>
-              <td>{{ entry.url }}</td>
+              <td class="url-cell" :title="entry.url">{{ entry.url }}</td>
               <td>
                 <span :class="['badge', entry.statusClass]">{{ entry.status }}</span>
               </td>
@@ -443,22 +443,43 @@ const parseLogLine = (line) => {
 }
 
 const parseNginxLine = (line) => {
-  const regex =
-    /^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^"]+?) HTTP\/[0-9.]+" (\d{3}) \S+(?: \S+)?(?: ".*")?(?: ".*")?(?: ([0-9.]+))?/
-  const match = line.match(regex)
+  const combined =
+    /^(\S+) \S+ \S+ \[([^\]]+)\] "((?:\\.|[^"\\])*)" (\d{3})(?: \S+)?/
+  const match = line.match(combined)
   if (!match) return null
 
-  const [, ipAddress, timeLocal, method, url, status, responseTime] = match
+  const [, ipAddress, timeLocal, request, status] = match
   const timestamp = parseNginxTime(timeLocal)
+  const { method, url } = parseNginxRequest(request)
+
   return {
     ipAddress,
     method,
     url,
     status,
-    responseTime: responseTime ? Number(responseTime) * 1000 : null,
+    responseTime: null,
     timestamp,
-    timestampLabel: timestamp ? timestamp.toLocaleString() : timeLocal
+    timestampLabel: timestamp ? timestamp.toLocaleString() : timeLocal,
   }
+}
+
+/** Split nginx $request into method + URL, or keep the full payload for non-HTTP lines. */
+const parseNginxRequest = (request) => {
+  const raw = String(request ?? '')
+  if (!raw.trim()) {
+    return { method: '-', url: '-' }
+  }
+
+  const httpMatch = raw.match(/^(\S+)\s+(\S+)\s+HTTP\/[\d.]+$/i)
+  if (httpMatch) {
+    return { method: httpMatch[1], url: httpMatch[2] }
+  }
+
+  if (/^\\x16\\x03\\x01/i.test(raw)) {
+    return { method: 'TLS', url: raw }
+  }
+
+  return { method: 'RAW', url: raw }
 }
 
 const parseNginxTime = (value) => {
@@ -1263,6 +1284,13 @@ onBeforeUnmount(() => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+.log-table td.url-cell {
+  max-width: 520px;
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.35;
+}
+
 .log-table tbody tr {
   transition: background 0.15s ease;
 }
@@ -1325,6 +1353,13 @@ onBeforeUnmount(() => {
   background: rgba(168, 85, 247, 0.2);
   color: #d8b4fe;
   border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.badge.method-tls,
+.badge.method-raw {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .badge[class*='status-3'] {

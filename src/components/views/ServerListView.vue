@@ -174,7 +174,7 @@
   <div
     v-if="isNewServerDialogOpen"
     class="dialog-backdrop"
-    @click="!isCreatingServer && closeNewServerDialog()"
+    @click="!isCreatingServer && !isLoadingCreateVersions && closeNewServerDialog()"
   >
     <div
       class="dialog-card dialog-card--wide dialog-card--form"
@@ -182,11 +182,14 @@
       @click.stop
     >
       <div class="dialog-header">
-        <h3>New Server</h3>
+        <div class="dialog-header-text">
+          <h3>New Server</h3>
+          <p class="wizard-step-label">Step {{ newServerStep }} of 3</p>
+        </div>
         <button
           class="dialog-close"
           type="button"
-          :disabled="isCreatingServer"
+          :disabled="isCreatingServer || isLoadingCreateVersions"
           @click="closeNewServerDialog"
           aria-label="Close dialog"
         >
@@ -196,11 +199,12 @@
           </svg>
         </button>
       </div>
-      <form class="new-server-dialog-form" @submit.prevent="createServer">
+      <form class="new-server-dialog-form" @submit.prevent="onNewServerFormSubmit">
       <div class="dialog-body">
-        <div class="dialog-section">
+        <div v-show="newServerStep === 1" class="new-server-step-basic">
+        <div class="new-server-basic-panel dialog-section">
           <h4>Basic Setting</h4>
-          <div class="dialog-grid">
+          <div class="new-server-basic-fields">
             <div class="dialog-field">
               <label for="new-server-name">Name</label>
               <input
@@ -223,9 +227,9 @@
           </div>
         </div>
 
-        <div class="dialog-section">
+        <div class="new-server-basic-panel dialog-section">
           <h4>SSH Setting</h4>
-          <div class="dialog-grid">
+          <div class="new-server-basic-fields">
             <div class="dialog-field">
               <label for="new-server-username">UserName</label>
               <input
@@ -256,20 +260,20 @@
           </div>
         </div>
 
-        <div class="dialog-section">
+        <div class="new-server-basic-panel dialog-section">
           <h4>Management users</h4>
-          <div v-if="selectedUsers.length" class="selected-users">
-            <button
-              v-for="userId in selectedUsers"
-              :key="userId"
-              type="button"
-              class="user-chip"
-              @click="removeUser(userId)"
-            >
-              {{ getUserLabelById(userId) }}
-            </button>
-          </div>
-          <div class="dialog-grid">
+          <div class="new-server-basic-fields">
+            <div v-if="selectedUsers.length" class="selected-users">
+              <button
+                v-for="userId in selectedUsers"
+                :key="userId"
+                type="button"
+                class="user-chip"
+                @click="removeUser(userId)"
+              >
+                {{ getUserLabelById(userId) }}
+              </button>
+            </div>
             <div class="dialog-field">
               <label for="new-server-users">Choose users</label>
               <div class="combobox" @click="toggleUserDropdown">
@@ -303,20 +307,33 @@
             </div>
           </div>
         </div>
+        </div>
 
+        <div v-show="newServerStep === 2">
         <div class="dialog-section">
           <h4>Product version</h4>
           <p class="license-tier-hint">
-            Choose the Dorian build (version and target OS) to deploy on this host.
+            <template v-if="isLoadingCreateVersions">
+              Connecting to the target host and loading versions for its operating system…
+            </template>
+            <template v-else-if="detectedHostOs">
+              Choose the Dorian build to deploy on
+              <strong>{{ createHostOsLabel }}</strong>.
+            </template>
+            <template v-else>
+              Choose the Dorian build (version and target OS) to deploy on this host.
+            </template>
           </p>
           <div v-if="isLoadingCreateVersions" class="dialog-deploy-status" role="status">
             <span class="btn-spinner btn-spinner--inline" aria-hidden="true"></span>
-            Loading available versions…
+            Detecting host OS and loading available versions…
           </div>
           <div v-else-if="createVersionsError" class="upgrade-error">
             {{ createVersionsError }}
           </div>
-          <p v-else-if="!createVersions.length" class="muted-text">No versions available.</p>
+          <p v-else-if="!createVersions.length" class="muted-text">
+            No versions available for {{ createHostOsLabel }}.
+          </p>
           <div v-else class="upgrade-version-panels">
             <VersionPanelSelector
               v-model="selectedCreateVersionUuid"
@@ -325,16 +342,20 @@
             />
           </div>
         </div>
+        </div>
 
-        <div class="dialog-section dialog-section--license">
+        <div v-show="newServerStep === 3" class="new-server-step-license">
+        <div class="dialog-section dialog-section--license dialog-section--license-full">
           <h4>License</h4>
+          <p class="license-tier-hint license-tier-hint--intro">
+            Select a license tier for this deployment. Each plan lists pricing and included capabilities below.
+          </p>
           <LicenseTierSelector
             v-model="licenseTier"
-            compact
             aria-label="License type for new server"
             @update:model-value="onLicenseTierChange"
           />
-          <p class="license-tier-hint">
+          <p class="license-tier-hint license-tier-hint--deploy">
             <template v-if="licenseTier === 'Trial'">
               A new 3-day trial license will be generated and bound to the target host.
             </template>
@@ -369,6 +390,7 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
       <p v-if="isCreatingServer" class="dialog-deploy-status" role="status">
         <span class="btn-spinner btn-spinner--inline" aria-hidden="true"></span>
@@ -378,18 +400,29 @@
         <button
           class="secondary-btn"
           type="button"
-          :disabled="isCreatingServer"
-          @click="closeNewServerDialog"
+          :disabled="isCreatingServer || isLoadingCreateVersions"
+          @click="newServerStep === 1 ? closeNewServerDialog() : goToPrevNewServerStep()"
         >
-          Cancel
+          {{ newServerStep === 1 ? 'Cancel' : 'Back' }}
         </button>
         <button
+          v-if="newServerStep < 3"
+          class="primary-btn"
+          type="button"
+          :disabled="isCreatingServer || isLoadingCreateVersions || !canProceedNewServerStep"
+          @click="goToNextNewServerStep"
+        >
+          <span v-if="isLoadingCreateVersions" class="btn-spinner" aria-hidden="true"></span>
+          {{ isLoadingCreateVersions ? 'Loading…' : 'Next' }}
+        </button>
+        <button
+          v-else
           class="primary-btn"
           type="submit"
           :disabled="isCreatingServer || !canSubmitCreateServer"
         >
           <span v-if="isCreatingServer" class="btn-spinner" aria-hidden="true"></span>
-          {{ isCreatingServer ? 'Creating…' : 'Create' }}
+          {{ isCreatingServer ? 'Deploying…' : 'Deploy' }}
         </button>
       </div>
       </form>
@@ -683,6 +716,7 @@ import {
   createServer as createServerApi,
   fetchServers,
   fetchDeployVersions,
+  probeHostVersions,
   upgradeServer,
   refreshServerRuntimeStatus,
   deleteServer,
@@ -696,6 +730,8 @@ import { useAuth } from '@/stores/auth'
 let createServerSyncLock = false
 
 const isNewServerDialogOpen = ref(false)
+const newServerStep = ref(1)
+const detectedHostOs = ref('')
 const isCreatingServer = ref(false)
 const auth = useAuth()
 const notifications = ref([])
@@ -735,11 +771,31 @@ const isLoadingCreateVersions = ref(false)
 const createVersionsError = ref('')
 const selectedCreateVersionUuid = ref('')
 
-const canSubmitCreateServer = computed(() => {
-  if (!selectedCreateVersionUuid.value || !createVersions.value.length) return false
+const canProceedBasicStep = computed(() => {
   if (!newServer.value.name?.trim() || !newServer.value.ip?.trim()) return false
   if (!newServer.value.username?.trim() || !newServer.value.password?.trim()) return false
   return true
+})
+
+const canProceedVersionStep = computed(() => {
+  if (isLoadingCreateVersions.value || createVersionsError.value) return false
+  return Boolean(selectedCreateVersionUuid.value && createVersions.value.length)
+})
+
+const canProceedNewServerStep = computed(() => {
+  if (newServerStep.value === 1) return canProceedBasicStep.value
+  if (newServerStep.value === 2) return canProceedVersionStep.value
+  return false
+})
+
+const canSubmitCreateServer = computed(() => {
+  if (!selectedCreateVersionUuid.value || !createVersions.value.length) return false
+  return canProceedBasicStep.value
+})
+
+const createHostOsLabel = computed(() => {
+  const label = formatVersionOs(detectedHostOs.value)
+  return label || 'this platform'
 })
 
 const canSubmitVersionUpgrade = computed(() => {
@@ -828,25 +884,63 @@ const pageEnd = computed(() =>
   Math.min(currentPage.value * pageSize.value, servers.value.length)
 )
 
-const loadCreateVersions = async () => {
+const loadCreateVersionsForHost = async () => {
   isLoadingCreateVersions.value = true
   createVersionsError.value = ''
   createVersions.value = []
   selectedCreateVersionUuid.value = ''
+  detectedHostOs.value = ''
   try {
-    const data = await fetchDeployVersions()
+    const data = await probeHostVersions({
+      ip: newServer.value.ip?.trim() || '',
+      sshUser: newServer.value.username?.trim() || '',
+      sshPassword: newServer.value.password?.trim() || '',
+      sshPort: newServer.value.sshPort?.toString().trim() || '',
+    })
     const list = Array.isArray(data?.versions) ? data.versions : []
+    detectedHostOs.value = data?.os || ''
     createVersions.value = list
     deployVersionsCatalog.value = list
     if (list.length) {
       selectedCreateVersionUuid.value = list[0].uuid
     }
   } catch (error) {
-    const msg = error?.message || 'Failed to load versions from deploy_license.'
+    const msg = error?.message || 'Failed to detect host OS or load versions.'
     createVersionsError.value = msg
     createVersions.value = []
+    detectedHostOs.value = ''
   } finally {
     isLoadingCreateVersions.value = false
+  }
+}
+
+const goToNextNewServerStep = async () => {
+  if (newServerStep.value === 1) {
+    if (!canProceedBasicStep.value) {
+      enqueueNotification('Please fill in all required basic settings.', 'error')
+      return
+    }
+    newServerStep.value = 2
+    await loadCreateVersionsForHost()
+    return
+  }
+  if (newServerStep.value === 2) {
+    if (!canProceedVersionStep.value) {
+      enqueueNotification('Please select a product version.', 'error')
+      return
+    }
+    newServerStep.value = 3
+  }
+}
+
+const goToPrevNewServerStep = () => {
+  if (newServerStep.value <= 1 || isCreatingServer.value || isLoadingCreateVersions.value) return
+  newServerStep.value -= 1
+}
+
+const onNewServerFormSubmit = () => {
+  if (newServerStep.value === 3) {
+    void createServer()
   }
 }
 
@@ -861,6 +955,8 @@ const openNewServerDialog = () => {
   createVersions.value = []
   createVersionsError.value = ''
   selectedCreateVersionUuid.value = ''
+  detectedHostOs.value = ''
+  newServerStep.value = 1
   newServer.value = {
     name: '',
     ip: '',
@@ -872,12 +968,12 @@ const openNewServerDialog = () => {
     licenseInput.value.value = ''
   }
   isNewServerDialogOpen.value = true
-  void loadCreateVersions()
 }
 
 const closeNewServerDialog = () => {
-  if (isCreatingServer.value) return
+  if (isCreatingServer.value || isLoadingCreateVersions.value) return
   isNewServerDialogOpen.value = false
+  newServerStep.value = 1
 }
 
 const openEditServer = (server) => {
@@ -1523,6 +1619,59 @@ const nextPage = () => {
   border-bottom: 1px solid var(--app-border);
 }
 
+.dialog-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wizard-step-label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--app-text-muted);
+}
+
+.new-server-step-basic {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.new-server-basic-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface-elevated);
+}
+
+.new-server-basic-panel h4 {
+  margin: 0;
+}
+
+.new-server-basic-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.new-server-basic-panel .selected-users {
+  margin-top: 0;
+}
+
+@media (max-width: 960px) {
+  .new-server-step-basic {
+    grid-template-columns: 1fr;
+  }
+}
+
 .new-server-dialog-form {
   display: flex;
   flex-direction: column;
@@ -1556,6 +1705,19 @@ const nextPage = () => {
 .dialog-section--license .license-tier-hint {
   margin: 8px 0 0;
   font-size: 0.8rem;
+}
+
+.dialog-section--license-full .license-tier-hint--intro {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+}
+
+.dialog-section--license-full .license-tier-hint--deploy {
+  margin-top: 14px;
+}
+
+.new-server-step-license :deep(.tier-grid) {
+  padding-bottom: 4px;
 }
 
 .dialog-section--license .license-existing-row {
