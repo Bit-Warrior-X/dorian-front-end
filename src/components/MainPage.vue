@@ -150,16 +150,7 @@
         </svg>
       </button>
       
-      <div class="toast-stack">
-        <div
-          v-for="note in notifications.state.queue"
-          :key="note.id"
-          class="toast"
-          :class="note.type"
-        >
-          {{ note.message }}
-        </div>
-      </div>
+      <NotificationToastStack />
       <div class="view-header">
         <button 
           v-if="isPanelOpen" 
@@ -208,11 +199,10 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/stores/auth'
-import { useNotifications } from '@/stores/notifications'
 import ThemeToggleButton from './ThemeToggleButton.vue'
+import NotificationToastStack from './NotificationToastStack.vue'
 
 const auth = useAuth()
-const notifications = useNotifications()
 const route = useRoute()
 const router = useRouter()
 
@@ -655,41 +645,6 @@ onBeforeUnmount(() => {
   flex: 1 1 100%;
   width: 100%;
   max-width: 100%;
-}
-
-.toast-stack {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 1300;
-}
-
-.toast {
-  min-width: 240px;
-  max-width: 360px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--app-text);
-  background: var(--app-surface-solid);
-  box-shadow: 0 12px 24px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.toast.success {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(236, 253, 245, 0.95);
-  color: #065f46;
-}
-
-.toast.error {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(254, 242, 242, 0.95);
-  color: #b91c1c;
 }
 
 .view-header-actions {

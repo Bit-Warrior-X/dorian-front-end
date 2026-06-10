@@ -269,7 +269,9 @@ import {
   deleteSecondRule as deleteSecondRuleApi,
   deleteSecondRules
 } from "@/api/wafSecondFreqLimit";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_SECOND_FREQ_TITLE = "WAF Second Frequency";
 
 const props = defineProps({
   serverId: {
@@ -278,7 +280,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const secondRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -492,10 +493,10 @@ const createRule = async (payload) => {
   try {
     await createSecondRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("Second freq rule created.", "success");
+    notifySuccess(WAF_SECOND_FREQ_TITLE, "The second freq rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create second freq rule.", "error");
+    notifyError(WAF_SECOND_FREQ_TITLE, error?.message || "The second freq rule could not be created.");
   }
 };
 
@@ -503,10 +504,10 @@ const updateRule = async (payload) => {
   try {
     await updateSecondRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("Second freq rule updated.", "success");
+    notifySuccess(WAF_SECOND_FREQ_TITLE, "The second freq rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update second freq rule.", "error");
+    notifyError(WAF_SECOND_FREQ_TITLE, error?.message || "The second freq rule could not be updated.");
   }
 };
 
@@ -514,9 +515,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteSecondRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("Second freq rule deleted.", "success");
+    notifySuccess(WAF_SECOND_FREQ_TITLE, "The second freq rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete second freq rule.", "error");
+    notifyError(WAF_SECOND_FREQ_TITLE, error?.message || "The second freq rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -529,9 +530,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteSecondRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("Second freq rules removed.", "success");
+    notifySuccess(WAF_SECOND_FREQ_TITLE, "All second freq rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove second freq rules.", "error");
+    notifyError(WAF_SECOND_FREQ_TITLE, error?.message || "The second freq rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

@@ -22,8 +22,17 @@ const parseJson = async (response) => {
   }
 }
 
-export const apiRequest = async (path, options = {}) => {
+export const resolveApiBaseUrl = async () => {
   const { apiBaseUrl } = await getApiConfig()
+  if (apiBaseUrl) return apiBaseUrl
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
+  }
+  return ''
+}
+
+export const apiRequest = async (path, options = {}) => {
+  const apiBaseUrl = await resolveApiBaseUrl()
   const url = `${apiBaseUrl}${path}`
   const headers = {
     'Content-Type': 'application/json',

@@ -269,7 +269,9 @@ import {
   deleteIntervalRule as deleteIntervalRuleApi,
   deleteIntervalRules
 } from "@/api/wafIntervalFreqLimit";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_INTERVAL_FREQ_TITLE = "WAF Interval Frequency";
 
 const props = defineProps({
   serverId: {
@@ -278,7 +280,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const intervalRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -492,10 +493,10 @@ const createRule = async (payload) => {
   try {
     await createIntervalRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("Interval rule created.", "success");
+    notifySuccess(WAF_INTERVAL_FREQ_TITLE, "The interval rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create interval rule.", "error");
+    notifyError(WAF_INTERVAL_FREQ_TITLE, error?.message || "The interval rule could not be created.");
   }
 };
 
@@ -503,10 +504,10 @@ const updateRule = async (payload) => {
   try {
     await updateIntervalRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("Interval rule updated.", "success");
+    notifySuccess(WAF_INTERVAL_FREQ_TITLE, "The interval rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update interval rule.", "error");
+    notifyError(WAF_INTERVAL_FREQ_TITLE, error?.message || "The interval rule could not be updated.");
   }
 };
 
@@ -514,9 +515,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteIntervalRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("Interval rule deleted.", "success");
+    notifySuccess(WAF_INTERVAL_FREQ_TITLE, "The interval rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete interval rule.", "error");
+    notifyError(WAF_INTERVAL_FREQ_TITLE, error?.message || "The interval rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -529,9 +530,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteIntervalRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("Interval rules removed.", "success");
+    notifySuccess(WAF_INTERVAL_FREQ_TITLE, "All interval rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove interval rules.", "error");
+    notifyError(WAF_INTERVAL_FREQ_TITLE, error?.message || "The interval rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

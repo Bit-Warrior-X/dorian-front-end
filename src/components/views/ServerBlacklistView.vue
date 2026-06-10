@@ -212,8 +212,9 @@ import {
   deleteBlacklistEntry,
   flushBlacklistEntries
 } from "@/api/serverBlacklist";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
 
+const BLACKLIST_TITLE = "Blacklist Management";
 const serverFilter = ref("");
 const ruleFilter = ref("");
 const searchQuery = ref("");
@@ -224,7 +225,6 @@ const isConfirmDialogOpen = ref(false);
 const confirmAction = ref(null);
 const confirmTargetId = ref(null);
 const servers = ref([]);
-const notifications = useNotifications();
 const now = ref(Date.now());
 let remainingTimeTimer = null;
 const newBlock = ref({
@@ -311,7 +311,7 @@ const loadServers = async () => {
     const list = await fetchServers();
     servers.value = Array.isArray(list) ? list : [];
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to load servers.", "error");
+    notifyError(BLACKLIST_TITLE, error?.message || "The server list could not be loaded.");
   }
 };
 
@@ -330,7 +330,7 @@ const loadBlacklist = async (serverId) => {
       triggerRule: entry.triggerRule || ""
     }));
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to load blacklist entries.", "error");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist entries could not be loaded.");
   }
 };
 
@@ -402,10 +402,10 @@ const createBlock = async () => {
       triggerRule
     });
     await loadBlacklist(serverFilter.value ? Number(serverFilter.value) : undefined);
-    notifications.enqueue("Blacklist entry created.", "success");
+    notifySuccess(BLACKLIST_TITLE, "The blacklist entry is successfully created.");
     closeBlockDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create blacklist entry.", "error");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist entry could not be created.");
   }
 };
 
@@ -447,14 +447,14 @@ const handleConfirmDialog = async () => {
   try {
     if (confirmAction.value === "flush") {
       await flushBlacklistEntries(serverFilter.value ? Number(serverFilter.value) : undefined);
-      notifications.enqueue("Blacklist flushed.", "success");
+      notifySuccess(BLACKLIST_TITLE, "All blacklist entries are successfully flushed.");
     } else if (confirmAction.value === "remove") {
       await deleteBlacklistEntry(confirmTargetId.value);
-      notifications.enqueue("Blacklist entry removed.", "success");
+      notifySuccess(BLACKLIST_TITLE, "The blacklist entry is successfully deleted.");
     }
     await loadBlacklist(serverFilter.value ? Number(serverFilter.value) : undefined);
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update blacklist.", "error");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist could not be updated.");
   }
   clearConfirmDialog();
 };

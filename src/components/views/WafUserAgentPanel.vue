@@ -286,7 +286,9 @@ import {
   deleteUserAgentRule as deleteUserAgentRuleApi,
   deleteUserAgentRules
 } from "@/api/wafUserAgent";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_USER_AGENT_TITLE = "WAF User Agent";
 
 const props = defineProps({
   serverId: {
@@ -295,7 +297,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const userAgentRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -499,10 +500,10 @@ const createRule = async (payload) => {
   try {
     await createUserAgentRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("User agent rule created.", "success");
+    notifySuccess(WAF_USER_AGENT_TITLE, "The user agent rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create user agent rule.", "error");
+    notifyError(WAF_USER_AGENT_TITLE, error?.message || "The user agent rule could not be created.");
   }
 };
 
@@ -510,10 +511,10 @@ const updateRule = async (payload) => {
   try {
     await updateUserAgentRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("User agent rule updated.", "success");
+    notifySuccess(WAF_USER_AGENT_TITLE, "The user agent rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update user agent rule.", "error");
+    notifyError(WAF_USER_AGENT_TITLE, error?.message || "The user agent rule could not be updated.");
   }
 };
 
@@ -521,9 +522,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteUserAgentRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("User agent rule deleted.", "success");
+    notifySuccess(WAF_USER_AGENT_TITLE, "The user agent rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete user agent rule.", "error");
+    notifyError(WAF_USER_AGENT_TITLE, error?.message || "The user agent rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -536,9 +537,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteUserAgentRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("User agent rules removed.", "success");
+    notifySuccess(WAF_USER_AGENT_TITLE, "All user agent rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove user agent rules.", "error");
+    notifyError(WAF_USER_AGENT_TITLE, error?.message || "The user agent rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

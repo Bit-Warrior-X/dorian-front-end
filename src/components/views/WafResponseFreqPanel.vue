@@ -288,7 +288,9 @@ import {
   deleteResponseRule as deleteResponseRuleApi,
   deleteResponseRules
 } from "@/api/wafResponseFreq";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_RESPONSE_FREQ_TITLE = "WAF Response Frequency";
 
 const props = defineProps({
   serverId: {
@@ -297,7 +299,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const responseRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -530,10 +531,10 @@ const createRule = async (payload) => {
   try {
     await createResponseRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("Response freq rule created.", "success");
+    notifySuccess(WAF_RESPONSE_FREQ_TITLE, "The response freq rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create response freq rule.", "error");
+    notifyError(WAF_RESPONSE_FREQ_TITLE, error?.message || "The response freq rule could not be created.");
   }
 };
 
@@ -541,10 +542,10 @@ const updateRule = async (payload) => {
   try {
     await updateResponseRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("Response freq rule updated.", "success");
+    notifySuccess(WAF_RESPONSE_FREQ_TITLE, "The response freq rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update response freq rule.", "error");
+    notifyError(WAF_RESPONSE_FREQ_TITLE, error?.message || "The response freq rule could not be updated.");
   }
 };
 
@@ -552,9 +553,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteResponseRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("Response freq rule deleted.", "success");
+    notifySuccess(WAF_RESPONSE_FREQ_TITLE, "The response freq rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete response freq rule.", "error");
+    notifyError(WAF_RESPONSE_FREQ_TITLE, error?.message || "The response freq rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -567,9 +568,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteResponseRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("Response freq rules removed.", "success");
+    notifySuccess(WAF_RESPONSE_FREQ_TITLE, "All response freq rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove response freq rules.", "error");
+    notifyError(WAF_RESPONSE_FREQ_TITLE, error?.message || "The response freq rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

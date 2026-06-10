@@ -308,7 +308,9 @@ import {
   deleteAntiHeaderRule as deleteAntiHeaderRuleApi,
   deleteAntiHeaderRules
 } from "@/api/wafAntiHeader";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_ANTI_HEADER_TITLE = "WAF Anti Header";
 
 const props = defineProps({
   serverId: {
@@ -317,7 +319,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const antiHeaderRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -559,10 +560,10 @@ const createRule = async (payload) => {
   try {
     await createAntiHeaderRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("Anti header rule created.", "success");
+    notifySuccess(WAF_ANTI_HEADER_TITLE, "The anti header rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create anti header rule.", "error");
+    notifyError(WAF_ANTI_HEADER_TITLE, error?.message || "The anti header rule could not be created.");
   }
 };
 
@@ -570,10 +571,10 @@ const updateRule = async (payload) => {
   try {
     await updateAntiHeaderRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("Anti header rule updated.", "success");
+    notifySuccess(WAF_ANTI_HEADER_TITLE, "The anti header rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update anti header rule.", "error");
+    notifyError(WAF_ANTI_HEADER_TITLE, error?.message || "The anti header rule could not be updated.");
   }
 };
 
@@ -581,9 +582,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteAntiHeaderRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("Anti header rule deleted.", "success");
+    notifySuccess(WAF_ANTI_HEADER_TITLE, "The anti header rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete anti header rule.", "error");
+    notifyError(WAF_ANTI_HEADER_TITLE, error?.message || "The anti header rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -596,9 +597,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteAntiHeaderRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("Anti header rules removed.", "success");
+    notifySuccess(WAF_ANTI_HEADER_TITLE, "All anti header rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove anti header rules.", "error");
+    notifyError(WAF_ANTI_HEADER_TITLE, error?.message || "The anti header rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

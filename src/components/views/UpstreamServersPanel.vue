@@ -134,7 +134,9 @@ import {
   createUpstreamServer,
   deleteUpstreamServer as deleteUpstreamServerApi
 } from "@/api/upstreamServers";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const UPSTREAM_TITLE = "Upstream Servers";
 
 const props = defineProps({
   serverId: {
@@ -143,7 +145,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const upstreamServers = ref([]);
 const newServerAddress = ref("");
 const newServerWeight = ref("4");
@@ -182,14 +183,14 @@ const addServer = async () => {
       status: "ENABLE"
     });
     await loadServers();
-    notifications.enqueue("Upstream server added.", "success");
+    notifySuccess(UPSTREAM_TITLE, "The upstream server is successfully created.");
     newServerAddress.value = "";
     newServerWeight.value = "4";
     newServerMaxFails.value = "3";
     newServerTimeout.value = "30";
     closeAddDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to add upstream server.", "error");
+    notifyError(UPSTREAM_TITLE, error?.message || "The upstream server could not be created.");
   }
 };
 
@@ -198,9 +199,9 @@ const removeServer = async (upstreamId) => {
   try {
     await deleteUpstreamServerApi(props.serverId, upstreamId);
     await loadServers();
-    notifications.enqueue("Upstream server removed.", "success");
+    notifySuccess(UPSTREAM_TITLE, "The upstream server is successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove upstream server.", "error");
+    notifyError(UPSTREAM_TITLE, error?.message || "The upstream server could not be removed.");
   }
 };
 

@@ -225,7 +225,9 @@ import {
   deleteWhitelistRule as deleteWhitelistRuleApi,
   deleteWhitelistRules
 } from "@/api/wafWhitelist";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_WHITELIST_TITLE = "WAF Whitelist";
 
 const props = defineProps({
   serverId: {
@@ -234,7 +236,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const whitelistRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -424,10 +425,10 @@ const createRule = async (payload) => {
   try {
     await createWhitelistRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("Whitelist rule created.", "success");
+    notifySuccess(WAF_WHITELIST_TITLE, "The whitelist rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create whitelist rule.", "error");
+    notifyError(WAF_WHITELIST_TITLE, error?.message || "The whitelist rule could not be created.");
   }
 };
 
@@ -435,10 +436,10 @@ const updateRule = async (payload) => {
   try {
     await updateWhitelistRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("Whitelist rule updated.", "success");
+    notifySuccess(WAF_WHITELIST_TITLE, "The whitelist rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update whitelist rule.", "error");
+    notifyError(WAF_WHITELIST_TITLE, error?.message || "The whitelist rule could not be updated.");
   }
 };
 
@@ -446,9 +447,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteWhitelistRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("Whitelist rule deleted.", "success");
+    notifySuccess(WAF_WHITELIST_TITLE, "The whitelist rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete whitelist rule.", "error");
+    notifyError(WAF_WHITELIST_TITLE, error?.message || "The whitelist rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -461,9 +462,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteWhitelistRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("Whitelist rules removed.", "success");
+    notifySuccess(WAF_WHITELIST_TITLE, "All whitelist rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove whitelist rules.", "error");
+    notifyError(WAF_WHITELIST_TITLE, error?.message || "The whitelist rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

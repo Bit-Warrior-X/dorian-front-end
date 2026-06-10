@@ -129,7 +129,9 @@ import {
   deleteL4BlacklistEntry,
   flushL4BlacklistEntries
 } from "@/api/l4";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const BLACKLIST_TITLE = "Blacklist Management";
 
 const props = defineProps({
   serverId: {
@@ -138,7 +140,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const entries = ref([]);
 const isDialogOpen = ref(false);
 const validationError = ref("");
@@ -175,7 +176,7 @@ const loadEntries = async () => {
     const list = await fetchL4BlacklistEntries(props.serverId);
     entries.value = Array.isArray(list) ? list : [];
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to load blacklist entries.", "error");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist entries could not be loaded.");
   }
 };
 
@@ -211,10 +212,10 @@ const createEntry = async () => {
       reason: formState.value.reason.trim()
     });
     await loadEntries();
-    notifications.enqueue("Blacklist entry created.", "success");
+    notifySuccess(BLACKLIST_TITLE, "The blacklist entry is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create blacklist entry.", "error");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist entry could not be created.");
   }
 };
 
@@ -250,14 +251,14 @@ const handleConfirm = async () => {
   try {
     if (confirmAction.value === "flush") {
       await flushL4BlacklistEntries(props.serverId);
-      notifications.enqueue("Blacklist flushed.", "success");
+      notifySuccess(BLACKLIST_TITLE, "All blacklist entries are successfully flushed.");
     } else if (confirmAction.value === "remove" && confirmTargetId.value) {
       await deleteL4BlacklistEntry(props.serverId, confirmTargetId.value);
-      notifications.enqueue("Blacklist entry removed.", "success");
+      notifySuccess(BLACKLIST_TITLE, "The blacklist entry is successfully deleted.");
     }
     await loadEntries();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update blacklist.", "error");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist could not be updated.");
   }
   clearConfirm();
 };

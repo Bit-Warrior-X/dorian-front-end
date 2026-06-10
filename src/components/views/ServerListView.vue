@@ -1,16 +1,5 @@
 <template>
   <div class="servers-view">
-    <div class="toast-stack">
-      <div
-        v-for="note in notifications"
-        :key="note.id"
-        class="toast"
-        :class="note.type"
-      >
-        {{ note.message }}
-      </div>
-    </div>
-
     <div class="content-card">
       <div class="filter-header">
         <h3>Filters</h3>
@@ -725,6 +714,7 @@ import {
 } from '@/api/servers'
 import { fetchUsers } from '@/api/users'
 import { useAuth } from '@/stores/auth'
+import { notifyError, notifySuccess } from '@/utils/notify'
 
 /** Synchronous guard: reactive isCreatingServer can still allow parallel createServer() in the same tick. */
 let createServerSyncLock = false
@@ -734,7 +724,6 @@ const newServerStep = ref(1)
 const detectedHostOs = ref('')
 const isCreatingServer = ref(false)
 const auth = useAuth()
-const notifications = ref([])
 const allUsers = ref([])
 const selectedUsers = ref([])
 const isUserDropdownOpen = ref(false)
@@ -1128,12 +1117,9 @@ const onUseExistingLicenseChange = () => {
   }
 }
 
-const enqueueNotification = (message, type = 'success') => {
-  const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`
-  notifications.value = [...notifications.value, { id, message, type }]
-  setTimeout(() => {
-    notifications.value = notifications.value.filter((note) => note.id !== id)
-  }, 3500)
+const enqueueNotification = (message, type = 'success', title = 'Server Management') => {
+  if (type === 'error') notifyError(title, message)
+  else notifySuccess(title, message)
 }
 
 const getUserLabel = (user) => user?.name || user?.email || 'Unknown user'
@@ -1193,7 +1179,7 @@ const createServer = async () => {
     if (created?.os) detailParts.push(`os: ${displayServerOs(created.os)}`)
     if (created?.expiredDate) detailParts.push(`expires: ${created.expiredDate}`)
     const detail = detailParts.length ? ` ${detailParts.join(' · ')}` : ''
-    enqueueNotification(`Server created successfully.${detail}`, 'success')
+    enqueueNotification(`The server is successfully created.${detail}`, 'success')
     currentPage.value = 1
     // Clear busy state before closing so the dialog is not stuck behind pointer-events: none.
     isCreatingServer.value = false
@@ -1216,7 +1202,7 @@ const createServer = async () => {
       await nextTick()
       isNewServerDialogOpen.value = false
     } else {
-      const msg = error?.message || 'Failed to create server.'
+      const msg = error?.message || 'The server could not be created.'
       enqueueNotification(msg, 'error')
       isCreatingServer.value = false
       await nextTick()
@@ -1292,10 +1278,10 @@ const refreshRuntimeStatus = async (server) => {
   try {
     const updated = await refreshServerRuntimeStatus(server.id)
     mergeServerRuntimeStatus(server.id, updated)
-    enqueueNotification(`Runtime status refreshed for ${server.name}.`, 'success')
+    enqueueNotification(`The runtime status is successfully refreshed for ${server.name}.`, 'success')
     await loadServers()
   } catch (error) {
-    const msg = error?.message || 'Failed to refresh runtime status.'
+    const msg = error?.message || 'The runtime status could not be refreshed.'
     enqueueNotification(msg, 'error')
   } finally {
     setRuntimeStatusRefreshing(server.id, false)
@@ -1322,7 +1308,7 @@ const openUpgradeDialog = async (server) => {
       selectedUpgradeVersionUuid.value = (preferred || list[0]).uuid
     }
   } catch (error) {
-    const msg = error?.message || 'Failed to load versions from deploy_license.'
+    const msg = error?.message || 'The product versions could not be loaded.'
     upgradeVersionsError.value = msg
     enqueueNotification(msg, 'error')
   } finally {
@@ -1345,12 +1331,12 @@ const submitUpgradeVersionChoice = async () => {
   isUpgradingServer.value = true
   try {
     await upgradeServer(server.id, { versionUuid: uuid })
-    enqueueNotification(`Server ${server.name} upgraded to version ${v.version}.`, 'success')
+    enqueueNotification(`The server is successfully upgraded to version ${v.version}.`, 'success')
     closeUpgradeDialog()
     void loadServers()
     void loadDeployVersionsCatalog()
   } catch (error) {
-    enqueueNotification(error?.message || 'Upgrade failed.', 'error')
+    enqueueNotification(error?.message || 'The server could not be upgraded.', 'error')
   } finally {
     isUpgradingServer.value = false
   }
@@ -1372,7 +1358,7 @@ const openLicenseUpgradeDialog = (server) => {
 
 const onLicenseUpgradeSuccess = async (updated) => {
   const label = updated?.license || 'new tier'
-  enqueueNotification(`License updated to ${label}.`, 'success')
+  enqueueNotification(`The license is successfully updated to ${label}.`, 'success', 'License Management')
   isLicenseUpgrading.value = false
   isLicenseUpgradeDialogOpen.value = false
   licenseUpgradeTarget.value = null
@@ -1401,7 +1387,7 @@ const applyEditServer = async () => {
     })
     await updateServerUsers(editServerId.value, updatedUsers)
   } catch {
-    enqueueNotification('Failed to update server.', 'error')
+    enqueueNotification('The server could not be updated.', 'error')
     return
   }
   servers.value[index] = {
@@ -1418,7 +1404,7 @@ const applyEditServer = async () => {
     sshPort: editServer.value.sshPort
   }
 
-  enqueueNotification('Server updated successfully.', 'success')
+  enqueueNotification('The server is successfully updated.', 'success')
   closeEditServerDialog()
 }
 
@@ -1442,12 +1428,12 @@ const handleDeleteServer = async () => {
   try {
     await deleteServer(confirmTarget.value.id)
     await loadServers()
-    enqueueNotification('Server deleted successfully.', 'success')
+    enqueueNotification('The server is successfully deleted.', 'success')
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value
     }
   } catch (error) {
-    enqueueNotification(error?.message || 'Failed to delete server.', 'error')
+    enqueueNotification(error?.message || 'The server could not be deleted.', 'error')
   }
 }
 
@@ -1468,40 +1454,6 @@ const nextPage = () => {
   min-height: 100%;
 }
 
-.toast-stack {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 1200;
-}
-
-.toast {
-  min-width: 240px;
-  max-width: 360px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--app-text);
-  background: var(--app-surface-solid);
-  box-shadow: 0 12px 24px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.toast.success {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(236, 253, 245, 0.95);
-  color: #065f46;
-}
-
-.toast.error {
-  border-color: rgba(239, 68, 68, 0.4);
-  background: rgba(254, 242, 242, 0.95);
-  color: #b91c1c;
-}
 .servers-table-card {
   flex: 1;
   display: flex;

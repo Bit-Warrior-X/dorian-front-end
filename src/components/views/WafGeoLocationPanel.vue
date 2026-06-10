@@ -314,7 +314,9 @@ import {
   deleteGeoRule as deleteGeoRuleApi,
   deleteGeoRules
 } from "@/api/wafGeoLocation";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_GEO_TITLE = "WAF Geo Location";
 
 const props = defineProps({
   serverId: {
@@ -323,7 +325,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const geoRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -767,10 +768,10 @@ const createRule = async (payload) => {
   try {
     await createGeoRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("GEO rule created.", "success");
+    notifySuccess(WAF_GEO_TITLE, "The GEO rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create GEO rule.", "error");
+    notifyError(WAF_GEO_TITLE, error?.message || "The GEO rule could not be created.");
   }
 };
 
@@ -778,10 +779,10 @@ const updateRule = async (payload) => {
   try {
     await updateGeoRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("GEO rule updated.", "success");
+    notifySuccess(WAF_GEO_TITLE, "The GEO rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update GEO rule.", "error");
+    notifyError(WAF_GEO_TITLE, error?.message || "The GEO rule could not be updated.");
   }
 };
 
@@ -789,9 +790,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteGeoRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("GEO rule deleted.", "success");
+    notifySuccess(WAF_GEO_TITLE, "The GEO rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete GEO rule.", "error");
+    notifyError(WAF_GEO_TITLE, error?.message || "The GEO rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -804,9 +805,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteGeoRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("GEO rules removed.", "success");
+    notifySuccess(WAF_GEO_TITLE, "All GEO rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove GEO rules.", "error");
+    notifyError(WAF_GEO_TITLE, error?.message || "The GEO rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

@@ -122,7 +122,9 @@ import {
   deleteL4WhitelistEntry,
   clearL4WhitelistEntries
 } from "@/api/l4";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WHITELIST_TITLE = "Whitelist Management";
 
 const props = defineProps({
   serverId: {
@@ -130,8 +132,6 @@ const props = defineProps({
     default: null
   }
 });
-
-const notifications = useNotifications();
 
 const entries = ref([]);
 const isDialogOpen = ref(false);
@@ -184,7 +184,7 @@ const loadEntries = async () => {
     const list = await fetchL4WhitelistEntries(props.serverId);
     entries.value = Array.isArray(list) ? list : [];
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to load whitelist entries.", "error");
+    notifyError(WHITELIST_TITLE, error?.message || "The whitelist entries could not be loaded.");
   }
 };
 
@@ -201,10 +201,10 @@ const addEntry = async () => {
       reason: formState.value.reason.trim()
     });
     await loadEntries();
-    notifications.enqueue("Whitelist entry added.", "success");
+    notifySuccess(WHITELIST_TITLE, "The whitelist entry is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to add whitelist entry.", "error");
+    notifyError(WHITELIST_TITLE, error?.message || "The whitelist entry could not be created.");
   }
 };
 
@@ -240,14 +240,14 @@ const handleConfirm = async () => {
   try {
     if (confirmAction.value === "clear") {
       await clearL4WhitelistEntries(props.serverId);
-      notifications.enqueue("Whitelist cleared.", "success");
+      notifySuccess(WHITELIST_TITLE, "All whitelist entries are successfully cleared.");
     } else if (confirmAction.value === "remove" && confirmTargetId.value) {
       await deleteL4WhitelistEntry(props.serverId, confirmTargetId.value);
-      notifications.enqueue("Whitelist entry removed.", "success");
+      notifySuccess(WHITELIST_TITLE, "The whitelist entry is successfully removed.");
     }
     await loadEntries();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update whitelist.", "error");
+    notifyError(WHITELIST_TITLE, error?.message || "The whitelist could not be updated.");
   }
   clearConfirm();
 };

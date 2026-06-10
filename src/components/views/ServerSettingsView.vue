@@ -49,8 +49,17 @@
             {{ tab.label }}
           </button>
         </div>
-        <div class="tabs-body" :class="{ 'no-outline': activeTab === 'upstream' }">
-          <L4DdosDefensePanel v-if="activeTab === 'l4-ddos'" :server-id="selectedServer" />
+        <div
+          class="tabs-body"
+          :class="{ 'no-outline': activeTab === 'upstream' || activeTab === 'server-status' }"
+        >
+          <ServerStatusPanel
+            v-if="activeTab === 'server-status' && selectedServerData"
+            :server-id="selectedServer"
+            :server="selectedServerData"
+            @updated="onServerStatusUpdated"
+          />
+          <L4DdosDefensePanel v-else-if="activeTab === 'l4-ddos'" :server-id="selectedServer" />
           <WafPanel v-else-if="activeTab === 'waf'" :server-id="selectedServer" />
           <UpstreamServersPanel v-else-if="activeTab === 'upstream'" :server-id="selectedServer" />
           <div v-else-if="activeTab === 'license' && selectedServerData" class="license-tab-body">
@@ -97,12 +106,13 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { fetchServers } from "@/api/servers";
-import { useNotifications } from "@/stores/notifications";
+import { notifySuccess } from "@/utils/notify";
 import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
 import WafPanel from "./WafPanel.vue";
 import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 import LicenseTierUpgradePanel from "../LicenseTierUpgradePanel.vue";
 import LayerStatusDot from "../LayerStatusDot.vue";
+import ServerStatusPanel from "./ServerStatusPanel.vue";
 import {
   angelosStatusClass,
   angelosStatusLabel,
@@ -112,7 +122,6 @@ import {
 } from "@/utils/serverLayerStatus";
 
 const route = useRoute();
-const notifications = useNotifications();
 const serverOptions = ref([]);
 const selectedServer = ref("");
 const selectedServerData = computed(() =>
@@ -132,30 +141,12 @@ const loadServers = async () => {
   }
 };
 
-const getServerInfoRows = () => {
-  const server = selectedServerData.value;
-  const status = server?.statusLabel || "-";
-  const license = server?.license || "-";
-  const users = server?.users ?? "-";
-  const sshPort = server?.sshPort || "-";
-  const username = server?.sshUser || "-";
-
-  return [
-    { name: "Server name", value: server?.name || "-", note: "Display name for this server." },
-    { name: "Server ID", value: server?.id || "-", note: "Unique server identifier." },
-    { name: "Primary IP", value: server?.ip || "-", note: "Current server address." },
-    { name: "Status", value: status, note: "Current server status." },
-    { name: "License", value: license, note: "Applied license tier." },
-    { name: "Managed users", value: users, note: "Number of assigned users." },
-    { name: "Version", value: server?.version || "-", note: "Installed version." },
-    { name: "SSH user", value: username, note: "Default SSH username." },
-    { name: "SSH port", value: sshPort, note: "SSH connection port." },
-    { name: "Expired date", value: server?.expiredDate || "-", note: "License expiration date." },
-    { name: "Created", value: server?.created || "-", note: "Provisioned date." }
-  ];
-};
-
 const tabs = [
+  {
+    id: "server-status",
+    label: "Monitor Server",
+    rows: []
+  },
   {
     id: "l4-ddos",
     label: "L4 DDos Defense",
@@ -187,11 +178,6 @@ const tabs = [
     id: "license",
     label: "License",
     rows: []
-  },
-  {
-    id: "info",
-    label: "Server Information",
-    rows: getServerInfoRows()
   }
 ];
 
@@ -199,9 +185,8 @@ const activeTab = ref(tabs[0].id);
 const activeConfigRows = computed(() => {
   const active = tabs.find((tab) => tab.id === activeTab.value);
   if (!active) return [];
-  if (active.id === "license") return [];
-  if (active.id !== "info") return active.rows;
-  return getServerInfoRows();
+  if (active.id === "license" || active.id === "server-status") return [];
+  return active.rows;
 });
 
 const applyRouteQuery = () => {
@@ -214,12 +199,27 @@ const applyRouteQuery = () => {
   }
   if (String(route.query.tab || "").toLowerCase() === "license") {
     activeTab.value = "license";
+  } else if (["basic", "monitor-server", "server-status"].includes(String(route.query.tab || "").toLowerCase())) {
+    activeTab.value = "server-status";
   }
 };
 
 const onLicenseTierSuccess = async (updated) => {
   await loadServers();
-  notifications.enqueue(`License updated to ${updated?.license || "new tier"}.`, "success");
+  notifySuccess("License Management", `The license is successfully updated to ${updated?.license || "new tier"}.`);
+};
+
+const onServerStatusUpdated = (updated) => {
+  if (!updated?.id) return;
+  const index = serverOptions.value.findIndex((server) => server.id === updated.id);
+  if (index === -1) return;
+  serverOptions.value[index] = {
+    ...serverOptions.value[index],
+    ...updated,
+    serviceStatus: updated.serviceStatus ?? updated.service_status ?? serverOptions.value[index].serviceStatus,
+    l4Status: updated.l4Status ?? updated.l4_status ?? serverOptions.value[index].l4Status,
+    l7Status: updated.l7Status ?? updated.l7_status ?? serverOptions.value[index].l7Status,
+  };
 };
 
 watch(

@@ -244,7 +244,9 @@ import ApexCharts from 'apexcharts'
 import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchServers } from '@/api/servers'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
-import { useNotifications } from '@/stores/notifications'
+import { notifyError, notifySuccess } from '@/utils/notify'
+
+const L4_DDOS_TITLE = 'L4 DDoS Defense'
 
 const chartGridColor = () => {
   if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
@@ -282,8 +284,6 @@ const chartDatetimeXaxis = () => ({
     style: { colors: chartLabelColor(), fontSize: '11px' },
   },
 })
-
-const notifications = useNotifications()
 
 const selectedServer = ref('all')
 const selectedTimeRange = ref('1h')
@@ -404,13 +404,13 @@ const submitBlacklist = async () => {
   const selectedId = blacklistForm.value.serverId || selectedServer.value
   const serverId = Number(selectedId)
   if (!serverId) {
-    notifications.enqueue('Please select a server first.', 'error')
+    notifyError(L4_DDOS_TITLE, 'Please select a server first.')
     return
   }
 
   const ipAddress = String(blacklistForm.value.ip || '').trim()
   if (!ipAddress) {
-    notifications.enqueue('IP address is missing.', 'error')
+    notifyError(L4_DDOS_TITLE, 'The IP address is missing.')
     return
   }
 
@@ -421,10 +421,10 @@ const submitBlacklist = async () => {
       ipAddress,
       reason,
     })
-    notifications.enqueue('IP added to L4 DDoS blacklist.', 'success')
+    notifySuccess(L4_DDOS_TITLE, 'The IP address is successfully added to the L4 DDoS blacklist.')
     closeBlacklistDialog()
   } catch (error) {
-    notifications.enqueue(error?.message || 'Failed to add IP to L4 DDoS blacklist.', 'error')
+    notifyError(L4_DDOS_TITLE, error?.message || 'The IP address could not be added to the L4 DDoS blacklist.')
   }
 }
 

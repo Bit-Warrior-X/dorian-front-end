@@ -259,7 +259,9 @@ import {
   deleteBlacklistRule as deleteBlacklistRuleApi,
   deleteBlacklistRules
 } from "@/api/wafBlacklist";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_BLACKLIST_TITLE = "WAF Blacklist";
 
 const props = defineProps({
   serverId: {
@@ -268,7 +270,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const blacklistRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -488,10 +489,10 @@ const createRule = async (payload) => {
   try {
     await createBlacklistRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("Blacklist rule created.", "success");
+    notifySuccess(WAF_BLACKLIST_TITLE, "The blacklist rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create blacklist rule.", "error");
+    notifyError(WAF_BLACKLIST_TITLE, error?.message || "The blacklist rule could not be created.");
   }
 };
 
@@ -499,10 +500,10 @@ const updateRule = async (payload) => {
   try {
     await updateBlacklistRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("Blacklist rule updated.", "success");
+    notifySuccess(WAF_BLACKLIST_TITLE, "The blacklist rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update blacklist rule.", "error");
+    notifyError(WAF_BLACKLIST_TITLE, error?.message || "The blacklist rule could not be updated.");
   }
 };
 
@@ -510,9 +511,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteBlacklistRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("Blacklist rule deleted.", "success");
+    notifySuccess(WAF_BLACKLIST_TITLE, "The blacklist rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete blacklist rule.", "error");
+    notifyError(WAF_BLACKLIST_TITLE, error?.message || "The blacklist rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -525,9 +526,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteBlacklistRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("Blacklist rules removed.", "success");
+    notifySuccess(WAF_BLACKLIST_TITLE, "All blacklist rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove blacklist rules.", "error");
+    notifyError(WAF_BLACKLIST_TITLE, error?.message || "The blacklist rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

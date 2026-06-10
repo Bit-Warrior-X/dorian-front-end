@@ -238,10 +238,10 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { fetchServers } from '@/api/servers'
-import { getApiConfig } from '@/api/config'
-import { useNotifications } from '@/stores/notifications'
+import { resolveApiBaseUrl } from '@/api/client'
+import { notifyError } from '@/utils/notify'
 
-const notifications = useNotifications()
+const ACCESS_LOG_TITLE = 'Access Log'
 const searchQuery = ref('')
 const selectedTimeRange = ref('1h')
 const statusFilter = ref('')
@@ -312,8 +312,7 @@ const togglePause = () => {
 }
 
 const getWsBaseUrl = async () => {
-  const { apiBaseUrl } = await getApiConfig()
-  const base = apiBaseUrl || window.location.origin
+  const base = await resolveApiBaseUrl()
   const parsed = new URL(base, window.location.origin)
   parsed.protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:'
   return parsed.origin
@@ -364,7 +363,7 @@ const connectStream = async () => {
       const msg = payload?.Message ?? payload?.message
       if (err || msg) {
         status.value = 'Error'
-        notifications.enqueue(msg || err || 'Access log stream failed.', 'error')
+        notifyError(ACCESS_LOG_TITLE, msg || err || 'The access log stream could not be started.')
         if (wsRef.value) {
           wsRef.value.close()
           wsRef.value = null
@@ -380,7 +379,7 @@ const connectStream = async () => {
     socket.onerror = () => {
       if (wsToken.value !== token) return
       status.value = 'Error'
-      notifications.enqueue('Failed to connect to access log stream.', 'error')
+      notifyError(ACCESS_LOG_TITLE, 'The access log stream could not be connected.')
     }
 
     socket.onclose = () => {
@@ -391,7 +390,7 @@ const connectStream = async () => {
     }
   } catch (error) {
     status.value = 'Error'
-    notifications.enqueue(error?.message || 'Failed to connect to access log stream.', 'error')
+    notifyError(ACCESS_LOG_TITLE, error?.message || 'The access log stream could not be connected.')
   }
 }
 
@@ -556,7 +555,7 @@ const visibleLogs = computed(() => {
 
 const exportCsv = () => {
   if (!visibleLogs.value.length) {
-    notifications.enqueue('No log entries to export.', 'error')
+    notifyError(ACCESS_LOG_TITLE, 'There are no log entries to export.')
     return
   }
 
@@ -642,7 +641,7 @@ const loadServers = async () => {
       selectedServer.value = String(serverList.value[0].id)
     }
   } catch (error) {
-    notifications.enqueue(error?.message || 'Failed to load servers.', 'error')
+    notifyError(ACCESS_LOG_TITLE, error?.message || 'The servers could not be loaded.')
   }
 }
 

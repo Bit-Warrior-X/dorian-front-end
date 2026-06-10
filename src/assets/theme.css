@@ -637,16 +637,37 @@ body {
   border-color: var(--app-border) !important;
 }
 
+[data-theme='dark'] .toast .toast-title,
+[data-theme='dark'] .toast .toast-message {
+  color: inherit !important;
+}
+
 [data-theme='dark'] .toast.success {
-  background: rgba(6, 95, 70, 0.9) !important;
+  background: rgba(6, 95, 70, 0.92) !important;
   color: #6ee7b7 !important;
   border-color: rgba(52, 211, 153, 0.35) !important;
 }
 
 [data-theme='dark'] .toast.error {
-  background: rgba(127, 29, 29, 0.9) !important;
+  background: rgba(127, 29, 29, 0.92) !important;
   color: #fca5a5 !important;
   border-color: rgba(248, 113, 113, 0.35) !important;
+}
+
+[data-theme='dark'] .toast.warning {
+  background: rgba(120, 53, 15, 0.92) !important;
+  color: #fcd34d !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+[data-theme='dark'] .toast.info {
+  background: rgba(30, 58, 138, 0.92) !important;
+  color: #93c5fd !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+}
+
+[data-theme='dark'] .toast .toast-close:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 
 /* -------------------------------------------------------------------------- */

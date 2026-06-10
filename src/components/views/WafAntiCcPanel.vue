@@ -297,7 +297,9 @@ import {
   deleteAntiCcRule as deleteAntiCcRuleApi,
   deleteAntiCcRules
 } from "@/api/wafAntiCc";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const WAF_ANTI_CC_TITLE = "WAF Anti CC";
 
 const props = defineProps({
   serverId: {
@@ -306,7 +308,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const antiCcRules = ref([]);
 
 const selectedRuleIds = ref([]);
@@ -546,10 +547,10 @@ const createRule = async (payload) => {
   try {
     await createAntiCcRule(props.serverId, payload);
     await loadRules();
-    notifications.enqueue("Anti CC rule created.", "success");
+    notifySuccess(WAF_ANTI_CC_TITLE, "The Anti CC rule is successfully created.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to create Anti CC rule.", "error");
+    notifyError(WAF_ANTI_CC_TITLE, error?.message || "The Anti CC rule could not be created.");
   }
 };
 
@@ -557,10 +558,10 @@ const updateRule = async (payload) => {
   try {
     await updateAntiCcRule(props.serverId, editingRuleId.value, payload);
     await loadRules();
-    notifications.enqueue("Anti CC rule updated.", "success");
+    notifySuccess(WAF_ANTI_CC_TITLE, "The Anti CC rule is successfully updated.");
     closeDialog();
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to update Anti CC rule.", "error");
+    notifyError(WAF_ANTI_CC_TITLE, error?.message || "The Anti CC rule could not be updated.");
   }
 };
 
@@ -568,9 +569,9 @@ const handleDeleteRule = async () => {
   try {
     await deleteAntiCcRuleApi(props.serverId, deleteTarget.value.id);
     await loadRules();
-    notifications.enqueue("Anti CC rule deleted.", "success");
+    notifySuccess(WAF_ANTI_CC_TITLE, "The Anti CC rule is successfully deleted.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to delete Anti CC rule.", "error");
+    notifyError(WAF_ANTI_CC_TITLE, error?.message || "The Anti CC rule could not be deleted.");
   } finally {
     deleteTarget.value = null;
     selectedRuleIds.value = selectedRuleIds.value.filter((id) =>
@@ -583,9 +584,9 @@ const handleBatchRemove = async () => {
   try {
     await deleteAntiCcRules(props.serverId, selectedRuleIds.value);
     await loadRules();
-    notifications.enqueue("Anti CC rules removed.", "success");
+    notifySuccess(WAF_ANTI_CC_TITLE, "All Anti CC rules are successfully removed.");
   } catch (error) {
-    notifications.enqueue(error?.message || "Failed to remove Anti CC rules.", "error");
+    notifyError(WAF_ANTI_CC_TITLE, error?.message || "The Anti CC rules could not be removed.");
   } finally {
     selectedRuleIds.value = [];
     isBatchConfirmOpen.value = false;

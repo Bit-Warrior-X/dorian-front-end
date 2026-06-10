@@ -571,7 +571,9 @@ import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import { fetchServers } from '@/api/servers'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
-import { useNotifications } from '@/stores/notifications'
+import { notifyError } from '@/utils/notify'
+
+const ANALYTICS_TITLE = 'Analytics'
 
 const chartGridColor = () => {
   if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
@@ -799,8 +801,6 @@ const appliedFilters = ref({
   customStart: '',
   customEnd: '',
 })
-const notifications = useNotifications()
-
 const rxBandwidthChart = ref(null)
 const txBandwidthChart = ref(null)
 
@@ -1141,7 +1141,7 @@ const loadAnalyticsData = async () => {
   } catch (error) {
     console.error('Failed to load analytics summary', error)
     analyticsStats.value = createDefaultAnalyticsStats()
-    notifications.enqueue(error?.message || 'Failed to load analytics summary.', 'error')
+    notifyError(ANALYTICS_TITLE, error?.message || 'The analytics summary could not be loaded.')
   }
 
   try {
@@ -1323,7 +1323,7 @@ const loadAnalyticsData = async () => {
     renderProtocolPie()
   } catch (error) {
     console.error('Failed to load analytics data', error)
-    notifications.enqueue(error?.message || 'Failed to load analytics data.', 'error')
+    notifyError(ANALYTICS_TITLE, error?.message || 'The analytics data could not be loaded.')
   }
 }
 

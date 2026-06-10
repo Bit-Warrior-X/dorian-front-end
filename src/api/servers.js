@@ -184,3 +184,68 @@ export const deleteServer = async (serverId) =>
   apiRequest(`/servers/${serverId}`, {
     method: 'DELETE',
   })
+
+/** SSH probe for remote host CPU, memory, and disk usage (GET /servers/:id/host-metrics). */
+export const fetchServerHostMetrics = async (serverId) => {
+  const opts = {}
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(60_000)
+  }
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    await new Promise((resolve) => setTimeout(resolve, 350))
+    return {
+      cpuPercent: 37.4,
+      memoryUsedBytes: 6_442_450_944,
+      memoryTotalBytes: 17_179_869_184,
+      diskUsedBytes: 128_849_018_880,
+      diskTotalBytes: 536_870_912_000,
+    }
+  }
+  return apiRequest(`/servers/${serverId}/host-metrics`, opts)
+}
+
+/** Power off or restart the remote host (POST /servers/:id/host-power). */
+export const serverHostPower = async (serverId, action) => {
+  const opts = {
+    method: 'POST',
+    body: JSON.stringify({ action }),
+  }
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(45_000)
+  }
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    return { status: 'ok', action }
+  }
+  return apiRequest(`/servers/${serverId}/host-power`, opts)
+}
+
+/** Start or stop angelos/sparta/athens on the remote host (POST /servers/:id/service-control). */
+export const controlServerService = async (serverId, body) => {
+  const opts = {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(180_000)
+  }
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    const running = body?.action === 'start'
+    const status = running ? 'running' : 'stopped'
+    if (body?.service === 'angelos') {
+      return { id: Number(serverId), serviceStatus: status }
+    }
+    if (body?.service === 'sparta') {
+      return { id: Number(serverId), l4Status: status }
+    }
+    if (body?.service === 'athens') {
+      return { id: Number(serverId), l7Status: status }
+    }
+    return { id: Number(serverId) }
+  }
+  return apiRequest(`/servers/${serverId}/service-control`, opts)
+}

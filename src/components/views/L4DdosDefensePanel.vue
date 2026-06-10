@@ -1145,7 +1145,9 @@ import { fetchL4Config, fetchL4Options, updateL4Config } from "@/api/l4";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import L4BlacklistPanel from "./L4BlacklistPanel.vue";
 import L4WhitelistPanel from "./L4WhitelistPanel.vue";
-import { useNotifications } from "@/stores/notifications";
+import { notifyError, notifySuccess } from "@/utils/notify";
+
+const L4_DDOS_TITLE = "L4 DDoS Defense";
 
 const props = defineProps({
   serverId: {
@@ -1154,7 +1156,6 @@ const props = defineProps({
   }
 });
 
-const notifications = useNotifications();
 const isConfirmDialogOpen = ref(false);
 let pendingConfirmAction = null;
 const l4Options = ref({
@@ -1552,7 +1553,7 @@ const loadOptions = async () => {
     syncL4Options();
   } catch {
     l4Options.value = { interfaces: [], attachModes: [], attachModesByInterface: {} };
-    notifications.enqueue("Failed to load L4 interface options.", "error");
+    notifyError(L4_DDOS_TITLE, "The L4 interface options could not be loaded.");
   } finally {
     l4OptionsLoading.value = false;
   }
@@ -1637,18 +1638,18 @@ const saveConfig = async () => {
   if (geoIpForm.value.enabled && (!geoIpForm.value.selectedCountries || geoIpForm.value.selectedCountries.length === 0)) {
     const modeLabel =
       geoIpForm.value.countryListMode === "block" ? "blocked" : "allowed";
-    notifications.enqueue(
-      `Please select at least one ${modeLabel} country for geo location protection.`,
-      "error"
+    notifyError(
+      L4_DDOS_TITLE,
+      `Please select at least one ${modeLabel} country for geo location protection.`
     );
     return;
   }
   
   try {
     await updateL4Config(props.serverId, buildPayload());
-    notifications.enqueue("L4 settings updated.", "success");
+    notifySuccess(L4_DDOS_TITLE, "The L4 settings are successfully updated.");
   } catch {
-    notifications.enqueue("Failed to update L4 settings.", "error");
+    notifyError(L4_DDOS_TITLE, "The L4 settings could not be updated.");
   }
 };
 
