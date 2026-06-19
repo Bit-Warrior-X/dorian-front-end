@@ -51,7 +51,7 @@
         </div>
         <div
           class="tabs-body"
-          :class="{ 'no-outline': activeTab === 'upstream' || activeTab === 'server-status' }"
+          :class="{ 'no-outline': activeTab === 'traffic' || activeTab === 'server-status' }"
         >
           <ServerStatusPanel
             v-if="activeTab === 'server-status' && selectedServerData"
@@ -61,7 +61,7 @@
           />
           <L4DdosDefensePanel v-else-if="activeTab === 'l4-ddos'" :server-id="selectedServer" />
           <WafPanel v-else-if="activeTab === 'waf'" :server-id="selectedServer" />
-          <UpstreamServersPanel v-else-if="activeTab === 'upstream'" :server-id="selectedServer" />
+          <TrafficPanel v-else-if="activeTab === 'traffic'" :server-id="selectedServer" />
           <div v-else-if="activeTab === 'license' && selectedServerData" class="license-tab-body">
             <p class="license-tab-lead">
               Choose a new plan for <strong>{{ selectedServerData.name || selectedServerData.ip }}</strong>.
@@ -109,7 +109,7 @@ import { fetchServers } from "@/api/servers";
 import { notifySuccess } from "@/utils/notify";
 import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
 import WafPanel from "./WafPanel.vue";
-import UpstreamServersPanel from "./UpstreamServersPanel.vue";
+import TrafficPanel from "./TrafficPanel.vue";
 import LicenseTierUpgradePanel from "../LicenseTierUpgradePanel.vue";
 import LayerStatusDot from "../LayerStatusDot.vue";
 import ServerStatusPanel from "./ServerStatusPanel.vue";
@@ -166,13 +166,9 @@ const tabs = [
     ]
   },
   {
-    id: "upstream",
-    label: "Upstream Servers",
-    rows: [
-      { name: "Load balancing", value: "Round-robin", note: "Distribute traffic evenly." },
-      { name: "Health checks", value: "On", note: "Remove unhealthy upstreams.", type: "toggle" },
-      { name: "Failover", value: "Enabled", note: "Automatic fallback on failure." }
-    ]
+    id: "traffic",
+    label: "Traffic",
+    rows: []
   },
   {
     id: "license",

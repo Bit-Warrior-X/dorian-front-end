@@ -1,9 +1,9 @@
 <template>
   <div class="upstream-panel">
-    <div class="panel-header">
+    <div class="waf-section-header">
       <div>
-        <h3>Upstream Servers</h3>
-        <p>Manage the origin servers serving traffic for this edge.</p>
+        <h4>Upstream Servers</h4>
+        <p class="waf-section-desc">Manage the origin servers serving traffic for this edge.</p>
       </div>
       <div class="header-actions">
         <button class="primary-btn" type="button" @click="openAddDialog">Add Server</button>
@@ -387,29 +387,31 @@ watch(
   background: var(--app-accent-soft);
 }
 
-.panel-header {
+.waf-section-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  margin-bottom: 16px;
+}
+
+.waf-section-header h4 {
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.waf-section-desc {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.92rem;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.panel-header h3 {
-  margin: 0 0 6px 0;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.panel-header p {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: 0.92rem;
 }
 
 .primary-btn,
