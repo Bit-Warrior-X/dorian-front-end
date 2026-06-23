@@ -13,7 +13,8 @@
       </button>
     </div>
     <div class="traffic-content">
-      <UpstreamServersPanel v-if="activeTrafficItem === 'upstream-servers'" :server-id="serverId" />
+      <ListeningPortsPanel v-if="activeTrafficItem === 'listening-ports'" :server-id="serverId" />
+      <UpstreamServersPanel v-else-if="activeTrafficItem === 'upstream-servers'" :server-id="serverId" />
       <div v-else class="traffic-section-card empty-state">
         <h4>{{ activeTrafficLabel }}</h4>
         <p>Configure this traffic section next.</p>
@@ -24,6 +25,7 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import ListeningPortsPanel from "./ListeningPortsPanel.vue";
 import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 
 defineProps({
@@ -34,6 +36,7 @@ defineProps({
 });
 
 const trafficItems = [
+  { id: "listening-ports", label: "Listening Ports" },
   { id: "upstream-servers", label: "Upstream Servers" }
 ];
 

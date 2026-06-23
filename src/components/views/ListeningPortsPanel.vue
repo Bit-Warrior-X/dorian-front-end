@@ -1,43 +1,45 @@
 <template>
-  <div class="upstream-panel">
+  <div class="listening-ports-panel">
     <div class="waf-section-header">
       <div>
-        <h4>Upstream Servers</h4>
-        <p class="waf-section-desc">Manage the origin servers serving traffic for this edge.</p>
+        <h4>Listening Ports</h4>
+        <p class="waf-section-desc">Configure which ports accept client traffic on this edge.</p>
       </div>
       <div class="header-actions">
-        <button class="primary-btn" type="button" @click="openAddDialog">Add Server</button>
+        <button class="primary-btn" type="button" @click="openAddDialog">Add Port</button>
       </div>
     </div>
 
     <div class="content-card list-card">
       <div class="list-header">
-        <h4>Upstream List</h4>
-        <button class="ghost-btn" type="button" @click="refreshStatuses">Refresh</button>
+        <h4>Port List</h4>
+        <button class="ghost-btn" type="button" @click="refreshPorts">Refresh</button>
       </div>
       <div class="table-wrap">
-        <table class="upstream-table">
+        <table class="ports-table">
           <thead>
             <tr>
               <th>Status</th>
-              <th>IP:Port</th>
+              <th>Port</th>
+              <th>Protocol</th>
               <th>Description</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="server in formattedServers" :key="server.id">
+            <tr v-for="entry in formattedPorts" :key="entry.id">
               <td>
                 <span
                   class="status-dot"
-                  :class="server.statusClass"
-                  :aria-label="server.statusLabel"
+                  :class="entry.statusClass"
+                  :aria-label="entry.statusLabel"
                   role="img"
                 ></span>
               </td>
-              <td>{{ server.address }}</td>
+              <td>{{ entry.port }}</td>
+              <td>{{ entry.protocol }}</td>
               <td class="description-cell">
-                <span class="description-text">{{ server.description }}</span>
+                <span class="description-text">{{ entry.description || "—" }}</span>
               </td>
               <td>
                 <button
@@ -45,7 +47,7 @@
                   type="button"
                   aria-label="Remove"
                   title="Remove"
-                  @click="openRemoveConfirm(server)"
+                  @click="openRemoveConfirm(entry)"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
@@ -59,8 +61,8 @@
             </tr>
           </tbody>
         </table>
-        <div v-if="!upstreamServers.length" class="empty-state">
-          No upstream servers configured yet.
+        <div v-if="!listeningPorts.length" class="empty-state">
+          No listening ports configured yet.
         </div>
       </div>
     </div>
@@ -68,7 +70,7 @@
     <div v-if="isAddDialogOpen" class="dialog-backdrop" @click="closeAddDialog">
       <div class="dialog-card" @click.stop>
         <div class="dialog-header">
-          <h4>Add Upstream Server</h4>
+          <h4>Add Listening Port</h4>
           <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeAddDialog">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -76,51 +78,39 @@
             </svg>
           </button>
         </div>
-        <p class="helper-text">Enter the upstream address and weights, then add it to the list.</p>
+        <p class="helper-text">Enter the port and protocol clients will connect to on this edge.</p>
         <div class="form-grid">
           <div class="form-field">
-            <label for="upstream-address">Server Address</label>
+            <label for="listening-port">Port</label>
             <input
-              id="upstream-address"
-              v-model="newServerAddress"
+              id="listening-port"
+              v-model="newPort"
+              type="number"
+              min="1"
+              max="65535"
+              placeholder="443"
+            />
+          </div>
+          <div class="form-field">
+            <label for="listening-protocol">Protocol</label>
+            <select id="listening-protocol" v-model="newProtocol">
+              <option value="HTTP">HTTP</option>
+              <option value="HTTPS">HTTPS</option>
+            </select>
+          </div>
+          <div class="form-field form-field--wide">
+            <label for="listening-description">Description</label>
+            <input
+              id="listening-description"
+              v-model="newDescription"
               type="text"
-              placeholder="192.168.1.10:8080"
-            />
-          </div>
-          <div class="form-field">
-            <label for="upstream-weight">Weight</label>
-            <input
-              id="upstream-weight"
-              v-model="newServerWeight"
-              type="number"
-              min="1"
-              placeholder="4"
-            />
-          </div>
-          <div class="form-field">
-            <label for="upstream-max-fails">Max Fails</label>
-            <input
-              id="upstream-max-fails"
-              v-model="newServerMaxFails"
-              type="number"
-              min="1"
-              placeholder="3"
-            />
-          </div>
-          <div class="form-field">
-            <label for="upstream-timeout">Fail Timeout (s)</label>
-            <input
-              id="upstream-timeout"
-              v-model="newServerTimeout"
-              type="number"
-              min="1"
-              placeholder="30"
+              placeholder="Public HTTPS entry"
             />
           </div>
         </div>
         <div class="dialog-actions">
           <button class="ghost-btn" type="button" @click="closeAddDialog">Cancel</button>
-          <button class="primary-btn" type="button" @click="addServer">Add Server</button>
+          <button class="primary-btn" type="button" @click="addPort">Add Port</button>
         </div>
       </div>
     </div>
@@ -141,13 +131,13 @@
 import { ref, computed, watch, onMounted } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import {
-  fetchUpstreamServers,
-  createUpstreamServer,
-  deleteUpstreamServer as deleteUpstreamServerApi
-} from "@/api/upstreamServers";
+  fetchListeningPorts,
+  createListeningPort,
+  deleteListeningPort as deleteListeningPortApi
+} from "@/api/listeningPorts";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
-const UPSTREAM_TITLE = "Upstream Servers";
+const LISTENING_PORTS_TITLE = "Listening Ports";
 
 const props = defineProps({
   serverId: {
@@ -156,21 +146,20 @@ const props = defineProps({
   }
 });
 
-const upstreamServers = ref([]);
-const newServerAddress = ref("");
-const newServerWeight = ref("4");
-const newServerMaxFails = ref("3");
-const newServerTimeout = ref("30");
+const listeningPorts = ref([]);
+const newPort = ref("443");
+const newProtocol = ref("HTTPS");
+const newDescription = ref("");
 const isAddDialogOpen = ref(false);
 const isConfirmDialogOpen = ref(false);
 const confirmTargetId = ref(null);
 const confirmTargetLabel = ref("");
 
-const formattedServers = computed(() =>
-  upstreamServers.value.map((server) => ({
-    ...server,
-    statusLabel: server.status === "ENABLE" ? "Active" : "Inactive",
-    statusClass: server.status === "ENABLE" ? "active" : "inactive"
+const formattedPorts = computed(() =>
+  listeningPorts.value.map((entry) => ({
+    ...entry,
+    statusLabel: entry.status === "ENABLE" ? "Active" : "Inactive",
+    statusClass: entry.status === "ENABLE" ? "active" : "inactive"
   }))
 );
 
@@ -182,61 +171,60 @@ const closeAddDialog = () => {
   isAddDialogOpen.value = false;
 };
 
-const addServer = async () => {
+const addPort = async () => {
   if (!props.serverId) return;
-  const address = newServerAddress.value.trim();
-  if (!address) return;
-  const weight = Number(newServerWeight.value) || 4;
-  const maxFails = Number(newServerMaxFails.value) || 3;
-  const timeout = Number(newServerTimeout.value) || 30;
-  const description = `weight=${weight} max_fails=${maxFails} fail_timeout=${timeout}s`;
+  const port = Number(newPort.value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    notifyError(LISTENING_PORTS_TITLE, "Enter a valid port between 1 and 65535.");
+    return;
+  }
   try {
-    await createUpstreamServer(props.serverId, {
-      address,
-      description,
+    await createListeningPort(props.serverId, {
+      port,
+      protocol: newProtocol.value,
+      description: newDescription.value.trim(),
       status: "ENABLE"
     });
-    await loadServers();
-    notifySuccess(UPSTREAM_TITLE, "The upstream server is successfully created.");
-    newServerAddress.value = "";
-    newServerWeight.value = "4";
-    newServerMaxFails.value = "3";
-    newServerTimeout.value = "30";
+    await loadPorts();
+    notifySuccess(LISTENING_PORTS_TITLE, "The listening port is successfully created.");
+    newPort.value = "443";
+    newProtocol.value = "HTTPS";
+    newDescription.value = "";
     closeAddDialog();
   } catch (error) {
-    notifyError(UPSTREAM_TITLE, error?.message || "The upstream server could not be created.");
+    notifyError(LISTENING_PORTS_TITLE, error?.message || "The listening port could not be created.");
   }
 };
 
-const removeServer = async (upstreamId) => {
+const removePort = async (portId) => {
   if (!props.serverId) return;
   try {
-    await deleteUpstreamServerApi(props.serverId, upstreamId);
-    await loadServers();
-    notifySuccess(UPSTREAM_TITLE, "The upstream server is successfully removed.");
+    await deleteListeningPortApi(props.serverId, portId);
+    await loadPorts();
+    notifySuccess(LISTENING_PORTS_TITLE, "The listening port is successfully removed.");
   } catch (error) {
-    await loadServers();
-    notifyError(UPSTREAM_TITLE, error?.message || "The upstream server could not be removed.");
+    await loadPorts();
+    notifyError(LISTENING_PORTS_TITLE, error?.message || "The listening port could not be removed.");
   }
 };
 
-const openRemoveConfirm = (server) => {
-  confirmTargetId.value = server.id;
-  confirmTargetLabel.value = server.address || `Server #${server.id}`;
+const openRemoveConfirm = (entry) => {
+  confirmTargetId.value = entry.id;
+  confirmTargetLabel.value = `${entry.protocol || "HTTP"} port ${entry.port}`;
   isConfirmDialogOpen.value = true;
 };
 
-const confirmTitle = computed(() => "Remove upstream server");
+const confirmTitle = computed(() => "Remove listening port");
 
 const confirmMessage = computed(() =>
   confirmTargetLabel.value
     ? `Are you sure you want to remove ${confirmTargetLabel.value}?`
-    : "Are you sure you want to remove this upstream server?"
+    : "Are you sure you want to remove this listening port?"
 );
 
 const handleConfirmRemove = async () => {
   if (confirmTargetId.value) {
-    await removeServer(confirmTargetId.value);
+    await removePort(confirmTargetId.value);
   }
   clearConfirm();
 };
@@ -247,41 +235,40 @@ const clearConfirm = () => {
   confirmTargetLabel.value = "";
 };
 
-const refreshStatuses = () => {
-  void loadServers();
+const refreshPorts = () => {
+  void loadPorts();
 };
 
-const loadServers = async () => {
+const loadPorts = async () => {
   if (!props.serverId) {
-    upstreamServers.value = [];
+    listeningPorts.value = [];
     return;
   }
   try {
-    const data = await fetchUpstreamServers(props.serverId);
-    upstreamServers.value = Array.isArray(data) ? data : [];
+    const data = await fetchListeningPorts(props.serverId);
+    listeningPorts.value = Array.isArray(data) ? data : [];
   } catch {
-    upstreamServers.value = [];
+    listeningPorts.value = [];
   }
 };
 
 onMounted(() => {
-  void loadServers();
+  void loadPorts();
 });
 
 watch(
   () => props.serverId,
   () => {
-    void loadServers();
+    void loadPorts();
   }
 );
 </script>
 
 <style scoped>
-.upstream-panel {
+.listening-ports-panel {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  border-radius: 0;
 }
 
 .content-card {
@@ -289,13 +276,6 @@ watch(
   border-radius: 14px;
   padding: 18px;
   border: 1px solid var(--app-border-strong);
-}
-
-.content-card h4 {
-  margin: 0 0 14px 0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--app-heading);
 }
 
 .list-header {
@@ -308,6 +288,36 @@ watch(
 
 .list-header h4 {
   margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.waf-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.waf-section-header h4 {
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.waf-section-desc {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.92rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .helper-text {
@@ -318,15 +328,18 @@ watch(
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
 }
-
 
 .form-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.form-field--wide {
+  grid-column: 1 / -1;
 }
 
 .form-field label {
@@ -335,7 +348,8 @@ watch(
   font-weight: 500;
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
@@ -346,7 +360,8 @@ watch(
   background: var(--app-input-bg);
 }
 
-.form-field input:focus {
+.form-field input:focus,
+.form-field select:focus {
   border-color: var(--app-accent);
   box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
@@ -429,56 +444,24 @@ watch(
   background: var(--app-accent-soft);
 }
 
-.waf-section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.waf-section-header h4 {
-  margin: 0 0 6px 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.waf-section-desc {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: 0.92rem;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.primary-btn,
-.primary-btn:hover:not(:disabled) {
-  /* flat styles from theme.css */
-}
-
 .table-wrap {
   border-radius: 12px;
   border: 1px solid var(--app-border-strong);
   overflow: hidden;
 }
 
-.upstream-table {
+.ports-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 560px;
+  min-width: 520px;
 }
 
-.upstream-table thead {
+.ports-table thead {
   background: var(--app-surface-muted);
 }
 
-.upstream-table th,
-.upstream-table td {
+.ports-table th,
+.ports-table td {
   text-align: left;
   padding: 12px 16px;
   font-size: 0.92rem;
@@ -486,7 +469,7 @@ watch(
   border-bottom: 1px solid var(--app-border-strong);
 }
 
-.upstream-table th {
+.ports-table th {
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -497,13 +480,6 @@ watch(
 .description-cell {
   color: var(--app-text-secondary);
   font-size: 0.9rem;
-}
-
-.description-text {
-  display: inline;
-  padding: 0;
-  background: transparent;
-  border-radius: 0;
 }
 
 .status-dot {
@@ -520,10 +496,6 @@ watch(
 
 .status-dot.inactive {
   background: #9ca3af;
-}
-
-.status-dot.maintenance {
-  background: #f59e0b;
 }
 
 .icon-danger-btn {
