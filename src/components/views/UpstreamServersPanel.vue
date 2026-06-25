@@ -86,6 +86,7 @@
               type="text"
               placeholder="192.168.1.10:8080"
             />
+            <p v-if="addressConflictMessage" class="field-error">{{ addressConflictMessage }}</p>
           </div>
           <div class="form-field">
             <label for="upstream-weight">Weight</label>
@@ -120,7 +121,7 @@
         </div>
         <div class="dialog-actions">
           <button class="ghost-btn" type="button" @click="closeAddDialog">Cancel</button>
-          <button class="primary-btn" type="button" @click="addServer">Add Server</button>
+          <button class="primary-btn" type="button" :disabled="Boolean(addressConflictMessage)" @click="addServer">Add Server</button>
         </div>
       </div>
     </div>
@@ -174,6 +175,47 @@ const formattedServers = computed(() =>
   }))
 );
 
+const normalizeUpstreamAddress = (address) => {
+  const trimmed = String(address || "").trim();
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith("[")) {
+    const close = trimmed.indexOf("]");
+    if (close > 1) {
+      const host = trimmed.slice(1, close).toLowerCase();
+      const portPart = trimmed.slice(close + 1).replace(/^:/, "");
+      const portNum = Number(portPart);
+      if (Number.isInteger(portNum) && portNum >= 1 && portNum <= 65535) {
+        return `${host}:${portNum}`;
+      }
+    }
+  }
+
+  const lastColon = trimmed.lastIndexOf(":");
+  if (lastColon <= 0) {
+    return trimmed.toLowerCase();
+  }
+  const host = trimmed.slice(0, lastColon).toLowerCase();
+  const portNum = Number(trimmed.slice(lastColon + 1));
+  if (Number.isInteger(portNum) && portNum >= 1 && portNum <= 65535) {
+    return `${host}:${portNum}`;
+  }
+  return trimmed.toLowerCase();
+};
+
+const addressConflictMessage = computed(() => {
+  const raw = newServerAddress.value.trim();
+  const normalized = normalizeUpstreamAddress(raw);
+  if (!normalized) return "";
+
+  const duplicate = upstreamServers.value.some(
+    (server) => normalizeUpstreamAddress(server.address) === normalized
+  );
+  if (!duplicate) return "";
+
+  return `Upstream server ${raw} is already registered.`;
+});
+
 const openAddDialog = () => {
   isAddDialogOpen.value = true;
 };
@@ -186,6 +228,10 @@ const addServer = async () => {
   if (!props.serverId) return;
   const address = newServerAddress.value.trim();
   if (!address) return;
+  if (addressConflictMessage.value) {
+    notifyError(UPSTREAM_TITLE, addressConflictMessage.value);
+    return;
+  }
   const weight = Number(newServerWeight.value) || 4;
   const maxFails = Number(newServerMaxFails.value) || 3;
   const timeout = Number(newServerTimeout.value) || 30;
@@ -314,6 +360,12 @@ watch(
   margin: 0 0 14px 0;
   color: var(--app-text-muted);
   font-size: 0.9rem;
+}
+
+.field-error {
+  margin: 6px 0 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
 }
 
 .form-grid {
