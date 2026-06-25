@@ -67,6 +67,39 @@
       </div>
     </div>
 
+    <div class="content-card list-card system-bound-card">
+      <div class="list-header">
+        <h4>System Bound Ports</h4>
+        <button class="ghost-btn" type="button" @click="refreshPorts">Refresh</button>
+      </div>
+      <p class="helper-text system-bound-lead">
+        TCP ports currently listening on this server. These ports cannot be added again.
+      </p>
+      <div class="table-wrap">
+        <table class="ports-table">
+          <thead>
+            <tr>
+              <th>Port</th>
+              <th>Bind Address</th>
+              <th>Process</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="entry in systemBoundPorts" :key="`${entry.port}-${entry.address}`">
+              <td>{{ entry.port }}</td>
+              <td>{{ entry.address || "—" }}</td>
+              <td class="description-cell">{{ entry.process || "—" }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="boundPortsLoading" class="empty-state">Loading system ports...</div>
+        <div v-else-if="boundPortsError" class="empty-state bound-error">{{ boundPortsError }}</div>
+        <div v-else-if="!systemBoundPorts.length" class="empty-state">
+          No bound ports detected on the system.
+        </div>
+      </div>
+    </div>
+
     <div v-if="isAddDialogOpen" class="dialog-backdrop" @click="closeAddDialog">
       <div class="dialog-card" @click.stop>
         <div class="dialog-header">
@@ -90,6 +123,7 @@
               max="65535"
               placeholder="443"
             />
+            <p v-if="portConflictMessage" class="field-error">{{ portConflictMessage }}</p>
           </div>
           <div class="form-field">
             <label for="listening-protocol">Protocol</label>
@@ -110,7 +144,7 @@
         </div>
         <div class="dialog-actions">
           <button class="ghost-btn" type="button" @click="closeAddDialog">Cancel</button>
-          <button class="primary-btn" type="button" @click="addPort">Add Port</button>
+          <button class="primary-btn" type="button" :disabled="Boolean(portConflictMessage)" @click="addPort">Add Port</button>
         </div>
       </div>
     </div>
@@ -132,6 +166,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import {
   fetchListeningPorts,
+  fetchBoundListeningPorts,
   createListeningPort,
   deleteListeningPort as deleteListeningPortApi
 } from "@/api/listeningPorts";
@@ -147,6 +182,9 @@ const props = defineProps({
 });
 
 const listeningPorts = ref([]);
+const systemBoundPorts = ref([]);
+const boundPortsLoading = ref(false);
+const boundPortsError = ref("");
 const newPort = ref("443");
 const newProtocol = ref("HTTPS");
 const newDescription = ref("");
@@ -163,6 +201,35 @@ const formattedPorts = computed(() =>
   }))
 );
 
+const configuredPortNumbers = computed(
+  () => new Set(listeningPorts.value.map((entry) => Number(entry.port)))
+);
+
+const unavailablePortsForAdd = computed(() => {
+  const blocked = new Set(configuredPortNumbers.value);
+  for (const entry of systemBoundPorts.value) {
+    const port = Number(entry.port);
+    if (!configuredPortNumbers.value.has(port)) {
+      blocked.add(port);
+    }
+  }
+  return blocked;
+});
+
+const portConflictMessage = computed(() => {
+  const port = Number(newPort.value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return "";
+  }
+  if (configuredPortNumbers.value.has(port)) {
+    return `Port ${port} is already configured.`;
+  }
+  if (unavailablePortsForAdd.value.has(port)) {
+    return `Port ${port} is already in use on the system.`;
+  }
+  return "";
+});
+
 const openAddDialog = () => {
   isAddDialogOpen.value = true;
 };
@@ -178,6 +245,10 @@ const addPort = async () => {
     notifyError(LISTENING_PORTS_TITLE, "Enter a valid port between 1 and 65535.");
     return;
   }
+  if (portConflictMessage.value) {
+    notifyError(LISTENING_PORTS_TITLE, portConflictMessage.value);
+    return;
+  }
   try {
     await createListeningPort(props.serverId, {
       port,
@@ -186,6 +257,7 @@ const addPort = async () => {
       status: "ENABLE"
     });
     await loadPorts();
+    await loadBoundPorts();
     notifySuccess(LISTENING_PORTS_TITLE, "The listening port is successfully created.");
     newPort.value = "443";
     newProtocol.value = "HTTPS";
@@ -201,9 +273,11 @@ const removePort = async (portId) => {
   try {
     await deleteListeningPortApi(props.serverId, portId);
     await loadPorts();
+    await loadBoundPorts();
     notifySuccess(LISTENING_PORTS_TITLE, "The listening port is successfully removed.");
   } catch (error) {
     await loadPorts();
+    await loadBoundPorts();
     notifyError(LISTENING_PORTS_TITLE, error?.message || "The listening port could not be removed.");
   }
 };
@@ -237,6 +311,26 @@ const clearConfirm = () => {
 
 const refreshPorts = () => {
   void loadPorts();
+  void loadBoundPorts();
+};
+
+const loadBoundPorts = async () => {
+  if (!props.serverId) {
+    systemBoundPorts.value = [];
+    boundPortsError.value = "";
+    return;
+  }
+  boundPortsLoading.value = true;
+  boundPortsError.value = "";
+  try {
+    const data = await fetchBoundListeningPorts(props.serverId);
+    systemBoundPorts.value = Array.isArray(data) ? data : [];
+  } catch (error) {
+    systemBoundPorts.value = [];
+    boundPortsError.value = error?.message || "Could not load system bound ports.";
+  } finally {
+    boundPortsLoading.value = false;
+  }
 };
 
 const loadPorts = async () => {
@@ -254,12 +348,14 @@ const loadPorts = async () => {
 
 onMounted(() => {
   void loadPorts();
+  void loadBoundPorts();
 });
 
 watch(
   () => props.serverId,
   () => {
     void loadPorts();
+    void loadBoundPorts();
   }
 );
 </script>
@@ -324,6 +420,24 @@ watch(
   margin: 0 0 14px 0;
   color: var(--app-text-muted);
   font-size: 0.9rem;
+}
+
+.system-bound-card {
+  margin-top: 0;
+}
+
+.system-bound-lead {
+  margin: 0 0 12px;
+}
+
+.bound-error {
+  color: #b91c1c;
+}
+
+.field-error {
+  margin: 6px 0 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
 }
 
 .form-grid {

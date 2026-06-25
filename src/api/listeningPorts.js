@@ -3,6 +3,9 @@ import { apiRequest } from './client'
 export const fetchListeningPorts = async (serverId) =>
   apiRequest(`/servers/${serverId}/listening-ports`)
 
+export const fetchBoundListeningPorts = async (serverId) =>
+  apiRequest(`/servers/${serverId}/listening-ports/bound`)
+
 export const createListeningPort = async (serverId, payload) =>
   apiRequest(`/servers/${serverId}/listening-ports`, {
     method: 'POST',
