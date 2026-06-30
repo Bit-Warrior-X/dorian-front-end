@@ -25,3 +25,14 @@ export const deleteCacheRules = async (serverId, ids) =>
     method: 'POST',
     body: JSON.stringify({ ids }),
   })
+
+export const clearCache = async (serverId) =>
+  apiRequest(`/servers/${serverId}/cache-rules/clear-cache`, {
+    method: 'POST',
+  })
+
+export const clearUrlCache = async (serverId, payload) =>
+  apiRequest(`/servers/${serverId}/cache-rules/clear-url-cache`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })

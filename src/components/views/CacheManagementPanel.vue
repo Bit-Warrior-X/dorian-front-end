@@ -7,6 +7,8 @@
       </div>
       <div class="header-actions">
         <button class="primary-btn" type="button" @click="openAddDialog">Add Rule</button>
+        <button class="primary-btn danger-btn" type="button" @click="openClearCacheConfirm">Clear Cache</button>
+        <button class="primary-btn danger-btn" type="button" @click="openClearUrlCacheDialog">Clear URL Cache</button>
       </div>
     </div>
 
@@ -399,13 +401,93 @@
       </div>
     </div>
 
+    <div v-if="isClearUrlCacheDialogOpen" class="dialog-backdrop" @click="closeClearUrlCacheDialog">
+      <div class="dialog-card cache-dialog" @click.stop>
+        <div class="dialog-header">
+          <h4>Clear URL Cache</h4>
+          <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeClearUrlCacheDialog">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="cache-form">
+          <div class="cache-form-row">
+            <label class="cache-form-label required">Match Type:</label>
+            <div class="cache-form-control">
+              <div class="segment-toggle">
+                <button
+                  type="button"
+                  class="segment-btn"
+                  :class="{ active: clearUrlCacheForm.matchType === 'prefix' }"
+                  @click="clearUrlCacheForm.matchType = 'prefix'"
+                >
+                  Prefix Match
+                </button>
+                <button
+                  type="button"
+                  class="segment-btn"
+                  :class="{ active: clearUrlCacheForm.matchType === 'exact' }"
+                  @click="clearUrlCacheForm.matchType = 'exact'"
+                >
+                  Exact Match
+                </button>
+                <button
+                  type="button"
+                  class="segment-btn"
+                  :class="{ active: clearUrlCacheForm.matchType === 'advanced' }"
+                  @click="clearUrlCacheForm.matchType = 'advanced'"
+                >
+                  Advanced Match
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="cache-form-row">
+            <label class="cache-form-label required" for="clear-url-match-content">Match Content:</label>
+            <div class="cache-form-control">
+              <input
+                id="clear-url-match-content"
+                v-model="clearUrlCacheForm.matchContent"
+                class="cache-input"
+                type="text"
+                placeholder="https://www.cdnray.com/"
+              />
+            </div>
+          </div>
+
+          <div class="cache-form-row">
+            <label class="cache-form-label">Description:</label>
+            <div class="cache-form-control">
+              <p class="field-hint url-cache-match-desc">{{ clearUrlCacheMatchDescriptionText }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button class="ghost-btn" type="button" @click="closeClearUrlCacheDialog">Cancel</button>
+          <button
+            class="primary-btn danger-btn"
+            type="button"
+            :disabled="!canClearUrlCache"
+            @click="submitClearUrlCache"
+          >
+            Clear URL Cache
+          </button>
+        </div>
+      </div>
+    </div>
+
     <ConfirmDialog
       v-model="isConfirmDialogOpen"
       :title="confirmTitle"
       :message="confirmMessage"
-      confirm-text="Remove"
+      :confirm-text="confirmActionText"
       cancel-text="Cancel"
-      @confirm="handleConfirmRemove"
+      @confirm="handleConfirmAction"
       @cancel="clearConfirm"
     />
   </div>
@@ -418,11 +500,31 @@ import {
   fetchCacheRules,
   createCacheRule,
   updateCacheRule,
-  deleteCacheRule as deleteCacheRuleApi
+  deleteCacheRule as deleteCacheRuleApi,
+  clearCache,
+  clearUrlCache
 } from "@/api/cacheRules";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
 const CACHE_TITLE = "Cache Management";
+
+const URL_CACHE_MATCH_DESCRIPTIONS = {
+  prefix: [
+    "Format: Must start with http:// or https:// and end with /",
+    "Example : https://www.cdnray.com/"
+  ],
+  exact: ["Format : Must start with http:// or https://"],
+  advanced: [
+    "Format: Supports multi-character wildcard matching *.",
+    "Example : Specify specific domains and specific URIs containing 'api'",
+    "www.cdnray.com/*/api/*"
+  ]
+};
+
+const defaultClearUrlCacheForm = () => ({
+  matchType: "prefix",
+  matchContent: ""
+});
 
 const FILE_TYPE_GROUPS = [
   {
@@ -460,8 +562,11 @@ const cacheRules = ref([]);
 const isDialogOpen = ref(false);
 const editingRuleId = ref(null);
 const isConfirmDialogOpen = ref(false);
+const confirmKind = ref("remove");
 const confirmTargetId = ref(null);
 const confirmTargetLabel = ref("");
+const isClearUrlCacheDialogOpen = ref(false);
+const clearUrlCacheForm = ref(defaultClearUrlCacheForm());
 
 const defaultRuleForm = () => ({
   ruleName: "",
@@ -481,6 +586,16 @@ const isFileTypeDropdownOpen = ref(false);
 const withoutParameterChecked = ref(false);
 
 const isEditing = computed(() => editingRuleId.value != null);
+
+const clearUrlCacheMatchDescription = computed(
+  () => URL_CACHE_MATCH_DESCRIPTIONS[clearUrlCacheForm.value.matchType] || []
+);
+
+const clearUrlCacheMatchDescriptionText = computed(() =>
+  clearUrlCacheMatchDescription.value.join("\n")
+);
+
+const canClearUrlCache = computed(() => clearUrlCacheForm.value.matchContent.trim() !== "");
 
 const parseFileTypes = (fileTypes) =>
   String(fileTypes || "")
@@ -681,28 +796,88 @@ const removeRule = async (ruleId) => {
 };
 
 const openRemoveConfirm = (rule) => {
+  confirmKind.value = "remove";
   confirmTargetId.value = rule.id;
   confirmTargetLabel.value = rule.ruleName || `Rule #${rule.id}`;
   isConfirmDialogOpen.value = true;
 };
 
-const confirmTitle = computed(() => "Remove cache rule");
+const openClearCacheConfirm = () => {
+  confirmKind.value = "clear-cache";
+  confirmTargetId.value = null;
+  confirmTargetLabel.value = "";
+  isConfirmDialogOpen.value = true;
+};
 
-const confirmMessage = computed(() =>
-  confirmTargetLabel.value
+const openClearUrlCacheDialog = () => {
+  clearUrlCacheForm.value = defaultClearUrlCacheForm();
+  isClearUrlCacheDialogOpen.value = true;
+};
+
+const closeClearUrlCacheDialog = () => {
+  isClearUrlCacheDialogOpen.value = false;
+  clearUrlCacheForm.value = defaultClearUrlCacheForm();
+};
+
+const confirmTitle = computed(() => {
+  if (confirmKind.value === "clear-cache") return "Clear cache";
+  return "Remove cache rule";
+});
+
+const confirmMessage = computed(() => {
+  if (confirmKind.value === "clear-cache") {
+    return "Are you sure you want to clear all file cache on this edge?";
+  }
+  return confirmTargetLabel.value
     ? `Are you sure you want to remove ${confirmTargetLabel.value}?`
-    : "Are you sure you want to remove this cache rule?"
-);
+    : "Are you sure you want to remove this cache rule?";
+});
 
-const handleConfirmRemove = async () => {
-  if (confirmTargetId.value) {
+const confirmActionText = computed(() => {
+  if (confirmKind.value === "clear-cache") return "Clear Cache";
+  return "Remove";
+});
+
+const handleConfirmAction = async () => {
+  if (confirmKind.value === "clear-cache") {
+    await handleClearCache();
+  } else if (confirmTargetId.value) {
     await removeRule(confirmTargetId.value);
   }
   clearConfirm();
 };
 
+const handleClearCache = async () => {
+  if (!props.serverId) return;
+  try {
+    await clearCache(props.serverId);
+    notifySuccess(CACHE_TITLE, "File cache cleared successfully.");
+  } catch (error) {
+    notifyError(CACHE_TITLE, error?.message || "Failed to clear file cache.");
+  }
+};
+
+const handleClearUrlCache = async () => {
+  if (!props.serverId || !canClearUrlCache.value) return;
+  try {
+    await clearUrlCache(props.serverId, {
+      matchType: clearUrlCacheForm.value.matchType,
+      matchContent: clearUrlCacheForm.value.matchContent.trim()
+    });
+    notifySuccess(CACHE_TITLE, "URL cache cleared successfully.");
+    closeClearUrlCacheDialog();
+  } catch (error) {
+    notifyError(CACHE_TITLE, error?.message || "Failed to clear URL cache.");
+  }
+};
+
+const submitClearUrlCache = () => {
+  void handleClearUrlCache();
+};
+
 const clearConfirm = () => {
   isConfirmDialogOpen.value = false;
+  confirmKind.value = "remove";
   confirmTargetId.value = null;
   confirmTargetLabel.value = "";
 };
@@ -798,6 +973,11 @@ watch(
   color: var(--app-text-muted);
   font-size: 0.82rem;
   line-height: 1.4;
+}
+
+.url-cache-match-desc {
+  margin: 0;
+  white-space: pre-line;
 }
 
 .cache-dialog {
@@ -905,6 +1085,8 @@ watch(
 .segment-toggle {
   display: inline-flex;
   align-self: flex-start;
+  flex-wrap: wrap;
+  max-width: 100%;
   padding: 2px;
   gap: 2px;
   border: 1px solid var(--app-border-strong);
