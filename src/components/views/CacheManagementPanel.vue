@@ -454,8 +454,9 @@
                 v-model="clearUrlCacheForm.matchContent"
                 class="cache-input"
                 type="text"
-                placeholder="https://www.cdnray.com/"
+                :placeholder="clearUrlCacheMatchContentPlaceholder"
               />
+              <p v-if="clearUrlCacheContentError" class="field-error">{{ clearUrlCacheContentError }}</p>
             </div>
           </div>
 
@@ -516,9 +517,37 @@ const URL_CACHE_MATCH_DESCRIPTIONS = {
   exact: ["Format : Must start with http:// or https://"],
   advanced: [
     "Format: Supports multi-character wildcard matching *.",
+    "Any string is accepted (no http:// or https:// required).",
     "Example : Specify specific domains and specific URIs containing 'api'",
     "www.cdnray.com/*/api/*"
   ]
+};
+
+const URL_CACHE_MATCH_PLACEHOLDERS = {
+  prefix: "https://www.cdnray.com/",
+  exact: "https://www.cdnray.com/index.html",
+  advanced: "www.cdnray.com/*/api/*"
+};
+
+const validateClearUrlCacheContent = (matchType, content) => {
+  const trimmed = content.trim();
+  if (!trimmed) return "";
+
+  const lower = trimmed.toLowerCase();
+  if (matchType === "prefix") {
+    if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+      return "Match content must start with http:// or https://.";
+    }
+    if (!trimmed.endsWith("/")) {
+      return "Prefix match content must end with /.";
+    }
+  } else if (matchType === "exact") {
+    if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+      return "Match content must start with http:// or https://.";
+    }
+  }
+
+  return "";
 };
 
 const defaultClearUrlCacheForm = () => ({
@@ -595,7 +624,21 @@ const clearUrlCacheMatchDescriptionText = computed(() =>
   clearUrlCacheMatchDescription.value.join("\n")
 );
 
-const canClearUrlCache = computed(() => clearUrlCacheForm.value.matchContent.trim() !== "");
+const clearUrlCacheMatchContentPlaceholder = computed(
+  () => URL_CACHE_MATCH_PLACEHOLDERS[clearUrlCacheForm.value.matchType] || ""
+);
+
+const clearUrlCacheContentError = computed(() =>
+  validateClearUrlCacheContent(
+    clearUrlCacheForm.value.matchType,
+    clearUrlCacheForm.value.matchContent
+  )
+);
+
+const canClearUrlCache = computed(
+  () =>
+    clearUrlCacheForm.value.matchContent.trim() !== "" && clearUrlCacheContentError.value === ""
+);
 
 const parseFileTypes = (fileTypes) =>
   String(fileTypes || "")
