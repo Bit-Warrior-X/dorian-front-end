@@ -1,6 +1,13 @@
 import { reactive, readonly } from 'vue'
 
-const DEFAULT_DURATION_MS = 8000
+const DURATION_BY_TYPE = {
+  success: 3500,
+  error: 8000,
+  warning: 6000,
+  info: 5000,
+}
+
+const defaultDurationFor = (type) => DURATION_BY_TYPE[type] ?? DURATION_BY_TYPE.success
 
 const TITLE_BY_TYPE = {
   success: 'Success',
@@ -22,7 +29,9 @@ const normalizeNotification = (input, type = 'success') => {
       title: String(input.title || TITLE_BY_TYPE[resolvedType] || 'Notification').trim(),
       message: String(input.message ?? input.content ?? '').trim(),
       type: resolvedType,
-      duration: Number.isFinite(Number(input.duration)) ? Number(input.duration) : DEFAULT_DURATION_MS,
+      duration: Number.isFinite(Number(input.duration))
+        ? Number(input.duration)
+        : defaultDurationFor(resolvedType),
     }
   }
 
@@ -31,7 +40,7 @@ const normalizeNotification = (input, type = 'success') => {
     title: TITLE_BY_TYPE[resolvedType] || 'Notification',
     message: String(input ?? '').trim(),
     type: resolvedType,
-    duration: DEFAULT_DURATION_MS,
+    duration: defaultDurationFor(resolvedType),
   }
 }
 

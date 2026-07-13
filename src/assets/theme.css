@@ -670,6 +670,26 @@ body {
   background: rgba(255, 255, 255, 0.1) !important;
 }
 
+[data-theme='dark'] .toast .toast-icon {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme='dark'] .toast.success .toast-icon {
+  color: #6ee7b7 !important;
+}
+
+[data-theme='dark'] .toast.error .toast-icon {
+  color: #fca5a5 !important;
+}
+
+[data-theme='dark'] .toast.warning .toast-icon {
+  color: #fcd34d !important;
+}
+
+[data-theme='dark'] .toast.info .toast-icon {
+  color: #93c5fd !important;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Cards & surfaces (all views)                                                */
 /* -------------------------------------------------------------------------- */
