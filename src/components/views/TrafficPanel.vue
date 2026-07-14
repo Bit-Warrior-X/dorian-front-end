@@ -16,6 +16,7 @@
       <ListeningPortsPanel v-if="activeTrafficItem === 'listening-ports'" :server-id="serverId" />
       <CacheManagementPanel v-else-if="activeTrafficItem === 'cache-management'" :server-id="serverId" />
       <UpstreamServersPanel v-else-if="activeTrafficItem === 'upstream-servers'" :server-id="serverId" />
+      <CompressPanel v-else-if="activeTrafficItem === 'compress'" :server-id="serverId" />
       <div v-else class="traffic-section-card empty-state">
         <h4>{{ activeTrafficLabel }}</h4>
         <p>Configure this traffic section next.</p>
@@ -29,6 +30,7 @@ import { ref, computed } from "vue";
 import ListeningPortsPanel from "./ListeningPortsPanel.vue";
 import CacheManagementPanel from "./CacheManagementPanel.vue";
 import UpstreamServersPanel from "./UpstreamServersPanel.vue";
+import CompressPanel from "./CompressPanel.vue";
 
 defineProps({
   serverId: {
@@ -40,7 +42,8 @@ defineProps({
 const trafficItems = [
   { id: "listening-ports", label: "Listening Ports" },
   { id: "cache-management", label: "Cache Management" },
-  { id: "upstream-servers", label: "Upstream Servers" }
+  { id: "upstream-servers", label: "Upstream Servers" },
+  { id: "compress", label: "Compress" }
 ];
 
 const activeTrafficItem = ref(trafficItems[0].id);
