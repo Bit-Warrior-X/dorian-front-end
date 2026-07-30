@@ -93,12 +93,13 @@
                     Duplicate
                   </button>
                   <button
-                    v-else
-                    class="secondary-btn table-action-btn"
+                    v-if="canDeleteRule(rule)"
+                    class="secondary-btn table-action-btn table-action-btn--danger"
                     type="button"
-                    @click="openConfigureDialog(rule, 'waf')"
+                    :disabled="deletingId === rule.id"
+                    @click="requestDeleteConfirm(rule)"
                   >
-                    Edit
+                    {{ deletingId === rule.id ? 'Deleting…' : 'Delete' }}
                   </button>
                 </div>
               </td>
@@ -182,7 +183,6 @@
 
         <div class="dialog-actions">
           <button
-            v-if="!isPredefinedRule(loadedRule)"
             class="primary-btn"
             type="button"
             @click="openConfigureDialog(loadedRule, 'waf')"
@@ -406,12 +406,23 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      v-model="isDeleteConfirmOpen"
+      title="Delete WAF Rule Set"
+      :message="deleteConfirmMessage"
+      confirm-text="Delete"
+      cancel-text="Cancel"
+      @confirm="handleDeleteRule"
+      @cancel="clearDeleteConfirm"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ConfirmDialog from '../ConfirmDialog.vue'
 import { createWafRule, deleteWafRule, duplicateWafRule, fetchWafRule, fetchWafRules, updateWafRule } from '@/api/wafRules'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { fetchWafRuleSummaries } from '@/utils/wafRuleSummary'
@@ -439,6 +450,9 @@ const createStepLabels = ['Name', 'WAF Rules', 'Role']
 const isDuplicateDialogOpen = ref(false)
 const duplicateSourceRule = ref(null)
 const isDuplicating = ref(false)
+const isDeleteConfirmOpen = ref(false)
+const deleteTarget = ref(null)
+const deletingId = ref(null)
 const activeTab = ref('general')
 
 const pageSize = ref(10)
@@ -515,6 +529,13 @@ watch(
 )
 
 const isPredefinedRule = (rule) => String(rule?.role || '').toLowerCase() === 'predefined'
+
+const canDeleteRule = (rule) => Number(rule?.siteCount ?? 0) === 0
+
+const deleteConfirmMessage = computed(() => {
+  const name = deleteTarget.value?.name || 'this WAF rule set'
+  return `Delete "${name}"? This action cannot be undone.`
+})
 
 const formatRole = (value) => {
   const role = String(value || '').toLowerCase()
@@ -649,6 +670,48 @@ const submitDuplicateRule = async () => {
     notifyError(PAGE_TITLE, error?.message || 'WAF rule set could not be duplicated.')
   } finally {
     isDuplicating.value = false
+  }
+}
+
+const requestDeleteConfirm = (rule) => {
+  deleteTarget.value = rule
+  isDeleteConfirmOpen.value = true
+}
+
+const clearDeleteConfirm = () => {
+  isDeleteConfirmOpen.value = false
+  deleteTarget.value = null
+}
+
+const closeOpenRuleViews = async () => {
+  if (isRuleDialogOpen.value) {
+    await closeRuleDialog()
+  }
+  if (isConfigureDialogOpen.value) {
+    await closeConfigureDialog()
+  }
+}
+
+const handleDeleteRule = async () => {
+  const rule = deleteTarget.value
+  if (!rule?.id) return
+
+  deletingId.value = rule.id
+  try {
+    await deleteWafRule(rule.id)
+    if (String(selectedRuleId.value) === String(rule.id)) {
+      await closeOpenRuleViews()
+    }
+    await loadRules()
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value
+    }
+    notifySuccess(PAGE_TITLE, 'WAF rule set deleted.')
+  } catch (error) {
+    notifyError(PAGE_TITLE, error?.message || 'WAF rule set could not be deleted.')
+  } finally {
+    deletingId.value = null
+    clearDeleteConfirm()
   }
 }
 
@@ -1124,6 +1187,17 @@ onMounted(async () => {
 .table-action-btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.table-action-btn--danger {
+  color: var(--app-btn-danger-bg) !important;
+  border-color: rgba(220, 38, 38, 0.35) !important;
+}
+
+.table-action-btn--danger:hover:not(:disabled) {
+  color: var(--app-btn-danger-hover) !important;
+  border-color: var(--app-btn-danger-bg) !important;
+  background: rgba(239, 68, 68, 0.12) !important;
 }
 
 .dialog-section {
