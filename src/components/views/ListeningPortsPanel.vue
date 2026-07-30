@@ -175,7 +175,7 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const LISTENING_PORTS_TITLE = "Listening Ports";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
     type: [Number, String],
     default: null
   }
@@ -239,7 +239,7 @@ const closeAddDialog = () => {
 };
 
 const addPort = async () => {
-  if (!props.serverId) return;
+  if (!props.siteId) return;
   const port = Number(newPort.value);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     notifyError(LISTENING_PORTS_TITLE, "Enter a valid port between 1 and 65535.");
@@ -250,7 +250,7 @@ const addPort = async () => {
     return;
   }
   try {
-    await createListeningPort(props.serverId, {
+    await createListeningPort(props.siteId, {
       port,
       protocol: newProtocol.value,
       description: newDescription.value.trim(),
@@ -269,9 +269,9 @@ const addPort = async () => {
 };
 
 const removePort = async (portId) => {
-  if (!props.serverId) return;
+  if (!props.siteId) return;
   try {
-    await deleteListeningPortApi(props.serverId, portId);
+    await deleteListeningPortApi(props.siteId, portId);
     await loadPorts();
     await loadBoundPorts();
     notifySuccess(LISTENING_PORTS_TITLE, "The listening port is successfully removed.");
@@ -315,7 +315,7 @@ const refreshPorts = () => {
 };
 
 const loadBoundPorts = async () => {
-  if (!props.serverId) {
+  if (!props.siteId) {
     systemBoundPorts.value = [];
     boundPortsError.value = "";
     return;
@@ -323,7 +323,7 @@ const loadBoundPorts = async () => {
   boundPortsLoading.value = true;
   boundPortsError.value = "";
   try {
-    const data = await fetchBoundListeningPorts(props.serverId);
+    const data = await fetchBoundListeningPorts(props.siteId);
     systemBoundPorts.value = Array.isArray(data) ? data : [];
   } catch (error) {
     systemBoundPorts.value = [];
@@ -334,12 +334,12 @@ const loadBoundPorts = async () => {
 };
 
 const loadPorts = async () => {
-  if (!props.serverId) {
+  if (!props.siteId) {
     listeningPorts.value = [];
     return;
   }
   try {
-    const data = await fetchListeningPorts(props.serverId);
+    const data = await fetchListeningPorts(props.siteId);
     listeningPorts.value = Array.isArray(data) ? data : [];
   } catch {
     listeningPorts.value = [];
@@ -352,7 +352,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => props.siteId,
   () => {
     void loadPorts();
     void loadBoundPorts();

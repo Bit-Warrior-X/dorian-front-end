@@ -301,6 +301,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
+
 import {
   fetchAntiHeaderRules,
   createAntiHeaderRule,
@@ -313,11 +314,22 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const WAF_ANTI_HEADER_TITLE = "WAF Anti Header";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
+    type: [Number, String],
+    default: null
+  },
+  wafRuleId: {
     type: [Number, String],
     default: null
   }
 });
+
+const scope = computed(() => ({
+  siteId: props.siteId,
+  wafRuleId: props.wafRuleId,
+}));
+
+const hasWafScope = computed(() => Boolean(props.siteId || props.wafRuleId));
 
 const antiHeaderRules = ref([]);
 
@@ -346,7 +358,7 @@ const formState = ref({
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
 const isSubmitDisabled = computed(() => {
-  if (!props.serverId || !isFormValid.value) return true;
+  if (!hasWafScope.value || !isFormValid.value) return true;
   if (editingRuleId.value) {
     return !isRuleDirty(buildPayload());
   }
@@ -455,7 +467,7 @@ const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
   const payload = buildPayload();
-  if (!props.serverId) return;
+  if (!hasWafScope.value) return;
   if (editingRuleId.value && !isRuleDirty(payload)) {
     closeDialog();
     return;
@@ -480,7 +492,7 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value || !props.serverId) return;
+  if (!deleteTarget.value || !scope.value) return;
   void handleDeleteRule();
 };
 
@@ -494,7 +506,7 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length || !props.serverId) return;
+  if (!selectedRuleIds.value.length || !scope.value) return;
   void handleBatchRemove();
 };
 
@@ -538,12 +550,12 @@ const buildPayload = () => {
 };
 
 const loadRules = async () => {
-  if (!props.serverId) {
+  if (!hasWafScope.value) {
     antiHeaderRules.value = [];
     return;
   }
   try {
-    const data = await fetchAntiHeaderRules(props.serverId);
+    const data = await fetchAntiHeaderRules(scope.value);
     const list = Array.isArray(data) ? data : [];
     antiHeaderRules.value = list.map((rule) => ({
       ...rule,
@@ -558,7 +570,7 @@ const loadRules = async () => {
 
 const createRule = async (payload) => {
   try {
-    await createAntiHeaderRule(props.serverId, payload);
+    await createAntiHeaderRule(scope.value, payload);
     await loadRules();
     notifySuccess(WAF_ANTI_HEADER_TITLE, "The anti header rule is successfully created.");
     closeDialog();
@@ -569,7 +581,7 @@ const createRule = async (payload) => {
 
 const updateRule = async (payload) => {
   try {
-    await updateAntiHeaderRule(props.serverId, editingRuleId.value, payload);
+    await updateAntiHeaderRule(scope.value, editingRuleId.value, payload);
     await loadRules();
     notifySuccess(WAF_ANTI_HEADER_TITLE, "The anti header rule is successfully updated.");
     closeDialog();
@@ -580,7 +592,7 @@ const updateRule = async (payload) => {
 
 const handleDeleteRule = async () => {
   try {
-    await deleteAntiHeaderRuleApi(props.serverId, deleteTarget.value.id);
+    await deleteAntiHeaderRuleApi(scope.value, deleteTarget.value.id);
     await loadRules();
     notifySuccess(WAF_ANTI_HEADER_TITLE, "The anti header rule is successfully deleted.");
   } catch (error) {
@@ -595,7 +607,7 @@ const handleDeleteRule = async () => {
 
 const handleBatchRemove = async () => {
   try {
-    await deleteAntiHeaderRules(props.serverId, selectedRuleIds.value);
+    await deleteAntiHeaderRules(scope.value, selectedRuleIds.value);
     await loadRules();
     notifySuccess(WAF_ANTI_HEADER_TITLE, "All anti header rules are successfully removed.");
   } catch (error) {
@@ -611,7 +623,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => [props.siteId, props.wafRuleId],
   () => {
     selectedRuleIds.value = [];
     editingRuleId.value = null;

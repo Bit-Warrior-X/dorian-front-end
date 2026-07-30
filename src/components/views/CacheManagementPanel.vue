@@ -581,7 +581,7 @@ const FILE_TYPE_GROUPS = [
 const ALL_FILE_TYPES = FILE_TYPE_GROUPS.flatMap((group) => group.extensions);
 
 const props = defineProps({
-  serverId: {
+  siteId: {
     type: [Number, String],
     default: null
   }
@@ -803,14 +803,14 @@ const buildPayload = () => ({
 });
 
 const saveRule = async () => {
-  if (!props.serverId || !canSaveRule.value) return;
+  if (!props.siteId || !canSaveRule.value) return;
   try {
     const payload = buildPayload();
     if (isEditing.value) {
-      await updateCacheRule(props.serverId, editingRuleId.value, payload);
+      await updateCacheRule(props.siteId, editingRuleId.value, payload);
       notifySuccess(CACHE_TITLE, "The cache rule is successfully updated.");
     } else {
-      await createCacheRule(props.serverId, payload);
+      await createCacheRule(props.siteId, payload);
       notifySuccess(CACHE_TITLE, "The cache rule is successfully created.");
     }
     await loadRules();
@@ -827,9 +827,9 @@ const saveRule = async () => {
 };
 
 const removeRule = async (ruleId) => {
-  if (!props.serverId) return;
+  if (!props.siteId) return;
   try {
-    await deleteCacheRuleApi(props.serverId, ruleId);
+    await deleteCacheRuleApi(props.siteId, ruleId);
     await loadRules();
     notifySuccess(CACHE_TITLE, "The cache rule is successfully removed.");
   } catch (error) {
@@ -891,9 +891,9 @@ const handleConfirmAction = async () => {
 };
 
 const handleClearCache = async () => {
-  if (!props.serverId) return;
+  if (!props.siteId) return;
   try {
-    await clearCache(props.serverId);
+    await clearCache(props.siteId);
     notifySuccess(CACHE_TITLE, "File cache cleared successfully.");
   } catch (error) {
     notifyError(CACHE_TITLE, error?.message || "Failed to clear file cache.");
@@ -901,9 +901,9 @@ const handleClearCache = async () => {
 };
 
 const handleClearUrlCache = async () => {
-  if (!props.serverId || !canClearUrlCache.value) return;
+  if (!props.siteId || !canClearUrlCache.value) return;
   try {
-    await clearUrlCache(props.serverId, {
+    await clearUrlCache(props.siteId, {
       matchType: clearUrlCacheForm.value.matchType,
       matchContent: clearUrlCacheForm.value.matchContent.trim()
     });
@@ -930,12 +930,12 @@ const refreshRules = () => {
 };
 
 const loadRules = async () => {
-  if (!props.serverId) {
+  if (!props.siteId) {
     cacheRules.value = [];
     return;
   }
   try {
-    const data = await fetchCacheRules(props.serverId);
+    const data = await fetchCacheRules(props.siteId);
     cacheRules.value = Array.isArray(data) ? data : [];
   } catch {
     cacheRules.value = [];
@@ -947,7 +947,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => props.siteId,
   () => {
     void loadRules();
   }

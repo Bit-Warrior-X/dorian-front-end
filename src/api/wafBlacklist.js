@@ -1,27 +1,28 @@
 import { apiRequest } from './client'
+import { wafApiBase } from './wafScope'
 
-export const fetchBlacklistRules = async (serverId) =>
-  apiRequest(`/servers/${serverId}/waf/blacklist`)
+export const fetchBlacklistRules = async (scope) =>
+  apiRequest(`${wafApiBase(scope)}/blacklist`)
 
-export const createBlacklistRule = async (serverId, payload) =>
-  apiRequest(`/servers/${serverId}/waf/blacklist`, {
+export const createBlacklistRule = async (scope, payload) =>
+  apiRequest(`${wafApiBase(scope)}/blacklist`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 
-export const updateBlacklistRule = async (serverId, ruleId, payload) =>
-  apiRequest(`/servers/${serverId}/waf/blacklist/${ruleId}`, {
+export const updateBlacklistRule = async (scope, ruleId, payload) =>
+  apiRequest(`${wafApiBase(scope)}/blacklist/${ruleId}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })
 
-export const deleteBlacklistRule = async (serverId, ruleId) =>
-  apiRequest(`/servers/${serverId}/waf/blacklist/${ruleId}`, {
+export const deleteBlacklistRule = async (scope, ruleId) =>
+  apiRequest(`${wafApiBase(scope)}/blacklist/${ruleId}`, {
     method: 'DELETE',
   })
 
-export const deleteBlacklistRules = async (serverId, ids) =>
-  apiRequest(`/servers/${serverId}/waf/blacklist/batch-delete`, {
+export const deleteBlacklistRules = async (scope, ids) =>
+  apiRequest(`${wafApiBase(scope)}/blacklist/batch-delete`, {
     method: 'POST',
     body: JSON.stringify({ ids }),
   })

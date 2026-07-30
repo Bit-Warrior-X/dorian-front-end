@@ -31,7 +31,7 @@
               <option value="" disabled>Select Trigger Rule</option>
               <option value="all">All</option>
               <option value="l4ddos">L4 DDOS</option>
-              <option value="blacklist">L7 Blacklist</option>
+              <option value="blacklist">L7 Blocked List</option>
               <option value="geo">Geo Location</option>
               <option value="antiheader">Anti Header Setting</option>
               <option value="intervalfreqlimit">Interval Freq Limit</option>
@@ -47,7 +47,7 @@
 
     <div class="content-card table-card">
       <div class="card-title">
-        <h3>Blacklist Entries</h3>
+        <h3>Blocked List Entries</h3>
         <span class="count-pill">{{ filteredEntries.length }} items</span>
       </div>
       <div class="table-wrap">
@@ -96,7 +96,7 @@
           </tbody>
         </table>
         <div v-if="!filteredEntries.length" class="empty-state">
-          No blacklist entries match the current filters.
+          No blocked list entries match the current filters.
         </div>
       </div>
     </div>
@@ -214,7 +214,7 @@ import {
 } from "@/api/serverBlacklist";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
-const BLACKLIST_TITLE = "Blacklist Management";
+const BLACKLIST_TITLE = "Blocked List";
 const serverFilter = ref("");
 const ruleFilter = ref("");
 const searchQuery = ref("");
@@ -330,7 +330,7 @@ const loadBlacklist = async (serverId) => {
       triggerRule: entry.triggerRule || ""
     }));
   } catch (error) {
-    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist entries could not be loaded.");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blocked list entries could not be loaded.");
   }
 };
 
@@ -402,10 +402,10 @@ const createBlock = async () => {
       triggerRule
     });
     await loadBlacklist(serverFilter.value ? Number(serverFilter.value) : undefined);
-    notifySuccess(BLACKLIST_TITLE, "The blacklist entry is successfully created.");
+    notifySuccess(BLACKLIST_TITLE, "The blocked list entry is successfully created.");
     closeBlockDialog();
   } catch (error) {
-    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist entry could not be created.");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blocked list entry could not be created.");
   }
 };
 
@@ -422,17 +422,17 @@ const removeEntry = (entryId) => {
 };
 
 const confirmTitle = computed(() => {
-  if (confirmAction.value === "flush") return "Flush all blacklist entries";
-  if (confirmAction.value === "remove") return "Remove blacklist entry";
+  if (confirmAction.value === "flush") return "Flush all blocked list entries";
+  if (confirmAction.value === "remove") return "Remove blocked list entry";
   return "Confirm action";
 });
 
 const confirmMessage = computed(() => {
   if (confirmAction.value === "flush") {
-    return "Are you sure you want to flush all blacklist entries?";
+    return "Are you sure you want to flush all blocked list entries?";
   }
   if (confirmAction.value === "remove") {
-    return "Are you sure you want to remove this blacklist entry?";
+    return "Are you sure you want to remove this blocked list entry?";
   }
   return "Are you sure you want to continue?";
 });
@@ -447,14 +447,14 @@ const handleConfirmDialog = async () => {
   try {
     if (confirmAction.value === "flush") {
       await flushBlacklistEntries(serverFilter.value ? Number(serverFilter.value) : undefined);
-      notifySuccess(BLACKLIST_TITLE, "All blacklist entries are successfully flushed.");
+      notifySuccess(BLACKLIST_TITLE, "All blocked list entries are successfully flushed.");
     } else if (confirmAction.value === "remove") {
       await deleteBlacklistEntry(confirmTargetId.value);
-      notifySuccess(BLACKLIST_TITLE, "The blacklist entry is successfully deleted.");
+      notifySuccess(BLACKLIST_TITLE, "The blocked list entry is successfully deleted.");
     }
     await loadBlacklist(serverFilter.value ? Number(serverFilter.value) : undefined);
   } catch (error) {
-    notifyError(BLACKLIST_TITLE, error?.message || "The blacklist could not be updated.");
+    notifyError(BLACKLIST_TITLE, error?.message || "The blocked list could not be updated.");
   }
   clearConfirmDialog();
 };

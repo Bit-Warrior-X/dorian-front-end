@@ -262,6 +262,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
+
 import {
   fetchSecondRules,
   createSecondRule,
@@ -274,11 +275,22 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const WAF_SECOND_FREQ_TITLE = "WAF Second Frequency";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
+    type: [Number, String],
+    default: null
+  },
+  wafRuleId: {
     type: [Number, String],
     default: null
   }
 });
+
+const scope = computed(() => ({
+  siteId: props.siteId,
+  wafRuleId: props.wafRuleId,
+}));
+
+const hasWafScope = computed(() => Boolean(props.siteId || props.wafRuleId));
 
 const secondRules = ref([]);
 
@@ -305,7 +317,7 @@ const formState = ref({
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
 const isSubmitDisabled = computed(() => {
-  if (!props.serverId || !isFormValid.value) return true;
+  if (!hasWafScope.value || !isFormValid.value) return true;
   if (editingRuleId.value) {
     return !isRuleDirty(buildPayload());
   }
@@ -397,7 +409,7 @@ const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
   const payload = buildPayload();
-  if (!props.serverId) return;
+  if (!hasWafScope.value) return;
   if (editingRuleId.value && !isRuleDirty(payload)) {
     closeDialog();
     return;
@@ -422,7 +434,7 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value || !props.serverId) return;
+  if (!deleteTarget.value || !scope.value) return;
   void handleDeleteRule();
 };
 
@@ -436,7 +448,7 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length || !props.serverId) return;
+  if (!selectedRuleIds.value.length || !scope.value) return;
   void handleBatchRemove();
 };
 
@@ -472,12 +484,12 @@ const buildPayload = () => {
 };
 
 const loadRules = async () => {
-  if (!props.serverId) {
+  if (!hasWafScope.value) {
     secondRules.value = [];
     return;
   }
   try {
-    const data = await fetchSecondRules(props.serverId);
+    const data = await fetchSecondRules(scope.value);
     const list = Array.isArray(data) ? data : [];
     secondRules.value = list.map((rule) => ({
       ...rule,
@@ -491,7 +503,7 @@ const loadRules = async () => {
 
 const createRule = async (payload) => {
   try {
-    await createSecondRule(props.serverId, payload);
+    await createSecondRule(scope.value, payload);
     await loadRules();
     notifySuccess(WAF_SECOND_FREQ_TITLE, "The second freq rule is successfully created.");
     closeDialog();
@@ -502,7 +514,7 @@ const createRule = async (payload) => {
 
 const updateRule = async (payload) => {
   try {
-    await updateSecondRule(props.serverId, editingRuleId.value, payload);
+    await updateSecondRule(scope.value, editingRuleId.value, payload);
     await loadRules();
     notifySuccess(WAF_SECOND_FREQ_TITLE, "The second freq rule is successfully updated.");
     closeDialog();
@@ -513,7 +525,7 @@ const updateRule = async (payload) => {
 
 const handleDeleteRule = async () => {
   try {
-    await deleteSecondRuleApi(props.serverId, deleteTarget.value.id);
+    await deleteSecondRuleApi(scope.value, deleteTarget.value.id);
     await loadRules();
     notifySuccess(WAF_SECOND_FREQ_TITLE, "The second freq rule is successfully deleted.");
   } catch (error) {
@@ -528,7 +540,7 @@ const handleDeleteRule = async () => {
 
 const handleBatchRemove = async () => {
   try {
-    await deleteSecondRules(props.serverId, selectedRuleIds.value);
+    await deleteSecondRules(scope.value, selectedRuleIds.value);
     await loadRules();
     notifySuccess(WAF_SECOND_FREQ_TITLE, "All second freq rules are successfully removed.");
   } catch (error) {
@@ -544,7 +556,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => [props.siteId, props.wafRuleId],
   () => {
     selectedRuleIds.value = [];
     editingRuleId.value = null;

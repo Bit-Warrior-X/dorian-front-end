@@ -21,24 +21,64 @@
           <li :class="['nav-item', isRouteActive('dashboard') ? 'active' : '']">
             <RouterLink to="/app/dashboard">
               <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="14" width="7" height="7"></rect>
-                  <rect x="3" y="14" width="7" height="7"></rect>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="7" height="9" x="3" y="3" rx="1"></rect>
+                  <rect width="7" height="5" x="14" y="3" rx="1"></rect>
+                  <rect width="7" height="9" x="14" y="12" rx="1"></rect>
+                  <rect width="7" height="5" x="3" y="16" rx="1"></rect>
                 </svg>
               </span>
               <span>Dashboard</span>
             </RouterLink>
           </li>
+          <li :class="['nav-item', 'nav-item-parent', isSitesOpen ? 'open' : '', isSitesRoute ? 'active' : '']">
+            <a href="#" @click.prevent="toggleSites">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                  <path d="M2 12h20"></path>
+                </svg>
+              </span>
+              <span>Sites</span>
+              <span class="nav-arrow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
+            </a>
+            <ul v-show="isSitesOpen" class="nav-submenu">
+              <li :class="['nav-subitem', isRouteActive('site-list') ? 'active' : '']">
+                <RouterLink to="/app/sites/list">
+                  <span>Site List</span>
+                </RouterLink>
+              </li>
+              <li :class="['nav-subitem', isRouteActive('site-settings') ? 'active' : '']">
+                <RouterLink to="/app/sites/settings">
+                  <span>Site Settings</span>
+                </RouterLink>
+              </li>
+            </ul>
+          </li>
+          <li :class="['nav-item', isRouteActive('waf-rules') ? 'active' : '']">
+            <RouterLink to="/app/waf">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path>
+                  <path d="m9 12 2 2 4-4"></path>
+                </svg>
+              </span>
+              <span>WAF Rule Set</span>
+            </RouterLink>
+          </li>
           <li :class="['nav-item', 'nav-item-parent', isServersOpen ? 'open' : '', isServersRoute ? 'active' : '']">
             <a href="#" @click.prevent="toggleServers">
               <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="3" width="20" height="8" rx="2"></rect>
-                  <rect x="2" y="13" width="20" height="8" rx="2"></rect>
-                  <line x1="6" y1="7" x2="6.01" y2="7"></line>
-                  <line x1="6" y1="17" x2="6.01" y2="17"></line>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect>
+                  <rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect>
+                  <line x1="6" x2="6.01" y1="6" y2="6"></line>
+                  <line x1="6" x2="6.01" y1="18" y2="18"></line>
                 </svg>
               </span>
               <span>Servers</span>
@@ -59,20 +99,27 @@
                   <span>Server Settings</span>
                 </RouterLink>
               </li>
-              <li :class="['nav-subitem', isRouteActive('server-blacklist') ? 'active' : '']">
-                <RouterLink to="/app/servers/blacklist">
-                  <span>Blacklist</span>
-                </RouterLink>
-              </li>
             </ul>
+          </li>
+          <li :class="['nav-item', isRouteActive('server-blacklist') ? 'active' : '']">
+            <RouterLink to="/app/blacklist">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
+                  <path d="m4.9 4.9 14.2 14.2"></path>
+                </svg>
+              </span>
+              <span>Blocked List</span>
+            </RouterLink>
           </li>
           <li :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '', isAnalyticsRoute ? 'active' : '']">
             <a href="#" @click.prevent="toggleDataAnalytics">
               <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 3v18h18"></path>
-                  <path d="M18 7c0 2.5-2 5-5 5s-5-2.5-5-5 2-5 5-5 5 2.5 5 5z"></path>
-                  <path d="M12 3v18"></path>
+                  <path d="M18 17V9"></path>
+                  <path d="M13 17V5"></path>
+                  <path d="M8 17v-3"></path>
                 </svg>
               </span>
               <span>DataAnalytics</span>
@@ -105,13 +152,25 @@
               </li>
             </ul>
           </li>
+          <li :class="['nav-item', isRouteActive('server-license') ? 'active' : '']">
+            <RouterLink to="/app/license">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+                  <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                  <path d="m9 15 2 2 4-4"></path>
+                </svg>
+              </span>
+              <span>License</span>
+            </RouterLink>
+          </li>
           <li v-if="isAdmin" :class="['nav-item', isRouteActive('users') ? 'active' : '']">
             <RouterLink to="/app/users">
               <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
                   <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
               </span>
@@ -123,7 +182,7 @@
       <div class="panel-footer">
         <button @click="handleLogout" class="logout-button">
           <span class="nav-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
               <polyline points="16 17 21 12 16 7"></polyline>
               <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -209,11 +268,15 @@ const router = useRouter()
 const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
 const isServersOpen = ref(false)
+const isSitesOpen = ref(false)
 const isUserMenuOpen = ref(false)
 const userMenuRef = ref(null)
 
 const isServersRoute = computed(
   () => route.meta?.section === 'servers' || route.path.startsWith('/app/servers')
+)
+const isSitesRoute = computed(
+  () => route.meta?.section === 'sites' || route.path.startsWith('/app/sites')
 )
 const isAnalyticsRoute = computed(
   () =>
@@ -245,6 +308,9 @@ watch(
     if (isServersRoute.value) {
       isServersOpen.value = true
     }
+    if (isSitesRoute.value) {
+      isSitesOpen.value = true
+    }
     if (isAnalyticsRoute.value) {
       isDataAnalyticsOpen.value = true
     }
@@ -258,6 +324,10 @@ const toggleDataAnalytics = () => {
 
 const toggleServers = () => {
   isServersOpen.value = !isServersOpen.value
+}
+
+const toggleSites = () => {
+  isSitesOpen.value = !isSitesOpen.value
 }
 
 const handleLogout = async () => {
@@ -388,7 +458,7 @@ onBeforeUnmount(() => {
 }
 
 .panel-header h2 {
-  font-size: 1.75rem;
+  font-size: 1.375rem;
   font-weight: 700;
   margin: 0;
   background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
@@ -443,8 +513,8 @@ onBeforeUnmount(() => {
 .nav-item a {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
+  gap: 10px;
+  padding: 8px 16px;
   color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -452,6 +522,9 @@ onBeforeUnmount(() => {
   border-radius: 0 12px 12px 0;
   margin-right: 12px;
   position: relative;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .nav-item a::before {
@@ -506,8 +579,8 @@ onBeforeUnmount(() => {
 
 .nav-arrow {
   margin-left: auto;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -539,7 +612,7 @@ onBeforeUnmount(() => {
 .nav-subitem a {
   display: flex;
   align-items: center;
-  padding: 10px 24px;
+  padding: 7px 20px;
   color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -547,7 +620,9 @@ onBeforeUnmount(() => {
   border-radius: 0 8px 8px 0;
   margin-right: 12px;
   position: relative;
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .nav-subitem a::before {
@@ -583,8 +658,8 @@ onBeforeUnmount(() => {
 }
 
 .nav-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -609,14 +684,14 @@ onBeforeUnmount(() => {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
+  gap: 10px;
+  padding: 10px 16px;
   background: linear-gradient(135deg, rgba(220, 38, 38, 0.2) 0%, rgba(185, 28, 28, 0.2) 100%);
   color: white;
   border: 1px solid rgba(220, 38, 38, 0.3);
   border-radius: 12px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
@@ -849,11 +924,16 @@ onBeforeUnmount(() => {
   }
 
   .panel-header h2 {
-    font-size: 1.25rem;
+    font-size: 1.125rem;
   }
 
-  .nav-item a span:not(.nav-icon) {
-    font-size: 0.9rem;
+  .nav-item a {
+    font-size: 0.8125rem;
+    padding: 7px 14px;
+  }
+
+  .nav-subitem a {
+    font-size: 0.75rem;
   }
 
   .view-header {

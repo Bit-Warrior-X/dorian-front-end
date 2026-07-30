@@ -218,6 +218,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
+
 import {
   fetchWhitelistRules,
   createWhitelistRule,
@@ -230,11 +231,22 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const WAF_WHITELIST_TITLE = "WAF Whitelist";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
+    type: [Number, String],
+    default: null
+  },
+  wafRuleId: {
     type: [Number, String],
     default: null
   }
 });
+
+const scope = computed(() => ({
+  siteId: props.siteId,
+  wafRuleId: props.wafRuleId,
+}));
+
+const hasWafScope = computed(() => Boolean(props.siteId || props.wafRuleId));
 
 const whitelistRules = ref([]);
 
@@ -353,7 +365,7 @@ const saveRule = () => {
     ips: ipString || formState.value.ipList.trim(),
     description: formState.value.description.trim()
   };
-  if (!props.serverId) return;
+  if (!hasWafScope.value) return;
   if (editingRuleId.value && !isRuleDirty(payload)) {
     closeDialog();
     return;
@@ -378,7 +390,7 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value || !props.serverId) return;
+  if (!deleteTarget.value || !scope.value) return;
   void handleDeleteRule();
 };
 
@@ -392,7 +404,7 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length || !props.serverId) return;
+  if (!selectedRuleIds.value.length || !scope.value) return;
   void handleBatchRemove();
 };
 
@@ -409,12 +421,12 @@ const isRuleDirty = (payload) => {
 
 
 const loadRules = async () => {
-  if (!props.serverId) {
+  if (!hasWafScope.value) {
     whitelistRules.value = [];
     return;
   }
   try {
-    const data = await fetchWhitelistRules(props.serverId);
+    const data = await fetchWhitelistRules(scope.value);
     whitelistRules.value = Array.isArray(data) ? data : [];
   } catch {
     whitelistRules.value = [];
@@ -423,7 +435,7 @@ const loadRules = async () => {
 
 const createRule = async (payload) => {
   try {
-    await createWhitelistRule(props.serverId, payload);
+    await createWhitelistRule(scope.value, payload);
     await loadRules();
     notifySuccess(WAF_WHITELIST_TITLE, "The whitelist rule is successfully created.");
     closeDialog();
@@ -434,7 +446,7 @@ const createRule = async (payload) => {
 
 const updateRule = async (payload) => {
   try {
-    await updateWhitelistRule(props.serverId, editingRuleId.value, payload);
+    await updateWhitelistRule(scope.value, editingRuleId.value, payload);
     await loadRules();
     notifySuccess(WAF_WHITELIST_TITLE, "The whitelist rule is successfully updated.");
     closeDialog();
@@ -445,7 +457,7 @@ const updateRule = async (payload) => {
 
 const handleDeleteRule = async () => {
   try {
-    await deleteWhitelistRuleApi(props.serverId, deleteTarget.value.id);
+    await deleteWhitelistRuleApi(scope.value, deleteTarget.value.id);
     await loadRules();
     notifySuccess(WAF_WHITELIST_TITLE, "The whitelist rule is successfully deleted.");
   } catch (error) {
@@ -460,7 +472,7 @@ const handleDeleteRule = async () => {
 
 const handleBatchRemove = async () => {
   try {
-    await deleteWhitelistRules(props.serverId, selectedRuleIds.value);
+    await deleteWhitelistRules(scope.value, selectedRuleIds.value);
     await loadRules();
     notifySuccess(WAF_WHITELIST_TITLE, "All whitelist rules are successfully removed.");
   } catch (error) {
@@ -476,7 +488,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => [props.siteId, props.wafRuleId],
   () => {
     selectedRuleIds.value = [];
     editingRuleId.value = null;

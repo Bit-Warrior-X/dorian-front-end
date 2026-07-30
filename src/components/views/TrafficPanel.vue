@@ -13,10 +13,10 @@
       </button>
     </div>
     <div class="traffic-content">
-      <ListeningPortsPanel v-if="activeTrafficItem === 'listening-ports'" :server-id="serverId" />
-      <CacheManagementPanel v-else-if="activeTrafficItem === 'cache-management'" :server-id="serverId" />
-      <UpstreamServersPanel v-else-if="activeTrafficItem === 'upstream-servers'" :server-id="serverId" />
-      <CompressPanel v-else-if="activeTrafficItem === 'compress'" :server-id="serverId" />
+      <ListeningPortsPanel v-if="activeTrafficItem === 'listening-ports'" :site-id="siteId" />
+      <CacheManagementPanel v-else-if="activeTrafficItem === 'cache-management'" :site-id="siteId" />
+      <UpstreamServersPanel v-else-if="activeTrafficItem === 'upstream-servers'" :site-id="siteId" />
+      <CompressPanel v-else-if="activeTrafficItem === 'compress'" :site-id="siteId" />
       <div v-else class="traffic-section-card empty-state">
         <h4>{{ activeTrafficLabel }}</h4>
         <p>Configure this traffic section next.</p>
@@ -33,7 +33,7 @@ import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 import CompressPanel from "./CompressPanel.vue";
 
 defineProps({
-  serverId: {
+  siteId: {
     type: [Number, String],
     default: null
   }

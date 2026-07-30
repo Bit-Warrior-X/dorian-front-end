@@ -279,6 +279,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
+
 import {
   fetchUserAgentRules,
   createUserAgentRule,
@@ -291,11 +292,22 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const WAF_USER_AGENT_TITLE = "WAF User Agent";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
+    type: [Number, String],
+    default: null
+  },
+  wafRuleId: {
     type: [Number, String],
     default: null
   }
 });
+
+const scope = computed(() => ({
+  siteId: props.siteId,
+  wafRuleId: props.wafRuleId,
+}));
+
+const hasWafScope = computed(() => Boolean(props.siteId || props.wafRuleId));
 
 const userAgentRules = ref([]);
 
@@ -321,7 +333,7 @@ const formState = ref({
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
 const isSubmitDisabled = computed(() => {
-  if (!props.serverId || !isFormValid.value) return true;
+  if (!hasWafScope.value || !isFormValid.value) return true;
   if (editingRuleId.value) {
     return !isRuleDirty(buildPayload());
   }
@@ -404,7 +416,7 @@ const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
   const payload = buildPayload();
-  if (!props.serverId) return;
+  if (!hasWafScope.value) return;
   if (editingRuleId.value && !isRuleDirty(payload)) {
     closeDialog();
     return;
@@ -429,7 +441,7 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value || !props.serverId) return;
+  if (!deleteTarget.value || !scope.value) return;
   void handleDeleteRule();
 };
 
@@ -443,7 +455,7 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length || !props.serverId) return;
+  if (!selectedRuleIds.value.length || !scope.value) return;
   void handleBatchRemove();
 };
 
@@ -479,12 +491,12 @@ const buildPayload = () => {
 };
 
 const loadRules = async () => {
-  if (!props.serverId) {
+  if (!hasWafScope.value) {
     userAgentRules.value = [];
     return;
   }
   try {
-    const data = await fetchUserAgentRules(props.serverId);
+    const data = await fetchUserAgentRules(scope.value);
     const list = Array.isArray(data) ? data : [];
     userAgentRules.value = list.map((rule) => ({
       ...rule,
@@ -498,7 +510,7 @@ const loadRules = async () => {
 
 const createRule = async (payload) => {
   try {
-    await createUserAgentRule(props.serverId, payload);
+    await createUserAgentRule(scope.value, payload);
     await loadRules();
     notifySuccess(WAF_USER_AGENT_TITLE, "The user agent rule is successfully created.");
     closeDialog();
@@ -509,7 +521,7 @@ const createRule = async (payload) => {
 
 const updateRule = async (payload) => {
   try {
-    await updateUserAgentRule(props.serverId, editingRuleId.value, payload);
+    await updateUserAgentRule(scope.value, editingRuleId.value, payload);
     await loadRules();
     notifySuccess(WAF_USER_AGENT_TITLE, "The user agent rule is successfully updated.");
     closeDialog();
@@ -520,7 +532,7 @@ const updateRule = async (payload) => {
 
 const handleDeleteRule = async () => {
   try {
-    await deleteUserAgentRuleApi(props.serverId, deleteTarget.value.id);
+    await deleteUserAgentRuleApi(scope.value, deleteTarget.value.id);
     await loadRules();
     notifySuccess(WAF_USER_AGENT_TITLE, "The user agent rule is successfully deleted.");
   } catch (error) {
@@ -535,7 +547,7 @@ const handleDeleteRule = async () => {
 
 const handleBatchRemove = async () => {
   try {
-    await deleteUserAgentRules(props.serverId, selectedRuleIds.value);
+    await deleteUserAgentRules(scope.value, selectedRuleIds.value);
     await loadRules();
     notifySuccess(WAF_USER_AGENT_TITLE, "All user agent rules are successfully removed.");
   } catch (error) {
@@ -551,7 +563,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => [props.siteId, props.wafRuleId],
   () => {
     selectedRuleIds.value = [];
     editingRuleId.value = null;

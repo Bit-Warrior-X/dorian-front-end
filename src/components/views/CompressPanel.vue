@@ -12,7 +12,7 @@
         <button
           class="primary-btn"
           type="button"
-          :disabled="!serverId || saving || loading"
+          :disabled="!siteId || saving || loading"
           @click="saveSettings"
         >
           {{ saving ? "Saving..." : "Save" }}
@@ -25,20 +25,35 @@
       <p class="helper-text">
         Select which response MIME type categories should be Gzip-compressed.
       </p>
-      <div class="mime-checkbox-grid" :class="{ disabled: loading || !serverId }">
+      <div class="mime-checkbox-grid" :class="{ disabled: loading || !siteId }">
         <div
           v-for="option in mimeOptions"
           :key="option.key"
           class="checkbox-option"
+          :class="{ selected: form[option.key] }"
         >
           <label class="checkbox-option-label" :for="`compress-${option.key}`">
             <input
               :id="`compress-${option.key}`"
               v-model="form[option.key]"
               type="checkbox"
-              :disabled="loading || saving || !serverId"
+              :disabled="loading || saving || !siteId"
             />
-            <span>{{ option.label }}</span>
+            <span class="checkbox-mark" aria-hidden="true">
+              <svg
+                v-if="form[option.key]"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </span>
+            <span class="checkbox-label-text">{{ option.label }}</span>
           </label>
           <div class="help-wrap">
             <button
@@ -57,7 +72,7 @@
           </div>
         </div>
       </div>
-      <p v-if="!serverId" class="helper-text load-hint">Select a server to configure compress settings.</p>
+      <p v-if="!siteId" class="helper-text load-hint">Select a site to configure compress settings.</p>
       <p v-else-if="loading" class="helper-text load-hint">Loading compress settings...</p>
     </div>
   </div>
@@ -71,7 +86,7 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const COMPRESS_TITLE = "Compress";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
     type: [Number, String],
     default: null
   }
@@ -172,13 +187,13 @@ const applySettings = (data) => {
 };
 
 const loadSettings = async () => {
-  if (!props.serverId) {
+  if (!props.siteId) {
     applySettings(defaultForm());
     return;
   }
   loading.value = true;
   try {
-    const data = await fetchCompressSettings(props.serverId);
+    const data = await fetchCompressSettings(props.siteId);
     applySettings(data);
   } catch {
     applySettings(defaultForm());
@@ -188,7 +203,7 @@ const loadSettings = async () => {
 };
 
 const saveSettings = async () => {
-  if (!props.serverId || saving.value) {
+  if (!props.siteId || saving.value) {
     return;
   }
   saving.value = true;
@@ -201,7 +216,7 @@ const saveSettings = async () => {
       font: Boolean(form.font),
       applications: Boolean(form.applications)
     };
-    const data = await updateCompressSettings(props.serverId, payload);
+    const data = await updateCompressSettings(props.siteId, payload);
     applySettings(data);
     notifySuccess(COMPRESS_TITLE, "Compress settings were saved successfully.");
   } catch (error) {
@@ -216,7 +231,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => props.siteId,
   () => {
     void loadSettings();
   }
@@ -287,13 +302,13 @@ watch(
 
 .mime-checkbox-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px 18px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
   overflow: visible;
 }
 
 .mime-checkbox-grid.disabled {
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .checkbox-option {
@@ -301,44 +316,87 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 0.95rem;
-  color: var(--app-text);
-  min-height: auto;
-  padding: 8px 10px;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
-  transition: border-color 0.2s ease, background 0.2s ease;
+  background: var(--app-surface-elevated);
+  color: var(--app-text-secondary);
+  box-shadow: none;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   overflow: visible;
 }
 
 .checkbox-option:hover {
-  border-color: rgba(124, 58, 237, 0.35);
+  border-color: #94a3b8;
   background: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.checkbox-option.selected {
+  border-color: rgba(30, 58, 138, 0.45);
+  background: rgba(30, 58, 138, 0.08);
+  color: #1e3a8a;
+  box-shadow: inset 0 0 0 1px rgba(30, 58, 138, 0.08);
+}
+
+.checkbox-option.selected:hover {
+  border-color: rgba(30, 58, 138, 0.65);
+  background: rgba(30, 58, 138, 0.12);
 }
 
 .checkbox-option-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
   min-width: 0;
   flex: 1;
 }
 
 .checkbox-option input {
-  width: 16px;
-  height: 16px;
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  accent-color: var(--app-accent);
-  cursor: pointer;
+  pointer-events: none;
 }
 
-.checkbox-option input:disabled {
-  cursor: not-allowed;
+.checkbox-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #94a3b8;
+  background: var(--app-surface-solid);
+  color: transparent;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
+.checkbox-mark svg {
+  width: 12px;
+  height: 12px;
+}
+
+.checkbox-option.selected .checkbox-mark {
+  border-color: #1e3a8a;
+  background: #1e3a8a;
+  color: #fff;
+}
+
+.checkbox-label-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.checkbox-option input:disabled + .checkbox-mark,
 .checkbox-option:has(input:disabled) .checkbox-option-label {
   cursor: not-allowed;
 }
@@ -353,17 +411,29 @@ watch(
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  border: 1px solid var(--app-border-strong);
-  background: transparent;
+  border: 1px solid #cbd5e1;
+  background: var(--app-surface-solid);
   color: var(--app-text-muted);
   font-size: 0.72rem;
   font-weight: 700;
   cursor: help;
   padding: 0;
   line-height: 1;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.checkbox-option.selected .help-icon {
+  border-color: rgba(30, 58, 138, 0.35);
+  color: #1e3a8a;
+}
+
+.help-icon:hover {
+  border-color: #1e3a8a;
+  color: #1e3a8a;
+  background: rgba(30, 58, 138, 0.08);
 }
 
 .help-tooltip {
@@ -418,5 +488,30 @@ watch(
   color: var(--app-text-secondary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   word-break: break-all;
+}
+
+:global([data-theme='dark']) .checkbox-option.selected {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(30, 64, 175, 0.28);
+  color: #bfdbfe;
+  box-shadow: none;
+}
+
+:global([data-theme='dark']) .checkbox-option.selected:hover {
+  border-color: rgba(147, 197, 253, 0.55);
+  background: rgba(30, 64, 175, 0.36);
+}
+
+:global([data-theme='dark']) .checkbox-option.selected .checkbox-mark {
+  border-color: #60a5fa;
+  background: #2563eb;
+  color: #fff;
+}
+
+:global([data-theme='dark']) .checkbox-option.selected .help-icon,
+:global([data-theme='dark']) .help-icon:hover {
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.18);
 }
 </style>

@@ -13,16 +13,16 @@
       </button>
     </div>
     <div class="waf-content">
-      <WafWhitelistPanel v-if="activeWafItem === 'whitelist'" :server-id="serverId" />
-      <WafBlacklistPanel v-else-if="activeWafItem === 'blacklist'" :server-id="serverId" />
+      <WafWhitelistPanel v-if="activeWafItem === 'whitelist'" :site-id="siteId" :waf-rule-id="wafRuleId" />
+      <WafBlacklistPanel v-else-if="activeWafItem === 'blacklist'" :site-id="siteId" :waf-rule-id="wafRuleId" />
       <WafIpRepulationPanel v-else-if="activeWafItem === 'ip-repulation'" />
-      <WafGeoLocationPanel v-else-if="activeWafItem === 'geo-locations'" :server-id="serverId" />
-      <WafAntiCcPanel v-else-if="activeWafItem === 'anti-cc'" :server-id="serverId" />
-      <WafAntiHeaderSettingPanel v-else-if="activeWafItem === 'anti-header-setting'" :server-id="serverId" />
-      <WafIntervalFreqLimitPanel v-else-if="activeWafItem === 'interval-freq-limit'" :server-id="serverId" />
-      <WafSecondFreqLimitPanel v-else-if="activeWafItem === 'second-freq-limit'" :server-id="serverId" />
-      <WafResponseFreqPanel v-else-if="activeWafItem === 'response-freq'" :server-id="serverId" />
-      <WafUserAgentPanel v-else-if="activeWafItem === 'user-agent'" :server-id="serverId" />
+      <WafGeoLocationPanel v-else-if="activeWafItem === 'geo-locations'" :site-id="siteId" :waf-rule-id="wafRuleId" />
+      <WafAntiCcPanel v-else-if="activeWafItem === 'anti-cc'" :site-id="siteId" :waf-rule-id="wafRuleId" />
+      <WafAntiHeaderSettingPanel v-else-if="activeWafItem === 'anti-header-setting'" :site-id="siteId" :waf-rule-id="wafRuleId" />
+      <WafIntervalFreqLimitPanel v-else-if="activeWafItem === 'interval-freq-limit'" :site-id="siteId" :waf-rule-id="wafRuleId" />
+      <WafSecondFreqLimitPanel v-else-if="activeWafItem === 'second-freq-limit'" :site-id="siteId" :waf-rule-id="wafRuleId" />
+      <WafResponseFreqPanel v-else-if="activeWafItem === 'response-freq'" :site-id="siteId" :waf-rule-id="wafRuleId" />
+      <WafUserAgentPanel v-else-if="activeWafItem === 'user-agent'" :site-id="siteId" :waf-rule-id="wafRuleId" />
       <div v-else class="waf-section-card empty-state">
         <h4>{{ activeWafLabel }}</h4>
         <p>Configure this WAF section next.</p>
@@ -45,7 +45,11 @@ import WafUserAgentPanel from "./WafUserAgentPanel.vue";
 import WafIpRepulationPanel from "./WafIpRepulationPanel.vue";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
+    type: [Number, String],
+    default: null
+  },
+  wafRuleId: {
     type: [Number, String],
     default: null
   }

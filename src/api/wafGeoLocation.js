@@ -1,27 +1,28 @@
 import { apiRequest } from './client'
+import { wafApiBase } from './wafScope'
 
-export const fetchGeoRules = async (serverId) =>
-  apiRequest(`/servers/${serverId}/waf/geolocation`)
+export const fetchGeoRules = async (scope) =>
+  apiRequest(`${wafApiBase(scope)}/geolocation`)
 
-export const createGeoRule = async (serverId, payload) =>
-  apiRequest(`/servers/${serverId}/waf/geolocation`, {
+export const createGeoRule = async (scope, payload) =>
+  apiRequest(`${wafApiBase(scope)}/geolocation`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 
-export const updateGeoRule = async (serverId, ruleId, payload) =>
-  apiRequest(`/servers/${serverId}/waf/geolocation/${ruleId}`, {
+export const updateGeoRule = async (scope, ruleId, payload) =>
+  apiRequest(`${wafApiBase(scope)}/geolocation/${ruleId}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })
 
-export const deleteGeoRule = async (serverId, ruleId) =>
-  apiRequest(`/servers/${serverId}/waf/geolocation/${ruleId}`, {
+export const deleteGeoRule = async (scope, ruleId) =>
+  apiRequest(`${wafApiBase(scope)}/geolocation/${ruleId}`, {
     method: 'DELETE',
   })
 
-export const deleteGeoRules = async (serverId, ids) =>
-  apiRequest(`/servers/${serverId}/waf/geolocation/batch-delete`, {
+export const deleteGeoRules = async (scope, ids) =>
+  apiRequest(`${wafApiBase(scope)}/geolocation/batch-delete`, {
     method: 'POST',
     body: JSON.stringify({ ids }),
   })

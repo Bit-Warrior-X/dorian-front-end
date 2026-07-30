@@ -55,13 +55,53 @@ const routes = [
         }
       },
       {
-        path: 'servers/blacklist',
+        path: 'sites/list',
+        name: 'site-list',
+        component: () => import('@/components/views/SiteListView.vue'),
+        meta: {
+          title: 'Site List',
+          section: 'sites'
+        }
+      },
+      {
+        path: 'sites/settings',
+        name: 'site-settings',
+        component: () => import('@/components/views/SiteSettingsView.vue'),
+        meta: {
+          title: 'Site Settings',
+          section: 'sites'
+        }
+      },
+      {
+        path: 'waf',
+        name: 'waf-rules',
+        component: () => import('@/components/views/WafRulesView.vue'),
+        meta: {
+          title: 'WAF Rule Set',
+          section: 'waf'
+        }
+      },
+      {
+        path: 'license',
+        name: 'server-license',
+        component: () => import('@/components/views/ServerLicenseView.vue'),
+        meta: {
+          title: 'License',
+          section: 'license'
+        }
+      },
+      {
+        path: 'blacklist',
         name: 'server-blacklist',
         component: () => import('@/components/views/ServerBlacklistView.vue'),
         meta: {
-          title: 'Blacklist',
-          section: 'servers'
+          title: 'Blocked List',
+          section: 'blacklist'
         }
+      },
+      {
+        path: 'servers/blacklist',
+        redirect: { name: 'server-blacklist' }
       },
       {
         path: 'analytics/access-log',

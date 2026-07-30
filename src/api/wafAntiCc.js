@@ -1,27 +1,28 @@
 import { apiRequest } from './client'
+import { wafApiBase } from './wafScope'
 
-export const fetchAntiCcRules = async (serverId) =>
-  apiRequest(`/servers/${serverId}/waf/anti-cc`)
+export const fetchAntiCcRules = async (scope) =>
+  apiRequest(`${wafApiBase(scope)}/anti-cc`)
 
-export const createAntiCcRule = async (serverId, payload) =>
-  apiRequest(`/servers/${serverId}/waf/anti-cc`, {
+export const createAntiCcRule = async (scope, payload) =>
+  apiRequest(`${wafApiBase(scope)}/anti-cc`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 
-export const updateAntiCcRule = async (serverId, ruleId, payload) =>
-  apiRequest(`/servers/${serverId}/waf/anti-cc/${ruleId}`, {
+export const updateAntiCcRule = async (scope, ruleId, payload) =>
+  apiRequest(`${wafApiBase(scope)}/anti-cc/${ruleId}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })
 
-export const deleteAntiCcRule = async (serverId, ruleId) =>
-  apiRequest(`/servers/${serverId}/waf/anti-cc/${ruleId}`, {
+export const deleteAntiCcRule = async (scope, ruleId) =>
+  apiRequest(`${wafApiBase(scope)}/anti-cc/${ruleId}`, {
     method: 'DELETE',
   })
 
-export const deleteAntiCcRules = async (serverId, ids) =>
-  apiRequest(`/servers/${serverId}/waf/anti-cc/batch-delete`, {
+export const deleteAntiCcRules = async (scope, ids) =>
+  apiRequest(`${wafApiBase(scope)}/anti-cc/batch-delete`, {
     method: 'POST',
     body: JSON.stringify({ ids }),
   })

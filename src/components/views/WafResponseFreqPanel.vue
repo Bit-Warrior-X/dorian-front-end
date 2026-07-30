@@ -281,6 +281,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
+
 import {
   fetchResponseRules,
   createResponseRule,
@@ -293,11 +294,22 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const WAF_RESPONSE_FREQ_TITLE = "WAF Response Frequency";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
+    type: [Number, String],
+    default: null
+  },
+  wafRuleId: {
     type: [Number, String],
     default: null
   }
 });
+
+const scope = computed(() => ({
+  siteId: props.siteId,
+  wafRuleId: props.wafRuleId,
+}));
+
+const hasWafScope = computed(() => Boolean(props.siteId || props.wafRuleId));
 
 const responseRules = ref([]);
 
@@ -326,7 +338,7 @@ const formState = ref({
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
 const isSubmitDisabled = computed(() => {
-  if (!props.serverId || !isFormValid.value) return true;
+  if (!hasWafScope.value || !isFormValid.value) return true;
   if (editingRuleId.value) {
     return !isRuleDirty(buildPayload());
   }
@@ -431,7 +443,7 @@ const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
   const payload = buildPayload();
-  if (!props.serverId) return;
+  if (!hasWafScope.value) return;
   if (editingRuleId.value && !isRuleDirty(payload)) {
     closeDialog();
     return;
@@ -456,7 +468,7 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value || !props.serverId) return;
+  if (!deleteTarget.value || !scope.value) return;
   void handleDeleteRule();
 };
 
@@ -470,7 +482,7 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length || !props.serverId) return;
+  if (!selectedRuleIds.value.length || !scope.value) return;
   void handleBatchRemove();
 };
 
@@ -508,12 +520,12 @@ const buildPayload = () => {
 };
 
 const loadRules = async () => {
-  if (!props.serverId) {
+  if (!hasWafScope.value) {
     responseRules.value = [];
     return;
   }
   try {
-    const data = await fetchResponseRules(props.serverId);
+    const data = await fetchResponseRules(scope.value);
     const list = Array.isArray(data) ? data : [];
     responseRules.value = list.map((rule) => ({
       ...rule,
@@ -529,7 +541,7 @@ const loadRules = async () => {
 
 const createRule = async (payload) => {
   try {
-    await createResponseRule(props.serverId, payload);
+    await createResponseRule(scope.value, payload);
     await loadRules();
     notifySuccess(WAF_RESPONSE_FREQ_TITLE, "The response freq rule is successfully created.");
     closeDialog();
@@ -540,7 +552,7 @@ const createRule = async (payload) => {
 
 const updateRule = async (payload) => {
   try {
-    await updateResponseRule(props.serverId, editingRuleId.value, payload);
+    await updateResponseRule(scope.value, editingRuleId.value, payload);
     await loadRules();
     notifySuccess(WAF_RESPONSE_FREQ_TITLE, "The response freq rule is successfully updated.");
     closeDialog();
@@ -551,7 +563,7 @@ const updateRule = async (payload) => {
 
 const handleDeleteRule = async () => {
   try {
-    await deleteResponseRuleApi(props.serverId, deleteTarget.value.id);
+    await deleteResponseRuleApi(scope.value, deleteTarget.value.id);
     await loadRules();
     notifySuccess(WAF_RESPONSE_FREQ_TITLE, "The response freq rule is successfully deleted.");
   } catch (error) {
@@ -566,7 +578,7 @@ const handleDeleteRule = async () => {
 
 const handleBatchRemove = async () => {
   try {
-    await deleteResponseRules(props.serverId, selectedRuleIds.value);
+    await deleteResponseRules(scope.value, selectedRuleIds.value);
     await loadRules();
     notifySuccess(WAF_RESPONSE_FREQ_TITLE, "All response freq rules are successfully removed.");
   } catch (error) {
@@ -582,7 +594,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => [props.siteId, props.wafRuleId],
   () => {
     selectedRuleIds.value = [];
     editingRuleId.value = null;

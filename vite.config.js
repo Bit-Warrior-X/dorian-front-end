@@ -23,6 +23,8 @@ export default defineConfig({
       '/servers': { target: 'http://127.0.0.1:8080', changeOrigin: true, ws: true },
       '/auth': { target: 'http://127.0.0.1:8080', changeOrigin: true },
       '/users': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+      '/sites': { target: 'http://127.0.0.1:8080', changeOrigin: true },
+      '/waf-rules': { target: 'http://127.0.0.1:8080', changeOrigin: true },
       '/dashboard': { target: 'http://127.0.0.1:8080', changeOrigin: true },
       '/analytics': { target: 'http://127.0.0.1:8080', changeOrigin: true },
     },

@@ -151,7 +151,7 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const UPSTREAM_TITLE = "Upstream Servers";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
     type: [Number, String],
     default: null
   }
@@ -225,7 +225,7 @@ const closeAddDialog = () => {
 };
 
 const addServer = async () => {
-  if (!props.serverId) return;
+  if (!props.siteId) return;
   const address = newServerAddress.value.trim();
   if (!address) return;
   if (addressConflictMessage.value) {
@@ -237,7 +237,7 @@ const addServer = async () => {
   const timeout = Number(newServerTimeout.value) || 30;
   const description = `weight=${weight} max_fails=${maxFails} fail_timeout=${timeout}s`;
   try {
-    await createUpstreamServer(props.serverId, {
+    await createUpstreamServer(props.siteId, {
       address,
       description,
       status: "ENABLE"
@@ -255,9 +255,9 @@ const addServer = async () => {
 };
 
 const removeServer = async (upstreamId) => {
-  if (!props.serverId) return;
+  if (!props.siteId) return;
   try {
-    await deleteUpstreamServerApi(props.serverId, upstreamId);
+    await deleteUpstreamServerApi(props.siteId, upstreamId);
     await loadServers();
     notifySuccess(UPSTREAM_TITLE, "The upstream server is successfully removed.");
   } catch (error) {
@@ -298,12 +298,12 @@ const refreshStatuses = () => {
 };
 
 const loadServers = async () => {
-  if (!props.serverId) {
+  if (!props.siteId) {
     upstreamServers.value = [];
     return;
   }
   try {
-    const data = await fetchUpstreamServers(props.serverId);
+    const data = await fetchUpstreamServers(props.siteId);
     upstreamServers.value = Array.isArray(data) ? data : [];
   } catch {
     upstreamServers.value = [];
@@ -315,7 +315,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => props.siteId,
   () => {
     void loadServers();
   }

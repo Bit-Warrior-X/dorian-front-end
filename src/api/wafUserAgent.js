@@ -1,27 +1,28 @@
 import { apiRequest } from './client'
+import { wafApiBase } from './wafScope'
 
-export const fetchUserAgentRules = async (serverId) =>
-  apiRequest(`/servers/${serverId}/waf/user-agent`)
+export const fetchUserAgentRules = async (scope) =>
+  apiRequest(`${wafApiBase(scope)}/user-agent`)
 
-export const createUserAgentRule = async (serverId, payload) =>
-  apiRequest(`/servers/${serverId}/waf/user-agent`, {
+export const createUserAgentRule = async (scope, payload) =>
+  apiRequest(`${wafApiBase(scope)}/user-agent`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 
-export const updateUserAgentRule = async (serverId, ruleId, payload) =>
-  apiRequest(`/servers/${serverId}/waf/user-agent/${ruleId}`, {
+export const updateUserAgentRule = async (scope, ruleId, payload) =>
+  apiRequest(`${wafApiBase(scope)}/user-agent/${ruleId}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })
 
-export const deleteUserAgentRule = async (serverId, ruleId) =>
-  apiRequest(`/servers/${serverId}/waf/user-agent/${ruleId}`, {
+export const deleteUserAgentRule = async (scope, ruleId) =>
+  apiRequest(`${wafApiBase(scope)}/user-agent/${ruleId}`, {
     method: 'DELETE',
   })
 
-export const deleteUserAgentRules = async (serverId, ids) =>
-  apiRequest(`/servers/${serverId}/waf/user-agent/batch-delete`, {
+export const deleteUserAgentRules = async (scope, ids) =>
+  apiRequest(`${wafApiBase(scope)}/user-agent/batch-delete`, {
     method: 'POST',
     body: JSON.stringify({ ids }),
   })

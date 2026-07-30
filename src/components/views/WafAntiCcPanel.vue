@@ -290,6 +290,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
+
 import {
   fetchAntiCcRules,
   createAntiCcRule,
@@ -302,11 +303,22 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const WAF_ANTI_CC_TITLE = "WAF Anti CC";
 
 const props = defineProps({
-  serverId: {
+  siteId: {
+    type: [Number, String],
+    default: null
+  },
+  wafRuleId: {
     type: [Number, String],
     default: null
   }
 });
+
+const scope = computed(() => ({
+  siteId: props.siteId,
+  wafRuleId: props.wafRuleId,
+}));
+
+const hasWafScope = computed(() => Boolean(props.siteId || props.wafRuleId));
 
 const antiCcRules = ref([]);
 
@@ -342,7 +354,7 @@ const formState = ref({
 const hasSelection = computed(() => selectedRuleIds.value.length > 0);
 const isEditing = computed(() => Boolean(editingRuleId.value));
 const isSubmitDisabled = computed(() => {
-  if (!props.serverId || !isFormValid.value) return true;
+  if (!hasWafScope.value || !isFormValid.value) return true;
   if (editingRuleId.value) {
     return !isRuleDirty(buildPayload());
   }
@@ -435,7 +447,7 @@ const saveRule = () => {
   submitAttempted.value = true;
   if (!isFormValid.value) return;
   const payload = buildPayload();
-  if (!props.serverId) return;
+  if (!hasWafScope.value) return;
   if (editingRuleId.value && !isRuleDirty(payload)) {
     closeDialog();
     return;
@@ -460,7 +472,7 @@ const closeDeleteDialog = () => {
 };
 
 const confirmDeleteRule = () => {
-  if (!deleteTarget.value || !props.serverId) return;
+  if (!deleteTarget.value || !scope.value) return;
   void handleDeleteRule();
 };
 
@@ -474,7 +486,7 @@ const closeBatchConfirm = () => {
 };
 
 const confirmBatchRemove = () => {
-  if (!selectedRuleIds.value.length || !props.serverId) return;
+  if (!selectedRuleIds.value.length || !scope.value) return;
   void handleBatchRemove();
 };
 
@@ -524,12 +536,12 @@ const buildPayload = () => {
 };
 
 const loadRules = async () => {
-  if (!props.serverId) {
+  if (!hasWafScope.value) {
     antiCcRules.value = [];
     return;
   }
   try {
-    const data = await fetchAntiCcRules(props.serverId);
+    const data = await fetchAntiCcRules(scope.value);
     const list = Array.isArray(data) ? data : [];
     antiCcRules.value = list.map((rule) => ({
       ...rule,
@@ -545,7 +557,7 @@ const loadRules = async () => {
 
 const createRule = async (payload) => {
   try {
-    await createAntiCcRule(props.serverId, payload);
+    await createAntiCcRule(scope.value, payload);
     await loadRules();
     notifySuccess(WAF_ANTI_CC_TITLE, "The Anti CC rule is successfully created.");
     closeDialog();
@@ -556,7 +568,7 @@ const createRule = async (payload) => {
 
 const updateRule = async (payload) => {
   try {
-    await updateAntiCcRule(props.serverId, editingRuleId.value, payload);
+    await updateAntiCcRule(scope.value, editingRuleId.value, payload);
     await loadRules();
     notifySuccess(WAF_ANTI_CC_TITLE, "The Anti CC rule is successfully updated.");
     closeDialog();
@@ -567,7 +579,7 @@ const updateRule = async (payload) => {
 
 const handleDeleteRule = async () => {
   try {
-    await deleteAntiCcRuleApi(props.serverId, deleteTarget.value.id);
+    await deleteAntiCcRuleApi(scope.value, deleteTarget.value.id);
     await loadRules();
     notifySuccess(WAF_ANTI_CC_TITLE, "The Anti CC rule is successfully deleted.");
   } catch (error) {
@@ -582,7 +594,7 @@ const handleDeleteRule = async () => {
 
 const handleBatchRemove = async () => {
   try {
-    await deleteAntiCcRules(props.serverId, selectedRuleIds.value);
+    await deleteAntiCcRules(scope.value, selectedRuleIds.value);
     await loadRules();
     notifySuccess(WAF_ANTI_CC_TITLE, "All Anti CC rules are successfully removed.");
   } catch (error) {
@@ -598,7 +610,7 @@ onMounted(() => {
 });
 
 watch(
-  () => props.serverId,
+  () => [props.siteId, props.wafRuleId],
   () => {
     selectedRuleIds.value = [];
     editingRuleId.value = null;
