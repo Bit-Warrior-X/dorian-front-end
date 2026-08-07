@@ -1,0 +1,130 @@
+/* -------------------------------------------------------------------------- */
+/* Compact layout — smaller margins to show more data                          */
+/* -------------------------------------------------------------------------- */
+
+.view-content {
+  padding: var(--space-page-y) var(--space-page-x) !important;
+}
+
+.view-header,
+.app-topbar {
+  padding: var(--space-header-y) var(--space-header-x) !important;
+  gap: 12px !important;
+}
+
+.servers-view,
+.dashboard-view,
+.security-analytics-view,
+.layer4-attack-view,
+.access-log-view,
+.users-view,
+.settings-view,
+.reports-view,
+.log-export-view {
+  gap: var(--space-gap-lg) !important;
+}
+
+.content-card,
+.analytics-card,
+.bandwidth-card,
+.chart-card,
+.filter-card,
+.settings-card,
+.view-card,
+.servers-table-card {
+  padding: var(--space-card) !important;
+}
+
+.stat-card {
+  padding: var(--space-card) !important;
+  gap: 12px !important;
+}
+
+.stat-card .stat-icon {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px;
+}
+
+.stat-info h3 {
+  font-size: var(--type-metric-label) !important;
+  margin-bottom: 2px !important;
+}
+
+.stat-value {
+  font-size: var(--type-metric-value) !important;
+}
+
+.stats-grid {
+  gap: var(--space-gap) !important;
+  grid-template-columns: repeat(4, minmax(180px, 1fr)) !important;
+}
+
+.charts-grid {
+  gap: var(--space-gap) !important;
+}
+
+.servers-table th,
+.servers-table td,
+.config-table th,
+.config-table td,
+table th,
+table td {
+  padding: var(--space-table-cell) !important;
+}
+
+.table-footer,
+.filter-header,
+.card-title,
+.card-header {
+  margin-bottom: 10px !important;
+}
+
+.filter-bar {
+  gap: var(--space-gap) !important;
+}
+
+.dialog-card {
+  padding: var(--space-dialog) !important;
+}
+
+.dialog-body {
+  gap: var(--space-gap-lg) !important;
+}
+
+.dialog-backdrop,
+.confirm-backdrop {
+  padding: 12px !important;
+}
+
+.bandwidth-chart {
+  height: var(--space-chart-height) !important;
+}
+
+.timeline {
+  max-height: 280px !important;
+  gap: 10px !important;
+}
+
+.timeline-content {
+  padding: 10px 12px !important;
+}
+
+.filter-field input,
+.filter-field select,
+.dialog-field input,
+.dialog-field select,
+.chart-select {
+  padding: 7px 10px !important;
+}
+
+/* Compact layout inherits unified button sizes from the block below */
+
+.license-tab-body {
+  padding: 4px 0 !important;
+  max-width: none !important;
+}
+
+.license-tab-lead {
+  margin-bottom: 12px !important;
+}

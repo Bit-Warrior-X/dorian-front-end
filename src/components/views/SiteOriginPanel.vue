@@ -560,7 +560,7 @@ watch(
 
 .origin-kicker {
   margin: 0 0 4px;
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -569,7 +569,7 @@ watch(
 
 .origin-intro h4 {
   margin: 0 0 6px;
-  font-size: 1.15rem;
+  font-size: var(--type-metric-value);
   font-weight: 650;
   color: var(--app-heading);
 }
@@ -578,7 +578,7 @@ watch(
   margin: 0;
   max-width: 42rem;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   line-height: 1.5;
 }
 
@@ -602,7 +602,7 @@ watch(
 }
 
 .summary-chip__label {
-  font-size: 0.68rem;
+  font-size: var(--type-small);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -610,7 +610,7 @@ watch(
 }
 
 .summary-chip__value {
-  font-size: 0.88rem;
+  font-size: var(--type-base);
   font-weight: 650;
   color: var(--app-heading);
   word-break: break-all;
@@ -623,7 +623,7 @@ watch(
   border: 1px dashed var(--app-border);
   background: var(--app-surface-muted);
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 .helper-banner--error {
@@ -670,21 +670,21 @@ watch(
   border-radius: 9px;
   background: var(--app-accent-soft);
   color: var(--app-accent);
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .origin-card__head h5 {
   margin: 0 0 4px;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 650;
   color: var(--app-heading);
 }
 
 .origin-card__head p {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: var(--type-base);
   color: var(--app-text-muted);
   line-height: 1.4;
 }
@@ -696,7 +696,7 @@ watch(
   border-radius: 999px;
   background: var(--app-accent-soft);
   color: var(--app-accent);
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -733,7 +733,7 @@ watch(
 }
 
 .form-field label {
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-muted);
 }
@@ -760,7 +760,7 @@ watch(
   border-right: 1px solid var(--app-input-border);
   background: var(--app-surface-muted);
   color: var(--app-text-muted);
-  font-size: 0.86rem;
+  font-size: var(--type-base);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -771,7 +771,7 @@ watch(
   border: 0;
   outline: none;
   padding: 12px 14px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   background: transparent;
 }
@@ -780,13 +780,13 @@ watch(
   border: 1px solid var(--app-input-border);
   border-radius: 12px;
   padding: 12px 14px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text);
   background: var(--app-input-bg);
   outline: none;
   resize: vertical;
   min-height: 110px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   line-height: 1.45;
 }
 
@@ -799,7 +799,7 @@ watch(
 .subpanel-hint,
 .ssl-none-note {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   line-height: 1.45;
   color: var(--app-text-muted);
 }
@@ -829,7 +829,7 @@ watch(
 }
 
 .ssl-status-bar__label {
-  font-size: 0.68rem;
+  font-size: var(--type-small);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -837,7 +837,7 @@ watch(
 }
 
 .ssl-status-bar__value {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 650;
   color: var(--app-heading);
 }
@@ -848,7 +848,7 @@ watch(
   width: fit-content;
   padding: 3px 9px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 700;
 }
 
@@ -875,7 +875,7 @@ watch(
 .mode-block__label,
 .subpanel-label {
   margin: 0 0 8px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -920,13 +920,13 @@ watch(
 }
 
 .type-card__label {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 650;
   color: var(--app-heading);
 }
 
 .type-card__desc {
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   line-height: 1.4;
   color: var(--app-text-muted);
 }
@@ -956,7 +956,7 @@ watch(
   color: var(--app-text-secondary);
   border-radius: 999px;
   padding: 8px 14px;
-  font-size: 0.84rem;
+  font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
 }

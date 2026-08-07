@@ -110,7 +110,7 @@ const submit = async () => {
 
 .intro {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: #475569;
   line-height: 1.5;
 }
@@ -122,7 +122,7 @@ const submit = async () => {
   background: rgba(254, 242, 242, 0.95);
   border: 1px solid rgba(239, 68, 68, 0.45);
   color: #991b1b;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
 }
 
@@ -131,7 +131,7 @@ const submit = async () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: #475569;
 }
 
@@ -161,7 +161,7 @@ const submit = async () => {
 .btn-secondary {
   border-radius: 10px;
   padding: 10px 18px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.15s ease;
@@ -170,7 +170,7 @@ const submit = async () => {
 .btn-primary {
   border: none;
   color: #fff;
-  background: var(--app-btn-primary-bg, linear-gradient(135deg, #a855f7 0%, #7c3aed 100%));
+  background: var(--app-btn-primary-bg);
   box-shadow: 0 4px 14px var(--app-btn-primary-shadow, rgba(168, 85, 247, 0.35));
 }
 

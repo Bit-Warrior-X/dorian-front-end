@@ -9,7 +9,8 @@
         <table>
           <thead>
             <tr>
-              <th>Name</th>
+              <th>First Name</th>
+              <th>Second Name</th>
               <th>Email</th>
               <th>Password</th>
               <th>Role</th>
@@ -20,7 +21,8 @@
           </thead>
           <tbody>
             <tr v-for="user in users" :key="user.id">
-              <td>{{ user.name }}</td>
+              <td>{{ splitDisplayName(user.name).firstName || '—' }}</td>
+              <td>{{ splitDisplayName(user.name).secondName || '—' }}</td>
               <td>{{ user.email }}</td>
               <td>{{ maskPassword(user.password) }}</td>
               <td>
@@ -83,8 +85,12 @@
         </div>
         <div class="dialog-grid">
           <div class="dialog-field">
-            <label for="add-user-name">Name</label>
-            <input id="add-user-name" v-model="newUser.name" type="text" placeholder="Jane Doe" />
+            <label for="add-user-first-name">First Name</label>
+            <input id="add-user-first-name" v-model="newUser.firstName" type="text" placeholder="Jane" autocomplete="given-name" />
+          </div>
+          <div class="dialog-field">
+            <label for="add-user-second-name">Second Name</label>
+            <input id="add-user-second-name" v-model="newUser.secondName" type="text" placeholder="Doe" autocomplete="family-name" />
           </div>
           <div class="dialog-field">
             <label for="add-user-email">Email</label>
@@ -152,6 +158,7 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 import { createUser, deleteUser, fetchUsers, updateUser } from '@/api/users'
 import { fetchServers } from '@/api/servers'
+import { joinDisplayName, splitDisplayName } from '@/utils/userName'
 
 const users = ref([])
 const isLoading = ref(false)
@@ -165,7 +172,8 @@ const confirmMessage = ref('')
 let pendingConfirmAction = null
 const serverOptions = ref([])
 const newUser = reactive({
-  name: '',
+  firstName: '',
+  secondName: '',
   email: '',
   password: '',
   role: 'User',
@@ -183,7 +191,9 @@ const openAddDialog = () => {
 const openEditDialog = (user) => {
   isEditMode.value = true
   editingUserId.value = user.id
-  newUser.name = user.name
+  const names = splitDisplayName(user.name)
+  newUser.firstName = names.firstName
+  newUser.secondName = names.secondName
   newUser.email = user.email
   newUser.password = user.password || ''
   newUser.role = user.role
@@ -197,7 +207,8 @@ const closeAddDialog = () => {
 }
 
 const resetNewUser = () => {
-  newUser.name = ''
+  newUser.firstName = ''
+  newUser.secondName = ''
   newUser.email = ''
   newUser.password = ''
   newUser.role = 'User'
@@ -218,10 +229,12 @@ const loadUsers = async () => {
 }
 
 const submitAddUser = async () => {
-  const name = newUser.name.trim()
+  const firstName = newUser.firstName.trim()
+  const secondName = newUser.secondName.trim()
+  const name = joinDisplayName(firstName, secondName)
   const email = newUser.email.trim()
 
-  if (!name || !email) {
+  if (!firstName || !email) {
     return
   }
 
@@ -273,10 +286,15 @@ const confirmAction = () => {
   closeConfirmDialog()
 }
 
+const displayUserName = (user) => {
+  const { firstName, secondName } = splitDisplayName(user.name)
+  return joinDisplayName(firstName, secondName) || user.email || 'this user'
+}
+
 const confirmDeleteUser = (user) => {
   openConfirmDialog(
     'Delete User',
-    `Are you sure you want to delete ${user.name}?`,
+    `Are you sure you want to delete ${displayUserName(user)}?`,
     async () => {
       try {
         await deleteUser(user.id)
@@ -293,7 +311,7 @@ const confirmBlockUser = (user) => {
   const actionLabel = nextStatus === 'Block' ? 'block' : 'unblock'
   openConfirmDialog(
     `${nextStatus === 'Block' ? 'Block' : 'Unblock'} User`,
-    `Are you sure you want to ${actionLabel} ${user.name}?`,
+    `Are you sure you want to ${actionLabel} ${displayUserName(user)}?`,
     async () => {
       const payload = {
         name: user.name,
@@ -368,7 +386,7 @@ onMounted(() => {
 }
 
 .card-header h2 {
-  font-size: 1.25rem;
+  font-size: var(--type-section-title);
   font-weight: 700;
   color: var(--app-heading);
   margin: 0;
@@ -395,7 +413,7 @@ thead {
 th {
   padding: 12px 14px;
   text-align: left;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-muted);
   border-bottom: 2px solid var(--app-border-strong);
@@ -417,7 +435,7 @@ tbody tr:hover {
 .badge {
   padding: 6px 14px;
   border-radius: 12px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   display: inline-block;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -450,7 +468,7 @@ tbody tr:hover {
 
 .muted-text {
   color: var(--app-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
 }
 
 .server-list {
@@ -462,7 +480,7 @@ tbody tr:hover {
 .server-pill {
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-accent);
   background: var(--app-accent-soft);
@@ -558,7 +576,7 @@ tbody tr:hover {
 
 .dialog-header h4 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -585,7 +603,7 @@ tbody tr:hover {
 .dialog-text {
   margin: 4px 0 16px;
   color: var(--app-text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--type-base);
 }
 
 .dialog-grid {
@@ -605,7 +623,7 @@ tbody tr:hover {
 }
 
 .dialog-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   font-weight: 500;
 }
@@ -615,7 +633,7 @@ tbody tr:hover {
   border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   background: var(--app-input-bg);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -635,7 +653,7 @@ tbody tr:hover {
   border-radius: 12px;
   border: 1px solid var(--app-border);
   background: var(--app-surface-muted);
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text);
   cursor: pointer;
   transition: all 0.2s ease;

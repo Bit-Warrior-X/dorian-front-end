@@ -88,7 +88,7 @@ const detailRows = computed(() =>
 
 .status-card-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
   line-height: 1.2;
@@ -113,7 +113,7 @@ const detailRows = computed(() =>
 }
 
 .status-detail-label {
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-muted);
   text-transform: uppercase;
@@ -121,7 +121,7 @@ const detailRows = computed(() =>
 }
 
 .status-detail-value {
-  font-size: 0.84rem;
+  font-size: var(--type-base);
   color: var(--app-text-secondary);
   line-height: 1.4;
   word-break: break-word;
@@ -145,7 +145,7 @@ const detailRows = computed(() =>
   justify-content: center;
   border-radius: 10px;
   padding: 7px 12px;
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   line-height: 1.25;
   cursor: pointer;

@@ -875,7 +875,7 @@ const toggleContinent = (continent) => {
 
 .waf-section-card h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -883,7 +883,7 @@ const toggleContinent = (continent) => {
 .waf-section-desc {
   margin: 6px 0 0 0;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 .waf-section-header {
@@ -923,7 +923,7 @@ const toggleContinent = (continent) => {
   border: 1px solid var(--app-border-strong);
   border-radius: 10px;
   padding: 9px 14px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   background: var(--app-surface-solid);
   color: var(--app-text-secondary);
@@ -952,7 +952,7 @@ const toggleContinent = (continent) => {
 .waf-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   min-width: 720px;
   table-layout: fixed;
 }
@@ -977,7 +977,7 @@ const toggleContinent = (continent) => {
 }
 
 .waf-table th {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
@@ -1033,7 +1033,7 @@ const toggleContinent = (continent) => {
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-secondary);
   background: var(--app-surface-hover);
@@ -1080,7 +1080,7 @@ const toggleContinent = (continent) => {
 
 .dialog-header h4 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1093,7 +1093,7 @@ const toggleContinent = (continent) => {
   height: 32px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
 }
 
 .dialog-body {
@@ -1107,7 +1107,7 @@ const toggleContinent = (continent) => {
 .confirm-text {
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--type-base);
 }
 
 .form-field {
@@ -1119,7 +1119,7 @@ const toggleContinent = (continent) => {
 
 .form-field label,
 .field-label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-secondary);
   text-transform: uppercase;
@@ -1135,7 +1135,7 @@ const toggleContinent = (continent) => {
   border: 1px solid var(--app-border-strong);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-heading);
   background: var(--app-surface-solid);
   outline: none;
@@ -1150,14 +1150,14 @@ const toggleContinent = (continent) => {
 
 .field-help {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   line-height: 1.4;
 }
 
 .field-error {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   color: #dc2626;
   font-weight: 600;
 }
@@ -1180,7 +1180,7 @@ const toggleContinent = (continent) => {
   color: var(--app-text-secondary);
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1198,7 +1198,7 @@ const toggleContinent = (continent) => {
 }
 
 .selection-count {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   font-weight: 600;
 }
@@ -1218,13 +1218,13 @@ const toggleContinent = (continent) => {
   color: var(--app-accent);
   border-radius: 999px;
   padding: 4px 10px;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
 }
 
 .chip-remove {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   line-height: 1;
 }
 
@@ -1240,7 +1240,7 @@ const toggleContinent = (continent) => {
   color: var(--app-text-secondary);
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1270,7 +1270,7 @@ const toggleContinent = (continent) => {
   color: var(--app-heading);
   padding: 8px 10px;
   border-radius: 10px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   cursor: pointer;
   text-align: left;
 }
@@ -1296,7 +1296,7 @@ const toggleContinent = (continent) => {
   border-radius: 10px;
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-elevated);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-heading);
 }
 

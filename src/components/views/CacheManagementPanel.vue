@@ -982,7 +982,7 @@ watch(
 
 .content-card h4 {
   margin: 0 0 14px 0;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1002,19 +1002,19 @@ watch(
 .helper-text {
   margin: 0 0 14px 0;
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .field-error {
   margin: 6px 0 0;
   color: #b91c1c;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
 }
 
 .field-hint {
   margin: 6px 0 0;
   color: var(--app-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   line-height: 1.4;
 }
 
@@ -1047,7 +1047,7 @@ watch(
 }
 
 .cache-form-label {
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   font-weight: 500;
   padding-top: 10px;
@@ -1075,7 +1075,7 @@ watch(
   border-radius: 999px;
   border: 1px solid var(--app-border-strong);
   color: var(--app-text-muted);
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   cursor: help;
   flex-shrink: 0;
@@ -1097,7 +1097,7 @@ watch(
   border: 1px solid var(--app-input-border);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -1120,7 +1120,7 @@ watch(
 }
 
 .input-unit {
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-text-secondary);
   white-space: nowrap;
 }
@@ -1143,7 +1143,7 @@ watch(
   background: transparent;
   color: var(--app-text-secondary);
   padding: 6px 12px;
-  font-size: 0.88rem;
+  font-size: var(--type-base);
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
@@ -1192,7 +1192,7 @@ watch(
   background: #1e3a8a;
   color: #fff;
   border: 1px solid #1e3a8a;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   line-height: 1.2;
 }
 
@@ -1200,7 +1200,7 @@ watch(
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -1216,7 +1216,7 @@ watch(
   border: none;
   outline: none;
   background: transparent;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   padding: 4px 2px;
 }
@@ -1262,7 +1262,7 @@ watch(
 
 .combobox-group-label {
   padding: 8px 12px 4px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1275,7 +1275,7 @@ watch(
   gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   cursor: pointer;
   background: transparent;
@@ -1307,14 +1307,14 @@ watch(
 .combobox-empty {
   padding: 10px 12px;
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .checkbox-option {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   cursor: pointer;
   min-height: auto;
@@ -1359,7 +1359,7 @@ watch(
 
 .dialog-header h4 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1396,7 +1396,7 @@ watch(
   color: var(--app-text-secondary);
   border-radius: 8px;
   padding: 8px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -1417,7 +1417,7 @@ watch(
 
 .waf-section-header h4 {
   margin: 0 0 6px 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1425,7 +1425,7 @@ watch(
 .waf-section-desc {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 .header-actions {
@@ -1454,13 +1454,13 @@ watch(
 .cache-table td {
   text-align: left;
   padding: 12px 16px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   border-bottom: 1px solid var(--app-border-strong);
 }
 
 .cache-table th {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
@@ -1469,7 +1469,7 @@ watch(
 
 .target-cell {
   color: var(--app-text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   max-width: 280px;
 }
 
@@ -1492,7 +1492,7 @@ watch(
   background: rgba(34, 197, 94, 0.14);
   color: #15803d;
   border: 1px solid rgba(34, 197, 94, 0.32);
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -1536,7 +1536,7 @@ watch(
 }
 
 .bool-check-empty {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   line-height: 1;
 }
 
@@ -1589,7 +1589,7 @@ watch(
   padding: 18px;
   text-align: center;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 @media (max-width: 640px) {

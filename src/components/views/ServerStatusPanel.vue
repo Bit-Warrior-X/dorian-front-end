@@ -554,7 +554,7 @@ onMounted(() => {
 
 .status-card-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
   line-height: 1.2;
@@ -582,14 +582,14 @@ onMounted(() => {
 
 .metric-label,
 .status-label {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-text-muted);
   font-weight: 600;
 }
 
 .metric-value,
 .status-value {
-  font-size: 0.88rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   text-align: left;
   line-height: 1.35;
@@ -598,7 +598,7 @@ onMounted(() => {
 
 .status-error {
   margin: 4px 0 0;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: #b91c1c;
 }
 
@@ -619,7 +619,7 @@ onMounted(() => {
   align-items: center;
   padding: 3px 8px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-accent);
   background: var(--app-accent-soft);
@@ -644,7 +644,7 @@ onMounted(() => {
   justify-content: center;
   border-radius: 10px;
   padding: 7px 12px;
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   line-height: 1.25;
   cursor: pointer;
@@ -685,7 +685,7 @@ onMounted(() => {
   align-items: center;
   border-radius: 10px;
   padding: 8px 10px;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
 }

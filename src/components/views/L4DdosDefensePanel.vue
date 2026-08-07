@@ -1799,7 +1799,7 @@ watch(
 
 .l4-config-title h5 {
   margin: 0;
-  font-size: 0.98rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1813,7 +1813,7 @@ watch(
 
 .l4-settings-header h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1839,7 +1839,7 @@ watch(
 
 .l4-section h5 {
   margin: 0 0 10px 0;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1868,7 +1868,7 @@ watch(
 }
 
 .selection-count {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   font-weight: 600;
 }
@@ -1887,7 +1887,7 @@ watch(
   border-radius: 999px;
   background: var(--app-accent-soft);
   color: var(--app-accent);
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
 }
 
@@ -1904,7 +1904,7 @@ watch(
   color: var(--app-text-secondary);
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1936,7 +1936,7 @@ watch(
   border-radius: 10px;
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-elevated);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-heading);
 }
 
@@ -1948,7 +1948,7 @@ watch(
 .l4-section-desc {
   margin: -4px 0 12px 0;
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   line-height: 1.5;
 }
 
@@ -1975,7 +1975,7 @@ watch(
 }
 
 .l4-field label {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-muted);
   text-transform: uppercase;
@@ -1990,7 +1990,7 @@ watch(
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-solid);
   color: var(--app-text-muted);
-  font-size: 0.7rem;
+  font-size: var(--type-small);
   font-weight: 700;
   line-height: 1;
   display: inline-flex;
@@ -2009,7 +2009,7 @@ watch(
   border: 1px solid var(--app-border-strong);
   border-radius: 8px;
   padding: 7px 10px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-heading);
   background: var(--app-surface-solid);
   outline: none;
@@ -2045,7 +2045,7 @@ watch(
   padding-top: 14px;
   border-top: 1px dashed rgba(148, 163, 184, 0.5);
   color: var(--app-text-secondary);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   line-height: 1.6;
 }
 
@@ -2054,8 +2054,8 @@ watch(
 }
 
 .l4-description code {
-  font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.85rem;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-caption);
   background: var(--app-surface-hover);
   padding: 2px 6px;
   border-radius: 6px;
@@ -2063,7 +2063,7 @@ watch(
 
 .l4-description-group h5 {
   margin: 6px 0 8px 0;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-heading);
 }
 
@@ -2080,7 +2080,7 @@ watch(
   display: block;
   margin-top: 6px;
   color: var(--app-text-muted);
-  font-size: 0.88rem;
+  font-size: var(--type-base);
 }
 
 .l4-setting {
@@ -2094,7 +2094,7 @@ watch(
 }
 
 .l4-setting-label {
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--app-text-muted);
@@ -2102,7 +2102,7 @@ watch(
 }
 
 .l4-setting-value {
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-heading);
   font-weight: 600;
 }
@@ -2112,7 +2112,7 @@ watch(
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-secondary);
   background: var(--app-surface-hover);

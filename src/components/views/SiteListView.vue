@@ -277,9 +277,9 @@ import {
 } from '@/api/upstreamServers'
 import {
   createEmptyOriginServer,
-  getFilledOriginServers,
   mapUpstreamToOriginServer,
-  toUpstreamPayload,
+  normalizeOriginId,
+  planOriginServerSync,
   validateOriginServers,
 } from '@/utils/originServers'
 import { notifyError, notifySuccess } from '@/utils/notify'
@@ -341,6 +341,7 @@ const emptySiteForm = () => ({
 const newSite = reactive(emptySiteForm())
 const editSite = reactive(emptySiteForm())
 const editOriginInitialIds = ref([])
+let originLoadToken = 0
 
 const filteredSites = computed(() => {
   const domainQuery = filters.domain.trim().toLowerCase()
@@ -535,17 +536,20 @@ const resetNewSiteForm = () => {
 }
 
 const loadOriginServersForEdit = async (siteId) => {
+  const token = ++originLoadToken
   editOriginInitialIds.value = []
   editSite.originServers = [createEmptyOriginServer()]
   if (!siteId) return
   try {
     const data = await fetchUpstreamServers(siteId)
+    if (token !== originLoadToken || editSiteId.value !== siteId) return
     const origins = Array.isArray(data) ? data.map(mapUpstreamToOriginServer) : []
     editSite.originServers = origins.length ? origins : [createEmptyOriginServer()]
     editOriginInitialIds.value = origins
-      .map((origin) => origin.id)
+      .map((origin) => normalizeOriginId(origin.id))
       .filter((id) => id != null)
   } catch (error) {
+    if (token !== originLoadToken || editSiteId.value !== siteId) return
     editSite.originServers = [createEmptyOriginServer()]
     editOriginInitialIds.value = []
     notifyError(SITES_TITLE, error?.message || 'Origin servers could not be loaded.')
@@ -553,22 +557,21 @@ const loadOriginServersForEdit = async (siteId) => {
 }
 
 const syncOriginServers = async (siteId, origins, initialIds = []) => {
-  const list = getFilledOriginServers(origins)
-  const keptIds = new Set(
-    list.map((origin) => origin.id).filter((id) => id != null),
-  )
-  const removedIds = (initialIds || []).filter((id) => !keptIds.has(id))
+  const { removedIds, upserts } = planOriginServerSync(origins, initialIds)
 
   if (removedIds.length) {
     await deleteUpstreamServers(siteId, removedIds)
   }
 
-  for (const origin of list) {
-    const payload = toUpstreamPayload(origin)
-    if (origin.id) {
-      await updateUpstreamServer(siteId, origin.id, payload)
+  for (const item of upserts) {
+    if (item.create) {
+      const created = await createUpstreamServer(siteId, item.payload)
+      const createdId = normalizeOriginId(created?.id)
+      if (createdId != null) {
+        item.origin.id = createdId
+      }
     } else {
-      await createUpstreamServer(siteId, payload)
+      await updateUpstreamServer(siteId, item.id, item.payload)
     }
   }
 }
@@ -648,9 +651,9 @@ const openEditSite = async (site) => {
   applyFormValues(editSite, site)
   serverSearch.value = ''
   isServerDropdownOpen.value = false
-  isEditSiteDialogOpen.value = true
   activeRowMenu.value = null
   await loadOriginServersForEdit(site.id)
+  isEditSiteDialogOpen.value = true
 }
 
 const closeEditSiteDialog = () => {
@@ -833,7 +836,7 @@ onBeforeUnmount(() => {
 
 .card-title h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -848,7 +851,7 @@ onBeforeUnmount(() => {
 
 .filter-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -870,7 +873,7 @@ onBeforeUnmount(() => {
 }
 
 .filter-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   font-weight: 500;
 }
@@ -880,7 +883,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   background: var(--app-input-bg);
   color: var(--app-text);
   outline: none;
@@ -919,13 +922,13 @@ onBeforeUnmount(() => {
 .sites-table td {
   text-align: left;
   padding: 14px 16px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   border-bottom: 1px solid var(--app-border);
 }
 
 .sites-table th {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
@@ -942,7 +945,7 @@ onBeforeUnmount(() => {
 
 .muted-text {
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .site-servers {
@@ -954,7 +957,7 @@ onBeforeUnmount(() => {
 .site-server-pill {
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-accent);
   background: var(--app-accent-soft);
@@ -971,7 +974,7 @@ onBeforeUnmount(() => {
 
 .pagination-info {
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .pagination-controls {
@@ -1000,7 +1003,7 @@ onBeforeUnmount(() => {
 
 .pagination-page {
   color: var(--app-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
 }
 
 .icon-btn {
@@ -1060,7 +1063,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   border: none;
   background: transparent;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 500;
   color: var(--app-text);
   cursor: pointer;
@@ -1124,7 +1127,7 @@ onBeforeUnmount(() => {
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: var(--app-heading);
 }

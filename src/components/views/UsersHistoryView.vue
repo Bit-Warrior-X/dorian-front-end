@@ -3,11 +3,47 @@
     <div class="history-card">
       <div class="card-header">
         <div>
-          <h2>User History</h2>
-          <p class="card-subtitle">Account activity for panel users, newest first.</p>
+          <h2>Audit History</h2>
+          <p class="card-subtitle">
+            Sensitive panel activity including authentication, users, edges, sites, WAF rules, and blocked lists.
+          </p>
         </div>
         <button class="ghost-btn" type="button" :disabled="isLoading" @click="loadHistory">
           {{ isLoading ? 'Refreshing...' : 'Refresh' }}
+        </button>
+      </div>
+
+      <div class="filters">
+        <div class="filter-field">
+          <label for="history-search">Search</label>
+          <input
+            id="history-search"
+            v-model="filters.search"
+            type="search"
+            placeholder="User, email, IP, resource, details..."
+            @keyup.enter="loadHistory"
+          />
+        </div>
+        <div class="filter-field">
+          <label for="history-category">Category</label>
+          <select id="history-category" v-model="filters.category" @change="loadHistory">
+            <option value="">All categories</option>
+            <option v-for="option in categoryOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="history-action">Action</label>
+          <select id="history-action" v-model="filters.action" @change="loadHistory">
+            <option value="">All actions</option>
+            <option v-for="option in actionOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </div>
+        <button class="primary-btn filter-btn" type="button" :disabled="isLoading" @click="loadHistory">
+          Apply
         </button>
       </div>
 
@@ -16,42 +52,48 @@
           <thead>
             <tr>
               <th>Time</th>
-              <th>User</th>
-              <th>Email</th>
-              <th>Event</th>
-              <th>Role</th>
-              <th>Status</th>
+              <th>Actor</th>
+              <th>Action</th>
+              <th>Category</th>
+              <th>Resource</th>
+              <th>IP</th>
+              <th>Details</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in historyEntries" :key="entry.id">
-              <td>{{ formatTime(entry.time) }}</td>
-              <td>{{ entry.name }}</td>
-              <td>{{ entry.email }}</td>
+            <tr v-for="entry in entries" :key="entry.id">
+              <td class="time-cell">{{ formatTime(entry.createdAt) }}</td>
               <td>
-                <span class="badge event">{{ entry.event }}</span>
+                <div class="actor-cell">
+                  <strong>{{ entry.actorName || 'System' }}</strong>
+                  <span v-if="entry.actorEmail" class="actor-email">{{ entry.actorEmail }}</span>
+                  <span v-if="entry.actorRole" class="actor-role">{{ entry.actorRole }}</span>
+                </div>
               </td>
               <td>
-                <span class="badge" :class="entry.role === 'Admin' ? 'admin' : 'user'">
-                  {{ entry.role }}
+                <span class="badge action" :class="actionClass(entry.action)">
+                  {{ formatAction(entry.action) }}
                 </span>
               </td>
               <td>
-                <span
-                  class="badge"
-                  :class="entry.status === 'Active' ? 'active' : entry.status === 'Waiting' ? 'pending' : 'blocked'"
-                >
-                  {{ entry.status }}
-                </span>
+                <span class="badge category">{{ formatCategory(entry.category) }}</span>
               </td>
+              <td>
+                <div class="resource-cell">
+                  <strong>{{ entry.resourceName || '—' }}</strong>
+                  <span v-if="entry.resourceId" class="resource-id">#{{ entry.resourceId }}</span>
+                </div>
+              </td>
+              <td>{{ entry.ipAddress || '—' }}</td>
+              <td class="details-cell">{{ entry.details || '—' }}</td>
             </tr>
           </tbody>
         </table>
-        <div v-if="!isLoading && !historyEntries.length" class="empty-state">
-          No user history available yet.
+        <div v-if="!isLoading && !entries.length" class="empty-state">
+          No audit history matches the current filters.
         </div>
-        <div v-else-if="isLoading && !historyEntries.length" class="empty-state">
-          Loading history...
+        <div v-else-if="isLoading && !entries.length" class="empty-state">
+          Loading audit history...
         </div>
       </div>
     </div>
@@ -59,32 +101,48 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { fetchUsers } from '@/api/users'
+import { onMounted, reactive, ref } from 'vue'
+import { fetchAuditLogs } from '@/api/auditLogs'
 import { notifyError } from '@/utils/notify'
 
-const HISTORY_TITLE = 'User History'
+const HISTORY_TITLE = 'Audit History'
 
-const users = ref([])
+const entries = ref([])
 const isLoading = ref(false)
 
-const historyEntries = computed(() =>
-  [...users.value]
-    .map((user) => ({
-      id: `created-${user.id}`,
-      time: user.created || null,
-      name: user.name || '—',
-      email: user.email || '—',
-      event: 'Account created',
-      role: user.role || 'User',
-      status: user.status || 'Waiting',
-    }))
-    .sort((a, b) => {
-      const aTime = a.time ? new Date(a.time).getTime() : 0
-      const bTime = b.time ? new Date(b.time).getTime() : 0
-      return bTime - aTime
-    }),
-)
+const filters = reactive({
+  search: '',
+  category: '',
+  action: '',
+})
+
+const categoryOptions = [
+  { value: 'auth', label: 'Authentication' },
+  { value: 'user', label: 'Users' },
+  { value: 'edge', label: 'Edges' },
+  { value: 'listening_port', label: 'Listening ports' },
+  { value: 'l4', label: 'L4' },
+  { value: 'site', label: 'Sites' },
+  { value: 'origin', label: 'Origins' },
+  { value: 'cache', label: 'Cache' },
+  { value: 'compress', label: 'Compress' },
+  { value: 'ports', label: 'Ports' },
+  { value: 'waf', label: 'WAF' },
+  { value: 'waf_rule', label: 'WAF rules' },
+  { value: 'blacklist', label: 'Blocked list' },
+]
+
+const actionOptions = [
+  { value: 'login', label: 'Login' },
+  { value: 'login_failed', label: 'Login failed' },
+  { value: 'logout', label: 'Logout' },
+  { value: 'create', label: 'Create' },
+  { value: 'update', label: 'Update' },
+  { value: 'delete', label: 'Delete' },
+  { value: 'batch_delete', label: 'Batch delete' },
+  { value: 'duplicate', label: 'Duplicate' },
+  { value: 'fork', label: 'Fork' },
+]
 
 const formatTime = (value) => {
   if (!value) return '—'
@@ -96,17 +154,67 @@ const formatTime = (value) => {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
   })
+}
+
+const formatAction = (value) => {
+  const map = {
+    login: 'Login',
+    login_failed: 'Login failed',
+    logout: 'Logout',
+    create: 'Create',
+    update: 'Update',
+    delete: 'Delete',
+    batch_delete: 'Batch delete',
+    duplicate: 'Duplicate',
+    fork: 'Fork',
+  }
+  return map[String(value || '').toLowerCase()] || value || '—'
+}
+
+const formatCategory = (value) => {
+  const map = {
+    auth: 'Authentication',
+    user: 'Users',
+    edge: 'Edges',
+    listening_port: 'Listening ports',
+    l4: 'L4',
+    site: 'Sites',
+    origin: 'Origins',
+    cache: 'Cache',
+    compress: 'Compress',
+    ports: 'Ports',
+    waf: 'WAF',
+    waf_rule: 'WAF rules',
+    blacklist: 'Blocked list',
+  }
+  return map[String(value || '').toLowerCase()] || value || '—'
+}
+
+const actionClass = (value) => {
+  const normalized = String(value || '').toLowerCase()
+  if (normalized === 'login') return 'is-login'
+  if (normalized === 'logout') return 'is-logout'
+  if (normalized === 'login_failed') return 'is-failed'
+  if (normalized === 'delete' || normalized === 'batch_delete') return 'is-delete'
+  if (normalized === 'create') return 'is-create'
+  return 'is-update'
 }
 
 const loadHistory = async () => {
   isLoading.value = true
   try {
-    const data = await fetchUsers()
-    users.value = Array.isArray(data) ? data : []
+    const data = await fetchAuditLogs({
+      limit: 300,
+      category: filters.category,
+      action: filters.action,
+      search: filters.search.trim(),
+    })
+    entries.value = Array.isArray(data) ? data : []
   } catch (error) {
-    users.value = []
-    notifyError(HISTORY_TITLE, error?.message || 'Could not load user history.')
+    entries.value = []
+    notifyError(HISTORY_TITLE, error?.message || 'Could not load audit history.')
   } finally {
     isLoading.value = false
   }
@@ -139,11 +247,11 @@ onMounted(() => {
   align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: var(--space-gap-lg, 14px);
+  margin-bottom: 16px;
 }
 
 .card-header h2 {
-  font-size: 1.25rem;
+  font-size: var(--type-section-title);
   font-weight: 700;
   color: var(--app-heading);
   margin: 0 0 4px;
@@ -153,7 +261,43 @@ onMounted(() => {
 .card-subtitle {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
+  max-width: 46rem;
+  line-height: 1.45;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-field label {
+  font-size: var(--type-caption);
+  font-weight: 600;
+  color: var(--app-text-muted);
+}
+
+.filter-field input,
+.filter-field select {
+  border: 1px solid var(--app-input-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: var(--type-base);
+  color: var(--app-text);
+  background: var(--app-input-bg);
+}
+
+.filter-btn {
+  min-height: 42px;
 }
 
 .history-table {
@@ -163,6 +307,7 @@ onMounted(() => {
 table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 980px;
 }
 
 thead {
@@ -172,7 +317,7 @@ thead {
 th {
   padding: 12px 14px;
   text-align: left;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-muted);
   border-bottom: 2px solid var(--app-border-strong);
@@ -184,54 +329,99 @@ td {
   padding: 12px 14px;
   border-bottom: 1px solid var(--app-border-strong);
   color: var(--app-text);
+  vertical-align: top;
 }
 
 tbody tr:hover {
   background: var(--app-surface-hover);
 }
 
-.badge {
-  padding: 6px 14px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  display: inline-block;
+.time-cell {
+  white-space: nowrap;
+  font-size: var(--type-base);
 }
 
-.badge.event {
-  background: var(--app-accent-soft);
+.actor-cell,
+.resource-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actor-cell strong,
+.resource-cell strong {
+  font-size: var(--type-base);
+  color: var(--app-heading);
+}
+
+.actor-email,
+.actor-role,
+.resource-id {
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+}
+
+.details-cell {
+  max-width: 280px;
+  font-size: var(--type-base);
+  line-height: 1.4;
+  color: var(--app-text-secondary);
+}
+
+.badge {
+  padding: 5px 10px;
+  border-radius: var(--badge-radius, 4px);
+  font-size: var(--type-caption);
+  font-weight: 700;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.badge.action.is-login {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.badge.action.is-logout {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+}
+
+.badge.action.is-failed {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+.badge.action.is-create {
+  background: rgba(124, 58, 237, 0.12);
   color: var(--app-accent);
 }
 
-.badge.admin {
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1e40af;
+.badge.action.is-update {
+  background: rgba(217, 119, 6, 0.14);
+  color: #b45309;
 }
 
-.badge.user {
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-  color: #374151;
+.badge.action.is-delete {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
 }
 
-.badge.active {
-  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-  color: #065f46;
-}
-
-.badge.pending {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  color: #92400e;
-}
-
-.badge.blocked {
-  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-  color: #991b1b;
+.badge.category {
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
 }
 
 .empty-state {
   padding: 36px 16px;
   text-align: center;
   color: var(--app-text-muted);
-  font-size: 0.95rem;
+  font-size: var(--type-base);
+}
+
+@media (max-width: 900px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -64,3 +64,12 @@ export const fetchStatusCodeSeries = async (range, serverId = 'all') => {
   const query = params.toString()
   return apiRequest(`/dashboard/status-codes${query ? `?${query}` : ''}`)
 }
+
+export const fetchDashboardTopDomains = async (range, serverId = 'all', siteId = 'all') => {
+  const params = new URLSearchParams()
+  if (range) params.set('range', String(range))
+  if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
+  if (siteId && siteId !== 'all') params.set('siteId', String(siteId))
+  const query = params.toString()
+  return apiRequest(`/dashboard/top-domains${query ? `?${query}` : ''}`)
+}

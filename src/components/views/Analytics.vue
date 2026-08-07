@@ -1,529 +1,441 @@
 <template>
-  <div class="security-analytics-view">
-    <div class="filters-card">
-      <div class="filters-row">
-        <div class="filters-left">
-          <span class="filter-inline-label">Server</span>
-          <select id="security-server" v-model="selectedServer" class="inline-select">
-            <option v-for="server in serverOptions" :key="server.value" :value="server.value">
-              {{ server.label }}
-            </option>
-          </select>
-          <span class="filter-inline-label">Time Range</span>
-          <div class="time-buttons">
-            <button
-              v-for="range in timeRanges"
-              :key="range.value"
-              type="button"
-              class="time-btn"
-              :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
-              @click="selectTimeRange(range.value)"
-            >
-              {{ range.label }}
-            </button>
-            <button
-              type="button"
-              class="time-btn custom-btn"
-              :class="{ active: isCustomRange }"
-              @click="showCustomDialog = true"
-            >
-              Custom
-            </button>
-          </div>
-        </div>
-        <div class="filters-right">
-          <div class="selected-range-group">
-            <span class="selected-range-label">Selected</span>
-            <span class="selected-range-value">{{ selectedRangeLabel }}</span>
-          </div>
-          <button type="button" class="apply-filter-btn" @click="applyFilters">
-            Apply
+  <div class="dashboard-view analytics-view">
+    <header class="dash-topbar">
+      <div class="dash-topbar__left">
+        <h2>Traffic analytics</h2>
+        <p>Edge and server traffic metrics across bandwidth, requests, audience, and HTTP breakdowns.</p>
+      </div>
+      <div class="dash-topbar__right">
+        <AppTopbarActions />
+      </div>
+    </header>
+
+    <div class="dash-filterbar">
+      <div class="dash-filter-field">
+        <label for="analytics-server">Server</label>
+        <select id="analytics-server" v-model="selectedServer" class="dash-select">
+          <option v-for="server in serverOptions" :key="server.value" :value="server.value">
+            {{ server.label }}
+          </option>
+        </select>
+      </div>
+      <div class="dash-filter-field">
+        <label for="analytics-site">Site</label>
+        <select id="analytics-site" v-model="selectedSite" class="dash-select">
+          <option v-for="site in siteOptions" :key="site.value" :value="site.value">
+            {{ site.label }}
+          </option>
+        </select>
+      </div>
+      <div class="dash-filter-field">
+        <label>Time range</label>
+        <div class="dash-range-pills">
+          <button
+            v-for="range in timeRanges"
+            :key="range.value"
+            type="button"
+            class="dash-range-pill"
+            :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
+            @click="selectTimeRange(range.value)"
+          >
+            {{ range.label }}
+          </button>
+          <button
+            type="button"
+            class="dash-range-pill dash-range-pill--custom"
+            :class="{ active: isCustomRange }"
+            @click="showCustomDialog = true"
+          >
+            Custom
           </button>
         </div>
       </div>
+      <div class="dash-filter-summary">
+        <span class="dash-live-dot" aria-hidden="true"></span>
+        {{ selectedRangeLabel }}
+      </div>
+      <button type="button" class="dash-filter-apply" @click="applyFilters">
+        Apply
+      </button>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon warning">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="7" r="3.5"></circle>
-            <path d="M12 11v8"></path>
-            <path d="M8.5 15.5L12 19l3.5-3.5"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>RX Bandwidth of NIC (Last)</h3>
-          <p class="stat-value">{{ statsDisplay.nicRxBandwidthLast }}</p>
-          <p class="stat-subvalue">{{ statsDisplay.nicRxBandwidthLastTime }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon warning">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="7" r="3.5"></circle>
-            <path d="M12 11v8"></path>
-            <path d="M9 15l3 4 3-4"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>RX Bandwidth of L7 (Last)</h3>
-          <p class="stat-value">{{ statsDisplay.l7RxBandwidthLast }} </p>
-          <p class="stat-subvalue">{{ statsDisplay.l7RxBandwidthLastTime }} </p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon security">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="7" r="3.5"></circle>
-            <path d="M12 11v8"></path>
-            <path d="M8.5 15.5L12 19l3.5-3.5"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>RX Traffic of NIC/L7</h3>
-          <p class="stat-value">{{ statsDisplay.totalNicRxTraffic }} / {{ statsDisplay.totalL7RxTraffic }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon security">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="17" r="3.5"></circle>
-            <path d="M12 13V5"></path>
-            <path d="M8.5 8.5L12 5l3.5 3.5"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>TX Traffic of NIC/L7</h3>
-          <p class="stat-value">{{ statsDisplay.totalNicTxTraffic }} / {{ statsDisplay.totalL7TxTraffic }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon warning">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="17" r="3.5"></circle>
-            <path d="M12 13V5"></path>
-            <path d="M9 8l3-3 3 3"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>TX Bandwidth of NIC (Last)</h3>
-          <p class="stat-value">{{ statsDisplay.nicTxBandwidthLast }} </p>
-          <p class="stat-subvalue">{{ statsDisplay.nicTxBandwidthLastTime }} </p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon warning">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="17" r="3.5"></circle>
-            <path d="M12 13V5"></path>
-            <path d="M8.5 8.5L12 5l3.5 3.5"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>TX Bandwidth of L7 (Last)</h3>
-          <p class="stat-value">{{ statsDisplay.l7TxBandwidthLast }} </p>
-          <p class="stat-subvalue">{{ statsDisplay.l7TxBandwidthLastTime }} </p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon success">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 19h16"></path>
-            <path d="M6 15l3-3 3 3 6-8"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Total Request</h3>
-          <p class="stat-value">{{ statsDisplay.totalRequest }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon security">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="4" y="4" width="16" height="16" rx="2"></rect>
-            <path d="M8 12h8"></path>
-            <path d="M12 8v8"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Total Response</h3>
-          <p class="stat-value">{{ statsDisplay.totalResponse }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon warning">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="8" r="4"></circle>
-            <path d="M4 20c1.5-3 4-4.5 8-4.5s6.5 1.5 8 4.5"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>IP Count</h3>
-          <p class="stat-value">{{ statsDisplay.ipCount }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon success">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 5h18"></path>
-            <path d="M3 12h12"></path>
-            <path d="M3 19h8"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Referer</h3>
-          <p class="stat-value">{{ statsDisplay.referer }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon security">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="7" cy="7" r="3"></circle>
-            <circle cx="17" cy="7" r="3"></circle>
-            <circle cx="7" cy="17" r="3"></circle>
-            <circle cx="17" cy="17" r="3"></circle>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>ISP Count</h3>
-          <p class="stat-value">{{ statsDisplay.ispCount }}</p>
-        </div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>Bandwidth by Time</h3>
-          <p>RX bandwidth trend based on selected range for NIC / L7</p>
-        </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="rxBandwidthChart"></div>
-      </div>
-      <div class="bandwidth-header">
-        <div>
-          <p>TX bandwidth trend based on selected range for NIC / L7</p>
-        </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="txBandwidthChart"></div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>Traffic by Time</h3>  
-          <p>NIC / L7 RX traffic trend based on selected range</p>
-        </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="rxTrafficChart"></div>
-      </div>
-      <div class="bandwidth-header">
-        <div>
-          <p>NIC / L7 TX traffic trend based on selected range</p>
-        </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="txTrafficChart"></div>
-      </div>
-    </div>
-    
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>Request / Response by Time</h3>
-          <p>Request and response trend based on selected range</p>
-        </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="requestResponseChart"></div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>Status Code by Time</h3>
-          <p>Status code trend based on selected range</p>
-        </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="statusCodeChart"></div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>Status Code Summary</h3>
-          <p>Pie distribution and table summary</p>
-        </div>
-      </div>
-      <div class="ip-table-layout">
-        <div class="table-card table-card--compact">
-          <div class="table-title">Status Codes (Pie)</div>
-          <div class="top-ips-pie">
-            <div ref="statusCodePieChart"></div>
+
+    <nav class="dash-tabbar" aria-label="Analytics sections">
+      <button
+        v-for="tab in analyticsTabs"
+        :key="tab.id"
+        type="button"
+        class="dash-tab"
+        :class="{ active: activeTab === tab.id }"
+        @click="activeTab = tab.id"
+      >
+        {{ tab.label }}
+      </button>
+    </nav>
+
+    <div v-show="activeTab === 'bandwidth'" class="analytics-tab-panel">
+      <section class="dash-metrics">
+        <article v-for="metric in bandwidthMetricCards" :key="metric.label" class="dash-metric-card">
+          <div class="dash-metric-label">{{ metric.label }}</div>
+          <div class="dash-metric-value num">{{ metric.value }}</div>
+          <div v-if="metric.sub" class="dash-metric-delta">{{ metric.sub }}</div>
+        </article>
+      </section>
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Bandwidth by Time</h3>
+              <p class="dash-panel-desc">RX bandwidth trend based on selected range for NIC / L7</p>
+            </div>
+          </div>
+          <div class="dash-chart-wrap">
+            <div ref="rxBandwidthChart"></div>
+          </div>
+          <p class="dash-panel-desc">TX bandwidth trend based on selected range for NIC / L7</p>
+          <div class="dash-chart-wrap">
+            <div ref="txBandwidthChart"></div>
           </div>
         </div>
-        <div class="table-card table-card--compact">
-          <div class="table-title">Status Codes</div>
-          <div class="table-wrap">
-            <table class="ip-table">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Count</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in statusCodeRows" :key="row.code">
-                  <td>{{ row.code }}</td>
-                  <td>{{ row.count }}</td>
-                  <td>{{ row.rate }}</td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Traffic by Time</h3>
+              <p class="dash-panel-desc">NIC / L7 RX traffic trend based on selected range</p>
+            </div>
+          </div>
+          <div class="dash-chart-wrap">
+            <div ref="rxTrafficChart"></div>
+          </div>
+          <p class="dash-panel-desc">NIC / L7 TX traffic trend based on selected range</p>
+          <div class="dash-chart-wrap">
+            <div ref="txTrafficChart"></div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>IP Count by Time</h3>
-          <p>Unique IP count trend based on selected range</p>
+
+    <div v-show="activeTab === 'requests'" class="analytics-tab-panel">
+      <section class="dash-metrics">
+        <article v-for="metric in requestsMetricCards" :key="metric.label" class="dash-metric-card">
+          <div class="dash-metric-label">{{ metric.label }}</div>
+          <div class="dash-metric-value num">{{ metric.value }}</div>
+        </article>
+      </section>
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Request / Response by Time</h3>
+              <p class="dash-panel-desc">Request and response trend based on selected range</p>
+            </div>
+          </div>
+          <div class="dash-chart-wrap">
+            <div ref="requestResponseChart"></div>
+          </div>
         </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="ipCountChart"></div>
-      </div>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Status Code by Time</h3>
+              <p class="dash-panel-desc">Status code trend based on selected range</p>
+            </div>
+          </div>
+          <div class="dash-chart-wrap">
+            <div ref="statusCodeChart"></div>
+          </div>
+        </div>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Status Code Summary</h3>
+              <p class="dash-panel-desc">Pie distribution and table summary</p>
+            </div>
+          </div>
+          <div class="ip-table-layout">
+            <div class="table-card table-card--compact">
+              <div class="table-title">Status Codes (Pie)</div>
+              <div class="top-ips-pie">
+                <div ref="statusCodePieChart"></div>
+              </div>
+            </div>
+            <div class="table-card table-card--compact">
+              <div class="table-title">Status Codes</div>
+              <div class="table-wrap">
+                <table class="ip-table">
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Count</th>
+                      <th>Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in statusCodeRows" :key="row.code">
+                      <td>{{ row.code }}</td>
+                      <td>{{ row.count }}</td>
+                      <td>{{ row.rate }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>Top IPs</h3>
-          <p>Pie distribution and table summary</p>
-        </div>
-      </div>
-      <div class="ip-table-layout">
-        <div class="table-card table-card--compact">
-          <div class="table-title">Top IPs (Pie)</div>
-          <div class="top-ips-pie">
-            <div ref="topIpsPieChart"></div>
+
+    <div v-show="activeTab === 'audience'" class="analytics-tab-panel">
+      <section class="dash-metrics">
+        <article v-for="metric in audienceMetricCards" :key="metric.label" class="dash-metric-card">
+          <div class="dash-metric-label">{{ metric.label }}</div>
+          <div class="dash-metric-value num">{{ metric.value }}</div>
+        </article>
+      </section>
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>IP Count by Time</h3>
+              <p class="dash-panel-desc">Unique IP count trend based on selected range</p>
+            </div>
+          </div>
+          <div class="dash-chart-wrap">
+            <div ref="ipCountChart"></div>
           </div>
         </div>
-        <div class="table-card table-card--compact">
-          <div class="table-title">Top IPs</div>
-          <div class="table-wrap">
-            <table class="ip-table">
-              <thead>
-                <tr>
-                  <th>IP</th>
-                  <th>Requests</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in ipTableRows" :key="row.ip">
-                  <td>{{ row.ip }}</td>
-                  <td>{{ row.requests }}</td>
-                  <td>{{ row.rate }}</td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Top IPs</h3>
+              <p class="dash-panel-desc">Pie distribution and table summary</p>
+            </div>
+          </div>
+          <div class="ip-table-layout">
+            <div class="table-card table-card--compact">
+              <div class="table-title">Top IPs (Pie)</div>
+              <div class="top-ips-pie">
+                <div ref="topIpsPieChart"></div>
+              </div>
+            </div>
+            <div class="table-card table-card--compact">
+              <div class="table-title">Top IPs</div>
+              <div class="table-wrap">
+                <table class="ip-table">
+                  <thead>
+                    <tr>
+                      <th>IP</th>
+                      <th>Requests</th>
+                      <th>Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in ipTableRows" :key="row.ip">
+                      <td>{{ row.ip }}</td>
+                      <td>{{ row.requests }}</td>
+                      <td>{{ row.rate }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>ISP Summary</h3>
+              <p class="dash-panel-desc">Pie distribution and table summary</p>
+            </div>
+          </div>
+          <div class="ip-table-layout">
+            <div class="table-card table-card--compact">
+              <div class="table-title">ISP (Pie)</div>
+              <div class="top-ips-pie">
+                <div ref="ispPieChart"></div>
+              </div>
+            </div>
+            <div class="table-card table-card--compact">
+              <div class="table-title">ISP</div>
+              <div class="table-wrap">
+                <table class="ip-table">
+                  <thead>
+                    <tr>
+                      <th>ISP</th>
+                      <th>Requests</th>
+                      <th>Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in ispTableRows" :key="row.isp">
+                      <td>{{ row.isp }}</td>
+                      <td>{{ row.requests }}</td>
+                      <td>{{ row.rate }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Referer Summary</h3>
+              <p class="dash-panel-desc">Pie distribution and table summary</p>
+            </div>
+          </div>
+          <div class="ip-table-layout">
+            <div class="table-card table-card--compact">
+              <div class="table-title">Referer (Pie)</div>
+              <div class="top-ips-pie">
+                <div ref="refererPieChart"></div>
+              </div>
+            </div>
+            <div class="table-card table-card--compact">
+              <div class="table-title">Referer</div>
+              <div class="table-wrap">
+                <table class="ip-table">
+                  <thead>
+                    <tr>
+                      <th>Referer</th>
+                      <th>Requests</th>
+                      <th>Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in refererTableRows" :key="row.referer">
+                      <td>{{ row.referer }}</td>
+                      <td>{{ row.requests }}</td>
+                      <td>{{ row.rate }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Requests by Country</h3>
+              <p class="dash-panel-desc">World map with request counts by country</p>
+            </div>
+          </div>
+          <div class="world-map">
+            <SvgMap :map="world" :location-attributes="mapLocationAttributes" />
+            <div
+              v-if="hoveredCountry"
+              class="map-tooltip"
+              :style="{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y}px` }"
+            >
+              {{ hoveredCountry }}
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>ISP Summary</h3>
-          <p>Pie distribution and table summary</p>
-        </div>
-      </div>
-      <div class="ip-table-layout">
-        <div class="table-card table-card--compact">
-          <div class="table-title">ISP (Pie)</div>
-          <div class="top-ips-pie">
-            <div ref="ispPieChart"></div>
+
+    <div v-show="activeTab === 'http'" class="analytics-tab-panel">
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>HTTP Method Summary</h3>
+              <p class="dash-panel-desc">Pie distribution and table summary</p>
+            </div>
+          </div>
+          <div class="ip-table-layout">
+            <div class="table-card table-card--compact">
+              <div class="table-title">Methods (Pie)</div>
+              <div class="top-ips-pie">
+                <div ref="methodPieChart"></div>
+              </div>
+            </div>
+            <div class="table-card table-card--compact">
+              <div class="table-title">HTTP Methods</div>
+              <div class="table-wrap">
+                <table class="ip-table">
+                  <thead>
+                    <tr>
+                      <th>Method</th>
+                      <th>Requests</th>
+                      <th>Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in methodTableRows" :key="row.method">
+                      <td>{{ row.method }}</td>
+                      <td>{{ row.requests }}</td>
+                      <td>{{ row.rate }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="table-card table-card--compact">
-          <div class="table-title">ISP</div>
-          <div class="table-wrap">
-            <table class="ip-table">
-              <thead>
-                <tr>
-                  <th>ISP</th>
-                  <th>Requests</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in ispTableRows" :key="row.isp">
-                  <td>{{ row.isp }}</td>
-                  <td>{{ row.requests }}</td>
-                  <td>{{ row.rate }}</td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>HTTP Method by Time</h3>
+              <p class="dash-panel-desc">Method trend based on selected range</p>
+            </div>
+          </div>
+          <div class="dash-chart-wrap">
+            <div ref="methodChart"></div>
           </div>
         </div>
-      </div>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>HTTP Protocol Summary</h3>
+              <p class="dash-panel-desc">Pie distribution and table summary</p>
+            </div>
+          </div>
+          <div class="ip-table-layout">
+            <div class="table-card table-card--compact">
+              <div class="table-title">Protocols (Pie)</div>
+              <div class="top-ips-pie">
+                <div ref="protocolPieChart"></div>
+              </div>
+            </div>
+            <div class="table-card table-card--compact">
+              <div class="table-title">HTTP Protocols</div>
+              <div class="table-wrap">
+                <table class="ip-table">
+                  <thead>
+                    <tr>
+                      <th>Protocol</th>
+                      <th>Requests</th>
+                      <th>Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="row in protocolTableRows" :key="row.protocol">
+                      <td>{{ row.protocol }}</td>
+                      <td>{{ row.requests }}</td>
+                      <td>{{ row.rate }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>HTTP Protocol by Time</h3>
+              <p class="dash-panel-desc">Protocol trend based on selected range</p>
+            </div>
+          </div>
+          <div class="dash-chart-wrap">
+            <div ref="protocolChart"></div>
+          </div>
+        </div>
+      </section>
     </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>Referer Summary</h3>
-          <p>Pie distribution and table summary</p>
-        </div>
-      </div>
-      <div class="ip-table-layout">
-        <div class="table-card table-card--compact">
-          <div class="table-title">Referer (Pie)</div>
-          <div class="top-ips-pie">
-            <div ref="refererPieChart"></div>
-          </div>
-        </div>
-        <div class="table-card table-card--compact">
-          <div class="table-title">Referer</div>
-          <div class="table-wrap">
-            <table class="ip-table">
-              <thead>
-                <tr>
-                  <th>Referer</th>
-                  <th>Requests</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in refererTableRows" :key="row.referer">
-                  <td>{{ row.referer }}</td>
-                  <td>{{ row.requests }}</td>
-                  <td>{{ row.rate }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>HTTP Method Summary</h3>
-          <p>Pie distribution and table summary</p>
-        </div>
-      </div>
-      <div class="ip-table-layout">
-        <div class="table-card table-card--compact">
-          <div class="table-title">Methods (Pie)</div>
-          <div class="top-ips-pie">
-            <div ref="methodPieChart"></div>
-          </div>
-        </div>
-        <div class="table-card table-card--compact">
-          <div class="table-title">HTTP Methods</div>
-          <div class="table-wrap">
-            <table class="ip-table">
-              <thead>
-                <tr>
-                  <th>Method</th>
-                  <th>Requests</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in methodTableRows" :key="row.method">
-                  <td>{{ row.method }}</td>
-                  <td>{{ row.requests }}</td>
-                  <td>{{ row.rate }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>HTTP Method by Time</h3>
-          <p>Method trend based on selected range</p>
-        </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="methodChart"></div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>HTTP Protocol Summary</h3>
-          <p>Pie distribution and table summary</p>
-        </div>
-      </div>
-      <div class="ip-table-layout">
-        <div class="table-card table-card--compact">
-          <div class="table-title">Protocols (Pie)</div>
-          <div class="top-ips-pie">
-            <div ref="protocolPieChart"></div>
-          </div>
-        </div>
-        <div class="table-card table-card--compact">
-          <div class="table-title">HTTP Protocols</div>
-          <div class="table-wrap">
-            <table class="ip-table">
-              <thead>
-                <tr>
-                  <th>Protocol</th>
-                  <th>Requests</th>
-                  <th>Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in protocolTableRows" :key="row.protocol">
-                  <td>{{ row.protocol }}</td>
-                  <td>{{ row.requests }}</td>
-                  <td>{{ row.rate }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>HTTP Protocol by Time</h3>
-          <p>Protocol trend based on selected range</p>
-        </div>
-      </div>
-      <div class="bandwidth-chart">
-        <div ref="protocolChart"></div>
-      </div>
-    </div>
-    <div class="bandwidth-card">
-      <div class="bandwidth-header">
-        <div>
-          <h3>Requests by Country</h3>
-          <p>World map with request counts by country</p>
-        </div>
-      </div>
-      <div class="world-map">
-        <SvgMap :map="world" :location-attributes="mapLocationAttributes" />
-        <div
-          v-if="hoveredCountry"
-          class="map-tooltip"
-          :style="{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y}px` }"
-        >
-          {{ hoveredCountry }}
-        </div>
-      </div>
-    </div>
+
     <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
       <div class="dialog-content">
         <div class="dialog-header">
@@ -565,11 +477,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import ApexCharts from 'apexcharts'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
+import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { fetchServers } from '@/api/servers'
+import { fetchSites } from '@/api/sites'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
 import { notifyError } from '@/utils/notify'
 
@@ -605,48 +519,120 @@ const pieEmptyColor = () => (isDarkTheme() ? '#2a2a2a' : '#e2e8f0')
 
 const pieSliceStrokeColor = () => (isDarkTheme() ? '#0a0a0a' : '#ffffff')
 
-const PIE_COLORS_TOP_IPS = [
-  '#8b5cf6',
-  '#f59e0b',
-  '#22c55e',
-  '#ef4444',
-  '#38bdf8',
-  '#ec4899',
-  '#14b8a6',
+const pieCenterValueColor = () => {
+  if (typeof document === 'undefined') return '#f1f5f9'
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue('--app-heading').trim() ||
+    '#f1f5f9'
+  )
+}
+
+/** Brand chart colors from dorian-brand (Viper / L4 / L7 / Gold / Warn / Danger). */
+const CHART_COLORS = {
+  viper: '#3FBD85',
+  viperDeep: '#2E9E6C',
+  l4: '#5B9DF0',
+  l7: '#B08CF0',
+  gold: '#C9A24A',
+  warn: '#E0A83F',
+  danger: '#E15241',
+  success: '#4FBD7A',
+  muted: '#8B978F',
+}
+
+const PIE_PALETTE = [
+  CHART_COLORS.viper,
+  CHART_COLORS.l4,
+  CHART_COLORS.gold,
+  CHART_COLORS.danger,
+  CHART_COLORS.l7,
+  CHART_COLORS.warn,
+  CHART_COLORS.success,
+  CHART_COLORS.viperDeep,
+  CHART_COLORS.muted,
+  '#5B6560',
+  '#333F38',
+  '#171F1B',
 ]
 
-const PIE_COLORS_STATUS = [
-  '#8b5cf6',
-  '#f59e0b',
-  '#22c55e',
-  '#ef4444',
-  '#3b82f6',
-  '#06b6d4',
-  '#ec4899',
-  '#84cc16',
-  '#f97316',
-  '#e11d48',
-  '#a855f7',
-  '#64748b',
-  '#14b8a6',
-  '#dc2626',
-  '#2563eb',
-  '#0f766e',
+const LINE_SERIES_PALETTE = [
+  CHART_COLORS.viper,
+  CHART_COLORS.l4,
+  CHART_COLORS.l7,
+  CHART_COLORS.gold,
+  CHART_COLORS.warn,
+  CHART_COLORS.danger,
+  CHART_COLORS.success,
+  CHART_COLORS.muted,
 ]
 
-const PIE_COLORS_ISP = ['#22c55e', '#f59e0b', '#8b5cf6', '#38bdf8', '#ef4444']
-const PIE_COLORS_REFERER = ['#3b82f6', '#f59e0b', '#8b5cf6', '#22c55e', '#ef4444']
-const PIE_COLORS_METHOD = [
-  '#2563eb',
-  '#16a34a',
-  '#ef4444',
-  '#f59e0b',
-  '#0ea5e9',
-  '#8b5cf6',
-  '#22c55e',
-  '#64748b',
+const STATUS_SERIES_COLORS = [
+  CHART_COLORS.success,
+  CHART_COLORS.l4,
+  CHART_COLORS.warn,
+  CHART_COLORS.danger,
 ]
-const PIE_COLORS_PROTOCOL = ['#8b5cf6', '#f59e0b', '#22c55e', '#3b82f6', '#ef4444']
+
+const formatPieTotal = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '0'
+  if (numeric >= 1_000_000_000) return `${(numeric / 1_000_000_000).toFixed(1)}B`
+  if (numeric >= 1_000_000) return `${(numeric / 1_000_000).toFixed(1)}M`
+  if (numeric >= 10_000) return `${(numeric / 1_000).toFixed(1)}K`
+  return numeric.toLocaleString()
+}
+
+const getDonutCenterElements = (w) => {
+  const root = w?.globals?.dom?.baseEl
+  if (!root) return { elLabel: null, elValue: null }
+  return {
+    elLabel: root.querySelector('.apexcharts-datalabel-label'),
+    elValue: root.querySelector('.apexcharts-datalabel-value'),
+  }
+}
+
+const setDonutCenterLabels = (w, nameText, valueText) => {
+  const { elLabel, elValue } = getDonutCenterElements(w)
+  if (elLabel) {
+    elLabel.textContent = nameText
+    elLabel.style.fill = chartLabelColor()
+  }
+  if (elValue) {
+    elValue.textContent = valueText
+    elValue.style.fill = pieCenterValueColor()
+  }
+}
+
+const updateDonutCenterForSlice = (w, index, labels, series, hasData) => {
+  if (!hasData || !w) return
+  const label = labels[index] ?? 'Unknown'
+  const value = Number(series[index] ?? 0)
+  const total = series.reduce((sum, entry) => sum + Number(entry ?? 0), 0)
+  const pct = total ? ((value / total) * 100).toFixed(1) : '0.0'
+  setDonutCenterLabels(w, label, `${formatPieTotal(value)} (${pct}%)`)
+}
+
+const resetDonutCenterToTotal = (w, series, hasData) => {
+  if (!w) return
+  if (!hasData) {
+    setDonutCenterLabels(w, 'No data', '—')
+    return
+  }
+  const total = series.reduce((sum, entry) => sum + Number(entry ?? 0), 0)
+  setDonutCenterLabels(w, 'Total', formatPieTotal(total))
+}
+
+const buildPieChartEvents = (labels, series, hasData) => ({
+  dataPointMouseEnter(_event, _ctx, config) {
+    updateDonutCenterForSlice(config.w, config.dataPointIndex, labels, series, hasData)
+  },
+  dataPointMouseLeave(_event, _ctx, config) {
+    resetDonutCenterToTotal(config.w, series, hasData)
+  },
+  dataPointSelection(_event, _ctx, config) {
+    updateDonutCenterForSlice(config.w, config.dataPointIndex, labels, series, hasData)
+  },
+})
 
 const PIE_BOX_HEIGHT = 208
 const PIE_CHART_MIN_HEIGHT = 120
@@ -664,26 +650,46 @@ const getPieChartHeight = (mountEl) => {
   return PIE_CHART_DEFAULT_HEIGHT
 }
 
-const buildPieChartOptions = (labels, series, hasData, palette, mountEl) => {
+const buildPieChartOptions = (labels, series, hasData, mountEl) => {
   const safeLabels = hasData ? labels : ['No data']
   const safeSeries = hasData ? series : [1]
-  const colors = hasData ? palette : [pieEmptyColor()]
+  const colors = hasData ? PIE_PALETTE : [pieEmptyColor()]
   const chartHeight = getPieChartHeight(mountEl)
+  const labelColor = chartLabelColor()
+  const centerColor = pieCenterValueColor()
 
   return {
     safeLabels,
     safeSeries,
+    hasData,
     chartHeight,
     options: {
       chart: {
-        foreColor: chartLabelColor(),
-        type: 'pie',
+        foreColor: labelColor,
+        type: 'donut',
         height: chartHeight,
         width: '100%',
         toolbar: { show: false },
         background: 'transparent',
         offsetX: 0,
         offsetY: 0,
+        events: buildPieChartEvents(safeLabels, safeSeries, hasData),
+        animations: {
+          enabled: true,
+          easing: 'easeinout',
+          speed: 450,
+          animateGradually: {
+            enabled: true,
+            delay: 80,
+          },
+        },
+        dropShadow: {
+          enabled: true,
+          top: 2,
+          left: 0,
+          blur: 6,
+          opacity: isDarkTheme() ? 0.18 : 0.08,
+        },
       },
       labels: safeLabels,
       series: safeSeries,
@@ -692,7 +698,7 @@ const buildPieChartOptions = (labels, series, hasData, palette, mountEl) => {
       dataLabels: { enabled: false },
       stroke: {
         show: true,
-        width: 1,
+        width: 3,
         colors: [pieSliceStrokeColor()],
       },
       plotOptions: {
@@ -700,9 +706,42 @@ const buildPieChartOptions = (labels, series, hasData, palette, mountEl) => {
           expandOnClick: false,
           offsetX: 0,
           offsetY: 0,
-          customScale: 1,
-          dataLabels: {
-            offset: 0,
+          customScale: 0.96,
+          donut: {
+            size: '70%',
+            background: 'transparent',
+            labels: {
+              show: true,
+              name: {
+                show: hasData,
+                fontSize: '11px',
+                fontWeight: 500,
+                color: labelColor,
+                offsetY: -8,
+                formatter: (name, isTotal) => (isTotal ? name : name),
+              },
+              value: {
+                show: hasData,
+                fontSize: '17px',
+                fontWeight: 700,
+                color: centerColor,
+                offsetY: 4,
+                formatter: (val) => formatPieTotal(val),
+              },
+              total: {
+                show: true,
+                showAlways: false,
+                label: hasData ? 'Total' : 'No data',
+                fontSize: '11px',
+                fontWeight: 500,
+                color: labelColor,
+                formatter: (w) => {
+                  if (!hasData) return '—'
+                  const total = w.globals.seriesTotals.reduce((sum, value) => sum + value, 0)
+                  return formatPieTotal(total)
+                },
+              },
+            },
           },
         },
       },
@@ -710,18 +749,25 @@ const buildPieChartOptions = (labels, series, hasData, palette, mountEl) => {
         hover: {
           filter: {
             type: 'lighten',
+            value: 0.08,
           },
         },
         active: {
           filter: {
             type: 'darken',
+            value: 0.12,
           },
         },
       },
       tooltip: {
         theme: chartTooltipTheme(),
+        fillSeriesColor: false,
         y: {
-          formatter: (val) => `${Math.round(val)}`,
+          formatter: (val, { w }) => {
+            const total = w.globals.seriesTotals.reduce((sum, value) => sum + value, 0)
+            const pct = total ? ((val / total) * 100).toFixed(1) : '0.0'
+            return `${Math.round(val).toLocaleString()} (${pct}%)`
+          },
         },
       },
     },
@@ -733,6 +779,7 @@ const pieChartPatchOptions = (built, chartHeight) => ({
     foreColor: chartLabelColor(),
     height: chartHeight,
     width: '100%',
+    events: built.options.chart.events,
   },
   labels: built.safeLabels,
   colors: built.options.colors,
@@ -751,10 +798,13 @@ const updatePieChartInstance = (instance, el, built) => {
     if (current) {
       current.updateOptions(pieChartPatchOptions(built, chartHeight), false, true)
       current.updateSeries(built.safeSeries, true)
+      nextTick(() => resetDonutCenterToTotal(current.w, built.safeSeries, built.hasData))
       return current
     }
     const chart = new ApexCharts(el, built.options)
-    chart.render()
+    chart.render().then(() => {
+      resetDonutCenterToTotal(chart.w, built.safeSeries, built.hasData)
+    })
     return chart
   }
 
@@ -787,7 +837,17 @@ const rerenderAllCharts = () => {
   renderProtocolPie()
 }
 
+const activeTab = ref('bandwidth')
+
+const analyticsTabs = [
+  { id: 'bandwidth', label: 'Bandwidth & Traffic' },
+  { id: 'requests', label: 'Requests & Status' },
+  { id: 'audience', label: 'Audience' },
+  { id: 'http', label: 'HTTP' },
+]
+
 const selectedServer = ref('all')
+const selectedSite = ref('all')
 const selectedTimeRange = ref('1h')
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
@@ -796,6 +856,7 @@ const customEndDate = ref(null)
 const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
+  site: 'all',
   range: '1h',
   isCustom: false,
   customStart: '',
@@ -926,18 +987,36 @@ const mapLocationAttributes = (location) => {
 }
 
 const colorFromRate = (ratio) => {
-  if (ratio >= 0.8) return '#ef4444'
-  if (ratio >= 0.6) return '#f97316'
-  if (ratio >= 0.4) return '#f59e0b'
-  if (ratio >= 0.2) return '#22c55e'
-  return '#60a5fa'
+  if (ratio >= 0.8) return CHART_COLORS.danger
+  if (ratio >= 0.6) return CHART_COLORS.warn
+  if (ratio >= 0.4) return CHART_COLORS.gold
+  if (ratio >= 0.2) return CHART_COLORS.success
+  return CHART_COLORS.l4
 }
 
 const servers = ref([])
+const sites = ref([])
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
   ...servers.value.map((server) => ({ label: server.name || `Server ${server.id}`, value: server.id })),
 ])
+const siteOptions = computed(() => {
+  let list = sites.value
+  if (selectedServer.value !== 'all') {
+    const serverId = Number(selectedServer.value)
+    list = list.filter(
+      (site) =>
+        Array.isArray(site.serverIds) && site.serverIds.some((id) => Number(id) === serverId),
+    )
+  }
+  return [
+    { label: 'All Sites', value: 'all' },
+    ...list.map((site) => ({
+      label: site.domain || `Site ${site.id}`,
+      value: String(site.id),
+    })),
+  ]
+})
 
 const formatNumber = (value) => {
   const numeric = Number(value)
@@ -1023,6 +1102,35 @@ const statsDisplay = computed(() => ({
   ispCount: formatNumber(analyticsStats.value.ispCount),
 }))
 
+const bandwidthMetricCards = computed(() => {
+  const s = statsDisplay.value
+  return [
+    { label: 'RX Bandwidth of NIC (Last)', value: s.nicRxBandwidthLast, sub: s.nicRxBandwidthLastTime },
+    { label: 'RX Bandwidth of L7 (Last)', value: s.l7RxBandwidthLast, sub: s.l7RxBandwidthLastTime },
+    { label: 'TX Bandwidth of NIC (Last)', value: s.nicTxBandwidthLast, sub: s.nicTxBandwidthLastTime },
+    { label: 'TX Bandwidth of L7 (Last)', value: s.l7TxBandwidthLast, sub: s.l7TxBandwidthLastTime },
+    { label: 'RX Traffic of NIC / L7', value: `${s.totalNicRxTraffic} / ${s.totalL7RxTraffic}` },
+    { label: 'TX Traffic of NIC / L7', value: `${s.totalNicTxTraffic} / ${s.totalL7TxTraffic}` },
+  ]
+})
+
+const requestsMetricCards = computed(() => {
+  const s = statsDisplay.value
+  return [
+    { label: 'Total Request', value: s.totalRequest },
+    { label: 'Total Response', value: s.totalResponse },
+  ]
+})
+
+const audienceMetricCards = computed(() => {
+  const s = statsDisplay.value
+  return [
+    { label: 'IP Count', value: s.ipCount },
+    { label: 'Referer', value: s.referer },
+    { label: 'ISP Count', value: s.ispCount },
+  ]
+})
+
 const selectedRangeLabel = computed(() => {
   if (isCustomRange.value) {
     if (customStartDate.value && customEndDate.value) {
@@ -1061,6 +1169,7 @@ const applyCustomRange = () => {
 const applyFilters = () => {
   appliedFilters.value = {
     server: selectedServer.value,
+    site: selectedSite.value,
     range: selectedTimeRange.value,
     isCustom: isCustomRange.value,
     customStart: isCustomRange.value ? formatDateInput(customStartDate.value) : '',
@@ -1129,6 +1238,16 @@ const loadServers = async () => {
   } catch (error) {
     console.error('Failed to load servers', error)
     servers.value = []
+  }
+}
+
+const loadSites = async () => {
+  try {
+    const list = await fetchSites()
+    sites.value = Array.isArray(list) ? list : []
+  } catch (error) {
+    console.error('Failed to load sites', error)
+    sites.value = []
   }
 }
 
@@ -1306,21 +1425,7 @@ const loadAnalyticsData = async () => {
     }))
     protocolTableRows.value = buildRateRows(protocolRows)
 
-    renderRxBandwidthChart()
-    renderTxBandwidthChart()
-    renderRxTrafficChart()
-    renderTxTrafficChart()
-    renderRequestResponseChart()
-    renderStatusCodeChart()
-    renderIpCountChart()
-    renderMethodChart()
-    renderProtocolChart()
-    renderTopIpsPie()
-    renderStatusCodePie()
-    renderIspPie()
-    renderRefererPie()
-    renderMethodPie()
-    renderProtocolPie()
+    renderChartsForTab(activeTab.value)
   } catch (error) {
     console.error('Failed to load analytics data', error)
     notifyError(ANALYTICS_TITLE, error?.message || 'The analytics data could not be loaded.')
@@ -1349,7 +1454,7 @@ const resolveRangeWindow = (filters) => {
 
 const buildAnalyticsParams = () => {
   const filters = appliedFilters.value
-  const params = { serverId: filters.server }
+  const params = { serverId: filters.server, siteId: filters.site }
   if (filters.isCustom && filters.customStart && filters.customEnd) {
     params.start = filters.customStart
     params.end = filters.customEnd
@@ -1405,7 +1510,7 @@ const renderRxBandwidthChart = () => {
       type: 'gradient',
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
-    colors: ['#3b82f6', '#f97316'],
+    colors: [CHART_COLORS.l4, CHART_COLORS.l7],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1469,7 +1574,7 @@ const renderTxBandwidthChart = () => {
       type: 'gradient',
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
-    colors: ['#3b82f6', '#f97316'],
+    colors: [CHART_COLORS.l4, CHART_COLORS.l7],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1532,7 +1637,7 @@ const renderRxTrafficChart = () => {
       type: 'gradient',
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
-    colors: ['#22c55e', '#facc15'],
+    colors: [CHART_COLORS.viper, CHART_COLORS.gold],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1596,7 +1701,7 @@ const renderTxTrafficChart = () => {
       type: 'gradient',
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
-    colors: ['#22c55e', '#facc15'],
+    colors: [CHART_COLORS.viper, CHART_COLORS.gold],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1652,7 +1757,7 @@ const renderRequestResponseChart = () => {
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
-    colors: ['#6366f1', '#f59e0b'],
+    colors: [CHART_COLORS.viper, CHART_COLORS.warn],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1701,6 +1806,7 @@ const renderStatusCodeChart = () => {
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
+    colors: STATUS_SERIES_COLORS,
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1759,7 +1865,7 @@ const renderIpCountChart = () => {
       type: 'gradient',
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
-    colors: ['#8b5cf6'],
+    colors: [CHART_COLORS.viper],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1808,6 +1914,7 @@ const renderMethodChart = () => {
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
+    colors: LINE_SERIES_PALETTE,
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1851,7 +1958,7 @@ const renderProtocolPie = () => {
   const labels = protocolTableRows.value.map((row) => row.protocol || 'Unknown')
   const series = protocolTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_PROTOCOL, protocolPieChart.value)
+  const built = buildPieChartOptions(labels, series, hasData, protocolPieChart.value)
   protocolPieChartInstance = updatePieChartInstance(
     protocolPieChartInstance,
     protocolPieChart.value,
@@ -1875,6 +1982,7 @@ const renderProtocolChart = () => {
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
+    colors: LINE_SERIES_PALETTE,
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -1918,7 +2026,7 @@ const renderTopIpsPie = () => {
   const labels = ipTableRows.value.map((row) => row.ip || 'Unknown')
   const series = ipTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_TOP_IPS, topIpsPieChart.value)
+  const built = buildPieChartOptions(labels, series, hasData, topIpsPieChart.value)
   topIpsPieChartInstance = updatePieChartInstance(
     topIpsPieChartInstance,
     topIpsPieChart.value,
@@ -1931,7 +2039,7 @@ const renderStatusCodePie = () => {
   const labels = statusCodeRows.value.map((row) => row.code || 'Unknown')
   const series = statusCodeRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_STATUS, statusCodePieChart.value)
+  const built = buildPieChartOptions(labels, series, hasData, statusCodePieChart.value)
   statusCodePieChartInstance = updatePieChartInstance(
     statusCodePieChartInstance,
     statusCodePieChart.value,
@@ -1944,7 +2052,7 @@ const renderIspPie = () => {
   const labels = ispTableRows.value.map((row) => row.isp || 'Unknown')
   const series = ispTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_ISP, ispPieChart.value)
+  const built = buildPieChartOptions(labels, series, hasData, ispPieChart.value)
   ispPieChartInstance = updatePieChartInstance(ispPieChartInstance, ispPieChart.value, built)
 }
 
@@ -1953,7 +2061,7 @@ const renderRefererPie = () => {
   const labels = refererTableRows.value.map((row) => row.referer || 'Unknown')
   const series = refererTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_REFERER, refererPieChart.value)
+  const built = buildPieChartOptions(labels, series, hasData, refererPieChart.value)
   refererPieChartInstance = updatePieChartInstance(
     refererPieChartInstance,
     refererPieChart.value,
@@ -1966,7 +2074,7 @@ const renderMethodPie = () => {
   const labels = methodTableRows.value.map((row) => row.method || 'Unknown')
   const series = methodTableRows.value.map((row) => Number(row.value ?? 0))
   const hasData = series.some((value) => value > 0)
-  const built = buildPieChartOptions(labels, series, hasData, PIE_COLORS_METHOD, methodPieChart.value)
+  const built = buildPieChartOptions(labels, series, hasData, methodPieChart.value)
   methodPieChartInstance = updatePieChartInstance(
     methodPieChartInstance,
     methodPieChart.value,
@@ -1974,12 +2082,48 @@ const renderMethodPie = () => {
   )
 }
 
+const renderChartsForTab = (tabId) => {
+  nextTick(() => {
+    switch (tabId) {
+      case 'bandwidth':
+        renderRxBandwidthChart()
+        renderTxBandwidthChart()
+        renderRxTrafficChart()
+        renderTxTrafficChart()
+        break
+      case 'requests':
+        renderRequestResponseChart()
+        renderStatusCodeChart()
+        renderStatusCodePie()
+        break
+      case 'audience':
+        renderIpCountChart()
+        renderTopIpsPie()
+        renderIspPie()
+        renderRefererPie()
+        break
+      case 'http':
+        renderMethodPie()
+        renderMethodChart()
+        renderProtocolPie()
+        renderProtocolChart()
+        break
+    }
+  })
+}
+
+watch(activeTab, (tab) => renderChartsForTab(tab))
+
+watch(selectedServer, () => {
+  if (selectedSite.value === 'all') return
+  const stillValid = siteOptions.value.some((option) => option.value === selectedSite.value)
+  if (!stillValid) selectedSite.value = 'all'
+})
+
 onMounted(() => {
   loadServers()
+  loadSites()
   loadAnalyticsData()
-  renderTopIpsPie()
-  renderIspPie()
-  renderRefererPie()
   window.addEventListener('cdnproxy-theme-change', rerenderAllCharts)
 })
 
@@ -2049,140 +2193,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.security-analytics-view {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.filters-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.filters-header h3 {
-  margin: 0 0 16px 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.filters-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.filters-left,
-.filters-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.filters-left {
-  flex: 1 1 420px;
-  gap: 12px;
-}
-
-.filters-right {
-  flex: 0 1 auto;
-  justify-content: flex-end;
-  margin-left: auto;
-  gap: 12px;
-}
-
-.selected-range-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--app-text-secondary);
-  font-weight: 600;
-}
-
-.filter-inline-label {
-  font-size: 0.85rem;
-  color: var(--app-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.inline-select {
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 0.95rem;
-  background: var(--app-input-bg);
-  color: var(--app-text);
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  min-width: 200px;
-}
-
-.inline-select:focus {
-  border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
-}
-
-.selected-range-label {
-  font-size: 0.85rem;
-  color: var(--app-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.selected-range-value {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.time-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.time-btn {
-  border: 1px solid var(--app-border-strong);
-  cursor: pointer;
-  background: var(--app-surface-solid);
-  color: var(--app-text-secondary);
-  transition: all 0.2s ease;
-}
-
-.time-btn:hover {
-  border-color: var(--app-accent);
-  background: var(--app-surface-hover);
-  color: var(--app-text);
-}
-
-.time-btn.active {
-  /* primary fill from theme.css */
-}
-
-.custom-btn {
-  border-left: 2px solid var(--app-border-strong);
-  margin-left: 4px;
-}
-
-.custom-btn.active {
-  border-left-color: transparent;
-}
-
-.apply-filter-btn {
-  cursor: pointer;
+.analytics-view .dash-chart-wrap > div {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
 }
 
 .dialog-overlay {
@@ -2218,7 +2232,7 @@ onBeforeUnmount(() => {
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--type-section-title);
   font-weight: 700;
   color: var(--app-heading);
 }
@@ -2247,7 +2261,7 @@ onBeforeUnmount(() => {
 }
 
 .dialog-form-group label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-secondary);
 }
 
@@ -2255,7 +2269,7 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   border: 1px solid var(--app-input-border);
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   outline: none;
   background: var(--app-input-bg);
   color: var(--app-text);
@@ -2278,7 +2292,7 @@ onBeforeUnmount(() => {
   padding: 8px 16px;
   border: none;
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2292,73 +2306,6 @@ onBeforeUnmount(() => {
   /* primary fill from theme.css */
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.bandwidth-card {
-  background: var(--app-surface);
-  border-radius: 18px;
-  padding: 24px;
-  border: 1px solid var(--app-border);
-  box-shadow: 0 4px 18px var(--app-shadow);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.bandwidth-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.bandwidth-header h3 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--app-heading);
-}
-
-.bandwidth-header p {
-  margin: 6px 0 0;
-  color: var(--app-text-muted);
-  font-size: 0.9rem;
-}
-
-.bandwidth-pill {
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #0f766e;
-  background: rgba(20, 184, 166, 0.15);
-}
-
-.bandwidth-chart {
-  width: 100%;
-  height: 280px;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  background: var(--chart-surface, var(--app-surface-elevated));
-}
-
-.bandwidth-chart div {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.bandwidth-chart :deep(.apexcharts-canvas),
-.bandwidth-chart :deep(.apexcharts-svg),
-.bandwidth-chart :deep(.apexcharts-inner) {
-  background: transparent !important;
-}
-
 .top-ips-pie :deep(.apexcharts-canvas),
 .top-ips-pie :deep(.apexcharts-svg),
 .top-ips-pie :deep(.apexcharts-inner),
@@ -2367,7 +2314,19 @@ onBeforeUnmount(() => {
 }
 
 .top-ips-pie :deep(.apexcharts-pie-series path) {
-  transition: filter 0.15s ease, opacity 0.15s ease;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.06));
+}
+
+.top-ips-pie :deep(.apexcharts-datalabels-group text),
+.top-ips-pie :deep(.apexcharts-datalabel-label),
+.top-ips-pie :deep(.apexcharts-datalabel-value) {
+  font-family: inherit;
+}
+
+.top-ips-pie :deep(.apexcharts-datalabel-label) {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .world-map {
@@ -2392,7 +2351,7 @@ onBeforeUnmount(() => {
 }
 
 .world-map :deep(.svg-map__location:hover) {
-  fill: rgba(37, 99, 235, 0.85);
+  fill: rgba(63, 189, 133, 0.85);
 }
 
 .map-tooltip {
@@ -2402,7 +2361,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.92);
   color: #f8fafc;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   pointer-events: none;
   white-space: nowrap;
@@ -2455,10 +2414,10 @@ onBeforeUnmount(() => {
   height: 100%;
   margin-bottom: 0;
   border: none;
-  border-radius: 10px;
-  background: var(--chart-surface, var(--app-surface-elevated));
+  border-radius: 12px;
+  background: transparent;
   overflow: visible;
-  padding: 0;
+  padding: 4px 0;
   box-sizing: border-box;
   display: flex;
   align-items: stretch;
@@ -2478,7 +2437,7 @@ onBeforeUnmount(() => {
 }
 
 .table-title {
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 700;
   color: var(--app-heading);
   margin-bottom: 12px;
@@ -2512,81 +2471,16 @@ onBeforeUnmount(() => {
 .ip-table td {
   text-align: left;
   padding: 10px 12px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   border-bottom: 1px solid var(--app-border-strong);
   color: var(--app-text);
 }
 
 .ip-table th {
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--app-text-muted);
-}
-.stat-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 28px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px var(--app-shadow), 0 0 0 1px var(--app-accent-soft);
-}
-
-.stat-icon {
-  width: 70px;
-  height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.stat-icon.security {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.stat-icon.warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.stat-icon.success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.stat-icon svg {
-  width: 36px;
-  height: 36px;
-}
-
-.stat-info h3 {
-  font-size: 0.875rem;
-  color: var(--app-text-muted);
-  margin: 0 0 8px 0;
-  font-weight: 500;
-}
-
-.stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--app-heading);
-  margin: 0;
-}
-
-.stat-subvalue {
-  margin: 6px 0 0;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #10b981;
 }
 
 @media (max-width: 900px) {
@@ -2604,22 +2498,13 @@ onBeforeUnmount(() => {
   }
 }
 
-[data-theme='dark'] .bandwidth-pill {
-  color: #5eead4;
-  background: rgba(20, 184, 166, 0.2);
-}
-
-[data-theme='dark'] .stat-subvalue {
-  color: #4ade80;
-}
-
 [data-theme='dark'] .world-map :deep(.svg-map__location) {
-  fill: #1a1a2e;
+  fill: #121815;
   stroke: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme='dark'] .world-map :deep(.svg-map__location:hover) {
-  fill: rgba(168, 85, 247, 0.85);
+  fill: rgba(63, 189, 133, 0.85);
 }
 
 </style>

@@ -255,7 +255,7 @@ watch(
 
 .card-title {
   margin: 0 0 8px 0;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -270,7 +270,7 @@ watch(
 
 .waf-section-header h4 {
   margin: 0 0 6px 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -278,7 +278,7 @@ watch(
 .waf-section-desc {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   max-width: 720px;
   line-height: 1.45;
 }
@@ -293,7 +293,7 @@ watch(
 .helper-text {
   margin: 0 0 14px 0;
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .load-hint {
@@ -390,7 +390,7 @@ watch(
 }
 
 .checkbox-label-text {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1.2;
@@ -417,7 +417,7 @@ watch(
   border: 1px solid #cbd5e1;
   background: var(--app-surface-solid);
   color: var(--app-text-muted);
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   cursor: help;
   padding: 0;
@@ -467,7 +467,7 @@ watch(
 
 .help-tooltip-title {
   margin: 0 0 8px 0;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   color: var(--app-heading);
   letter-spacing: 0.02em;
@@ -483,10 +483,10 @@ watch(
 }
 
 .help-tooltip-list li {
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   line-height: 1.35;
   color: var(--app-text-secondary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   word-break: break-all;
 }
 

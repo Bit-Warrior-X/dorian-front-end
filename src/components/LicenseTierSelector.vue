@@ -165,13 +165,13 @@ const select = (id) => {
 }
 
 .tier-card:hover:not(.disabled):not(.selected) {
-  border-color: var(--app-accent, #a855f7);
+  border-color: var(--app-accent);
   box-shadow: 0 8px 24px var(--app-accent-soft, rgba(168, 85, 247, 0.12));
   transform: translateY(-2px);
 }
 
 .tier-card.selected {
-  border-color: var(--app-accent, #a855f7);
+  border-color: var(--app-accent);
   box-shadow:
     0 0 0 1px rgba(168, 85, 247, 0.35),
     0 12px 32px var(--app-shadow, rgba(0, 0, 0, 0.2));
@@ -198,7 +198,7 @@ const select = (id) => {
 }
 
 .tier-card--violet .tier-card-accent {
-  background: linear-gradient(90deg, #a78bfa, #7c3aed);
+  background: var(--app-accent-gradient);
 }
 
 .tier-card--indigo .tier-card-accent {
@@ -222,7 +222,7 @@ const select = (id) => {
 
 .tier-badge {
   align-self: flex-start;
-  font-size: 0.68rem;
+  font-size: var(--type-small);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -236,14 +236,14 @@ const select = (id) => {
 
 .tier-title {
   font-weight: 800;
-  font-size: 1.35rem;
+  font-size: var(--type-metric-value);
   color: var(--app-heading, #0f172a);
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
 .tier-tagline {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted, #64748b);
   font-weight: 500;
 }
@@ -278,7 +278,7 @@ const select = (id) => {
 
 .plan-section-label {
   margin: 0 0 8px;
-  font-size: 0.68rem;
+  font-size: var(--type-small);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -307,26 +307,26 @@ const select = (id) => {
 }
 
 .pricing-key {
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
   color: #64748b;
   font-weight: 500;
 }
 
 .pricing-val {
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: #334155;
   text-align: right;
 }
 
 .pricing-val--primary {
-  font-size: 1.2rem;
+  font-size: var(--type-metric-value);
   font-weight: 800;
   color: #0f172a;
 }
 
 .pricing-unit {
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 500;
   color: #64748b;
 }
@@ -342,7 +342,7 @@ const select = (id) => {
 }
 
 .savings-pill {
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   color: #166534;
   background: rgba(34, 197, 94, 0.16);
@@ -351,7 +351,7 @@ const select = (id) => {
 }
 
 .savings-detail {
-  font-size: 0.7rem;
+  font-size: var(--type-small);
   color: #64748b;
   text-align: right;
   line-height: 1.3;
@@ -373,7 +373,7 @@ const select = (id) => {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   color: #475569;
   line-height: 1.38;
 }
@@ -434,11 +434,11 @@ const select = (id) => {
 }
 
 .license-selector--compact .tier-title {
-  font-size: 1rem;
+  font-size: var(--type-section-title);
 }
 
 .license-selector--compact .tier-tagline {
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
 }
 
 .license-selector--compact .tier-radio {
@@ -460,11 +460,11 @@ const select = (id) => {
 }
 
 .license-selector--compact .price-monthly .price-amount {
-  font-size: 0.95rem;
+  font-size: var(--type-base);
 }
 
 .license-selector--compact .price-annual .price-amount {
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
 }
 
 .license-selector--compact .pricing-savings {

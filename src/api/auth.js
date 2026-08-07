@@ -59,6 +59,23 @@ export const login = async ({ email, password }) => {
 
   return apiRequest('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password }),
+    skipActorHeaders: true,
   })
+}
+
+export const logout = async (reason = 'manual') => {
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    return null
+  }
+
+  try {
+    return await apiRequest('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    })
+  } catch {
+    return null
+  }
 }

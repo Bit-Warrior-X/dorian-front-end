@@ -1,231 +1,253 @@
 <template>
-  <div class="security-analytics-view">
-    <div class="filters-card">
-      <div class="filters-row">
-        <div class="filters-left">
-          <span class="filter-inline-label">Server</span>
-          <select id="security-server" v-model="selectedServer" class="inline-select">
-            <option v-for="server in serverOptions" :key="server.value" :value="server.value">
-              {{ server.label }}
-            </option>
-          </select>
-          <span class="filter-inline-label">Time Range</span>
-          <div class="time-buttons">
-            <button
-              v-for="range in timeRanges"
-              :key="range.value"
-              type="button"
-              class="time-btn"
-              :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
-              @click="selectTimeRange(range.value)"
-            >
-              {{ range.label }}
-            </button>
-            <button
-              type="button"
-              class="time-btn custom-btn"
-              :class="{ active: isCustomRange }"
-              @click="showCustomDialog = true"
-            >
-              Custom
-            </button>
-          </div>
-        </div>
-        <div class="filters-right">
-          <div class="selected-range-group">
-            <span class="selected-range-label">Selected</span>
-            <span class="selected-range-value">{{ selectedRangeLabel }}</span>
-          </div>
-          <button type="button" class="apply-filter-btn" @click="applyFilters">
-            Apply
+  <div class="dashboard-view security-analytics-view">
+    <header class="dash-topbar">
+      <div class="dash-topbar__left">
+        <h2>Security analytics</h2>
+        <p>Blocked traffic, geography, and top threat sources across edges and sites.</p>
+      </div>
+      <div class="dash-topbar__right">
+        <AppTopbarActions />
+      </div>
+    </header>
+
+    <div class="dash-filterbar">
+      <div class="dash-filter-field">
+        <label for="security-server">Server</label>
+        <select id="security-server" v-model="selectedServer" class="dash-select">
+          <option v-for="server in serverOptions" :key="server.value" :value="server.value">
+            {{ server.label }}
+          </option>
+        </select>
+      </div>
+      <div class="dash-filter-field">
+        <label for="security-site">Site</label>
+        <select id="security-site" v-model="selectedSite" class="dash-select">
+          <option v-for="site in siteOptions" :key="site.value" :value="site.value">
+            {{ site.label }}
+          </option>
+        </select>
+      </div>
+      <div class="dash-filter-field">
+        <label>Time range</label>
+        <div class="dash-range-pills">
+          <button
+            v-for="range in timeRanges"
+            :key="range.value"
+            type="button"
+            class="dash-range-pill"
+            :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
+            @click="selectTimeRange(range.value)"
+          >
+            {{ range.label }}
+          </button>
+          <button
+            type="button"
+            class="dash-range-pill dash-range-pill--custom"
+            :class="{ active: isCustomRange }"
+            @click="showCustomDialog = true"
+          >
+            Custom
           </button>
         </div>
       </div>
+      <div class="dash-filter-summary">
+        <span class="dash-live-dot" aria-hidden="true"></span>
+        {{ selectedRangeLabel }}
+      </div>
+      <button type="button" class="dash-filter-apply" @click="applyFilters">
+        Apply
+      </button>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon security">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 3v18h18"></path>
-            <path d="M7 13l4-4 4 4 5-6"></path>
-          </svg>
+
+    <nav class="dash-tabbar" aria-label="Security analytics sections">
+      <button
+        v-for="tab in securityTabs"
+        :key="tab.id"
+        type="button"
+        class="dash-tab"
+        :class="{ active: activeTab === tab.id }"
+        @click="activeTab = tab.id"
+      >
+        {{ tab.label }}
+      </button>
+    </nav>
+
+    <div v-show="activeTab === 'overview'" class="analytics-tab-panel">
+      <section class="dash-metrics">
+        <article v-for="metric in metricCards" :key="metric.label" class="dash-metric-card">
+          <div class="dash-metric-label">{{ metric.label }}</div>
+          <div class="dash-metric-value num">{{ metric.value }}</div>
+        </article>
+      </section>
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Block count by time</h3>
+              <p class="dash-panel-desc">Blocked requests over the selected range</p>
+            </div>
+          </div>
+          <div class="dash-chart-wrap dash-chart-wrap--tall">
+            <div ref="blockCountChart"></div>
+          </div>
         </div>
-        <div class="stat-info">
-          <h3>Total Request Counts</h3>
-          <p class="stat-value">{{ statsDisplay.totalRequestCounts }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon warning">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-            <line x1="12" y1="9" x2="12" y2="13"></line>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Block Request Counts</h3>
-          <p class="stat-value">{{ statsDisplay.blockRequestCounts }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon success">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"></circle>
-            <path d="M8 12h8"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Total IPs</h3>
-          <p class="stat-value">{{ statsDisplay.totalIps }}</p>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon security">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="15" y1="9" x2="9" y2="15"></line>
-            <line x1="9" y1="9" x2="15" y2="15"></line>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <h3>Blacklisted IPs</h3>
-          <p class="stat-value">{{ statsDisplay.blacklistedIps }}</p>
-        </div>
-      </div>
+      </section>
     </div>
-    <div class="filters-card">
-      <div class="filters-row">
-        <label class="table-title">Block Count by Time</label>
-      </div>
-      <div class="bandwidth-chart bandwidth-chart--tall">
-        <div ref="blockCountChart"></div>
-      </div>
-    </div>
-    <div class="filters-card">
-      <div class="filters-row">
-        <div class="filters-left">
-          <span class="filter-inline-label">Requests by Country</span>
+
+    <div v-show="activeTab === 'geography'" class="analytics-tab-panel">
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Requests by country</h3>
+              <p class="dash-panel-desc">Geographic distribution of request volume</p>
+            </div>
+          </div>
+          <div class="world-map">
+            <SvgMap :map="world" :location-attributes="mapLocationAttributes" />
+            <div
+              v-if="hoveredCountry"
+              class="map-tooltip"
+              :style="{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y}px` }"
+            >
+              {{ hoveredCountry }}
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="world-map">
-        <SvgMap :map="world" :location-attributes="mapLocationAttributes" />
-        <div
-          v-if="hoveredCountry"
-          class="map-tooltip"
-          :style="{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y}px` }"
-        >
-          {{ hoveredCountry }}
-        </div>
-      </div>
-    </div>
-    <div class="filters-card">
-      <div class="filters-row">
-        <label class="table-title">Top Requests</label>
-      </div>
-      <div class="top-tables">
-        <div class="table-card table-card--compact table-card--tight table-card--scroll">
-          <div class="table-title">Requests Top30</div>
+        <div class="dash-panel c-6">
+          <div class="dash-panel-head">
+            <h3>Requests Top 30</h3>
+          </div>
           <div class="table-wrap">
             <table class="ip-table">
               <thead>
                 <tr>
                   <th>Area</th>
-                  <th>Request Counts</th>
+                  <th>Request counts</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in topRequestRows" :key="row.area">
+                <tr v-for="row in topRequestRows" :key="`req-${row.area}`">
                   <td>{{ row.area }}</td>
-                  <td>{{ formatNumber(row.count) }}</td>
+                  <td class="num">{{ formatNumber(row.count) }}</td>
+                </tr>
+                <tr v-if="!topRequestRows.length">
+                  <td colspan="2" class="empty-row">No data</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-        <div class="table-card table-card--compact table-card--tight table-card--scroll">
-          <div class="table-title">BlockCounts Top30</div>
+        <div class="dash-panel c-6">
+          <div class="dash-panel-head">
+            <h3>Block counts Top 30</h3>
+          </div>
           <div class="table-wrap">
             <table class="ip-table">
               <thead>
                 <tr>
                   <th>Area</th>
-                  <th>Request Counts</th>
+                  <th>Request counts</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in topBlockRows" :key="row.area">
+                <tr v-for="row in topBlockRows" :key="`blk-${row.area}`">
                   <td>{{ row.area }}</td>
-                  <td>{{ formatNumber(row.count) }}</td>
+                  <td class="num">{{ formatNumber(row.count) }}</td>
+                </tr>
+                <tr v-if="!topBlockRows.length">
+                  <td colspan="2" class="empty-row">No data</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-      </div>
-      <div class="top-bars top-bars--stacked">
-        <div class="table-card table-card--compact table-card--full table-card--spaced">
-          <div class="table-title">URLRequests Top10</div>
-          <div class="url-bars url-bars--horizontal">
+      </section>
+    </div>
+
+    <div v-show="activeTab === 'toplists'" class="analytics-tab-panel">
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>URL requests Top 10</h3>
+              <p class="dash-panel-desc">Most requested URLs in the selected window</p>
+            </div>
+          </div>
+          <div class="url-bars">
             <div v-for="row in topUrlRows" :key="row.url" class="url-bar-row">
               <div class="url-bar-label">{{ row.url }}</div>
               <div class="url-bar-line">
                 <div class="url-bar-track">
                   <div
-                    class="url-bar-fill"
+                    class="url-bar-fill url-bar-fill--l4"
                     :style="{ width: `${urlBarWidth(row.count)}%` }"
                     :title="`${row.url} — ${row.count}`"
                   ></div>
                 </div>
-                <div class="url-bar-value">{{ formatNumber(row.count) }}</div>
+                <div class="url-bar-value num">{{ formatNumber(row.count) }}</div>
               </div>
             </div>
+            <p v-if="!topUrlRows.length" class="empty-row">No data</p>
           </div>
         </div>
-        <div class="table-card table-card--compact table-card--full table-card--spaced">
-          <div class="table-title">Referer Top10</div>
-          <div class="url-bars url-bars--horizontal">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Referer Top 10</h3>
+              <p class="dash-panel-desc">Top referers driving traffic</p>
+            </div>
+          </div>
+          <div class="url-bars">
             <div v-for="row in topRefererRows" :key="row.referer" class="url-bar-row">
               <div class="url-bar-label">{{ row.referer }}</div>
               <div class="url-bar-line">
                 <div class="url-bar-track">
                   <div
-                    class="url-bar-fill url-bar-fill--teal"
+                    class="url-bar-fill url-bar-fill--viper"
                     :style="{ width: `${refererBarWidth(row.count)}%` }"
                     :title="`${row.referer} — ${row.count}`"
                   ></div>
                 </div>
-                <div class="url-bar-value">{{ formatNumber(row.count) }}</div>
+                <div class="url-bar-value num">{{ formatNumber(row.count) }}</div>
               </div>
             </div>
+            <p v-if="!topRefererRows.length" class="empty-row">No data</p>
           </div>
         </div>
-        <div class="table-card table-card--compact table-card--full table-card--spaced">
-          <div class="table-title">User Agent Top10</div>
-          <div class="url-bars url-bars--horizontal">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>User agent Top 10</h3>
+              <p class="dash-panel-desc">Most common user agents</p>
+            </div>
+          </div>
+          <div class="url-bars">
             <div v-for="row in topUserAgentRows" :key="row.agent" class="url-bar-row">
               <div class="url-bar-label">{{ row.agent }}</div>
               <div class="url-bar-line">
                 <div class="url-bar-track">
                   <div
-                    class="url-bar-fill url-bar-fill--purple"
+                    class="url-bar-fill url-bar-fill--l7"
                     :style="{ width: `${userAgentBarWidth(row.count)}%` }"
                     :title="`${row.agent} — ${row.count}`"
                   ></div>
                 </div>
-                <div class="url-bar-value">{{ formatNumber(row.count) }}</div>
+                <div class="url-bar-value num">{{ formatNumber(row.count) }}</div>
               </div>
             </div>
+            <p v-if="!topUserAgentRows.length" class="empty-row">No data</p>
           </div>
         </div>
-      </div>
+      </section>
     </div>
+
     <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
       <div class="dialog-content">
         <div class="dialog-header">
-          <h3>Custom Time Range</h3>
-          <button class="dialog-close" @click="showCustomDialog = false">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <h3>Custom time range</h3>
+          <button type="button" class="dialog-close" @click="showCustomDialog = false">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
@@ -233,7 +255,7 @@
         </div>
         <div class="dialog-body">
           <div class="dialog-form-group">
-            <label>Start Date & Time</label>
+            <label>Start date &amp; time</label>
             <FlatPickr
               v-model="customStartDate"
               :config="datePickerConfig"
@@ -242,7 +264,7 @@
             />
           </div>
           <div class="dialog-form-group">
-            <label>End Date & Time</label>
+            <label>End date &amp; time</label>
             <FlatPickr
               v-model="customEndDate"
               :config="datePickerConfig"
@@ -252,8 +274,8 @@
           </div>
         </div>
         <div class="dialog-footer">
-          <button class="dialog-btn cancel-btn" @click="showCustomDialog = false">Cancel</button>
-          <button class="dialog-btn apply-btn" @click="applyCustomRange">Apply</button>
+          <button type="button" class="dialog-btn cancel-btn" @click="showCustomDialog = false">Cancel</button>
+          <button type="button" class="dialog-btn apply-btn" @click="applyCustomRange">Apply</button>
         </div>
       </div>
     </div>
@@ -261,16 +283,28 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ApexCharts from 'apexcharts'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
+import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { fetchServers } from '@/api/servers'
+import { fetchSites } from '@/api/sites'
 import {
   fetchSecuritySummary,
   fetchSecuritySeries,
   fetchSecuritySummaryGroup,
 } from '@/api/securityAnalytics'
+
+const CHART_COLORS = {
+  viper: '#3FBD85',
+  l4: '#5B9DF0',
+  l7: '#B08CF0',
+  gold: '#C9A24A',
+  warn: '#E0A83F',
+  danger: '#E15241',
+  success: '#4FBD7A',
+}
 
 const chartGridColor = () => {
   if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
@@ -300,7 +334,15 @@ const mapEmptyFill = () =>
     ? 'rgba(255, 255, 255, 0.08)'
     : 'rgba(148, 163, 184, 0.2)'
 
+const activeTab = ref('overview')
+const securityTabs = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'geography', label: 'Geography' },
+  { id: 'toplists', label: 'Top lists' },
+]
+
 const selectedServer = ref('all')
+const selectedSite = ref('all')
 const selectedTimeRange = ref('30m')
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
@@ -309,6 +351,7 @@ const customEndDate = ref(null)
 const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
+  site: 'all',
   range: '30m',
   isCustom: false,
   customStart: '',
@@ -316,6 +359,7 @@ const appliedFilters = ref({
 })
 
 const servers = ref([])
+const sites = ref([])
 const securityStats = ref({
   totalRequestCounts: 0,
   blockRequestCounts: 0,
@@ -354,31 +398,35 @@ const formatDateInput = (value) => {
   return parsed.toISOString()
 }
 
-const statsDisplay = computed(() => ({
-  totalRequestCounts: formatNumber(securityStats.value.totalRequestCounts),
-  blockRequestCounts: formatNumber(securityStats.value.blockRequestCounts),
-  totalIps: formatNumber(securityStats.value.totalIps),
-  blacklistedIps: formatNumber(securityStats.value.blacklistedIps),
-}))
+const metricCards = computed(() => [
+  { label: 'Total request counts', value: formatNumber(securityStats.value.totalRequestCounts) },
+  { label: 'Block request counts', value: formatNumber(securityStats.value.blockRequestCounts) },
+  { label: 'Total IPs', value: formatNumber(securityStats.value.totalIps) },
+  { label: 'Blacklisted IPs', value: formatNumber(securityStats.value.blacklistedIps) },
+])
 
 const countryRequestMap = computed(() =>
   countryRequests.value.reduce((acc, item) => {
     acc[item.code.toLowerCase()] = item
     return acc
-  }, {})
+  }, {}),
 )
+
 const maxCountryCount = computed(() =>
-  Math.max(0, ...countryRequests.value.map((item) => Number(item.count) || 0))
+  Math.max(0, ...countryRequests.value.map((item) => Number(item.count) || 0)),
 )
+
 const hoveredCountry = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
+
 const colorFromRate = (ratio) => {
-  if (ratio >= 0.8) return '#ef4444'
-  if (ratio >= 0.6) return '#f97316'
-  if (ratio >= 0.4) return '#f59e0b'
-  if (ratio >= 0.2) return '#22c55e'
-  return '#60a5fa'
+  if (ratio >= 0.8) return CHART_COLORS.danger
+  if (ratio >= 0.6) return CHART_COLORS.warn
+  if (ratio >= 0.4) return CHART_COLORS.gold
+  if (ratio >= 0.2) return CHART_COLORS.success
+  return CHART_COLORS.l4
 }
+
 const mapLocationAttributes = (location) => {
   const entry = countryRequestMap.value[location.id.toLowerCase()]
   const ratio = entry && maxCountryCount.value ? entry.count / maxCountryCount.value : 0
@@ -410,28 +458,20 @@ const urlMaxCount = computed(() => {
   const values = topUrlRows.value.map((row) => Number(row.count) || 0)
   return Math.max(...values, 1)
 })
-const urlBarWidth = (count) => {
-  const numeric = Number(count) || 0
-  return Math.round((numeric / urlMaxCount.value) * 100)
-}
+const urlBarWidth = (count) => Math.round(((Number(count) || 0) / urlMaxCount.value) * 100)
 
 const refererMaxCount = computed(() => {
   const values = topRefererRows.value.map((row) => Number(row.count) || 0)
   return Math.max(...values, 1)
 })
-const refererBarWidth = (count) => {
-  const numeric = Number(count) || 0
-  return Math.round((numeric / refererMaxCount.value) * 100)
-}
+const refererBarWidth = (count) => Math.round(((Number(count) || 0) / refererMaxCount.value) * 100)
 
 const userAgentMaxCount = computed(() => {
   const values = topUserAgentRows.value.map((row) => Number(row.count) || 0)
   return Math.max(...values, 1)
 })
-const userAgentBarWidth = (count) => {
-  const numeric = Number(count) || 0
-  return Math.round((numeric / userAgentMaxCount.value) * 100)
-}
+const userAgentBarWidth = (count) =>
+  Math.round(((Number(count) || 0) / userAgentMaxCount.value) * 100)
 
 const mapBlockPoints = (points) =>
   (Array.isArray(points) ? points : [])
@@ -503,13 +543,12 @@ const renderBlockCountChart = () => {
   const options = {
     chart: {
       type: 'area',
-      height: 400,
+      height: 360,
       toolbar: { show: false },
       animations: { enabled: true },
+      background: 'transparent',
       foreColor: chartLabelColor(),
-      zoom: {
-        enabled: false,
-      },
+      zoom: { enabled: false },
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
@@ -517,7 +556,7 @@ const renderBlockCountChart = () => {
       type: 'gradient',
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
-    colors: ['#ef4444'],
+    colors: [CHART_COLORS.danger],
     xaxis: {
       type: 'datetime',
       min: start.getTime(),
@@ -548,33 +587,31 @@ const renderBlockCountChart = () => {
   }
 }
 
-watch(blockSeries, () => {
-  renderBlockCountChart()
-}, { deep: true })
-
-const rerenderBlockCountChart = () => {
-  renderBlockCountChart()
-}
-
-onMounted(() => {
-  loadServers()
-  loadSecurityAnalytics()
-  renderBlockCountChart()
-  window.addEventListener('cdnproxy-theme-change', rerenderBlockCountChart)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('cdnproxy-theme-change', rerenderBlockCountChart)
-  if (blockCountChartInstance) {
-    blockCountChartInstance.destroy()
-    blockCountChartInstance = null
-  }
-})
-
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
-  ...servers.value.map((server) => ({ label: server.name || `Server ${server.id}`, value: server.id })),
+  ...servers.value.map((server) => ({
+    label: server.name || `Server ${server.id}`,
+    value: server.id,
+  })),
 ])
+
+const siteOptions = computed(() => {
+  let list = sites.value
+  if (selectedServer.value !== 'all') {
+    const serverId = Number(selectedServer.value)
+    list = list.filter(
+      (site) =>
+        Array.isArray(site.serverIds) && site.serverIds.some((id) => Number(id) === serverId),
+    )
+  }
+  return [
+    { label: 'All Sites', value: 'all' },
+    ...list.map((site) => ({
+      label: site.domain || `Site ${site.id}`,
+      value: String(site.id),
+    })),
+  ]
+})
 
 const selectedRangeLabel = computed(() => {
   if (isCustomRange.value) {
@@ -615,7 +652,7 @@ const applyCustomRange = () => {
 
 const buildSecurityParams = () => {
   const filters = appliedFilters.value
-  const params = { serverId: filters.server }
+  const params = { serverId: filters.server, siteId: filters.site }
   if (filters.isCustom && filters.customStart && filters.customEnd) {
     params.start = filters.customStart
     params.end = filters.customEnd
@@ -632,6 +669,16 @@ const loadServers = async () => {
   } catch (error) {
     console.error('Failed to load servers', error)
     servers.value = []
+  }
+}
+
+const loadSites = async () => {
+  try {
+    const list = await fetchSites()
+    sites.value = Array.isArray(list) ? list : []
+  } catch (error) {
+    console.error('Failed to load sites', error)
+    sites.value = []
   }
 }
 
@@ -672,7 +719,7 @@ const loadSecurityAnalytics = async () => {
     topRefererRows.value = Array.isArray(topReferers) ? topReferers : []
     topUserAgentRows.value = Array.isArray(topUserAgents) ? topUserAgents : []
 
-    renderBlockCountChart()
+    nextTick(() => renderBlockCountChart())
   } catch (error) {
     console.error('Failed to load security analytics', error)
   }
@@ -681,6 +728,7 @@ const loadSecurityAnalytics = async () => {
 const applyFilters = () => {
   appliedFilters.value = {
     server: selectedServer.value,
+    site: selectedSite.value,
     range: selectedTimeRange.value,
     isCustom: isCustomRange.value,
     customStart: isCustomRange.value ? formatDateInput(customStartDate.value) : '',
@@ -688,159 +736,198 @@ const applyFilters = () => {
   }
   loadSecurityAnalytics()
 }
+
+watch(blockSeries, () => {
+  if (activeTab.value === 'overview') renderBlockCountChart()
+}, { deep: true })
+
+watch(activeTab, (tab) => {
+  if (tab === 'overview') nextTick(() => renderBlockCountChart())
+})
+
+watch(selectedServer, () => {
+  if (selectedSite.value === 'all') return
+  const stillValid = siteOptions.value.some((option) => option.value === selectedSite.value)
+  if (!stillValid) selectedSite.value = 'all'
+})
+
+onMounted(() => {
+  loadServers()
+  loadSites()
+  loadSecurityAnalytics()
+  window.addEventListener('cdnproxy-theme-change', renderBlockCountChart)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('cdnproxy-theme-change', renderBlockCountChart)
+  if (blockCountChartInstance) {
+    blockCountChartInstance.destroy()
+    blockCountChartInstance = null
+  }
+})
 </script>
 
 <style scoped>
 .security-analytics-view {
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.analytics-tab-panel {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-}
-
-.filters-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.filters-header h3 {
-  margin: 0 0 16px 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.filters-row {
-  display: flex;
-  flex-wrap: wrap;
   gap: 16px;
-  align-items: center;
-  justify-content: space-between;
 }
 
-.filters-left,
-.filters-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+.dash-chart-wrap--tall {
+  min-height: 360px;
 }
 
-.filters-left {
-  flex: 1 1 420px;
+.world-map {
+  width: 100%;
+  height: fit-content;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-muted);
+  padding: 12px;
+  position: relative;
 }
 
-.filters-center {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 1 auto;
-  justify-content: center;
-  color: var(--app-text-secondary);
-  font-weight: 600;
+.world-map :deep(.svg-map) {
+  width: 70%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
 }
 
-.filters-right {
-  flex: 0 1 auto;
-  justify-content: flex-end;
-  margin-left: auto;
+.world-map :deep(.svg-map__location) {
+  transition: fill 0.2s ease;
 }
 
-.selected-range-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--app-text-secondary);
-  font-weight: 600;
+.world-map :deep(.svg-map__location:hover) {
+  fill: rgba(63, 189, 133, 0.85);
 }
 
-.filter-inline-label {
-  font-size: 0.85rem;
-  color: var(--app-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.inline-select {
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 0.95rem;
-  background: var(--app-input-bg);
-  color: var(--app-text);
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  min-width: 200px;
-}
-
-.inline-select:focus {
-  border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
-}
-
-.selected-range-label {
-  font-size: 0.85rem;
-  color: var(--app-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.selected-range-value {
+.map-tooltip {
+  position: absolute;
+  z-index: 5;
   padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: 0.85rem;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  font-size: var(--type-caption);
   font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
-.time-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.table-wrap {
+  max-height: 360px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.time-btn {
-  border: 1px solid var(--app-border-strong);
-  cursor: pointer;
-  background: var(--app-surface-solid);
-  color: var(--app-text-secondary);
-  transition: all 0.2s ease;
+.ip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-caption);
 }
 
-.time-btn:hover {
-  border-color: var(--app-accent);
-  background: var(--app-surface-hover);
+.ip-table th,
+.ip-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.ip-table th {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  position: sticky;
+  top: 0;
+  background: var(--app-surface);
+  z-index: 1;
+}
+
+.ip-table td {
   color: var(--app-text);
 }
 
-.time-btn.active {
-  /* primary fill from theme.css */
+.empty-row {
+  color: var(--app-text-muted);
+  text-align: center;
+  padding: 16px 0;
+  margin: 0;
 }
 
-.custom-btn {
-  border-left: 2px solid var(--app-border-strong);
-  margin-left: 4px;
+.url-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.custom-btn.active {
-  border-left-color: transparent;
+.url-bar-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 28%) 1fr;
+  gap: 12px;
+  align-items: center;
 }
 
-.apply-filter-btn {
-  cursor: pointer;
+.url-bar-label {
+  font-size: var(--type-caption);
+  color: var(--app-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.url-bar-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.url-bar-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--app-surface-muted);
+  overflow: hidden;
+}
+
+.url-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  min-width: 2px;
+  transition: width 0.25s ease;
+}
+
+.url-bar-fill--l4 {
+  background: linear-gradient(90deg, #5b9df0 0%, #3f82d4 100%);
+}
+
+.url-bar-fill--viper {
+  background: linear-gradient(90deg, #3fbd85 0%, #2e9e6c 100%);
+}
+
+.url-bar-fill--l7 {
+  background: linear-gradient(90deg, #b08cf0 0%, #8b5cf6 100%);
+}
+
+.url-bar-value {
+  min-width: 56px;
+  text-align: right;
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
 }
 
 .dialog-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: var(--app-overlay);
   backdrop-filter: blur(4px);
   display: flex;
@@ -868,7 +955,7 @@ const applyFilters = () => {
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--type-section-title);
   font-weight: 700;
   color: var(--app-heading);
 }
@@ -897,7 +984,7 @@ const applyFilters = () => {
 }
 
 .dialog-form-group label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-secondary);
 }
 
@@ -905,7 +992,7 @@ const applyFilters = () => {
   padding: 10px 12px;
   border: 1px solid var(--app-input-border);
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   outline: none;
   background: var(--app-input-bg);
   color: var(--app-text);
@@ -913,22 +1000,20 @@ const applyFilters = () => {
 
 .dialog-input:focus {
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 16px 24px 24px;
-  border-top: 1px solid var(--app-border-strong);
+  padding: 16px 24px 20px;
 }
 
 .dialog-btn {
   padding: 8px 16px;
   border: none;
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
 }
@@ -939,311 +1024,27 @@ const applyFilters = () => {
 }
 
 .apply-btn {
-  /* primary fill from theme.css */
+  background: var(--app-btn-primary-bg);
+  color: #fff;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
+.apply-btn:hover {
+  background: var(--app-btn-primary-hover);
 }
 
-.stat-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 28px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px var(--app-shadow), 0 0 0 1px var(--app-accent-soft);
-}
-
-.stat-icon {
-  width: 70px;
-  height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.stat-icon.security {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.stat-icon.warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.stat-icon.success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.stat-icon svg {
-  width: 36px;
-  height: 36px;
-}
-
-.stat-info h3 {
-  font-size: 0.875rem;
-  color: var(--app-text-muted);
-  margin: 0 0 8px 0;
-  font-weight: 500;
-}
-
-.stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--app-heading);
-  margin: 0;
-}
-
-.stat-subvalue {
-  margin: 6px 0 0;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #10b981;
-}
-
-.world-map {
-  width: 100%;
-  height: fit-content;
-  border-radius: 16px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-muted);
-  padding: 12px;
-  position: relative;
-}
-
-.world-map :deep(.svg-map) {
-  width: 70%;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-}
-
-.world-map :deep(.svg-map__location) {
-  transition: fill 0.2s ease;
-}
-
-.world-map :deep(.svg-map__location:hover) {
-  fill: rgba(37, 99, 235, 0.85);
-}
-
-.map-tooltip {
-  position: absolute;
-  z-index: 5;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.92);
-  color: #f8fafc;
-  font-size: 0.85rem;
-  font-weight: 600;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.top-tables {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-}
-
-.table-card {
-  background: var(--app-surface-muted);
-  border-radius: 14px;
-  padding: 16px;
-  border: 1px solid var(--app-border);
-}
-
-.table-card--compact {
-  background: var(--app-surface-muted);
-  border-radius: 14px;
-  padding: 16px;
-  border: 1px solid var(--app-border);
-}
-
-.table-card--tight {
-  padding: 12px;
-}
-
-.table-card--tight .table-title {
-  font-size: 0.88rem;
-  margin-bottom: 8px;
-}
-
-.table-card--tight .ip-table th,
-.table-card--tight .ip-table td {
-  padding: 8px 10px;
-  font-size: 0.82rem;
-}
-
-.table-card--scroll .table-wrap {
-  max-height: 240px;
-  overflow-y: auto;
-}
-
-.table-card--scroll .ip-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--app-surface-muted);
-  box-shadow: 0 1px 0 var(--app-border-strong);
-}
-
-.table-card--spaced {
-  margin-top: 16px;
-}
-
-.table-card--full {
-  width: 100%;
-}
-
-.table-card--full {
-  width: 100%;
-}
-.table-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--app-heading);
-  margin-bottom: 12px;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.ip-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.ip-table th,
-.ip-table td {
-  text-align: left;
-  padding: 10px 12px;
-  font-size: 0.9rem;
-  border-bottom: 1px solid var(--app-border-strong);
-  color: var(--app-text);
-}
-
-.ip-table th {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--app-text-muted);
-}
-
-.ip-table--nowrap th,
-.ip-table--nowrap td {
-  white-space: nowrap;
-}
-
-.url-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.top-bars {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-}
-
-.top-bars--stacked {
-  grid-template-columns: minmax(0, 1fr);
-}
-.url-bar-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.url-bar-line {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 12px;
-}
-
-.url-bar-track {
-  width: 100%;
-  height: 16px;
-  background: var(--app-border-strong);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.url-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
-  transition: width 0.3s ease;
-}
-
-.url-bar-fill--teal {
-  background: linear-gradient(90deg, #14b8a6 0%, #0f766e 100%);
-}
-
-.url-bar-fill--purple {
-  background: linear-gradient(90deg, #8b5cf6 0%, #6d28d9 100%);
-}
-
-.bandwidth-chart {
-  width: 100%;
-  height: 280px;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  background: var(--chart-surface, var(--app-surface-elevated));
-}
-
-.bandwidth-chart div {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.bandwidth-chart :deep(.apexcharts-canvas),
-.bandwidth-chart :deep(.apexcharts-svg),
-.bandwidth-chart :deep(.apexcharts-inner) {
-  background: transparent !important;
-}
-
-.bandwidth-chart--tall {
-  height: 420px;
-}
-
-.url-bar-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--app-text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.url-bar-value {
-  font-size: 0.8rem;
-  color: var(--app-text-muted);
-  font-weight: 600;
+[data-theme='dark'] .world-map :deep(.svg-map__location) {
+  fill: #121815;
+  stroke: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme='dark'] .world-map :deep(.svg-map__location:hover) {
-  fill: rgba(168, 85, 247, 0.85);
+  fill: rgba(63, 189, 133, 0.85);
 }
 
-[data-theme='dark'] .stat-subvalue {
-  color: #4ade80;
+@media (max-width: 900px) {
+  .url-bar-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 </style>
-

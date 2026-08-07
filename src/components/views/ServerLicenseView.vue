@@ -148,7 +148,7 @@ onMounted(() => {
 }
 
 .filter-label {
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
@@ -158,7 +158,7 @@ onMounted(() => {
   border-radius: 12px;
   border: 1px solid var(--app-input-border);
   padding: 8px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   background: var(--app-input-bg);
   box-shadow: 0 1px 6px var(--app-shadow);
@@ -188,7 +188,7 @@ onMounted(() => {
   align-items: center;
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   background: var(--app-accent-soft);
   color: var(--app-accent);
@@ -202,7 +202,7 @@ onMounted(() => {
 
 .license-tab-lead {
   margin: 0 0 22px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text-secondary);
   line-height: 1.55;
 }

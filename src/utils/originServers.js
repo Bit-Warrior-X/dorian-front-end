@@ -1,5 +1,11 @@
 let originKeySeed = 0
 
+export const normalizeOriginId = (value) => {
+  if (value == null || value === '') return null
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 ? id : null
+}
+
 export const createEmptyOriginServer = (overrides = {}) => ({
   key: `origin-${Date.now()}-${originKeySeed++}`,
   id: null,
@@ -79,7 +85,7 @@ export const mapUpstreamToOriginServer = (upstream) => {
     (legacyProtocolMatch ? legacyProtocolMatch[1] : 'HTTP')
 
   return createEmptyOriginServer({
-    id: upstream?.id ?? null,
+    id: normalizeOriginId(upstream?.id),
     ip,
     port: port || '80',
     protocol: normalizeOriginProtocol(protocol),
@@ -111,6 +117,34 @@ export const isBlankOriginServer = (origin) => {
 
 export const getFilledOriginServers = (origins) =>
   (Array.isArray(origins) ? origins : []).filter((origin) => !isBlankOriginServer(origin))
+
+export const collectOriginServerIds = (origins) =>
+  new Set(
+    (Array.isArray(origins) ? origins : [])
+      .map((origin) => normalizeOriginId(origin.id))
+      .filter((id) => id != null),
+  )
+
+export const planOriginServerSync = (origins, initialIds = []) => {
+  const list = getFilledOriginServers(origins)
+  const formIds = collectOriginServerIds(origins)
+  const normalizedInitial = (initialIds || [])
+    .map(normalizeOriginId)
+    .filter((id) => id != null)
+
+  const removedIds = normalizedInitial.filter((id) => !formIds.has(id))
+  const upserts = list.map((origin) => {
+    const id = normalizeOriginId(origin.id)
+    return {
+      origin,
+      id,
+      payload: toUpstreamPayload(origin),
+      create: id == null,
+    }
+  })
+
+  return { removedIds, upserts }
+}
 
 export const validateOriginServers = (origins) => {
   const list = getFilledOriginServers(origins)

@@ -41,7 +41,7 @@
 }
 
 .settings-card h2 {
-  font-size: 1.5rem;
+  font-size: var(--type-page-title);
   font-weight: 700;
   background: linear-gradient(135deg, #1a202c 0%, #4a5568 100%);
   -webkit-background-clip: text;
@@ -64,7 +64,7 @@
 }
 
 .form-group label {
-  font-size: 0.875rem;
+  font-size: var(--type-base);
   font-weight: 500;
   color: #374151;
 }
@@ -73,7 +73,7 @@
   padding: 14px 18px;
   border: 2px solid #e5e7eb;
   border-radius: 12px;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
   background: #f9fafb;
@@ -85,7 +85,7 @@
 }
 
 .form-group input:focus {
-  border-color: #667eea;
+  border-color: var(--app-accent);
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 4px 12px rgba(102, 126, 234, 0.15);
   transform: translateY(-1px);
@@ -93,11 +93,11 @@
 
 .save-button {
   padding: 14px 32px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--app-accent-gradient);
   color: white;
   border: none;
   border-radius: 12px;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

@@ -398,7 +398,7 @@ watch(
 
 .list-header h4 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -413,7 +413,7 @@ watch(
 
 .waf-section-header h4 {
   margin: 0 0 6px 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -421,7 +421,7 @@ watch(
 .waf-section-desc {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 .header-actions {
@@ -433,7 +433,7 @@ watch(
 .helper-text {
   margin: 0 0 14px 0;
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .system-bound-card {
@@ -451,7 +451,7 @@ watch(
 .field-error {
   margin: 6px 0 0;
   color: #b91c1c;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
 }
 
 .form-grid {
@@ -471,7 +471,7 @@ watch(
 }
 
 .form-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   font-weight: 500;
 }
@@ -481,7 +481,7 @@ watch(
   border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -524,7 +524,7 @@ watch(
 
 .dialog-header h4 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -561,7 +561,7 @@ watch(
   color: var(--app-text-secondary);
   border-radius: 8px;
   padding: 8px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -593,13 +593,13 @@ watch(
 .ports-table td {
   text-align: left;
   padding: 12px 16px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   border-bottom: 1px solid var(--app-border-strong);
 }
 
 .ports-table th {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
@@ -608,7 +608,7 @@ watch(
 
 .description-cell {
   color: var(--app-text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .status-dot {
@@ -657,6 +657,6 @@ watch(
   padding: 18px;
   text-align: center;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 </style>

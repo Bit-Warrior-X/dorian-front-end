@@ -991,7 +991,7 @@ onBeforeUnmount(() => {
 
 .filter-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1012,7 +1012,7 @@ onBeforeUnmount(() => {
 }
 
 .filter-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   font-weight: 500;
 }
@@ -1022,7 +1022,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   background: var(--app-input-bg);
   color: var(--app-text);
   outline: none;
@@ -1048,7 +1048,7 @@ onBeforeUnmount(() => {
 
 .card-title h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1074,13 +1074,13 @@ onBeforeUnmount(() => {
 .rules-table td {
   text-align: left;
   padding: 14px 16px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   border-bottom: 1px solid var(--app-border);
 }
 
 .rules-table th {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
@@ -1114,7 +1114,7 @@ onBeforeUnmount(() => {
 
 .muted-text {
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .role-pill {
@@ -1122,7 +1122,7 @@ onBeforeUnmount(() => {
   align-items: center;
   border-radius: 999px;
   padding: 4px 10px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -1134,7 +1134,7 @@ onBeforeUnmount(() => {
 }
 
 .role-pill--custom {
-  color: #6d28d9;
+  color: var(--app-accent-hover);
   background: rgba(124, 58, 237, 0.14);
   border: 1px solid rgba(124, 58, 237, 0.35);
 }
@@ -1161,7 +1161,7 @@ onBeforeUnmount(() => {
 
 .pagination-info {
   color: var(--app-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
 }
 
 .pagination-controls {
@@ -1176,7 +1176,7 @@ onBeforeUnmount(() => {
   color: var(--app-text);
   border-radius: 8px;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -1194,7 +1194,7 @@ onBeforeUnmount(() => {
 
 .pagination-page {
   color: var(--app-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
 }
 
 .rules-table th:last-child,
@@ -1252,7 +1252,7 @@ onBeforeUnmount(() => {
 
 .dialog-section-title {
   margin: 0 0 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1279,7 +1279,7 @@ onBeforeUnmount(() => {
 
 .overview-item dt {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1288,7 +1288,7 @@ onBeforeUnmount(() => {
 
 .overview-item dd {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -1331,7 +1331,7 @@ onBeforeUnmount(() => {
   align-items: center;
   border-radius: 999px;
   padding: 3px 8px;
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.02em;
@@ -1357,10 +1357,10 @@ onBeforeUnmount(() => {
 }
 
 .rule-part-value {
-  font-size: 0.88rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
 }
 
 :global([data-theme='dark']) .rule-badge--type {
@@ -1407,7 +1407,7 @@ onBeforeUnmount(() => {
   border: none;
   background: transparent;
   color: var(--app-text-muted);
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   padding: 12px 16px;
   cursor: pointer;
@@ -1442,7 +1442,7 @@ onBeforeUnmount(() => {
 }
 
 .form-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   font-weight: 500;
 }
@@ -1505,7 +1505,7 @@ onBeforeUnmount(() => {
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1558,7 +1558,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.875rem;
+  font-size: var(--type-base);
   font-weight: 700;
   border: 2px solid var(--app-border-strong);
   background: var(--app-surface-elevated);
@@ -1566,7 +1566,7 @@ onBeforeUnmount(() => {
 }
 
 .wizard-step-label {
-  font-size: 0.8125rem;
+  font-size: var(--type-base);
   font-weight: 600;
 }
 
@@ -1599,7 +1599,7 @@ onBeforeUnmount(() => {
 .wizard-step-desc {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .form-field select {
@@ -1631,7 +1631,7 @@ onBeforeUnmount(() => {
 
 .dialog-card h3 {
   margin: 0 0 16px;
-  font-size: 1.1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1684,7 +1684,7 @@ onBeforeUnmount(() => {
   }
 
   .wizard-step-label {
-    font-size: 0.75rem;
+    font-size: var(--type-caption);
   }
 }
 </style>

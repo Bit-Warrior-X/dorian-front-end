@@ -87,6 +87,28 @@ const isDark = theme.isDark
   transform: translateY(-1px);
 }
 
+.theme-toggle.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 0.5px solid var(--app-border-strong);
+  background: var(--app-surface);
+  color: var(--app-text-muted);
+  transform: none;
+}
+
+.theme-toggle.icon-btn:hover {
+  background: var(--app-surface-elevated);
+  border-color: var(--app-border-strong);
+  color: var(--app-text-secondary);
+  transform: none;
+}
+
+.theme-toggle.icon-btn .theme-icon {
+  width: 15px;
+  height: 15px;
+}
+
 .theme-toggle.on-login {
   position: absolute;
   top: 20px;
@@ -139,7 +161,7 @@ const isDark = theme.isDark
 }
 
 .theme-label {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
 }
 </style>

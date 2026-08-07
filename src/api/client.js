@@ -1,16 +1,19 @@
 import { getApiConfig } from './config'
+import { readStoredAuth } from '@/stores/authStorage'
 import { touchSessionActivity } from '@/stores/sessionIdle'
 
-const STORAGE_KEY = 'cdnproxy.auth'
+const getStoredAuth = () => readStoredAuth()
 
-const getStoredToken = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    return JSON.parse(raw)?.token || null
-  } catch {
-    return null
-  }
+const getStoredToken = () => getStoredAuth()?.token || null
+
+const applyActorHeaders = (headers, skipActorHeaders) => {
+  if (skipActorHeaders) return
+  const user = getStoredAuth()?.user
+  if (!user) return
+  if (user.id != null) headers['X-Actor-Id'] = String(user.id)
+  if (user.name) headers['X-Actor-Name'] = user.name
+  if (user.email) headers['X-Actor-Email'] = user.email
+  if (user.role) headers['X-Actor-Role'] = user.role
 }
 
 const parseJson = async (response) => {
@@ -45,6 +48,7 @@ export const apiRequest = async (path, options = {}) => {
     headers.Authorization = `Bearer ${token}`
     touchSessionActivity(false)
   }
+  applyActorHeaders(headers, Boolean(options.skipActorHeaders))
 
   const response = await fetch(url, {
     ...options,

@@ -1,0 +1,309 @@
+/* Shared dashboard shell — fleet overview, analytics, etc. */
+
+.dashboard-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dash-topbar__left h2 {
+  margin: 0 0 3px;
+  font-size: var(--type-page-title);
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.dash-topbar__left p {
+  margin: 0;
+  font-size: var(--type-page-subtitle);
+  color: var(--app-text-muted);
+}
+
+.dash-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.dash-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-accent);
+  flex-shrink: 0;
+  animation: dash-blink 2s ease-in-out infinite;
+}
+
+@keyframes dash-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.dash-filterbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.dash-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-filter-field label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-label);
+  color: var(--app-text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dash-select {
+  background: var(--app-input-bg);
+  border: 0.5px solid var(--app-border-strong);
+  color: var(--app-text);
+  font-size: var(--type-caption);
+  padding: 7px 10px;
+  border-radius: 6px;
+  min-width: 170px;
+}
+
+.dash-range-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  background: var(--app-bg);
+  border: 0.5px solid var(--app-border-strong);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.dash-range-pill {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-small);
+  padding: 5px 8px;
+  border-radius: 4px;
+  color: var(--app-text-muted);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dash-range-pill.active {
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.dash-range-pill--custom {
+  margin-left: 2px;
+  border-left: 1px solid var(--app-border-strong);
+  padding-left: 10px;
+}
+
+.dash-filter-summary {
+  margin-left: auto;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dash-filter-apply {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-caption);
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 0.5px solid var(--app-accent);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+  cursor: pointer;
+}
+
+.dash-filter-apply:hover {
+  filter: brightness(1.05);
+}
+
+.dash-tabbar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px;
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
+  border-radius: 10px;
+}
+
+.dash-tab {
+  font-size: var(--type-caption);
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dash-tab:hover {
+  color: var(--app-text);
+  background: var(--app-surface-hover);
+}
+
+.dash-tab.active {
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.analytics-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dash-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  gap: 12px;
+}
+
+.dash-metric-card {
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.dash-metric-label {
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.dash-metric-value {
+  font-size: var(--type-metric-value);
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.dash-metric-delta {
+  font-size: var(--type-caption);
+  margin-top: 5px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  color: var(--app-text-muted);
+}
+
+.dash-grid12 {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.c-4 { grid-column: span 4; }
+.c-5 { grid-column: span 5; }
+.c-6 { grid-column: span 6; }
+.c-7 { grid-column: span 7; }
+.c-8 { grid-column: span 8; }
+.c-12 { grid-column: span 12; }
+
+.dash-grid12 > .dash-panel {
+  min-width: 0;
+}
+
+.dash-panel {
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 12px;
+}
+
+.dash-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dash-panel-head h3 {
+  margin: 0;
+  font-size: var(--type-section-title);
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.dash-panel-desc {
+  margin: 4px 0 0;
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+}
+
+.dash-count-tag {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-small);
+  color: var(--app-text-muted);
+  flex-shrink: 0;
+}
+
+.dash-chart-wrap {
+  position: relative;
+  min-height: 280px;
+}
+
+.dash-chart-wrap--tall {
+  min-height: 300px;
+}
+
+.dash-chart-wrap :deep(.apexcharts-canvas),
+.dash-chart-wrap :deep(.apexcharts-svg) {
+  background: transparent !important;
+}
+
+@media (max-width: 1100px) {
+  .c-4, .c-5, .c-6, .c-7, .c-8 {
+    grid-column: span 12;
+  }
+}
+
+@media (max-width: 768px) {
+  .dash-filter-summary {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .dash-tab {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 8px 10px;
+  }
+}

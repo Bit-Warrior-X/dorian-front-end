@@ -139,7 +139,7 @@ const emit = defineEmits(['dismiss'])
 
 .toast-title {
   margin: 0;
-  font-size: 1.02rem;
+  font-size: var(--type-base);
   font-weight: 700;
   line-height: 1.35;
   color: inherit;
@@ -147,7 +147,7 @@ const emit = defineEmits(['dismiss'])
 
 .toast-message {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   font-weight: 500;
   line-height: 1.55;
   color: inherit;
@@ -164,7 +164,7 @@ const emit = defineEmits(['dismiss'])
   border-radius: 8px;
   background: transparent;
   color: inherit;
-  font-size: 1.35rem;
+  font-size: var(--type-metric-value);
   line-height: 1;
   cursor: pointer;
   opacity: 0.65;

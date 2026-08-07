@@ -1,0 +1,83 @@
+/* Extracted from components/AppTopbarActions.vue */
+.app-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.app-topbar-user {
+  position: relative;
+}
+
+.app-topbar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.app-topbar-avatar:hover {
+  background: rgba(46, 158, 108, 0.24);
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.app-topbar-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 196px;
+  background: var(--app-surface-solid);
+  border: 0.5px solid var(--app-border-strong);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  z-index: 30;
+}
+
+.app-topbar-menu-head {
+  padding: 8px 10px 6px;
+  border-bottom: 0.5px solid var(--app-border);
+  margin-bottom: 4px;
+}
+
+.app-topbar-menu-name {
+  display: block;
+  font-size: var(--type-base);
+  font-weight: 600;
+  color: var(--app-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-topbar-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  font-size: var(--type-base);
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.app-topbar-menu-item:hover {
+  background: var(--app-accent-soft);
+}
+
+.app-topbar-menu-item--danger {
+  color: #f0555a;
+}

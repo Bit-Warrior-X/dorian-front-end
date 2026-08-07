@@ -165,13 +165,13 @@ const select = (uuid) => {
 }
 
 .version-card:hover:not(.disabled):not(.selected) {
-  border-color: var(--app-accent, #a855f7);
+  border-color: var(--app-accent);
   box-shadow: 0 8px 24px var(--app-accent-soft, rgba(168, 85, 247, 0.12));
   transform: translateY(-2px);
 }
 
 .version-card.selected {
-  border-color: var(--app-accent, #a855f7);
+  border-color: var(--app-accent);
   box-shadow:
     0 0 0 1px rgba(168, 85, 247, 0.35),
     0 12px 32px var(--app-shadow, rgba(0, 0, 0, 0.2));
@@ -216,7 +216,7 @@ const select = (uuid) => {
 }
 
 .version-card--violet .version-card-accent {
-  background: linear-gradient(90deg, #a78bfa, #7c3aed);
+  background: var(--app-accent-gradient);
 }
 
 .version-card--indigo .version-card-accent {
@@ -240,7 +240,7 @@ const select = (uuid) => {
 
 .version-badge {
   align-self: flex-start;
-  font-size: 0.68rem;
+  font-size: var(--type-small);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -273,14 +273,14 @@ const select = (uuid) => {
 
 .version-title {
   font-weight: 800;
-  font-size: 1.28rem;
+  font-size: var(--type-metric-value);
   color: var(--app-heading, #0f172a);
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
 .version-tagline {
-  font-size: 0.76rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted, #64748b);
   font-weight: 500;
   word-break: break-all;
@@ -323,7 +323,7 @@ const select = (uuid) => {
 
 .version-section-label {
   margin: 0 0 8px;
-  font-size: 0.68rem;
+  font-size: var(--type-small);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -341,7 +341,7 @@ const select = (uuid) => {
 }
 
 .release-label {
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -349,7 +349,7 @@ const select = (uuid) => {
 }
 
 .release-date {
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 700;
   color: var(--app-heading, #0f172a);
   line-height: 1.35;

@@ -620,7 +620,7 @@ onMounted(async () => {
 }
 
 .filter-label {
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
@@ -630,7 +630,7 @@ onMounted(async () => {
   border-radius: 12px;
   border: 1px solid var(--app-input-border);
   padding: 8px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   background: var(--app-input-bg);
   box-shadow: 0 1px 6px var(--app-shadow);
@@ -648,7 +648,7 @@ onMounted(async () => {
   align-items: center;
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
 }
 
@@ -685,7 +685,7 @@ onMounted(async () => {
   color: var(--app-text-muted);
   border-radius: 999px;
   padding: 8px 14px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -733,7 +733,7 @@ onMounted(async () => {
   padding: 48px 24px;
   text-align: center;
   color: var(--app-text-muted);
-  font-size: 0.95rem;
+  font-size: var(--type-base);
 }
 
 .overview-hero {
@@ -752,7 +752,7 @@ onMounted(async () => {
 
 .overview-kicker {
   margin: 0 0 6px;
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -771,7 +771,7 @@ onMounted(async () => {
 .overview-summary {
   margin: 0 0 14px;
   max-width: 52rem;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   line-height: 1.45;
   color: var(--app-text-secondary);
 }
@@ -794,7 +794,7 @@ onMounted(async () => {
   color: var(--app-text-secondary);
   border-radius: 10px;
   padding: 10px 14px;
-  font-size: 0.88rem;
+  font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -830,7 +830,7 @@ onMounted(async () => {
 }
 
 .metric__label {
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -838,19 +838,19 @@ onMounted(async () => {
 }
 
 .metric__value {
-  font-size: 1.45rem;
+  font-size: var(--type-metric-value);
   font-weight: 700;
   line-height: 1.15;
   color: var(--app-heading);
 }
 
 .metric__value--sm {
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
 }
 
 .metric__hint {
   margin-top: auto;
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
   line-height: 1.35;
   color: var(--app-text-muted);
 }
@@ -884,14 +884,14 @@ onMounted(async () => {
 
 .overview-section__head h3 {
   margin: 0 0 4px;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 650;
   color: var(--app-heading);
 }
 
 .overview-section__head p {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: var(--type-base);
   line-height: 1.4;
   color: var(--app-text-muted);
 }
@@ -900,7 +900,7 @@ onMounted(async () => {
   border: none;
   background: transparent;
   color: var(--app-accent);
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
   padding: 4px 0;
@@ -924,7 +924,7 @@ onMounted(async () => {
 }
 
 .detail__label {
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -932,7 +932,7 @@ onMounted(async () => {
 }
 
 .detail__value {
-  font-size: 0.94rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -944,7 +944,7 @@ onMounted(async () => {
 
 .info-empty {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   line-height: 1.45;
   color: var(--app-text-muted);
 }
@@ -973,7 +973,7 @@ onMounted(async () => {
 }
 
 .edge-chip__name {
-  font-size: 0.88rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -983,7 +983,7 @@ onMounted(async () => {
   align-items: center;
   border-radius: 999px;
   padding: 5px 11px;
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   font-weight: 600;
 }
 
@@ -1038,7 +1038,7 @@ onMounted(async () => {
   width: fit-content;
   border-radius: 999px;
   padding: 4px 10px;
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -1099,7 +1099,7 @@ onMounted(async () => {
 
 .waf-fork-prompt h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   color: var(--app-heading);
 }
 

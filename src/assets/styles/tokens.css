@@ -1,0 +1,263 @@
+/* =============================================================================
+   Dorian theme — Viper green / Obsidian / Gold brand system
+   ============================================================================= */
+
+:root {
+  /* Dorian brand palette (dorian-brand.html) */
+  --dorian-bg: #0b0f0d;
+  --dorian-panel: #121815;
+  --dorian-panel-raised: #171f1b;
+  --dorian-hairline: #232d28;
+  --dorian-hairline-strong: #333f38;
+  --dorian-text: #e8ede9;
+  --dorian-text-dim: #8b978f;
+  --dorian-text-faint: #5b6560;
+  --dorian-viper-400: #3fbd85;
+  --dorian-viper-500: #2e9e6c;
+  --dorian-viper-700: #1f6e4a;
+  --dorian-viper-dim: #17352a;
+  --dorian-gold-500: #c9a24a;
+  --dorian-gold-dim: #3a2e14;
+  --dorian-success: #4fbd7a;
+  --dorian-l4: #5b9df0;
+  --dorian-l7: #b08cf0;
+  --dorian-warn: #e0a83f;
+  --dorian-danger: #e15241;
+}
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --badge-radius: 4px;
+
+  /* Typography — operator console scale (dashboard / desig.html) */
+  --type-base: 0.8125rem;
+  --type-page-title: 1.0625rem;
+  --type-page-subtitle: 0.8rem;
+  --type-section-title: 0.85rem;
+  --type-label: 0.625rem;
+  --type-caption: 0.72rem;
+  --type-small: 0.68rem;
+  --type-metric-label: 0.75rem;
+  --type-metric-value: 1.3125rem;
+
+  --app-bg: #f5f5f5;
+  --app-bg-gradient: linear-gradient(180deg, #f7fafc 0%, #edf2f7 100%);
+  --app-surface: rgba(255, 255, 255, 0.95);
+  --app-surface-solid: #ffffff;
+  --app-surface-muted: #f8fafc;
+  --app-surface-elevated: #ffffff;
+  --app-surface-hover: #f1f5f9;
+  --app-border: rgba(0, 0, 0, 0.08);
+  --app-border-strong: #e2e8f0;
+  --app-text: #171717;
+  --app-text-secondary: #404040;
+  --app-text-muted: #737373;
+  --app-heading: #0a0a0a;
+  --app-input-bg: #ffffff;
+  --app-input-border: #d4d4d4;
+  --app-shadow: rgba(0, 0, 0, 0.08);
+  --app-overlay: rgba(0, 0, 0, 0.5);
+  --app-accent: var(--dorian-viper-500);
+  --app-accent-hover: var(--dorian-viper-700);
+  --app-accent-soft: rgba(46, 158, 108, 0.12);
+  --app-accent-gradient: linear-gradient(135deg, var(--dorian-viper-400) 0%, var(--dorian-viper-500) 100%);
+  /* Buttons — flat fills (no gradients or glows) */
+  --app-btn-primary-bg: var(--dorian-viper-500);
+  --app-btn-primary-hover: var(--dorian-viper-700);
+  --app-btn-primary-fg: #ffffff;
+  --app-btn-danger-bg: #dc2626;
+  --app-btn-danger-hover: #b91c1c;
+  --app-btn-danger-fg: #ffffff;
+  --app-btn-surface-bg: var(--app-surface-elevated);
+  --app-btn-surface-hover: var(--app-surface-hover);
+  --app-btn-surface-border: var(--app-border-strong);
+  --app-btn-surface-fg: var(--app-text-secondary);
+  --app-btn-surface-fg-hover: var(--app-text);
+  /* Legacy aliases (kept for older references) */
+  --app-btn-primary-shadow: transparent;
+  --app-btn-danger-shadow: transparent;
+  --app-btn-warning-bg: var(--app-btn-surface-bg);
+  --app-btn-warning-shadow: transparent;
+  --app-btn-success-bg: var(--app-btn-primary-bg);
+  --app-btn-success-shadow: transparent;
+  --app-header-bg: rgba(255, 255, 255, 0.95);
+  --app-sidebar-bg: linear-gradient(180deg, #0b0f0d 0%, #121815 100%);
+  --app-login-bg: radial-gradient(ellipse at 50% 0%, rgba(46, 158, 108, 0.2) 0%, transparent 55%),
+    linear-gradient(160deg, #0b0f0d 0%, #121815 50%, #0b0f0d 100%);
+  --app-login-card: rgba(10, 10, 10, 0.92);
+  --tier-card-bg: #ffffff;
+  --tier-card-border: #e5e5e5;
+  --tier-pricing-bg: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+  --tier-meta-bg: #fafafa;
+  --chart-grid: rgba(148, 163, 184, 0.35);
+  --chart-label: #64748b;
+  --chart-surface: #ffffff;
+  --scrollbar-size: 10px;
+  --scrollbar-radius: 5px;
+  --scrollbar-track: #f0f0f0;
+  --scrollbar-thumb: #c4c4c4;
+  --scrollbar-thumb-hover: #a3a3a3;
+  /* Compact layout spacing */
+  --space-page-x: 32px;
+  --space-page-y: 22px;
+  --space-header-x: 32px;
+  --space-header-y: 22px;
+  --space-card: 14px 16px;
+  --space-card-tight: 12px;
+  --space-gap: 10px;
+  --space-gap-lg: 14px;
+  --space-table-cell: 8px 10px;
+  --space-dialog: 16px;
+  --space-chart-height: 260px;
+  /* Button sizes — md is default for actions; sm for filters/pills; lg for login */
+  --btn-height-sm: 32px;
+  --btn-height-md: 36px;
+  --btn-height-lg: 40px;
+  --btn-padding-x-sm: 12px;
+  --btn-padding-x-md: 16px;
+  --btn-padding-x-lg: 20px;
+  --btn-font-size-sm: 0.75rem;
+  --btn-font-size-md: 0.8125rem;
+  --btn-font-size-lg: 0.875rem;
+  --btn-font-weight: 600;
+  --btn-radius: 8px;
+  --btn-radius-pill: 999px;
+  --btn-gap: 8px;
+  --btn-icon-size-sm: 32px;
+  --btn-icon-size-md: 36px;
+  --btn-icon-svg: 16px;
+  /* Yes/No segmented toggle */
+  --toggle-width: 72px;
+  --toggle-height: 28px;
+  --toggle-padding: 3px;
+  --toggle-font-size: 0.6875rem;
+  --toggle-on-bg: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  --toggle-on-border: rgba(22, 163, 74, 0.55);
+  --toggle-on-label: #ffffff;
+  --toggle-off-bg: var(--app-surface-elevated);
+  --toggle-off-border: var(--app-border-strong);
+  --toggle-off-label: var(--app-text-muted);
+  --toggle-off-label-active: #dc2626;
+  --toggle-knob-bg: #ffffff;
+  --toggle-knob-border: rgba(15, 23, 42, 0.08);
+  --toggle-knob-shadow: 0 2px 6px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --toggle-track-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+  --app-tooltip-bg: #ffffff;
+  --app-tooltip-text: #171717;
+  --app-tooltip-border: #e2e8f0;
+  --app-tooltip-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --app-bg: var(--dorian-bg);
+  --app-bg-gradient: radial-gradient(ellipse at 50% -20%, rgba(46, 158, 108, 0.12) 0%, transparent 50%),
+    var(--dorian-bg);
+  --app-surface: var(--dorian-panel);
+  --app-surface-solid: var(--dorian-panel);
+  --app-surface-muted: var(--dorian-bg);
+  --app-surface-elevated: var(--dorian-panel-raised);
+  --app-surface-hover: #1c2620;
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-border-strong: rgba(255, 255, 255, 0.14);
+  --app-text: var(--dorian-text);
+  --app-text-secondary: #d4ddd7;
+  --app-text-muted: var(--dorian-text-dim);
+  --app-heading: var(--dorian-text);
+  --app-input-bg: var(--dorian-bg);
+  --app-input-border: rgba(255, 255, 255, 0.12);
+  --app-shadow: rgba(0, 0, 0, 0.6);
+  --app-overlay: rgba(0, 0, 0, 0.85);
+  --app-accent: var(--dorian-viper-400);
+  --app-accent-hover: var(--dorian-viper-500);
+  --app-accent-soft: rgba(63, 189, 133, 0.16);
+  --app-accent-gradient: linear-gradient(135deg, var(--dorian-viper-400) 0%, var(--dorian-viper-500) 100%);
+  --app-btn-primary-bg: var(--dorian-viper-500);
+  --app-btn-primary-hover: var(--dorian-viper-700);
+  --app-btn-primary-fg: #ffffff;
+  --app-btn-danger-bg: #ef4444;
+  --app-btn-danger-hover: #dc2626;
+  --app-btn-danger-fg: #ffffff;
+  --app-btn-surface-bg: var(--dorian-panel-raised);
+  --app-btn-surface-hover: #1c2620;
+  --app-btn-surface-border: var(--app-border-strong);
+  --app-btn-surface-fg: var(--app-text-secondary);
+  --app-btn-surface-fg-hover: var(--app-text);
+  --app-btn-primary-shadow: transparent;
+  --app-btn-danger-shadow: transparent;
+  --app-btn-warning-bg: var(--app-btn-surface-bg);
+  --app-btn-warning-shadow: transparent;
+  --app-btn-success-bg: var(--app-btn-primary-bg);
+  --app-btn-success-shadow: transparent;
+  --toggle-on-bg: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+  --toggle-on-border: rgba(74, 222, 128, 0.35);
+  --toggle-off-bg: #141414;
+  --toggle-off-border: var(--app-border-strong);
+  --toggle-off-label: var(--app-text-muted);
+  --toggle-off-label-active: #f87171;
+  --toggle-knob-bg: #f4f4f5;
+  --toggle-knob-border: rgba(255, 255, 255, 0.12);
+  --toggle-knob-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --toggle-track-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+  --app-header-bg: rgba(11, 15, 13, 0.95);
+  --app-sidebar-bg: var(--dorian-bg);
+  --app-login-bg: radial-gradient(ellipse at 50% 0%, rgba(46, 158, 108, 0.18) 0%, transparent 50%), var(--dorian-bg);
+  --app-login-card: var(--dorian-panel);
+  --tier-card-bg: var(--dorian-panel);
+  --tier-card-border: rgba(255, 255, 255, 0.1);
+  --tier-pricing-bg: #000000;
+  --tier-meta-bg: #050505;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --chart-label: #a3a3a3;
+  --chart-surface: #0a0a0a;
+  --nav-item-color: rgba(255, 255, 255, 0.75);
+  --nav-item-hover-bg: rgba(255, 255, 255, 0.08);
+  --nav-item-hover-color: #ffffff;
+  --nav-item-active-bg: var(--dorian-viper-dim);
+  --nav-item-active-color: #ffffff;
+  --nav-item-accent: var(--app-accent);
+  --scrollbar-size: 10px;
+  --scrollbar-radius: 5px;
+  --scrollbar-track: var(--dorian-bg);
+  --scrollbar-thumb: #2a2a2a;
+  --scrollbar-thumb-hover: #444444;
+  --app-tooltip-bg: #141414;
+  --app-tooltip-text: #f5f5f5;
+  --app-tooltip-border: rgba(255, 255, 255, 0.14);
+  --app-tooltip-shadow: 0 10px 32px rgba(0, 0, 0, 0.75);
+}
+/* Login panel theme tokens */
+:root,
+[data-theme='light'] {
+  --login-panel-bg: #ffffff;
+  --login-panel-text: #111827;
+  --login-panel-heading: #0a0a0a;
+  --login-panel-muted: #6b7280;
+  --login-label: #374151;
+  --login-input-bg: #ffffff;
+  --login-input-border: #d1d5db;
+  --login-input-border-hover: #9ca3af;
+  --login-placeholder: #9ca3af;
+  --login-border: #e5e7eb;
+}
+
+[data-theme='dark'] {
+  --login-panel-bg: var(--dorian-panel);
+  --login-panel-text: var(--dorian-text);
+  --login-panel-heading: var(--dorian-text);
+  --login-panel-muted: var(--dorian-text-dim);
+  --login-label: var(--dorian-text-dim);
+  --login-input-bg: var(--dorian-bg);
+  --login-input-border: var(--dorian-hairline-strong);
+  --login-input-border-hover: rgba(255, 255, 255, 0.28);
+  --login-placeholder: var(--dorian-text-faint);
+  --login-border: var(--dorian-hairline);
+}

@@ -645,7 +645,7 @@ watch(
 
 .waf-section-card h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -653,7 +653,7 @@ watch(
 .waf-section-desc {
   margin: 6px 0 0 0;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 .waf-section-header {
@@ -693,7 +693,7 @@ watch(
   border: 1px solid var(--app-border-strong);
   border-radius: 10px;
   padding: 9px 14px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   background: var(--app-surface-solid);
   color: var(--app-text-secondary);
@@ -722,7 +722,7 @@ watch(
 .waf-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   min-width: 720px;
   table-layout: fixed;
 }
@@ -747,7 +747,7 @@ watch(
 }
 
 .waf-table th {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
@@ -803,7 +803,7 @@ watch(
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-secondary);
   background: var(--app-surface-hover);
@@ -850,7 +850,7 @@ watch(
 
 .dialog-header h4 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -863,7 +863,7 @@ watch(
   height: 32px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
 }
 
 .dialog-body {
@@ -877,7 +877,7 @@ watch(
 .confirm-text {
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--type-base);
 }
 
 .form-field {
@@ -889,7 +889,7 @@ watch(
 
 .form-field label,
 .field-label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-secondary);
   text-transform: uppercase;
@@ -905,7 +905,7 @@ watch(
   border: 1px solid var(--app-border-strong);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-heading);
   background: var(--app-surface-solid);
   outline: none;
@@ -920,7 +920,7 @@ watch(
 
 .field-error {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   color: #dc2626;
   font-weight: 600;
 }
@@ -956,7 +956,7 @@ watch(
   border-radius: 10px;
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-elevated);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-heading);
 }
 
@@ -972,7 +972,7 @@ watch(
   color: var(--app-text-secondary);
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;

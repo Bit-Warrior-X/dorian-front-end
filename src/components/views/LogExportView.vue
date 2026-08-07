@@ -87,7 +87,7 @@ const handleExport = () => {
 }
 
 .view-card h2 {
-  font-size: 1.5rem;
+  font-size: var(--type-page-title);
   font-weight: 700;
   color: var(--app-heading);
   margin: 0 0 28px 0;
@@ -101,7 +101,7 @@ const handleExport = () => {
 }
 
 .form-section h3 {
-  font-size: 1.125rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
   margin: 0 0 20px 0;
@@ -115,7 +115,7 @@ const handleExport = () => {
 }
 
 .form-group label {
-  font-size: 0.875rem;
+  font-size: var(--type-base);
   font-weight: 500;
   color: var(--app-text-secondary);
 }
@@ -131,7 +131,7 @@ const handleExport = () => {
   padding: 12px 16px;
   border: 1px solid var(--app-input-border);
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   background: var(--app-input-bg);
   color: var(--app-text);
 }
@@ -140,7 +140,7 @@ const handleExport = () => {
   padding: 12px 16px;
   border: 1px solid var(--app-input-border);
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   background: var(--app-input-bg);
   color: var(--app-text);
   cursor: pointer;
@@ -156,7 +156,7 @@ const handleExport = () => {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text-secondary);
 }
 

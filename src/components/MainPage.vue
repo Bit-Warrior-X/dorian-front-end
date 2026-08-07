@@ -6,7 +6,7 @@
     <!-- Left Panel -->
     <aside :class="['left-panel', { 'panel-hidden': !isPanelOpen }]">
       <div class="panel-header">
-        <h2>Dorian</h2>
+        <DorianBrandMark size="sm" wordmark wordmark-class="panel-header__wordmark" />
         <button class="panel-toggle-btn" @click="togglePanel" title="Toggle Panel">
           <svg v-if="isPanelOpen" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6"></polyline>
@@ -228,43 +228,27 @@
       </button>
       
       <NotificationToastStack />
-      <div class="view-header">
-        <button 
-          v-if="isPanelOpen" 
-          class="menu-toggle-btn" 
-          @click="togglePanel" 
-          title="Hide Panel"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-        </button>
-        <h1>{{ currentViewTitle }}</h1>
-        <div class="view-header-actions">
-          <ThemeToggleButton />
-          <div ref="userMenuRef" class="user-info">
-          <button class="user-menu-button" type="button" @click="toggleUserMenu">
-            <span class="user-avatar">{{ userInitials }}</span>
-            <span class="user-name">{{ displayName }}</span>
-            <span class="user-caret">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </span>
+      <header v-if="!isDashboardRoute" class="view-header app-topbar">
+        <div class="app-topbar__left">
+          <button
+            v-if="isPanelOpen"
+            class="menu-toggle-btn"
+            type="button"
+            @click="togglePanel"
+            title="Hide Panel"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
           </button>
-          <div v-if="isUserMenuOpen" class="user-menu">
-            <button class="user-menu-item" type="button" @click="handleChangePassword">
-              Change Password
-            </button>
-            <button class="user-menu-item user-menu-item--danger" type="button" @click="handleLogout">
-              Log out
-            </button>
-          </div>
+          <div class="app-topbar__titles">
+            <h1>{{ currentViewTitle }}</h1>
           </div>
         </div>
-      </div>
+        <AppTopbarActions />
+      </header>
       <div class="view-content">
         <RouterView />
       </div>
@@ -273,23 +257,21 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuth } from '@/stores/auth'
-import ThemeToggleButton from './ThemeToggleButton.vue'
+import AppTopbarActions from './AppTopbarActions.vue'
+import DorianBrandMark from './DorianBrandMark.vue'
 import NotificationToastStack from './NotificationToastStack.vue'
 
 const auth = useAuth()
 const route = useRoute()
-const router = useRouter()
 
 const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
 const isServersOpen = ref(false)
 const isSitesOpen = ref(false)
 const isUsersOpen = ref(false)
-const isUserMenuOpen = ref(false)
-const userMenuRef = ref(null)
 
 const isServersRoute = computed(
   () => route.meta?.section === 'servers' || route.path.startsWith('/app/servers')
@@ -307,22 +289,12 @@ const isAnalyticsRoute = computed(
 )
 
 const isRouteActive = (name) => route.name === name
+const isDashboardRoute = computed(() => route.name === 'dashboard')
 
 const currentViewTitle = computed(() => route.meta?.title || 'Dashboard')
 const isAdmin = computed(
   () => String(auth.state.user?.role || '').toLowerCase() === 'admin'
 )
-const displayName = computed(() => auth.state.user?.name || auth.state.user?.email || 'User')
-const userInitials = computed(() => {
-  const name = displayName.value.trim()
-  if (!name) return 'U'
-  if (name.includes('@')) {
-    return name[0].toUpperCase()
-  }
-  const parts = name.split(' ').filter(Boolean)
-  if (parts.length === 1) return parts[0][0].toUpperCase()
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-})
 
 watch(
   () => route.path,
@@ -359,674 +331,9 @@ const toggleUsers = () => {
   isUsersOpen.value = !isUsersOpen.value
 }
 
-const handleLogout = async () => {
-  auth.clearSession()
-  await router.replace('/login')
-}
-
-const handleChangePassword = async () => {
-  isUserMenuOpen.value = false
-  await router.push({ name: 'users-information', query: { focus: 'password' } })
-}
-
-const toggleUserMenu = () => {
-  isUserMenuOpen.value = !isUserMenuOpen.value
-}
-
-const closeUserMenu = () => {
-  isUserMenuOpen.value = false
-}
-
-const handleDocumentClick = (event) => {
-  if (!userMenuRef.value) return
-  if (!userMenuRef.value.contains(event.target)) {
-    closeUserMenu()
-  }
-}
-
 const togglePanel = () => {
   isPanelOpen.value = !isPanelOpen.value
 }
-
-onMounted(() => {
-  document.addEventListener('click', handleDocumentClick)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleDocumentClick)
-})
 </script>
 
-<style scoped>
-.main-page {
-  /* For full viewport coverage */
-  position: fixed; /* or absolute */
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-
-  display: flex;
-  /* Alternative using viewport units */
-  width: 100%;
-  min-height: 100vh;
-  
-  overflow: hidden;
-}
-
-/* Overlay for mobile */
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 998;
-  display: none;
-}
-
-@media (max-width: 768px) {
-  .overlay {
-    display: block;
-  }
-}
-
-/* Left Panel Styles */
-.left-panel {
-  width: 280px;
-  min-width: 280px;
-  background: var(--app-sidebar-bg, linear-gradient(180deg, #0a0a0a 0%, #171717 100%));
-  color: white;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 999;
-  position: relative;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-}
-
-.left-panel.panel-hidden {
-  width: 0;
-  min-width: 0;
-  transform: translateX(-100%);
-  border-right: none;
-  box-shadow: none;
-}
-
-@media (max-width: 768px) {
-  .left-panel {
-    position: fixed;
-    height: 100vh;
-    left: 0;
-    top: 0;
-    width: 280px;
-    min-width: 280px;
-  }
-  
-  .left-panel.panel-hidden {
-    transform: translateX(-100%);
-    width: 280px;
-    min-width: 280px;
-  }
-  
-  .main-view-expanded {
-    width: 100%;
-  }
-}
-
-.panel-header {
-  padding: 16px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-}
-
-.panel-header h2 {
-  font-size: 1.375rem;
-  font-weight: 700;
-  margin: 0;
-  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.5px;
-}
-
-.panel-toggle-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 0;
-}
-
-.panel-toggle-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.panel-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
-}
-
-.panel-nav {
-  flex: 1;
-  padding: 12px 0;
-  overflow-y: auto;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
-
-.nav-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.nav-item {
-  margin: 4px 0;
-}
-
-.nav-item a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  color: rgba(255, 255, 255, 0.75);
-  text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  border-radius: 0 12px 12px 0;
-  margin-right: 12px;
-  position: relative;
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.25;
-}
-
-.nav-item a::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 0 4px 4px 0;
-  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nav-item a:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
-  transform: translateX(4px);
-}
-
-.nav-item a:hover .nav-icon svg {
-  transform: scale(1.1);
-}
-
-.nav-item a:hover::before {
-  height: 60%;
-}
-
-.nav-item.active > a {
-  background: linear-gradient(90deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.1) 100%);
-  color: white;
-  box-shadow: inset 0 0 20px rgba(102, 126, 234, 0.1);
-}
-
-.nav-item.active > a .nav-icon svg {
-  transform: scale(1.15);
-  filter: drop-shadow(0 0 4px rgba(102, 126, 234, 0.5));
-}
-
-.nav-item.active > a::before {
-  height: 80%;
-}
-
-.nav-item-parent {
-  position: relative;
-}
-
-.nav-item-parent > a {
-  position: relative;
-}
-
-.nav-arrow {
-  margin-left: auto;
-  width: 14px;
-  height: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nav-item-parent.open .nav-arrow {
-  transform: rotate(90deg);
-}
-
-.nav-item-parent.open > a {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.nav-submenu {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0 0 0;
-  padding-left: 20px;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nav-subitem {
-  margin: 2px 0;
-}
-
-.nav-subitem a {
-  display: flex;
-  align-items: center;
-  padding: 7px 20px;
-  color: rgba(255, 255, 255, 0.6);
-  text-decoration: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  border-radius: 0 8px 8px 0;
-  margin-right: 12px;
-  position: relative;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.25;
-}
-
-.nav-subitem a::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 0 3px 3px 0;
-  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nav-subitem a:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: white;
-  transform: translateX(4px);
-}
-
-.nav-subitem a:hover::before {
-  height: 50%;
-}
-
-.nav-subitem.active a {
-  background: linear-gradient(90deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.08) 100%);
-  color: white;
-}
-
-.nav-subitem.active a::before {
-  height: 70%;
-}
-
-.nav-icon {
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.nav-icon svg {
-  width: 100%;
-  height: 100%;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.panel-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.logout-button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.2) 0%, rgba(185, 28, 28, 0.2) 100%);
-  color: white;
-  border: 1px solid rgba(220, 38, 38, 0.3);
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(10px);
-}
-
-.logout-button:hover {
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.3) 0%, rgba(185, 28, 28, 0.3) 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
-  border-color: rgba(220, 38, 38, 0.5);
-}
-
-/* Main View Styles */
-.main-view {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--app-bg-gradient);
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-
-.main-view-expanded {
-  flex: 1 1 100%;
-  width: 100%;
-  max-width: 100%;
-}
-
-.view-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.view-header h1 {
-  color: var(--app-heading, #1a202c);
-}
-
-.view-header {
-  background: var(--app-header-bg, rgba(255, 255, 255, 0.9));
-  backdrop-filter: blur(20px);
-  padding: var(--space-header-y, 10px) var(--space-header-x, 20px);
-  border-bottom: 1px solid var(--app-border, rgba(226, 232, 240, 0.8));
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-  gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.menu-toggle-btn {
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  color: #1a202c;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-  padding: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.menu-toggle-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-.menu-toggle-btn:hover {
-  background: linear-gradient(135deg, #e5e7eb 0%, #cbd5e0 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Floating toggle button when panel is hidden */
-.floating-toggle-btn {
-  position: fixed;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  color: white;
-  width: 40px;
-  height: 56px;
-  border-radius: 0 12px 12px 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 1000;
-  box-shadow: 4px 0 20px rgba(102, 126, 234, 0.4);
-  padding: 0;
-}
-
-.floating-toggle-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-.floating-toggle-btn:hover {
-  width: 48px;
-  box-shadow: 6px 0 30px rgba(102, 126, 234, 0.5);
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  transform: translateY(-50%) translateX(4px);
-}
-
-.view-header h1 {
-  flex: 1;
-}
-
-.user-info {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #718096;
-  font-size: 0.95rem;
-}
-
-.user-menu-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-solid);
-  color: var(--app-text);
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.user-menu-button:hover {
-  background: rgba(102, 126, 234, 0.08);
-}
-
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.user-name {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.user-caret {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #6b7280;
-}
-
-.user-caret svg {
-  width: 16px;
-  height: 16px;
-}
-
-.user-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 10px);
-  min-width: 180px;
-  background: var(--app-surface-solid);
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
-  padding: 8px;
-  z-index: 20;
-}
-
-.user-menu-item {
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  border: none;
-  background: transparent;
-  color: var(--app-text);
-  font-size: 0.9rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.user-menu-item:hover {
-  background: rgba(102, 126, 234, 0.08);
-}
-
-.user-menu-item--danger {
-  color: #b91c1c;
-}
-
-.view-content {
-  flex: 1;
-  padding: var(--space-page-y, 12px) var(--space-page-x, 16px);
-  overflow-y: auto;
-  background: transparent;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .left-panel {
-    width: 250px;
-  }
-
-  .panel-header h2 {
-    font-size: 1.125rem;
-  }
-
-  .nav-item a {
-    font-size: 0.8125rem;
-    padding: 7px 14px;
-  }
-
-  .nav-subitem a {
-    font-size: 0.75rem;
-  }
-
-  .view-header {
-    padding: 16px 20px;
-  }
-
-  .view-header h1 {
-    font-size: 1.5rem;
-  }
-
-  .view-content {
-    padding: 10px 12px;
-  }
-  
-  .panel-toggle-btn {
-    display: none;
-  }
-  
-  .floating-toggle-btn {
-    width: 32px;
-    height: 40px;
-    font-size: 0.9rem;
-  }
-  
-  .floating-toggle-btn:hover {
-    width: 36px;
-  }
-}
-
-@media (max-width: 480px) {
-  .main-page {
-    flex-direction: column;
-  }
-
-  .left-panel {
-    width: 100%;
-    height: auto;
-    max-height: 200px;
-  }
-
-  .panel-nav {
-    display: flex;
-    overflow-x: auto;
-    padding: 10px 0;
-  }
-
-  .nav-list {
-    display: flex;
-    gap: 8px;
-  }
-
-  .nav-item {
-    margin: 0;
-  }
-
-  .nav-item a {
-    white-space: nowrap;
-    padding: 8px 16px;
-  }
-
-  .panel-footer {
-    display: none;
-  }
-}
-</style>
 

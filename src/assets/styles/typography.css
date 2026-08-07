@@ -1,0 +1,143 @@
+/* -------------------------------------------------------------------------- */
+/* App content typography (main area — sidebar nav unchanged)                  */
+/* -------------------------------------------------------------------------- */
+
+.main-view {
+  font-size: var(--type-base);
+  line-height: 1.45;
+}
+
+.main-view .view-header h1 {
+  font-size: var(--type-page-title);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.main-view .view-content {
+  font-size: var(--type-base);
+}
+
+.main-view .view-content h1,
+.main-view .view-content .page-title {
+  font-size: var(--type-page-title);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.main-view .view-content h2,
+.main-view .view-content h3,
+.main-view .content-card h2,
+.main-view .content-card h3,
+.main-view .content-card h4,
+.main-view .analytics-card h2,
+.main-view .analytics-card h3,
+.main-view .view-card h2,
+.main-view .view-card h3,
+.main-view .chart-card h3,
+.main-view .attack-chart-card h3,
+.main-view .attack-table-card h3,
+.main-view .card-header h2,
+.main-view .card-header h3,
+.main-view .card-title,
+.main-view .subpanel-head h3,
+.main-view .subpanel-head h4,
+.main-view .waf-panel-head h3,
+.main-view .tab-head h3,
+.main-view .settings-card h2,
+.main-view .settings-card h3 {
+  font-size: var(--type-section-title) !important;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.main-view .view-content h4 {
+  font-size: var(--type-base);
+  font-weight: 600;
+}
+
+.main-view .view-content .stat-value,
+.main-view .view-content .attack-value,
+.main-view .view-content .metric-value,
+.main-view .view-content .summary-value,
+.main-view .stat-value {
+  font-size: var(--type-metric-value) !important;
+  font-weight: 600 !important;
+  line-height: 1.2;
+}
+
+.main-view .view-content .stat-info h3,
+.main-view .view-content .stat-content h3,
+.main-view .view-content .attack-info h3,
+.main-view .stat-info h3 {
+  font-size: var(--type-metric-label) !important;
+  font-weight: 500;
+}
+
+.main-view .view-content .filter-field label,
+.main-view .view-content .dialog-field label,
+.main-view .view-content .form-group label,
+.main-view .view-content .field-label {
+  font-size: var(--type-label) !important;
+  font-family: var(--font-mono) !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.main-view .view-content input:not([type='checkbox']):not([type='radio']),
+.main-view .view-content select,
+.main-view .view-content textarea,
+.main-view .filter-field input,
+.main-view .filter-field select,
+.main-view .dialog-field input,
+.main-view .dialog-field select,
+.main-view .chart-select {
+  font-size: var(--type-base) !important;
+}
+
+.main-view .view-content table,
+.main-view .view-content .servers-table,
+.main-view .view-content .config-table,
+.main-view .view-content .waf-table,
+.main-view .view-content .list-table,
+.main-view .view-content .log-table {
+  font-size: var(--type-base);
+}
+
+.main-view .view-content table th,
+.main-view .view-content .servers-table th,
+.main-view .view-content .config-table th,
+.main-view .view-content .waf-table th,
+.main-view .view-content .list-table th {
+  font-size: var(--type-caption);
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.main-view .view-content p,
+.main-view .view-content li,
+.main-view .view-content td,
+.main-view .muted-text,
+.main-view .subpanel-hint,
+.main-view .empty-state,
+.main-view .no-data,
+.main-view .license-tab-lead {
+  font-size: var(--type-base);
+}
+
+.main-view .view-content small,
+.main-view .hint,
+.main-view .help-text,
+.main-view .attack-change,
+.main-view .meta-pill,
+.main-view .server-status-pill {
+  font-size: var(--type-caption);
+}
+
+/* Login — same scale as dashboard */
+.login-page {
+  font-size: var(--type-base);
+}

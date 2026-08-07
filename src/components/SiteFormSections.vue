@@ -549,13 +549,13 @@ const getServerLabelById = (serverId) => {
 
 .site-form__section-head h4 {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: var(--type-base);
   font-weight: 650;
   color: var(--app-heading);
 }
 
 .site-form__section-tag {
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -575,7 +575,7 @@ const getServerLabelById = (serverId) => {
 }
 
 .site-form__field label {
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-muted);
 }
@@ -586,7 +586,7 @@ const getServerLabelById = (serverId) => {
   border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 8px 10px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   background: var(--app-input-bg);
   outline: none;
@@ -596,8 +596,8 @@ const getServerLabelById = (serverId) => {
 .site-form__field textarea {
   resize: vertical;
   min-height: 72px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.8rem;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-caption);
   line-height: 1.4;
 }
 
@@ -640,13 +640,13 @@ const getServerLabelById = (serverId) => {
 }
 
 .type-card__label {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 650;
   color: var(--app-heading);
 }
 
 .type-card__desc {
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   line-height: 1.35;
   color: var(--app-text-muted);
 }
@@ -666,7 +666,7 @@ const getServerLabelById = (serverId) => {
 
 .site-form__subpanel-label {
   margin-bottom: 8px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 650;
   color: var(--app-text-muted);
   text-transform: uppercase;
@@ -691,7 +691,7 @@ const getServerLabelById = (serverId) => {
   border: 1px solid var(--app-border);
   background: var(--app-surface-solid);
   color: var(--app-text);
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -742,13 +742,13 @@ const getServerLabelById = (serverId) => {
 }
 
 .site-form__toggle-title {
-  font-size: 0.84rem;
+  font-size: var(--type-base);
   font-weight: 650;
   color: var(--app-heading);
 }
 
 .site-form__toggle-hint {
-  font-size: 0.72rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
 }
 
@@ -767,7 +767,7 @@ const getServerLabelById = (serverId) => {
   gap: 6px;
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   font-weight: 650;
   cursor: pointer;
 }
@@ -790,8 +790,8 @@ const getServerLabelById = (serverId) => {
 }
 
 .primary-add-btn:hover {
-  background: var(--app-accent-hover, #7c3aed);
-  border-color: var(--app-accent-hover, #7c3aed);
+  background: var(--app-accent-hover);
+  border-color: var(--app-accent-hover);
 }
 
 .primary-add-btn svg,
@@ -817,7 +817,7 @@ const getServerLabelById = (serverId) => {
 
 .origin-hint {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
   line-height: 1.45;
   color: var(--app-text-muted);
 }
@@ -846,7 +846,7 @@ const getServerLabelById = (serverId) => {
 }
 
 .origin-card__title {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 650;
   color: var(--app-heading);
 }
@@ -858,7 +858,7 @@ const getServerLabelById = (serverId) => {
   border: 1px solid rgba(239, 68, 68, 0.25);
   background: rgba(239, 68, 68, 0.08);
   color: #b91c1c;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   cursor: pointer;
   padding: 5px 10px;
@@ -891,7 +891,7 @@ const getServerLabelById = (serverId) => {
   border: 1px dashed var(--app-border);
   background: var(--app-surface-solid);
   color: var(--app-text-muted);
-  font-size: 0.84rem;
+  font-size: var(--type-base);
 }
 
 .selected-servers {
@@ -907,7 +907,7 @@ const getServerLabelById = (serverId) => {
   border-radius: 999px;
   background: var(--app-accent-soft);
   color: var(--app-accent);
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   border: 1px solid rgba(168, 85, 247, 0.2);
   cursor: pointer;
@@ -965,7 +965,7 @@ const getServerLabelById = (serverId) => {
   border-radius: 8px;
   background: transparent;
   color: var(--app-text);
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   text-align: left;
   cursor: pointer;
 }
@@ -978,7 +978,7 @@ const getServerLabelById = (serverId) => {
 .combobox-empty {
   padding: 8px 10px;
   color: var(--app-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
 }
 
 .waf-rule-trigger {
@@ -1022,7 +1022,7 @@ const getServerLabelById = (serverId) => {
 
 .waf-rule-trigger__placeholder {
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .waf-rule-combobox .combobox-arrow {
@@ -1046,7 +1046,7 @@ const getServerLabelById = (serverId) => {
   flex-shrink: 0;
   border-radius: 999px;
   padding: 3px 8px;
-  font-size: 0.68rem;
+  font-size: var(--type-small);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -1058,7 +1058,7 @@ const getServerLabelById = (serverId) => {
 }
 
 .role-pill--custom {
-  color: #6d28d9;
+  color: var(--app-accent-hover);
   background: rgba(124, 58, 237, 0.14);
   border: 1px solid rgba(124, 58, 237, 0.35);
 }

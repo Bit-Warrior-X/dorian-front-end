@@ -287,7 +287,7 @@ watch(
 
 .panel-header h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -295,7 +295,7 @@ watch(
 .panel-desc {
   margin: 6px 0 0 0;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 .panel-actions {
@@ -316,7 +316,7 @@ watch(
 .list-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   min-width: 560px;
 }
 
@@ -330,7 +330,7 @@ watch(
 }
 
 .list-table th {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
@@ -356,7 +356,7 @@ watch(
   border: 1px solid var(--app-border-strong);
   border-radius: 10px;
   padding: 9px 14px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   background: var(--app-surface-solid);
   color: var(--app-text-secondary);
@@ -443,7 +443,7 @@ watch(
 
 .dialog-header h4 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -456,7 +456,7 @@ watch(
   height: 32px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   transition: background 0.2s ease, color 0.2s ease;
 }
 
@@ -479,7 +479,7 @@ watch(
 }
 
 .form-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-secondary);
   text-transform: uppercase;
@@ -495,7 +495,7 @@ watch(
   border: 1px solid var(--app-input-border);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   background: var(--app-input-bg);
   outline: none;
@@ -515,7 +515,7 @@ watch(
 
 .field-error {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: #dc2626;
   font-weight: 600;
 }

@@ -374,7 +374,7 @@ onBeforeUnmount(() => {
 
 .waf-section-header h4 {
   margin: 0 0 6px;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -383,7 +383,7 @@ onBeforeUnmount(() => {
 .helper-text {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 .error-text {
@@ -407,7 +407,7 @@ onBeforeUnmount(() => {
 .empty-card h5,
 .server-summary h5 {
   margin: 0 0 6px;
-  font-size: 0.98rem;
+  font-size: var(--type-base);
   color: var(--app-heading);
 }
 
@@ -446,12 +446,12 @@ onBeforeUnmount(() => {
 }
 
 .server-tab__name {
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   font-weight: 600;
 }
 
 .server-tab__meta {
-  font-size: 0.78rem;
+  font-size: var(--type-caption);
   opacity: 0.85;
 }
 
@@ -471,7 +471,7 @@ onBeforeUnmount(() => {
 }
 
 .port-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-muted);
 }
@@ -511,7 +511,7 @@ onBeforeUnmount(() => {
   padding: 4px 8px;
   background: var(--app-accent-soft);
   color: var(--app-accent);
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
 }
 
@@ -520,7 +520,7 @@ onBeforeUnmount(() => {
   background: transparent;
   color: inherit;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   line-height: 1;
   padding: 0 2px;
 }
@@ -532,7 +532,7 @@ onBeforeUnmount(() => {
   outline: none;
   background: transparent;
   color: var(--app-text);
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 
 .combobox-arrow {
@@ -602,13 +602,13 @@ onBeforeUnmount(() => {
 
 .option-meta {
   color: var(--app-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
 }
 
 .combobox-empty {
   padding: 14px 12px;
   text-align: center;
   color: var(--app-text-muted);
-  font-size: 0.88rem;
+  font-size: var(--type-base);
 }
 </style>

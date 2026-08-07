@@ -58,13 +58,13 @@ const levelClass = computed(() => {
 }
 
 .usage-metric-label {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-text-muted);
   font-weight: 600;
 }
 
 .usage-metric-value {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text);
   white-space: nowrap;
@@ -118,7 +118,7 @@ const levelClass = computed(() => {
 
 .usage-metric-detail {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   line-height: 1.3;
 }

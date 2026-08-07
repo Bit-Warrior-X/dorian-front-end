@@ -1,5 +1,6 @@
+import { ACTIVITY_STORAGE_KEY, getActivityStorage } from './authStorage'
+
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000
-const ACTIVITY_STORAGE_KEY = 'cdnproxy.lastActivity'
 const CHECK_INTERVAL_MS = 15_000
 const ACTIVITY_THROTTLE_MS = 1_000
 
@@ -23,7 +24,7 @@ const now = () => Date.now()
 
 const readLastActivity = () => {
   try {
-    const raw = localStorage.getItem(ACTIVITY_STORAGE_KEY)
+    const raw = getActivityStorage().getItem(ACTIVITY_STORAGE_KEY)
     const value = Number(raw)
     return Number.isFinite(value) && value > 0 ? value : 0
   } catch {
@@ -33,7 +34,7 @@ const readLastActivity = () => {
 
 const writeLastActivity = (timestamp) => {
   try {
-    localStorage.setItem(ACTIVITY_STORAGE_KEY, String(timestamp))
+    getActivityStorage().setItem(ACTIVITY_STORAGE_KEY, String(timestamp))
   } catch {
     // ignore storage errors
   }
@@ -41,6 +42,7 @@ const writeLastActivity = (timestamp) => {
 
 export const clearSessionActivity = () => {
   try {
+    sessionStorage.removeItem(ACTIVITY_STORAGE_KEY)
     localStorage.removeItem(ACTIVITY_STORAGE_KEY)
   } catch {
     // ignore

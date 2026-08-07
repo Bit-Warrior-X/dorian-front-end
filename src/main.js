@@ -3,9 +3,10 @@ import App from './App.vue'
 import router from './router'
 import FlatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
-import '@/assets/theme.css'
+import '@/assets/styles/index.css'
 import { initTheme } from '@/stores/theme'
 import { auth } from '@/stores/auth'
+import { logout } from '@/api/auth'
 import { initSessionIdle, isSessionIdleExpired } from '@/stores/sessionIdle'
 
 initTheme()
@@ -14,6 +15,7 @@ auth.hydrate()
 initSessionIdle({
   isAuthenticated: () => auth.isAuthenticated.value,
   onExpire: async () => {
+    await logout('idle')
     auth.clearSession()
     const current = router.currentRoute.value
     if (current.name === 'login') return

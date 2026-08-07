@@ -23,8 +23,14 @@ export function getApexChartColors() {
       }
 }
 
-export function getApexAxisLabelStyle(fontSize = '13px') {
-  return { colors: getApexChartColors().label, fontSize }
+export function getApexFontFamily() {
+  if (typeof document === 'undefined') return 'Inter, system-ui, sans-serif'
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim()
+  return value || 'Inter, system-ui, sans-serif'
+}
+
+export function getApexAxisLabelStyle(fontSize = '11px') {
+  return { colors: getApexChartColors().label, fontSize, fontFamily: getApexFontFamily() }
 }
 
 /** Shared Apex options for chart background, grid, labels, tooltip. */
@@ -35,6 +41,7 @@ export function getApexBaseChartOptions() {
     chart: {
       background: colors.chartBg,
       foreColor: colors.label,
+      fontFamily: getApexFontFamily(),
     },
     theme: {
       mode: dark ? 'dark' : 'light',

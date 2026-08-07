@@ -507,7 +507,7 @@ onBeforeUnmount(() => {
 }
 
 .content-card h2 {
-  font-size: 1.25rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: #1a202c;
   margin: 0 0 12px 0;
@@ -516,7 +516,7 @@ onBeforeUnmount(() => {
 .content-card p {
   margin: 0;
   color: #4a5568;
-  font-size: 0.98rem;
+  font-size: var(--type-base);
 }
 
 .filter-card {
@@ -533,7 +533,7 @@ onBeforeUnmount(() => {
 
 .filter-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: #1f2937;
 }
@@ -552,7 +552,7 @@ onBeforeUnmount(() => {
 }
 
 .filter-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: #718096;
   font-weight: 500;
 }
@@ -562,7 +562,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   background: white;
   color: #1a202c;
   outline: none;
@@ -661,7 +661,7 @@ onBeforeUnmount(() => {
 
 .dialog-header h4 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: #1f2937;
 }
@@ -698,7 +698,7 @@ onBeforeUnmount(() => {
 }
 
 .dialog-field label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: #718096;
   font-weight: 500;
 }
@@ -708,7 +708,7 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   background: white;
   color: #1a202c;
   outline: none;
@@ -742,7 +742,7 @@ onBeforeUnmount(() => {
 .validation-error {
   margin: 14px 0 0 0;
   color: #b91c1c;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .table-card {
@@ -760,7 +760,7 @@ onBeforeUnmount(() => {
 
 .card-title h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: #1f2937;
 }
@@ -770,7 +770,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   background: rgba(148, 163, 184, 0.18);
   color: #475569;
@@ -796,13 +796,13 @@ onBeforeUnmount(() => {
 .blacklist-table td {
   text-align: left;
   padding: 12px 16px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: #1f2937;
   border-bottom: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 .blacklist-table th {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748b;
@@ -813,7 +813,7 @@ onBeforeUnmount(() => {
   padding: 18px;
   text-align: center;
   color: #94a3b8;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
 }
 </style>
 

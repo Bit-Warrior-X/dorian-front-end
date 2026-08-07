@@ -279,7 +279,7 @@ onMounted(() => {
 }
 
 .content-card h2 {
-  font-size: 1.25rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
   margin: 0 0 12px 0;
@@ -298,7 +298,7 @@ onMounted(() => {
 }
 
 .filter-label {
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
@@ -308,7 +308,7 @@ onMounted(() => {
   border-radius: 12px;
   border: 1px solid var(--app-input-border);
   padding: 8px 12px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   background: var(--app-input-bg);
   box-shadow: 0 1px 6px var(--app-shadow);
@@ -338,7 +338,7 @@ onMounted(() => {
   align-items: center;
   border-radius: 999px;
   padding: 6px 12px;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   background: var(--app-accent-soft);
   color: var(--app-accent);
@@ -363,7 +363,7 @@ onMounted(() => {
   color: var(--app-text-muted);
   border-radius: 999px;
   padding: 8px 14px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -410,13 +410,13 @@ onMounted(() => {
 .config-table td {
   text-align: left;
   padding: 12px 16px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   border-bottom: 1px solid var(--app-border-strong);
 }
 
 .config-table th {
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
@@ -432,7 +432,7 @@ onMounted(() => {
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-text-secondary);
   background: rgba(148, 163, 184, 0.18);
@@ -446,7 +446,7 @@ onMounted(() => {
 .content-card p {
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 0.98rem;
+  font-size: var(--type-base);
 }
 </style>
 

@@ -1,142 +1,153 @@
 <template>
-  <div class="layer4-attack-view">
-    <div class="filters-card">
-      <div class="filters-row">
-        <div class="filters-left">
-          <span class="filter-inline-label">Server</span>
-          <select id="layer4-server" v-model="selectedServer" class="inline-select">
-            <option v-for="server in serverOptions" :key="server.value" :value="server.value">
-              {{ server.label }}
-            </option>
-          </select>
-          <span class="filter-inline-label">Time Range</span>
-          <div class="time-buttons">
-            <button
-              v-for="range in timeRanges"
-              :key="range.value"
-              type="button"
-              class="time-btn"
-              :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
-              @click="selectTimeRange(range.value)"
-            >
-              {{ range.label }}
-            </button>
-            <button
-              type="button"
-              class="time-btn custom-btn"
-              :class="{ active: isCustomRange }"
-              @click="showCustomDialog = true"
-            >
-              Custom
-            </button>
-          </div>
-        </div>
-        <div class="filters-right">
-          <div class="selected-range-group">
-            <span class="selected-range-label">Selected</span>
-            <span class="selected-range-value">{{ selectedRangeLabel }}</span>
-          </div>
-          <button type="button" class="apply-filter-btn" @click="applyFilters">
-            Apply
+  <div class="dashboard-view layer4-attack-view">
+    <header class="dash-topbar">
+      <div class="dash-topbar__left">
+        <h2>Layer 4 attack analytics</h2>
+        <p>Edge DDoS traffic, protocol mix, and attacking IP activity.</p>
+      </div>
+      <div class="dash-topbar__right">
+        <AppTopbarActions />
+      </div>
+    </header>
+
+    <div class="dash-filterbar">
+      <div class="dash-filter-field">
+        <label for="layer4-server">Server</label>
+        <select id="layer4-server" v-model="selectedServer" class="dash-select">
+          <option v-for="server in serverOptions" :key="server.value" :value="server.value">
+            {{ server.label }}
+          </option>
+        </select>
+      </div>
+      <div class="dash-filter-field">
+        <label for="layer4-site">Site</label>
+        <select id="layer4-site" v-model="selectedSite" class="dash-select">
+          <option v-for="site in siteOptions" :key="site.value" :value="site.value">
+            {{ site.label }}
+          </option>
+        </select>
+      </div>
+      <div class="dash-filter-field">
+        <label>Time range</label>
+        <div class="dash-range-pills">
+          <button
+            v-for="range in timeRanges"
+            :key="range.value"
+            type="button"
+            class="dash-range-pill"
+            :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
+            @click="selectTimeRange(range.value)"
+          >
+            {{ range.label }}
+          </button>
+          <button
+            type="button"
+            class="dash-range-pill dash-range-pill--custom"
+            :class="{ active: isCustomRange }"
+            @click="showCustomDialog = true"
+          >
+            Custom
           </button>
         </div>
       </div>
-    </div>
-    <div class="attack-stats">
-        <div class="attack-stat-card">
-          <div class="attack-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-              <path d="M2 17l10 5 10-5"></path>
-              <path d="M2 12l10 5 10-5"></path>
-            </svg>
-          </div>
-          <div class="attack-info">
-            <h3>Total Traffic</h3>
-          <p class="attack-value">{{ statsDisplay.totalTraffic }}</p>
-          <span class="attack-change positive">{{ statsDisplay.totalTrafficTrend }}</span>
-          </div>
-        </div>
-
-        <div class="attack-stat-card">
-          <div class="attack-icon success">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 13l4 4L19 7"></path>
-            </svg>
-          </div>
-          <div class="attack-info">
-            <h3>Allowed Traffic</h3>
-          <p class="attack-value">{{ statsDisplay.allowedTraffic }}</p>
-          <span class="attack-change positive">{{ statsDisplay.allowedTrafficTrend }}</span>
-          </div>
-        </div>
-
-        <div class="attack-stat-card">
-          <div class="attack-icon blocked">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="15" y1="9" x2="9" y2="15"></line>
-              <line x1="9" y1="9" x2="15" y2="15"></line>
-            </svg>
-          </div>
-          <div class="attack-info">
-            <h3>Blocked Traffic</h3>
-          <p class="attack-value">{{ statsDisplay.blockedTraffic }}</p>
-          <span class="attack-change positive">{{ statsDisplay.blockedTrafficTrend }}</span>
-          </div>
-        </div>
+      <div class="dash-filter-summary">
+        <span class="dash-live-dot" aria-hidden="true"></span>
+        {{ selectedRangeLabel }}
       </div>
+      <button type="button" class="dash-filter-apply" @click="applyFilters">
+        Apply
+      </button>
+    </div>
 
-    <div class="attack-charts">
-        <div class="attack-chart-card attack-chart-card--single">
-          <div class="chart-header">
-            <h3>Allowed vs Blocked Traffic by Time</h3>
+    <nav class="dash-tabbar" aria-label="Layer 4 analytics sections">
+      <button
+        v-for="tab in l4Tabs"
+        :key="tab.id"
+        type="button"
+        class="dash-tab"
+        :class="{ active: activeTab === tab.id }"
+        @click="activeTab = tab.id"
+      >
+        {{ tab.label }}
+      </button>
+    </nav>
+
+    <div v-show="activeTab === 'overview'" class="analytics-tab-panel">
+      <section class="dash-metrics">
+        <article v-for="metric in metricCards" :key="metric.label" class="dash-metric-card">
+          <div class="dash-metric-label">{{ metric.label }}</div>
+          <div class="dash-metric-value num">{{ metric.value }}</div>
+        </article>
+      </section>
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Allowed vs blocked traffic</h3>
+              <p class="dash-panel-desc">Traffic volume over the selected range</p>
+            </div>
           </div>
-          <div class="chart-body">
+          <div class="dash-chart-wrap dash-chart-wrap--tall">
             <div ref="trafficChart"></div>
           </div>
         </div>
-        <div class="attack-chart-card attack-chart-card--single">
-          <div class="chart-header">
-            <h3>IP Protocols by Time</h3>
+      </section>
+    </div>
+
+    <div v-show="activeTab === 'protocols'" class="analytics-tab-panel">
+      <section class="dash-grid12">
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>IP protocols by time</h3>
+              <p class="dash-panel-desc">TCP, UDP, ICMP, GRE, and other protocol volume</p>
+            </div>
           </div>
-          <div class="chart-body">
+          <div class="dash-chart-wrap dash-chart-wrap--tall">
             <div ref="protocolChart"></div>
           </div>
         </div>
-      </div>
-      
-    <div class="attack-table-grid">
-        <div class="attack-chart-card attack-table-card--scroll">
-          <h3>Recent Attack Attempts</h3>
-          <div class="attack-table-scroll">
-            <table class="attack-table">
+      </section>
+    </div>
+
+    <div v-show="activeTab === 'attacks'" class="analytics-tab-panel">
+      <section class="dash-grid12">
+        <div class="dash-panel c-6">
+          <div class="dash-panel-head">
+            <h3>Recent attack attempts</h3>
+          </div>
+          <div class="table-wrap">
+            <table class="ip-table">
               <thead>
                 <tr>
                   <th>Time</th>
                   <th>Source IP</th>
-                  <th>Attack Type</th>
+                  <th>Attack type</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="row in recentAttackRows" :key="`${row.sourceIp}-${row.timestamp}`">
                   <td>{{ formatDateTime(row.timestamp) }}</td>
-                  <td>{{ row.sourceIp }}</td>
-                  <td><span :class="['badge', attackBadgeClass(row.attackType)]">{{ row.attackType }}</span></td>
+                  <td class="num">{{ row.sourceIp }}</td>
+                  <td>
+                    <span :class="['badge', attackBadgeClass(row.attackType)]">{{ row.attackType }}</span>
+                  </td>
                 </tr>
                 <tr v-if="!recentAttackRows.length">
-                  <td colspan="3">No recent attacks</td>
+                  <td colspan="3" class="empty-row">No recent attacks</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-        <div class="attack-chart-card attack-table-card--scroll">
-          <div class="table-header-row">
-            <h3>Top Seen Attacking IPs</h3>
+        <div class="dash-panel c-6">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Top attacking IPs</h3>
+            </div>
             <div class="table-controls">
               <span>Show</span>
-              <select v-model="seenIpLimit" class="table-select">
+              <select v-model="seenIpLimit" class="dash-select dash-select--sm">
                 <option value="10">10</option>
                 <option value="20">20</option>
                 <option value="30">30</option>
@@ -144,20 +155,20 @@
               </select>
             </div>
           </div>
-          <div class="attack-table-scroll">
-            <table class="attack-table">
+          <div class="table-wrap">
+            <table class="ip-table">
               <thead>
                 <tr>
-                  <th>IP Address</th>
-                  <th>Seen Count</th>
-                  <th>Last Seen</th>
+                  <th>IP address</th>
+                  <th>Seen count</th>
+                  <th>Last seen</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="row in visibleSeenIps" :key="row.ip">
-                  <td>{{ row.ip }}</td>
-                  <td>{{ formatNumber(row.count) }}</td>
+                  <td class="num">{{ row.ip }}</td>
+                  <td class="num">{{ formatNumber(row.count) }}</td>
                   <td>{{ formatDateTime(row.lastSeen) }}</td>
                   <td>
                     <button
@@ -165,73 +176,91 @@
                       class="action-btn action-btn--danger"
                       @click="openBlacklistDialog(row.ip)"
                     >
-                      Move to blacklist
+                      Blacklist
                     </button>
                   </td>
+                </tr>
+                <tr v-if="!visibleSeenIps.length">
+                  <td colspan="4" class="empty-row">No attacking IPs</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-      </div>
+      </section>
+    </div>
+
     <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
       <div class="dialog-content">
         <div class="dialog-header">
-          <h3>Custom Time Range</h3>
-          <button class="dialog-close" @click="showCustomDialog = false">✕</button>
+          <h3>Custom time range</h3>
+          <button type="button" class="dialog-close" @click="showCustomDialog = false">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="dialog-body">
-          <label>
-            Start
+          <div class="dialog-form-group">
+            <label>Start date &amp; time</label>
             <FlatPickr
               v-model="customStartDate"
               :config="datePickerConfig"
               class="dialog-input"
               placeholder="Select start time"
             />
-          </label>
-          <label>
-            End
+          </div>
+          <div class="dialog-form-group">
+            <label>End date &amp; time</label>
             <FlatPickr
               v-model="customEndDate"
               :config="datePickerConfig"
               class="dialog-input"
               placeholder="Select end time"
             />
-          </label>
+          </div>
         </div>
-        <div class="dialog-actions">
-          <button type="button" class="apply-filter-btn" @click="applyCustomRange">Apply</button>
+        <div class="dialog-footer">
+          <button type="button" class="dialog-btn cancel-btn" @click="showCustomDialog = false">Cancel</button>
+          <button type="button" class="dialog-btn apply-btn" @click="applyCustomRange">Apply</button>
         </div>
       </div>
     </div>
+
     <div v-if="showBlacklistDialog" class="dialog-overlay" @click.self="closeBlacklistDialog">
       <div class="dialog-content">
         <div class="dialog-header">
-          <h3>Add to Blacklist</h3>
-          <button class="dialog-close" @click="closeBlacklistDialog">✕</button>
+          <h3>Add to blacklist</h3>
+          <button type="button" class="dialog-close" @click="closeBlacklistDialog">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
         <div class="dialog-body">
-          <label>
-            Server
+          <div class="dialog-form-group">
+            <label>Server</label>
             <select v-model="blacklistForm.serverId" class="dialog-input">
-              <option value="all">Select Server</option>
+              <option value="all">Select server</option>
               <option v-for="server in servers" :key="server.id" :value="server.id">
                 {{ server.name || `Server ${server.id}` }}
               </option>
             </select>
-          </label>
-          <label>
-            IP Address
+          </div>
+          <div class="dialog-form-group">
+            <label>IP address</label>
             <input v-model="blacklistForm.ip" type="text" class="dialog-input" readonly />
-          </label>
-          <label>
-            Reason
+          </div>
+          <div class="dialog-form-group">
+            <label>Reason</label>
             <input v-model="blacklistForm.reason" type="text" class="dialog-input" placeholder="Reason" />
-          </label>
+          </div>
         </div>
-        <div class="dialog-actions">
-          <button type="button" class="apply-filter-btn" @click="submitBlacklist">Add</button>
+        <div class="dialog-footer">
+          <button type="button" class="dialog-btn cancel-btn" @click="closeBlacklistDialog">Cancel</button>
+          <button type="button" class="dialog-btn apply-btn" @click="submitBlacklist">Add</button>
         </div>
       </div>
     </div>
@@ -239,14 +268,27 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ApexCharts from 'apexcharts'
+import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchServers } from '@/api/servers'
+import { fetchSites } from '@/api/sites'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { notifyError, notifySuccess } from '@/utils/notify'
 
 const L4_DDOS_TITLE = 'L4 DDoS Defense'
+
+const CHART_COLORS = {
+  viper: '#3FBD85',
+  l4: '#5B9DF0',
+  l7: '#B08CF0',
+  gold: '#C9A24A',
+  warn: '#E0A83F',
+  danger: '#E15241',
+  success: '#4FBD7A',
+  muted: '#8B978F',
+}
 
 const chartGridColor = () => {
   if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
@@ -285,7 +327,15 @@ const chartDatetimeXaxis = () => ({
   },
 })
 
+const activeTab = ref('overview')
+const l4Tabs = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'protocols', label: 'Protocols' },
+  { id: 'attacks', label: 'Attacks' },
+]
+
 const selectedServer = ref('all')
+const selectedSite = ref('all')
 const selectedTimeRange = ref('1h')
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
@@ -293,18 +343,22 @@ const customStartDate = ref(null)
 const customEndDate = ref(null)
 const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
-  server: selectedServer.value,
-  range: selectedTimeRange.value,
+  server: 'all',
+  site: 'all',
+  range: '1h',
   isCustom: false,
   start: null,
   end: null,
 })
+
 const trafficChart = ref(null)
 const protocolChart = ref(null)
 let trafficChartInstance = null
 let protocolChartInstance = null
+
 const seenIpLimit = ref('10')
 const servers = ref([])
+const sites = ref([])
 const l4Summary = ref({
   totalTraffic: 0,
   allowedTraffic: 0,
@@ -319,10 +373,6 @@ const blacklistForm = ref({
   ip: '',
   reason: '',
   serverId: 'all',
-  triggerRule: 'manual',
-  customTriggerRule: '',
-  ttl: '24h',
-  customTtl: '',
 })
 
 const timeRanges = [
@@ -336,8 +386,29 @@ const timeRanges = [
 
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
-  ...servers.value.map((server) => ({ label: server.name || `Server ${server.id}`, value: server.id })),
+  ...servers.value.map((server) => ({
+    label: server.name || `Server ${server.id}`,
+    value: server.id,
+  })),
 ])
+
+const siteOptions = computed(() => {
+  let list = sites.value
+  if (selectedServer.value !== 'all') {
+    const serverId = Number(selectedServer.value)
+    list = list.filter(
+      (site) =>
+        Array.isArray(site.serverIds) && site.serverIds.some((id) => Number(id) === serverId),
+    )
+  }
+  return [
+    { label: 'All Sites', value: 'all' },
+    ...list.map((site) => ({
+      label: site.domain || `Site ${site.id}`,
+      value: String(site.id),
+    })),
+  ]
+})
 
 const selectTimeRange = (value) => {
   selectedTimeRange.value = value
@@ -348,20 +419,13 @@ const applyCustomRange = () => {
   if (!customStartDate.value || !customEndDate.value) return
   isCustomRange.value = true
   selectedTimeRange.value = 'custom'
-  appliedFilters.value = {
-    server: selectedServer.value,
-    range: 'custom',
-    isCustom: true,
-    start: formatDateInput(customStartDate.value),
-    end: formatDateInput(customEndDate.value),
-  }
   showCustomDialog.value = false
-  loadL4Analytics()
 }
 
 const applyFilters = () => {
   appliedFilters.value = {
     server: selectedServer.value,
+    site: selectedSite.value,
     range: selectedTimeRange.value,
     isCustom: isCustomRange.value,
     start: isCustomRange.value ? formatDateInput(customStartDate.value) : null,
@@ -383,15 +447,17 @@ const visibleSeenIps = computed(() => {
   return seenIpRows.value.slice(0, limit)
 })
 
+const metricCards = computed(() => [
+  { label: 'Total traffic', value: formatThroughput(l4Summary.value.totalTraffic) },
+  { label: 'Allowed traffic', value: formatThroughput(l4Summary.value.allowedTraffic) },
+  { label: 'Blocked traffic', value: formatThroughput(l4Summary.value.blockedTraffic) },
+])
+
 const openBlacklistDialog = (ip) => {
   blacklistForm.value = {
     ip,
     reason: '',
-    serverId: selectedServer.value || 'all',
-    triggerRule: 'manual',
-    customTriggerRule: '',
-    ttl: '24h',
-    customTtl: '',
+    serverId: selectedServer.value !== 'all' ? selectedServer.value : 'all',
   }
   showBlacklistDialog.value = true
 }
@@ -417,14 +483,14 @@ const submitBlacklist = async () => {
   const reason = blacklistForm.value.reason.trim() || 'Manual block'
 
   try {
-    await createL4BlacklistEntry(serverId, {
-      ipAddress,
-      reason,
-    })
+    await createL4BlacklistEntry(serverId, { ipAddress, reason })
     notifySuccess(L4_DDOS_TITLE, 'The IP address is successfully added to the L4 DDoS blacklist.')
     closeBlacklistDialog()
   } catch (error) {
-    notifyError(L4_DDOS_TITLE, error?.message || 'The IP address could not be added to the L4 DDoS blacklist.')
+    notifyError(
+      L4_DDOS_TITLE,
+      error?.message || 'The IP address could not be added to the L4 DDoS blacklist.',
+    )
   }
 }
 
@@ -469,60 +535,6 @@ const attackBadgeClass = (value) => {
   return 'attack-other'
 }
 
-const statsDisplay = computed(() => ({
-  totalTraffic: formatThroughput(l4Summary.value.totalTraffic),
-  allowedTraffic: formatThroughput(l4Summary.value.allowedTraffic),
-  blockedTraffic: formatThroughput(l4Summary.value.blockedTraffic),
-  totalTrafficTrend: '—',
-  allowedTrafficTrend: '—',
-  blockedTrafficTrend: '—',
-}))
-
-const resolveRangeMs = (filters) => {
-  switch (filters.range) {
-    case '1h':
-      return 60 * 60 * 1000
-    case '2h':
-      return 2 * 60 * 60 * 1000
-    case '4h':
-      return 4 * 60 * 60 * 1000
-    case '6h':
-      return 6 * 60 * 60 * 1000
-    case '8h':
-      return 8 * 60 * 60 * 1000
-    case '12h':
-      return 12 * 60 * 60 * 1000
-    case '24h':
-      return 24 * 60 * 60 * 1000
-    case 'today': {
-      const now = new Date()
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      return now.getTime() - start.getTime()
-    }
-    case 'yesterday':
-      return 24 * 60 * 60 * 1000
-    default:
-      return 60 * 60 * 1000
-  }
-}
-
-const resolveRangeWindow = (filters) => {
-  const now = new Date()
-  if (filters.isCustom && filters.start && filters.end) {
-    return { start: new Date(filters.start), end: new Date(filters.end) }
-  }
-  if (filters.range === 'today') {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
-  }
-  if (filters.range === 'yesterday') {
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    return { start: new Date(end.getTime() - 24 * 60 * 60 * 1000), end }
-  }
-  const duration = resolveRangeMs(filters)
-  return { start: new Date(now.getTime() - duration), end: now }
-}
-
 const mapSeriesPoints = (points, field) =>
   (Array.isArray(points) ? points : [])
     .map((point) => ({
@@ -533,7 +545,7 @@ const mapSeriesPoints = (points, field) =>
 
 const buildL4Params = () => {
   const filters = appliedFilters.value
-  const params = { serverId: filters.server }
+  const params = { serverId: filters.server, siteId: filters.site }
   if (filters.isCustom && filters.start && filters.end) {
     params.start = filters.start
     params.end = filters.end
@@ -550,6 +562,16 @@ const loadServers = async () => {
   } catch (error) {
     console.error('Failed to load servers', error)
     servers.value = []
+  }
+}
+
+const loadSites = async () => {
+  try {
+    const list = await fetchSites()
+    sites.value = Array.isArray(list) ? list : []
+  } catch (error) {
+    console.error('Failed to load sites', error)
+    sites.value = []
   }
 }
 
@@ -574,8 +596,7 @@ const loadL4Analytics = async () => {
     recentAttackRows.value = Array.isArray(recentAttacks) ? recentAttacks : []
     seenIpRows.value = Array.isArray(topIps) ? topIps : []
 
-    renderTrafficChart()
-    renderProtocolChart()
+    nextTick(() => renderChartsForTab(activeTab.value))
   } catch (error) {
     console.error('Failed to load l4 analytics', error)
   }
@@ -586,10 +607,6 @@ const renderTrafficChart = () => {
 
   const allowedSeries = mapSeriesPoints(trafficPoints.value, 'allowedTraffic')
   const blockedSeries = mapSeriesPoints(trafficPoints.value, 'blockedTraffic')
-
-  // Derive x‑axis bounds from actual data for consistency
-  // with the protocol chart and to avoid empty renders when
-  // the backend window differs slightly from the frontend.
   const allPoints = [...allowedSeries, ...blockedSeries]
   const hasPoints = allPoints.length > 0
   const minX = hasPoints ? Math.min(...allPoints.map((p) => p.x)) : null
@@ -597,10 +614,11 @@ const renderTrafficChart = () => {
 
   const options = {
     chart: {
-      type: 'line',
-      height: 420,
+      type: 'area',
+      height: 360,
       toolbar: { show: false },
       animations: { enabled: true },
+      background: 'transparent',
       foreColor: chartLabelColor(),
       zoom: { enabled: false },
       selection: { enabled: false },
@@ -608,7 +626,11 @@ const renderTrafficChart = () => {
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
-    colors: ['#10b981', '#ef4444'],
+    fill: {
+      type: 'gradient',
+      gradient: { opacityFrom: 0.3, opacityTo: 0.05 },
+    },
+    colors: [CHART_COLORS.viper, CHART_COLORS.danger],
     xaxis: {
       ...chartDatetimeXaxis(),
       ...(hasPoints && { min: minX, max: maxX }),
@@ -656,8 +678,6 @@ const renderProtocolChart = () => {
     { name: 'OTHER', data: mapSeriesPoints(protocolPoints.value, 'other') },
   ]
 
-  // Derive x‑axis bounds from actual data so the chart
-  // always renders even if the frontend/backend windows differ.
   const allPoints = series.flatMap((s) => s.data)
   const hasPoints = allPoints.length > 0
   const minX = hasPoints ? Math.min(...allPoints.map((p) => p.x)) : null
@@ -666,9 +686,10 @@ const renderProtocolChart = () => {
   const options = {
     chart: {
       type: 'line',
-      height: 420,
+      height: 360,
       toolbar: { show: false },
       animations: { enabled: true },
+      background: 'transparent',
       foreColor: chartLabelColor(),
       zoom: { enabled: false },
       selection: { enabled: false },
@@ -676,7 +697,13 @@ const renderProtocolChart = () => {
     },
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
-    colors: ['#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#64748b'],
+    colors: [
+      CHART_COLORS.l4,
+      CHART_COLORS.warn,
+      CHART_COLORS.viper,
+      CHART_COLORS.l7,
+      CHART_COLORS.muted,
+    ],
     xaxis: {
       ...chartDatetimeXaxis(),
       ...(hasPoints && { min: minX, max: maxX }),
@@ -710,24 +737,30 @@ const renderProtocolChart = () => {
   }
 }
 
-watch(appliedFilters, () => {
-  renderTrafficChart()
-  renderProtocolChart()
-}, { deep: true })
-
-const rerenderCharts = () => {
-  renderTrafficChart()
-  renderProtocolChart()
+const renderChartsForTab = (tabId) => {
+  if (tabId === 'overview') renderTrafficChart()
+  if (tabId === 'protocols') renderProtocolChart()
 }
+
+const rerenderActiveCharts = () => renderChartsForTab(activeTab.value)
+
+watch(activeTab, (tab) => nextTick(() => renderChartsForTab(tab)))
+
+watch(selectedServer, () => {
+  if (selectedSite.value === 'all') return
+  const stillValid = siteOptions.value.some((option) => option.value === selectedSite.value)
+  if (!stillValid) selectedSite.value = 'all'
+})
 
 onMounted(() => {
   loadServers()
+  loadSites()
   loadL4Analytics()
-  window.addEventListener('cdnproxy-theme-change', rerenderCharts)
+  window.addEventListener('cdnproxy-theme-change', rerenderActiveCharts)
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('cdnproxy-theme-change', rerenderCharts)
+  window.removeEventListener('cdnproxy-theme-change', rerenderActiveCharts)
   if (trafficChartInstance) {
     trafficChartInstance.destroy()
     trafficChartInstance = null
@@ -741,139 +774,119 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .layer4-attack-view {
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.analytics-tab-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-gap-lg, 14px);
-}
-
-.filters-card {
-  background: var(--app-surface);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.filters-row {
-  display: flex;
-  flex-wrap: wrap;
   gap: 16px;
-  align-items: center;
-  justify-content: space-between;
 }
 
-.filters-left,
-.filters-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+.dash-chart-wrap--tall {
+  min-height: 360px;
 }
 
-.filters-left {
-  flex: 1 1 420px;
+.dash-select--sm {
+  min-width: 72px;
+  padding: 4px 8px;
 }
 
-.filters-center {
+.table-controls {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 1 auto;
-  justify-content: center;
-  color: var(--app-text-secondary);
-  font-weight: 600;
-}
-
-.filters-right {
-  flex: 0 1 auto;
-  justify-content: flex-end;
-  margin-left: auto;
-}
-
-.selected-range-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--app-text-secondary);
-  font-weight: 600;
-}
-
-.filter-inline-label {
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
-.inline-select {
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 0.95rem;
-  background: var(--app-input-bg);
+.table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ip-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-caption);
+}
+
+.ip-table th,
+.ip-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.ip-table th {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  position: sticky;
+  top: 0;
+  background: var(--app-surface);
+  z-index: 1;
+}
+
+.ip-table td {
   color: var(--app-text);
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  min-width: 200px;
 }
 
-.inline-select:focus {
-  border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
-}
-
-.selected-range-label {
-  font-size: 0.85rem;
+.empty-row {
   color: var(--app-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  text-align: center;
 }
 
-.selected-range-value {
-  padding: 6px 10px;
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
   border-radius: 999px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: 0.85rem;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.time-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.attack-syn {
+  background: rgba(91, 157, 240, 0.16);
+  color: #5b9df0;
 }
 
-.time-btn {
-  border: 1px solid var(--app-border-strong);
+.attack-udp {
+  background: rgba(224, 168, 63, 0.16);
+  color: #e0a83f;
+}
+
+.attack-icmp {
+  background: rgba(63, 189, 133, 0.16);
+  color: #3fbd85;
+}
+
+.attack-other {
+  background: rgba(176, 140, 240, 0.16);
+  color: #b08cf0;
+}
+
+.action-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: var(--type-caption);
+  font-weight: 600;
   cursor: pointer;
-  background: var(--app-surface-solid);
-  color: var(--app-text-secondary);
-  transition: all 0.2s ease;
 }
 
-.time-btn:hover {
-  border-color: var(--app-accent);
-  background: var(--app-surface-hover);
-  color: var(--app-text);
+.action-btn--danger {
+  background: rgba(225, 82, 65, 0.14);
+  color: #e15241;
 }
 
-.time-btn.active {
-  /* primary fill from theme.css */
-}
-
-.custom-btn {
-  border-left: 2px solid var(--app-border-strong);
-  margin-left: 4px;
-}
-
-.custom-btn.active {
-  border-left-color: transparent;
-}
-
-.apply-filter-btn {
-  cursor: pointer;
+.action-btn--danger:hover {
+  background: rgba(225, 82, 65, 0.22);
 }
 
 .dialog-overlay {
@@ -884,374 +897,99 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 40;
+  z-index: 1000;
 }
 
 .dialog-content {
   background: var(--app-surface-solid);
   border: 1px solid var(--app-border-strong);
-  padding: 20px;
   border-radius: 16px;
-  min-width: 320px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
   box-shadow: 0 20px 60px var(--app-shadow);
+  width: 90%;
+  max-width: 500px;
 }
 
 .dialog-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--app-border-strong);
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: var(--type-section-title);
   font-weight: 700;
   color: var(--app-heading);
 }
 
+.dialog-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  color: var(--app-text-muted);
+}
+
 .dialog-body {
-  display: grid;
-  gap: 12px;
-  font-size: 0.85rem;
+  padding: 20px 24px;
+}
+
+.dialog-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dialog-form-group label {
+  font-size: var(--type-caption);
   color: var(--app-text-secondary);
 }
 
-.dialog-body label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .dialog-input {
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 10px 12px;
   border: 1px solid var(--app-input-border);
+  border-radius: 8px;
+  font-size: var(--type-base);
+  outline: none;
   background: var(--app-input-bg);
   color: var(--app-text);
 }
 
 .dialog-input:focus {
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
-  outline: none;
 }
 
-.dialog-actions {
+.dialog-footer {
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 20px;
 }
 
-.dialog-close {
+.dialog-btn {
+  padding: 8px 16px;
   border: none;
-  background: transparent;
-  font-size: 1rem;
-  cursor: pointer;
-  color: var(--app-text-muted);
-}
-
-.attack-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: var(--space-gap-lg, 14px);
-}
-
-.attack-stat-card {
-  background: var(--app-surface);
-  border-radius: 16px;
-  padding: var(--space-card, 14px 16px);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border: 1px solid var(--app-border);
-  box-shadow: 0 4px 20px var(--app-shadow);
-}
-
-.attack-icon {
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  color: white;
-}
-
-.attack-icon.blocked {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.attack-icon.success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.attack-icon svg {
-  width: 30px;
-  height: 30px;
-}
-
-.attack-info h3 {
-  font-size: 0.875rem;
-  color: var(--app-text-muted);
-  margin: 0 0 6px 0;
-  font-weight: 500;
-}
-
-.attack-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--app-heading);
-  margin: 0 0 6px 0;
-}
-
-.attack-change {
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.attack-change.positive {
-  color: #10b981;
-}
-
-.attack-chart-card h3,
-.attack-table-card h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--app-heading);
-  margin: 0 0 20px 0;
-}
-
-.table-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.table-header-row h3 {
-  margin: 0;
-}
-
-.table-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--app-text-secondary);
-  font-weight: 600;
-}
-
-.table-select {
-  border: 1px solid var(--app-input-border);
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  background: var(--app-input-bg);
-  color: var(--app-text);
-}
-
-.attack-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.attack-table-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: var(--space-gap-lg, 14px);
-}
-
-.attack-table-card--scroll {
-  height: 420px;
-}
-
-.attack-table-scroll {
-  overflow-y: auto;
-  max-height: 320px;
-  padding-right: 4px;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
-
-.attack-table-scroll .attack-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--app-surface-muted);
-  box-shadow: 0 1px 0 var(--app-border-strong);
-}
-
-.attack-charts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: var(--space-gap-lg, 14px);
-}
-
-.attack-chart-card--single {
-  grid-column: 1 / -1;
-}
-
-.attack-chart-card {
-  background: var(--app-surface-muted);
-  border-radius: 14px;
-  padding: 16px;
-  border: 1px solid var(--app-border);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.chart-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.chart-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--app-heading);
-}
-
-.chart-pill {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #0f766e;
-  background: rgba(20, 184, 166, 0.15);
-}
-
-.chart-pill.danger {
-  color: #b91c1c;
-  background: rgba(239, 68, 68, 0.15);
-}
-
-.chart-body {
-  width: 100%;
-  height: 440px;
-  border-radius: 12px;
-  border: 1px solid var(--app-border);
-  background: var(--chart-surface, var(--app-surface-elevated));
-  overflow: hidden;
-}
-
-.chart-body div {
-  width: 100%;
-  height: 100%;
-}
-
-.chart-body :deep(.apexcharts-canvas),
-.chart-body :deep(.apexcharts-svg),
-.chart-body :deep(.apexcharts-inner) {
-  background: transparent !important;
-}
-
-.attack-table thead {
-  background: var(--app-surface-muted);
-}
-
-.attack-table th {
-  padding: 16px;
-  text-align: left;
-  font-size: 0.875rem;
+  font-size: var(--type-base);
   font-weight: 600;
-  color: var(--app-text-secondary);
-  border-bottom: 2px solid var(--app-border-strong);
-}
-
-.attack-table td {
-  padding: 16px;
-  border-bottom: 1px solid var(--app-border-strong);
-  color: var(--app-text);
-  font-size: 0.9rem;
-}
-
-.attack-table tbody tr:hover {
-  background: var(--app-surface-hover);
-}
-
-.badge {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  display: inline-block;
-}
-
-.badge.attack-syn {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.badge.attack-udp {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.badge.attack-icmp {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.badge.attack-other {
-  background: rgba(148, 163, 184, 0.2);
-  color: #64748b;
-}
-
-.badge.status-blocked {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-.action-btn {
-  padding: 6px 14px;
-  background: var(--app-surface-hover);
-  border: 1px solid var(--app-border-strong);
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+}
+
+.cancel-btn {
+  background: var(--app-surface-hover);
   color: var(--app-text-secondary);
 }
 
-.action-btn--danger {
-  color: var(--app-btn-danger-bg);
+.apply-btn {
+  background: var(--app-btn-primary-bg);
+  color: #fff;
 }
 
-[data-theme='dark'] .badge.attack-syn {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
-}
-
-[data-theme='dark'] .badge.attack-udp {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fcd34d;
-}
-
-[data-theme='dark'] .badge.attack-icmp {
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
-}
-
-[data-theme='dark'] .badge.attack-other {
-  background: rgba(148, 163, 184, 0.15);
-  color: #cbd5e1;
-}
-
-[data-theme='dark'] .chart-pill {
-  color: #5eead4;
-  background: rgba(20, 184, 166, 0.2);
-}
-
-[data-theme='dark'] .chart-pill.danger {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.2);
-}
-
-[data-theme='dark'] .attack-change.positive {
-  color: #4ade80;
+.apply-btn:hover {
+  background: var(--app-btn-primary-hover);
 }
 </style>
-

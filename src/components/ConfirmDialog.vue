@@ -94,7 +94,7 @@ const handleConfirm = () => {
   background: transparent;
   color: #b91c1c;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   cursor: pointer;
   padding: 6px 8px;
   border-radius: 8px;
@@ -108,7 +108,7 @@ const handleConfirm = () => {
 
 .confirm-header h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: var(--type-metric-value);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -135,7 +135,7 @@ const handleConfirm = () => {
 .confirm-message {
   margin: 0 0 20px 0;
   color: var(--app-text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--type-base);
 }
 
 .confirm-actions {

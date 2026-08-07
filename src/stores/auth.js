@@ -1,47 +1,37 @@
 import { computed, reactive } from 'vue'
 import { clearSessionActivity, syncSessionIdleForAuthChange, touchSessionActivity } from './sessionIdle'
-
-const STORAGE_KEY = 'cdnproxy.auth'
+import { clearAllAuthStorage, isRememberMeEnabled, readStoredAuth, writeStoredAuth } from './authStorage'
 
 const state = reactive({
   user: null,
   token: null,
-  hydrated: false
+  rememberMe: false,
+  hydrated: false,
 })
 
 const persist = () => {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        user: state.user,
-        token: state.token
-      })
-    )
-  } catch {
-    // ignore storage errors (private mode, denied, etc)
-  }
+  writeStoredAuth(
+    { user: state.user, token: state.token },
+    state.rememberMe,
+  )
 }
 
 const hydrate = () => {
   if (state.hydrated) return
   state.hydrated = true
 
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return
-    const parsed = JSON.parse(raw)
-    state.user = parsed?.user || null
-    state.token = parsed?.token || null
-  } catch {
-    state.user = null
-    state.token = null
-  }
+  const parsed = readStoredAuth()
+  if (!parsed) return
+
+  state.user = parsed?.user || null
+  state.token = parsed?.token || null
+  state.rememberMe = isRememberMeEnabled()
 }
 
-const setSession = ({ user, token }) => {
+const setSession = ({ user, token, rememberMe = false }) => {
   state.user = user || null
   state.token = token || null
+  state.rememberMe = Boolean(rememberMe)
   persist()
   syncSessionIdleForAuthChange(Boolean(state.user))
   touchSessionActivity(true)
@@ -50,7 +40,8 @@ const setSession = ({ user, token }) => {
 const clearSession = () => {
   state.user = null
   state.token = null
-  persist()
+  state.rememberMe = false
+  clearAllAuthStorage()
   clearSessionActivity()
   syncSessionIdleForAuthChange(false)
 }
@@ -66,7 +57,7 @@ export const auth = {
   clearSession,
   isAuthenticated,
   email,
-  token
+  token,
 }
 
 export const useAuth = () => {

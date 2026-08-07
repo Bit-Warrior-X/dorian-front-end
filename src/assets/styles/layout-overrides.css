@@ -1,0 +1,128 @@
+/* -------------------------------------------------------------------------- */
+/* Main layout (MainPage)                                                      */
+/* -------------------------------------------------------------------------- */
+
+.main-view {
+  background: var(--app-bg-gradient) !important;
+}
+
+.view-header,
+.app-topbar {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+.view-header h1,
+.app-topbar h1 {
+  color: var(--app-heading) !important;
+}
+
+[data-theme='dark'] .left-panel {
+  background: var(--app-sidebar-bg) !important;
+  border-right-color: var(--app-border) !important;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme='dark'] .panel-header {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-bottom-color: var(--app-border) !important;
+}
+
+[data-theme='dark'] .panel-header h2,
+[data-theme='dark'] .panel-header .dorian-brand__wordmark {
+  background: linear-gradient(135deg, var(--dorian-text) 0%, var(--dorian-viper-400) 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+[data-theme='dark'] .menu-toggle-btn {
+  background: #111111 !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+  box-shadow: none !important;
+}
+
+[data-theme='dark'] .menu-toggle-btn:hover {
+  background: #1a1a1a !important;
+  border-color: var(--app-border-strong) !important;
+}
+
+[data-theme='dark'] .app-topbar-menu {
+  background: #0a0a0a !important;
+  border-color: var(--app-border) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme='dark'] .app-topbar-menu-item {
+  color: var(--app-text) !important;
+}
+
+[data-theme='dark'] .app-topbar-menu-item:hover {
+  background: var(--app-accent-soft) !important;
+}
+
+[data-theme='dark'] .user-info,
+[data-theme='dark'] .user-caret {
+  color: var(--app-text-muted) !important;
+}
+
+[data-theme='dark'] .toast {
+  background: #111111 !important;
+  color: var(--app-text) !important;
+  border-color: var(--app-border) !important;
+}
+
+[data-theme='dark'] .toast .toast-title,
+[data-theme='dark'] .toast .toast-message {
+  color: inherit !important;
+}
+
+[data-theme='dark'] .toast.success {
+  background: rgba(6, 95, 70, 0.92) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+
+[data-theme='dark'] .toast.error {
+  background: rgba(127, 29, 29, 0.92) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+}
+
+[data-theme='dark'] .toast.warning {
+  background: rgba(120, 53, 15, 0.92) !important;
+  color: #fcd34d !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+[data-theme='dark'] .toast.info {
+  background: rgba(30, 58, 138, 0.92) !important;
+  color: #93c5fd !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+}
+
+[data-theme='dark'] .toast .toast-close:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme='dark'] .toast .toast-icon {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme='dark'] .toast.success .toast-icon {
+  color: #6ee7b7 !important;
+}
+
+[data-theme='dark'] .toast.error .toast-icon {
+  color: #fca5a5 !important;
+}
+
+[data-theme='dark'] .toast.warning .toast-icon {
+  color: #fcd34d !important;
+}
+
+[data-theme='dark'] .toast.info .toast-icon {
+  color: #93c5fd !important;
+}

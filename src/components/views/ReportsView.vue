@@ -40,7 +40,7 @@
 }
 
 .reports-card h2 {
-  font-size: 1.5rem;
+  font-size: var(--type-page-title);
   font-weight: 700;
   background: linear-gradient(135deg, #1a202c 0%, #4a5568 100%);
   -webkit-background-clip: text;
@@ -61,7 +61,7 @@
   background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
   border-radius: 12px;
   border-left: 4px solid;
-  border-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) 1;
+  border-image: var(--app-accent-gradient) 1;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
@@ -73,14 +73,14 @@
 }
 
 .report-section h3 {
-  font-size: 1.125rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: #1a202c;
   margin: 0 0 12px 0;
 }
 
 .report-section p {
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: #718096;
   margin: 0;
   line-height: 1.6;

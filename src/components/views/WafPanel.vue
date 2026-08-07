@@ -100,7 +100,7 @@ const activeWafLabel = computed(() => {
   text-align: left;
   padding: 10px 12px;
   border-radius: 10px;
-  font-size: 0.92rem;
+  font-size: var(--type-base);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -129,7 +129,7 @@ const activeWafLabel = computed(() => {
 
 .waf-section-card h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }

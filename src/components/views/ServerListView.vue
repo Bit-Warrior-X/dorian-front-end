@@ -1450,7 +1450,7 @@ const nextPage = () => {
 .servers-view {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-gap-lg);
   min-height: 100%;
 }
 
@@ -1465,10 +1465,9 @@ const nextPage = () => {
 .content-card {
   background: var(--app-surface);
   backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 28px;
+  border-radius: 10px;
   box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
+  border: 0.5px solid var(--app-border);
 }
 
 .card-header {
@@ -1480,7 +1479,7 @@ const nextPage = () => {
 }
 
 .content-card h2 {
-  font-size: 1.25rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
   margin: 0 0 6px 0;
@@ -1495,7 +1494,7 @@ const nextPage = () => {
 
 .card-title h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1510,7 +1509,7 @@ const nextPage = () => {
 
 .filter-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1518,12 +1517,12 @@ const nextPage = () => {
 .content-card p {
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 0.98rem;
+  font-size: var(--type-base);
 }
 
 .muted-text {
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .primary-btn {
@@ -1580,7 +1579,7 @@ const nextPage = () => {
 
 .wizard-step-label {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--type-caption);
   font-weight: 500;
   color: var(--app-text-muted);
 }
@@ -1656,12 +1655,12 @@ const nextPage = () => {
 
 .dialog-section--license .license-tier-hint {
   margin: 8px 0 0;
-  font-size: 0.8rem;
+  font-size: var(--type-caption);
 }
 
 .dialog-section--license-full .license-tier-hint--intro {
   margin: 0 0 14px;
-  font-size: 0.88rem;
+  font-size: var(--type-base);
 }
 
 .dialog-section--license-full .license-tier-hint--deploy {
@@ -1685,21 +1684,21 @@ const nextPage = () => {
   padding: 12px 14px;
   border-radius: 12px;
   background: var(--app-accent-soft);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  border: 1px solid rgba(46, 158, 108, 0.25);
   color: var(--app-accent);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   line-height: 1.45;
 }
 
 .upgrade-server-line {
   margin: 0 0 8px 0;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
 }
 
 .upgrade-hint {
   margin: 0 0 16px 0;
-  font-size: 0.88rem;
+  font-size: var(--type-caption);
   line-height: 1.45;
   color: var(--app-text-muted);
 }
@@ -1711,7 +1710,7 @@ const nextPage = () => {
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.35);
   color: #f87171;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .upgrade-version-panels {
@@ -1792,17 +1791,20 @@ const nextPage = () => {
 }
 
 .filter-field label {
-  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: var(--type-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--app-text-muted);
   font-weight: 500;
 }
 
 .filter-field input,
 .filter-field select {
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.95rem;
+  border: 0.5px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: var(--type-base);
   background: var(--app-input-bg);
   color: var(--app-text);
   outline: none;
@@ -1840,18 +1842,19 @@ const nextPage = () => {
 .servers-table th,
 .servers-table td {
   text-align: left;
-  padding: 14px 16px;
-  font-size: 0.92rem;
+  padding: var(--space-table-cell);
+  font-size: var(--type-base);
   color: var(--app-text);
-  border-bottom: 1px solid var(--app-border);
+  border-bottom: 0.5px solid var(--app-border);
 }
 
 .servers-table th {
-  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--app-text-muted);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .servers-table tbody tr:hover {
@@ -1868,7 +1871,7 @@ const nextPage = () => {
 
 .pagination-info {
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-caption);
 }
 
 .pagination-controls {
@@ -1897,7 +1900,7 @@ const nextPage = () => {
 
 .pagination-page {
   color: var(--app-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
 }
 
 .col-layer-dots {
@@ -1915,11 +1918,11 @@ const nextPage = () => {
 .server-user-pill {
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-accent);
   background: var(--app-accent-soft);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  border: 1px solid rgba(46, 158, 108, 0.25);
 }
 
 .icon-btn {
@@ -1975,11 +1978,11 @@ const nextPage = () => {
 .row-menu-item {
   width: 100%;
   text-align: left;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 8px;
   border: none;
   background: transparent;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   font-weight: 500;
   color: var(--app-text);
   cursor: pointer;
@@ -2034,7 +2037,7 @@ const nextPage = () => {
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--type-section-title);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -2067,7 +2070,7 @@ const nextPage = () => {
 
 .dialog-section h4 {
   margin: 0 0 12px 0;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -2085,16 +2088,19 @@ const nextPage = () => {
 }
 
 .dialog-field label {
-  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: var(--type-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--app-text-muted);
   font-weight: 500;
 }
 
 .dialog-field input {
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.95rem;
+  border: 0.5px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: var(--type-base);
   color: var(--app-text);
   background: var(--app-input-bg);
   outline: none;
@@ -2107,14 +2113,14 @@ const nextPage = () => {
 }
 
 .dialog-field select {
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.95rem;
+  border: 0.5px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: var(--type-base);
   background: var(--app-input-bg);
   color: var(--app-text);
   outline: none;
-  min-height: 44px;
+  min-height: var(--btn-height-md);
 }
 
 .combobox {
@@ -2160,9 +2166,9 @@ const nextPage = () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   cursor: pointer;
   background: transparent;
@@ -2177,9 +2183,9 @@ const nextPage = () => {
 }
 
 .combobox-empty {
-  padding: 10px 12px;
+  padding: 8px 10px;
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-base);
 }
 
 .selected-users {
@@ -2196,15 +2202,15 @@ const nextPage = () => {
   border-radius: 999px;
   background: var(--app-accent-soft);
   color: var(--app-accent);
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   font-weight: 600;
-  border: 1px solid rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(46, 158, 108, 0.2);
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .user-chip:hover {
-  background: rgba(168, 85, 247, 0.25);
+  background: rgba(46, 158, 108, 0.2);
   color: var(--app-accent-hover);
 }
 
@@ -2221,7 +2227,7 @@ const nextPage = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.95rem;
+  font-size: var(--type-base);
   color: var(--app-text);
   cursor: pointer;
 }
@@ -2234,7 +2240,7 @@ const nextPage = () => {
 
 .license-tier-hint {
   margin: 0 0 12px 0;
-  font-size: 0.85rem;
+  font-size: var(--type-caption);
   color: var(--app-text-muted);
   line-height: 1.4;
 }
@@ -2259,7 +2265,7 @@ const nextPage = () => {
 
 .license-path {
   color: var(--app-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-caption);
 }
 
 .dialog-footer {
