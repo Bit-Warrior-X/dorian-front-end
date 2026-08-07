@@ -10,7 +10,7 @@
       </div>
     </div>
 
-    <div class="content-card list-card">
+    <div class="section-card list-card">
       <div class="list-header">
         <h4>Port List</h4>
         <button class="ghost-btn" type="button" @click="refreshPorts">Refresh</button>
@@ -61,19 +61,21 @@
             </tr>
           </tbody>
         </table>
-        <div v-if="!listeningPorts.length" class="empty-state">
+        <div v-if="portsLoading" class="empty-state">Loading listening ports...</div>
+        <div v-else-if="portsError" class="empty-state bound-error">{{ portsError }}</div>
+        <div v-else-if="!listeningPorts.length" class="empty-state">
           No listening ports configured yet.
         </div>
       </div>
     </div>
 
-    <div class="content-card list-card system-bound-card">
+    <div class="section-card list-card system-bound-card">
       <div class="list-header">
         <h4>System Bound Ports</h4>
         <button class="ghost-btn" type="button" @click="refreshPorts">Refresh</button>
       </div>
       <p class="helper-text system-bound-lead">
-        TCP ports currently listening on this server. These ports cannot be added again.
+        TCP ports currently listening on this edge. These ports cannot be added again.
       </p>
       <div class="table-wrap">
         <table class="ports-table">
@@ -162,7 +164,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import {
   fetchListeningPorts,
@@ -175,13 +177,15 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 const LISTENING_PORTS_TITLE = "Listening Ports";
 
 const props = defineProps({
-  siteId: {
+  serverId: {
     type: [Number, String],
     default: null
   }
 });
 
 const listeningPorts = ref([]);
+const portsLoading = ref(false);
+const portsError = ref("");
 const systemBoundPorts = ref([]);
 const boundPortsLoading = ref(false);
 const boundPortsError = ref("");
@@ -192,6 +196,13 @@ const isAddDialogOpen = ref(false);
 const isConfirmDialogOpen = ref(false);
 const confirmTargetId = ref(null);
 const confirmTargetLabel = ref("");
+
+const resolvedServerId = computed(() => {
+  const raw = props.serverId;
+  if (raw == null || raw === "") return null;
+  const id = Number(raw);
+  return Number.isFinite(id) && id > 0 ? id : null;
+});
 
 const formattedPorts = computed(() =>
   listeningPorts.value.map((entry) => ({
@@ -239,7 +250,7 @@ const closeAddDialog = () => {
 };
 
 const addPort = async () => {
-  if (!props.siteId) return;
+  if (!resolvedServerId.value) return;
   const port = Number(newPort.value);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     notifyError(LISTENING_PORTS_TITLE, "Enter a valid port between 1 and 65535.");
@@ -250,7 +261,7 @@ const addPort = async () => {
     return;
   }
   try {
-    await createListeningPort(props.siteId, {
+    await createListeningPort(resolvedServerId.value, {
       port,
       protocol: newProtocol.value,
       description: newDescription.value.trim(),
@@ -269,9 +280,9 @@ const addPort = async () => {
 };
 
 const removePort = async (portId) => {
-  if (!props.siteId) return;
+  if (!resolvedServerId.value) return;
   try {
-    await deleteListeningPortApi(props.siteId, portId);
+    await deleteListeningPortApi(resolvedServerId.value, portId);
     await loadPorts();
     await loadBoundPorts();
     notifySuccess(LISTENING_PORTS_TITLE, "The listening port is successfully removed.");
@@ -315,7 +326,7 @@ const refreshPorts = () => {
 };
 
 const loadBoundPorts = async () => {
-  if (!props.siteId) {
+  if (!resolvedServerId.value) {
     systemBoundPorts.value = [];
     boundPortsError.value = "";
     return;
@@ -323,7 +334,7 @@ const loadBoundPorts = async () => {
   boundPortsLoading.value = true;
   boundPortsError.value = "";
   try {
-    const data = await fetchBoundListeningPorts(props.siteId);
+    const data = await fetchBoundListeningPorts(resolvedServerId.value);
     systemBoundPorts.value = Array.isArray(data) ? data : [];
   } catch (error) {
     systemBoundPorts.value = [];
@@ -334,29 +345,31 @@ const loadBoundPorts = async () => {
 };
 
 const loadPorts = async () => {
-  if (!props.siteId) {
+  if (!resolvedServerId.value) {
     listeningPorts.value = [];
+    portsError.value = "";
     return;
   }
+  portsLoading.value = true;
+  portsError.value = "";
   try {
-    const data = await fetchListeningPorts(props.siteId);
+    const data = await fetchListeningPorts(resolvedServerId.value);
     listeningPorts.value = Array.isArray(data) ? data : [];
-  } catch {
+  } catch (error) {
     listeningPorts.value = [];
+    portsError.value = error?.message || "Could not load listening ports.";
+  } finally {
+    portsLoading.value = false;
   }
 };
 
-onMounted(() => {
-  void loadPorts();
-  void loadBoundPorts();
-});
-
 watch(
-  () => props.siteId,
+  resolvedServerId,
   () => {
     void loadPorts();
     void loadBoundPorts();
-  }
+  },
+  { immediate: true }
 );
 </script>
 
@@ -367,7 +380,8 @@ watch(
   gap: 16px;
 }
 
-.content-card {
+.content-card,
+.section-card {
   background: var(--app-surface-muted);
   border-radius: 14px;
   padding: 18px;
@@ -561,7 +575,8 @@ watch(
 .table-wrap {
   border-radius: 12px;
   border: 1px solid var(--app-border-strong);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .ports-table {

@@ -31,6 +31,36 @@
               <span>Dashboard</span>
             </RouterLink>
           </li>
+          <li :class="['nav-item', 'nav-item-parent', isServersOpen ? 'open' : '', isServersRoute ? 'active' : '']">
+            <a href="#" @click.prevent="toggleServers">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect>
+                  <rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect>
+                  <line x1="6" x2="6.01" y1="6" y2="6"></line>
+                  <line x1="6" x2="6.01" y1="18" y2="18"></line>
+                </svg>
+              </span>
+              <span>Edges</span>
+              <span class="nav-arrow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </span>
+            </a>
+            <ul v-show="isServersOpen" class="nav-submenu">
+              <li :class="['nav-subitem', isRouteActive('server-list') ? 'active' : '']">
+                <RouterLink to="/app/servers/list">
+                  <span>Edge List</span>
+                </RouterLink>
+              </li>
+              <li :class="['nav-subitem', isRouteActive('server-settings') ? 'active' : '']">
+                <RouterLink to="/app/servers/settings">
+                  <span>Edge Settings</span>
+                </RouterLink>
+              </li>
+            </ul>
+          </li>
           <li :class="['nav-item', 'nav-item-parent', isSitesOpen ? 'open' : '', isSitesRoute ? 'active' : '']">
             <a href="#" @click.prevent="toggleSites">
               <span class="nav-icon">
@@ -70,36 +100,6 @@
               </span>
               <span>WAF Rule Set</span>
             </RouterLink>
-          </li>
-          <li :class="['nav-item', 'nav-item-parent', isServersOpen ? 'open' : '', isServersRoute ? 'active' : '']">
-            <a href="#" @click.prevent="toggleServers">
-              <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect>
-                  <rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect>
-                  <line x1="6" x2="6.01" y1="6" y2="6"></line>
-                  <line x1="6" x2="6.01" y1="18" y2="18"></line>
-                </svg>
-              </span>
-              <span>Servers</span>
-              <span class="nav-arrow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </span>
-            </a>
-            <ul v-show="isServersOpen" class="nav-submenu">
-              <li :class="['nav-subitem', isRouteActive('server-list') ? 'active' : '']">
-                <RouterLink to="/app/servers/list">
-                  <span>Server List</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('server-settings') ? 'active' : '']">
-                <RouterLink to="/app/servers/settings">
-                  <span>Server Settings</span>
-                </RouterLink>
-              </li>
-            </ul>
           </li>
           <li :class="['nav-item', isRouteActive('server-blacklist') ? 'active' : '']">
             <RouterLink to="/app/blacklist">
@@ -164,8 +164,10 @@
               <span>License</span>
             </RouterLink>
           </li>
-          <li v-if="isAdmin" :class="['nav-item', isRouteActive('users') ? 'active' : '']">
-            <RouterLink to="/app/users">
+          <li
+            :class="['nav-item', 'nav-item-parent', isUsersOpen ? 'open' : '', isUsersRoute ? 'active' : '']"
+          >
+            <a href="#" @click.prevent="toggleUsers">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
@@ -175,7 +177,23 @@
                 </svg>
               </span>
               <span>Users</span>
-            </RouterLink>
+              <span class="nav-arrow">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </span>
+            </a>
+            <ul v-show="isUsersOpen" class="nav-submenu">
+              <li :class="['nav-subitem', isRouteActive('users-information') ? 'active' : '']">
+                <RouterLink to="/app/users/information">Information</RouterLink>
+              </li>
+              <li v-if="isAdmin" :class="['nav-subitem', isRouteActive('users') ? 'active' : '']">
+                <RouterLink to="/app/users/list">Users</RouterLink>
+              </li>
+              <li v-if="isAdmin" :class="['nav-subitem', isRouteActive('users-history') ? 'active' : '']">
+                <RouterLink to="/app/users/history">History</RouterLink>
+              </li>
+            </ul>
           </li>
         </ul>
       </nav>
@@ -269,6 +287,7 @@ const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
 const isServersOpen = ref(false)
 const isSitesOpen = ref(false)
+const isUsersOpen = ref(false)
 const isUserMenuOpen = ref(false)
 const userMenuRef = ref(null)
 
@@ -277,6 +296,9 @@ const isServersRoute = computed(
 )
 const isSitesRoute = computed(
   () => route.meta?.section === 'sites' || route.path.startsWith('/app/sites')
+)
+const isUsersRoute = computed(
+  () => route.meta?.section === 'users' || route.path.startsWith('/app/users')
 )
 const isAnalyticsRoute = computed(
   () =>
@@ -311,6 +333,9 @@ watch(
     if (isSitesRoute.value) {
       isSitesOpen.value = true
     }
+    if (isUsersRoute.value) {
+      isUsersOpen.value = true
+    }
     if (isAnalyticsRoute.value) {
       isDataAnalyticsOpen.value = true
     }
@@ -330,13 +355,18 @@ const toggleSites = () => {
   isSitesOpen.value = !isSitesOpen.value
 }
 
+const toggleUsers = () => {
+  isUsersOpen.value = !isUsersOpen.value
+}
+
 const handleLogout = async () => {
   auth.clearSession()
   await router.replace('/login')
 }
 
-const handleChangePassword = () => {
+const handleChangePassword = async () => {
   isUserMenuOpen.value = false
+  await router.push({ name: 'users-information', query: { focus: 'password' } })
 }
 
 const toggleUserMenu = () => {

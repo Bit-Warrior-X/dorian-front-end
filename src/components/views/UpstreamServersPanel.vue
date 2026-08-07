@@ -1,9 +1,12 @@
 <template>
-  <div class="upstream-panel">
+  <div class="upstream-panel" :class="{ 'upstream-panel--embedded': embedded }">
     <div class="waf-section-header">
       <div>
-        <h4>Upstream Servers</h4>
-        <p class="waf-section-desc">Manage the origin servers serving traffic for this edge.</p>
+        <h4 v-if="!embedded">Origin servers</h4>
+        <p v-if="!embedded" class="waf-section-desc">Backend hosts this site pulls origin content from.</p>
+        <p v-else class="waf-section-desc embedded-desc">
+          Add one or more backends. Traffic is load-balanced across healthy servers.
+        </p>
       </div>
       <div class="header-actions">
         <button class="primary-btn" type="button" @click="openAddDialog">Add Server</button>
@@ -12,7 +15,7 @@
 
     <div class="content-card list-card">
       <div class="list-header">
-        <h4>Upstream List</h4>
+        <h4>Origin list</h4>
         <button class="ghost-btn" type="button" @click="refreshStatuses">Refresh</button>
       </div>
       <div class="table-wrap">
@@ -21,6 +24,7 @@
             <tr>
               <th>Status</th>
               <th>IP:Port</th>
+              <th>Protocol</th>
               <th>Description</th>
               <th>Action</th>
             </tr>
@@ -36,6 +40,7 @@
                 ></span>
               </td>
               <td>{{ server.address }}</td>
+              <td>{{ server.protocol || 'HTTP' }}</td>
               <td class="description-cell">
                 <span class="description-text">{{ server.description }}</span>
               </td>
@@ -60,7 +65,7 @@
           </tbody>
         </table>
         <div v-if="!upstreamServers.length" class="empty-state">
-          No upstream servers configured yet.
+          No origin servers configured yet.
         </div>
       </div>
     </div>
@@ -68,7 +73,7 @@
     <div v-if="isAddDialogOpen" class="dialog-backdrop" @click="closeAddDialog">
       <div class="dialog-card" @click.stop>
         <div class="dialog-header">
-          <h4>Add Upstream Server</h4>
+          <h4>Add origin server</h4>
           <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeAddDialog">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -76,7 +81,7 @@
             </svg>
           </button>
         </div>
-        <p class="helper-text">Enter the upstream address and weights, then add it to the list.</p>
+        <p class="helper-text">Enter the origin address and weights, then add it to the list.</p>
         <div class="form-grid">
           <div class="form-field">
             <label for="upstream-address">Server Address</label>
@@ -87,6 +92,31 @@
               placeholder="192.168.1.10:8080"
             />
             <p v-if="addressConflictMessage" class="field-error">{{ addressConflictMessage }}</p>
+          </div>
+          <div class="form-field">
+            <label>Protocol</label>
+            <div class="segmented" role="radiogroup" aria-label="Upstream protocol">
+              <button
+                type="button"
+                class="segmented__btn"
+                :class="{ active: newServerProtocol === 'HTTP' }"
+                role="radio"
+                :aria-checked="newServerProtocol === 'HTTP'"
+                @click="newServerProtocol = 'HTTP'"
+              >
+                HTTP
+              </button>
+              <button
+                type="button"
+                class="segmented__btn"
+                :class="{ active: newServerProtocol === 'HTTPS' }"
+                role="radio"
+                :aria-checked="newServerProtocol === 'HTTPS'"
+                @click="newServerProtocol = 'HTTPS'"
+              >
+                HTTPS
+              </button>
+            </div>
           </div>
           <div class="form-field">
             <label for="upstream-weight">Weight</label>
@@ -148,17 +178,22 @@ import {
 } from "@/api/upstreamServers";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
-const UPSTREAM_TITLE = "Upstream Servers";
+const UPSTREAM_TITLE = "Origin servers";
 
 const props = defineProps({
   siteId: {
     type: [Number, String],
     default: null
+  },
+  embedded: {
+    type: Boolean,
+    default: false
   }
 });
 
 const upstreamServers = ref([]);
 const newServerAddress = ref("");
+const newServerProtocol = ref("HTTP");
 const newServerWeight = ref("4");
 const newServerMaxFails = ref("3");
 const newServerTimeout = ref("30");
@@ -213,7 +248,7 @@ const addressConflictMessage = computed(() => {
   );
   if (!duplicate) return "";
 
-  return `Upstream server ${raw} is already registered.`;
+  return `Origin server ${raw} is already registered.`;
 });
 
 const openAddDialog = () => {
@@ -239,18 +274,20 @@ const addServer = async () => {
   try {
     await createUpstreamServer(props.siteId, {
       address,
+      protocol: newServerProtocol.value,
       description,
       status: "ENABLE"
     });
     await loadServers();
-    notifySuccess(UPSTREAM_TITLE, "The upstream server is successfully created.");
+    notifySuccess(UPSTREAM_TITLE, "The origin server is successfully created.");
     newServerAddress.value = "";
+    newServerProtocol.value = "HTTP";
     newServerWeight.value = "4";
     newServerMaxFails.value = "3";
     newServerTimeout.value = "30";
     closeAddDialog();
   } catch (error) {
-    notifyError(UPSTREAM_TITLE, error?.message || "The upstream server could not be created.");
+    notifyError(UPSTREAM_TITLE, error?.message || "The origin server could not be created.");
   }
 };
 
@@ -259,10 +296,10 @@ const removeServer = async (upstreamId) => {
   try {
     await deleteUpstreamServerApi(props.siteId, upstreamId);
     await loadServers();
-    notifySuccess(UPSTREAM_TITLE, "The upstream server is successfully removed.");
+    notifySuccess(UPSTREAM_TITLE, "The origin server is successfully removed.");
   } catch (error) {
     await loadServers();
-    notifyError(UPSTREAM_TITLE, error?.message || "The upstream server could not be removed.");
+    notifyError(UPSTREAM_TITLE, error?.message || "The origin server could not be removed.");
   }
 };
 
@@ -272,12 +309,12 @@ const openRemoveConfirm = (server) => {
   isConfirmDialogOpen.value = true;
 };
 
-const confirmTitle = computed(() => "Remove upstream server");
+const confirmTitle = computed(() => "Remove origin server");
 
 const confirmMessage = computed(() =>
   confirmTargetLabel.value
     ? `Are you sure you want to remove ${confirmTargetLabel.value}?`
-    : "Are you sure you want to remove this upstream server?"
+    : "Are you sure you want to remove this origin server?"
 );
 
 const handleConfirmRemove = async () => {
@@ -328,6 +365,23 @@ watch(
   flex-direction: column;
   gap: 16px;
   border-radius: 0;
+}
+
+.upstream-panel--embedded {
+  gap: 12px;
+}
+
+.upstream-panel--embedded .content-card {
+  border-color: var(--app-border);
+  box-shadow: none;
+}
+
+.upstream-panel--embedded .waf-section-header {
+  padding: 0 8px;
+}
+
+.embedded-desc {
+  margin: 0;
 }
 
 .content-card {
@@ -385,6 +439,30 @@ watch(
   font-size: 0.85rem;
   color: var(--app-text-muted);
   font-weight: 500;
+}
+
+.segmented {
+  display: flex;
+  gap: 6px;
+}
+
+.segmented__btn {
+  flex: 1 1 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-solid);
+  color: var(--app-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmented__btn.active {
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+  color: #fff;
 }
 
 .form-field input {

@@ -419,7 +419,7 @@ const select = (id) => {
   }
 }
 
-/* Compact layout for dialogs (e.g. New Server) */
+/* Compact layout for dialogs (e.g. New Edge) */
 .license-selector--compact .tier-grid {
   grid-template-columns: repeat(4, minmax(132px, 1fr));
   gap: 8px;

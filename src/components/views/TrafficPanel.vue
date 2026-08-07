@@ -13,9 +13,8 @@
       </button>
     </div>
     <div class="traffic-content">
-      <ListeningPortsPanel v-if="activeTrafficItem === 'listening-ports'" :site-id="siteId" />
+      <SitePortsPanel v-if="activeTrafficItem === 'ports'" :site-id="siteId" />
       <CacheManagementPanel v-else-if="activeTrafficItem === 'cache-management'" :site-id="siteId" />
-      <UpstreamServersPanel v-else-if="activeTrafficItem === 'upstream-servers'" :site-id="siteId" />
       <CompressPanel v-else-if="activeTrafficItem === 'compress'" :site-id="siteId" />
       <div v-else class="traffic-section-card empty-state">
         <h4>{{ activeTrafficLabel }}</h4>
@@ -27,9 +26,8 @@
 
 <script setup>
 import { ref, computed } from "vue";
-import ListeningPortsPanel from "./ListeningPortsPanel.vue";
+import SitePortsPanel from "./SitePortsPanel.vue";
 import CacheManagementPanel from "./CacheManagementPanel.vue";
-import UpstreamServersPanel from "./UpstreamServersPanel.vue";
 import CompressPanel from "./CompressPanel.vue";
 
 defineProps({
@@ -40,10 +38,9 @@ defineProps({
 });
 
 const trafficItems = [
-  { id: "listening-ports", label: "Listening Ports" },
-  { id: "cache-management", label: "Cache Management" },
-  { id: "upstream-servers", label: "Upstream Servers" },
-  { id: "compress", label: "Compress" }
+  { id: "cache-management", label: "Cache" },
+  { id: "compress", label: "Compress" },
+  { id: "ports", label: "Ports" },
 ];
 
 const activeTrafficItem = ref(trafficItems[0].id);

@@ -2,15 +2,15 @@
   <div class="servers-view">
     <div class="content-card filter-card">
       <div class="filter-row">
-        <label class="filter-label" for="server-settings-target">Target server</label>
+        <label class="filter-label" for="server-settings-target">Target edge</label>
         <select
           id="server-settings-target"
           class="filter-select"
           v-model.number="selectedServer"
         >
-          <option disabled value="">Select a server</option>
+          <option disabled value="">Select an edge</option>
           <option v-for="server in serverOptions" :key="server.id" :value="server.id">
-            {{ server.name || server.ip || `Server #${server.id}` }}
+            {{ server.name || server.ip || `Edge #${server.id}` }}
           </option>
         </select>
         <div v-if="selectedServerData" class="filter-meta">
@@ -44,14 +44,22 @@
             class="tab-btn"
             :class="{ active: activeTab === tab.id }"
             type="button"
-            @click="activeTab = tab.id"
+            @click="selectTab(tab.id)"
           >
             {{ tab.label }}
           </button>
         </div>
         <div
+          ref="tabsBodyEl"
           class="tabs-body"
-          :class="{ 'no-outline': activeTab === 'server-status' }"
+          :class="{
+            'no-outline':
+              activeTab === 'server-status' ||
+              activeTab === 'listening-ports' ||
+              activeTab === 'l4-config' ||
+              activeTab === 'l4-blacklist' ||
+              activeTab === 'l4-whitelist',
+          }"
         >
           <ServerStatusPanel
             v-if="activeTab === 'server-status' && selectedServerData"
@@ -59,7 +67,26 @@
             :server="selectedServerData"
             @updated="onServerStatusUpdated"
           />
-          <L4DdosDefensePanel v-else-if="activeTab === 'l4-ddos'" :server-id="selectedServer" />
+          <ListeningPortsPanel
+            v-else-if="activeTab === 'listening-ports'"
+            :key="`listening-ports-${selectedServer}`"
+            :server-id="selectedServer"
+          />
+          <L4DdosDefensePanel
+            v-else-if="activeTab === 'l4-config'"
+            :key="`l4-config-${selectedServer}`"
+            :server-id="selectedServer"
+          />
+          <L4BlacklistPanel
+            v-else-if="activeTab === 'l4-blacklist'"
+            :key="`l4-blacklist-${selectedServer}`"
+            :server-id="selectedServer"
+          />
+          <L4WhitelistPanel
+            v-else-if="activeTab === 'l4-whitelist'"
+            :key="`l4-whitelist-${selectedServer}`"
+            :server-id="selectedServer"
+          />
           <table v-else class="config-table">
             <thead>
               <tr>
@@ -92,7 +119,10 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { fetchServers } from "@/api/servers";
 import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
+import L4BlacklistPanel from "./L4BlacklistPanel.vue";
+import L4WhitelistPanel from "./L4WhitelistPanel.vue";
 import LayerStatusDot from "../LayerStatusDot.vue";
+import ListeningPortsPanel from "./ListeningPortsPanel.vue";
 import ServerStatusPanel from "./ServerStatusPanel.vue";
 import {
   angelosStatusClass,
@@ -106,6 +136,7 @@ const route = useRoute();
 const router = useRouter();
 const serverOptions = ref([]);
 const selectedServer = ref("");
+const tabsBodyEl = ref(null);
 const selectedServerData = computed(() =>
   serverOptions.value.find((server) => server.id === selectedServer.value)
 );
@@ -130,13 +161,24 @@ const tabs = [
     rows: []
   },
   {
-    id: "l4-ddos",
-    label: "L4 DDos Defense",
-    rows: [
-      { name: "Protection mode", value: "Auto", note: "Detect volumetric attacks in real time." },
-      { name: "Rate limit", value: "5k req/s", note: "Adaptive per region." },
-      { name: "Mitigation", value: "On", note: "Drops suspicious traffic.", type: "toggle" }
-    ]
+    id: "listening-ports",
+    label: "Listening Ports",
+    rows: []
+  },
+  {
+    id: "l4-config",
+    label: "XDP Config",
+    rows: []
+  },
+  {
+    id: "l4-blacklist",
+    label: "Block IP",
+    rows: []
+  },
+  {
+    id: "l4-whitelist",
+    label: "Allow IP",
+    rows: []
   }
 ];
 
@@ -144,9 +186,24 @@ const activeTab = ref(tabs[0].id);
 const activeConfigRows = computed(() => {
   const active = tabs.find((tab) => tab.id === activeTab.value);
   if (!active) return [];
-  if (active.id === "server-status") return [];
+  if (
+    active.id === "server-status" ||
+    active.id === "listening-ports" ||
+    active.id === "l4-config" ||
+    active.id === "l4-blacklist" ||
+    active.id === "l4-whitelist"
+  ) {
+    return [];
+  }
   return active.rows;
 });
+
+const selectTab = (tabId) => {
+  activeTab.value = tabId;
+  requestAnimationFrame(() => {
+    tabsBodyEl.value?.scrollIntoView({ block: "start", behavior: "smooth" });
+  });
+};
 
 const applyRouteQuery = () => {
   if (String(route.query.tab || "").toLowerCase() === "license") {
@@ -164,8 +221,17 @@ const applyRouteQuery = () => {
       selectedServer.value = id;
     }
   }
-  if (["basic", "monitor-server", "server-status"].includes(String(route.query.tab || "").toLowerCase())) {
-    activeTab.value = "server-status";
+  const tab = String(route.query.tab || "").toLowerCase();
+  if (["basic", "monitor-server", "server-status"].includes(tab)) {
+    selectTab("server-status");
+  } else if (tab === "listening-ports") {
+    selectTab("listening-ports");
+  } else if (tab === "l4-blacklist" || tab === "blacklist") {
+    selectTab("l4-blacklist");
+  } else if (tab === "l4-whitelist" || tab === "whitelist") {
+    selectTab("l4-whitelist");
+  } else if (tab === "l4-config" || tab === "l4-ddos" || tab === "l4") {
+    selectTab("l4-config");
   }
 };
 
@@ -319,7 +385,7 @@ onMounted(() => {
 .tabs-body {
   border: 1px solid var(--app-border-strong);
   border-radius: 14px;
-  overflow: hidden;
+  overflow: visible;
   background: var(--app-surface);
 }
 
@@ -327,6 +393,7 @@ onMounted(() => {
   border: none;
   border-radius: 0;
   background: transparent;
+  overflow: visible;
 }
 
 .config-table {

@@ -1,23 +1,11 @@
 <template>
   <div class="l4-panel">
-    <div class="l4-list">
-      <button
-        v-for="item in l4Items"
-        :key="item.id"
-        type="button"
-        class="l4-item"
-        :class="{ active: activeL4Item === item.id }"
-        @click="activeL4Item = item.id"
-      >
-        {{ item.label }}
-      </button>
-    </div>
     <div class="l4-settings">
       <div class="l4-settings-header">
-        <h4>{{ activeL4Label }}</h4>
+        <h4>XDP Config</h4>
       </div>
       <div class="l4-settings-body">
-        <div v-if="isL4ConfigActive" class="l4-config">
+        <div class="l4-config">
           <div class="l4-config-row l4-config-row--global-tcp">
             <section class="l4-config-section">
               <div class="l4-config-title">
@@ -1124,8 +1112,6 @@
           Confirm Settings
         </button>
         </div>
-        <L4BlacklistPanel v-if="isL4BlacklistActive" :server-id="serverId" />
-        <L4WhitelistPanel v-if="isL4WhitelistActive" :server-id="serverId" />
       </div>
     </div>
     <ConfirmDialog
@@ -1143,11 +1129,9 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { fetchL4Config, fetchL4Options, updateL4Config } from "@/api/l4";
 import ConfirmDialog from "../ConfirmDialog.vue";
-import L4BlacklistPanel from "./L4BlacklistPanel.vue";
-import L4WhitelistPanel from "./L4WhitelistPanel.vue";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
-const L4_DDOS_TITLE = "L4 DDoS Defense";
+const L4_DDOS_TITLE = "XDP Config";
 
 const props = defineProps({
   serverId: {
@@ -1173,17 +1157,6 @@ const availableAttachModes = computed(() => {
   return l4Options.value.attachModes;
 });
 
-const l4Items = [
-  { id: "l4-config", label: "L4 Config" },
-  { id: "l4-blacklist", label: "L4 Blacklist" },
-  { id: "l4-whitelist", label: "L4 Whitelist" }
-];
-
-const activeL4Item = ref(l4Items[0].id);
-const activeL4Label = computed(() => {
-  const match = l4Items.find((item) => item.id === activeL4Item.value);
-  return match?.label || "L4 Config";
-});
 const globalForm = ref({
   enabled: true,
   protectionMode: "Always On",
@@ -1480,10 +1453,6 @@ const geoIpForm = ref({
   }
 });
 
-const isL4ConfigActive = computed(() => activeL4Item.value === "l4-config");
-const isL4BlacklistActive = computed(() => activeL4Item.value === "l4-blacklist");
-const isL4WhitelistActive = computed(() => activeL4Item.value === "l4-whitelist");
-
 const filteredGeoCountries = computed(() => {
   const baseList =
     geoIpForm.value.countriesByContinent[geoIpForm.value.activeContinent] || [];
@@ -1761,42 +1730,9 @@ watch(
 
 <style scoped>
 .l4-panel {
-  display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
-  min-height: 260px;
-}
-
-
-.l4-list {
-  border-right: 1px solid var(--app-border-strong);
-  background: var(--app-surface-muted);
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  gap: 6px;
-}
-
-.l4-item {
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--app-text-secondary);
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 0.92rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.l4-item:hover {
-  background: var(--app-surface-hover);
-}
-
-.l4-item.active {
-  background: var(--app-surface-solid);
-  border-color: rgba(124, 58, 237, 0.35);
-  color: var(--app-accent);
-  box-shadow: 0 8px 16px rgba(124, 58, 237, 0.12);
+  min-height: 260px;
 }
 
 .l4-settings {
@@ -1808,6 +1744,8 @@ watch(
   height: calc(100vh - 320px);
   min-height: 0;
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
 }
 
 .l4-settings-body {

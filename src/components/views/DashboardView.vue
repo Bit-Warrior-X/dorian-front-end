@@ -25,7 +25,7 @@
           </svg>
         </div>
         <div class="stat-info">
-          <h3>Total Servers</h3>
+          <h3>Total Edges</h3>
           <p class="stat-value">{{ formatNumber(dashboardStats.totalServers) }}</p>
         </div>
       </div>
@@ -37,7 +37,7 @@
           </svg>
         </div>
         <div class="stat-info">
-          <h3>Active Servers</h3>
+          <h3>Active Edges</h3>
           <p class="stat-value">{{ formatNumber(dashboardStats.activeServers) }}</p>
         </div>
       </div>
@@ -127,7 +127,7 @@
     <div class="bandwidth-card">
       <div class="bandwidth-header">
         <div>
-          <h3>Realtime Bandwidth by Server</h3>
+          <h3>Realtime Bandwidth by Edge</h3>
           <p>Live throughput updated every 1 minutes (Kbps)</p>
         </div>
         <div class="bandwidth-controls">
@@ -371,7 +371,7 @@ const loadBandwidthServers = async () => {
     const list = Array.isArray(payload) ? payload : []
     bandwidthServers.value = list.map((server, index) => ({
       id: server.id,
-      label: server.name || `Server ${server.id}`,
+      label: server.name || `Edge ${server.id}`,
       color: palette[index % palette.length],
     }))
     bandwidthNicRxSeries.value = createEmptyBandwidthSeries()
@@ -448,7 +448,7 @@ const bandwidthRangeOptions = [
   { label: '48h', value: '48h' },
 ]
 const serverOptions = computed(() => [
-  { label: 'All Servers', value: 'all' },
+  { label: 'All Edges', value: 'all' },
   ...bandwidthServers.value.map((server) => ({ label: server.label, value: server.id })),
 ])
 const bandwidthRange = ref(bandwidthRangeOptions[0].value)

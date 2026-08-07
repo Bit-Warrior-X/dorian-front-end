@@ -41,7 +41,7 @@ const routes = [
         name: 'server-list',
         component: () => import('@/components/views/ServerListView.vue'),
         meta: {
-          title: 'Server List',
+          title: 'Edge List',
           section: 'servers'
         }
       },
@@ -50,7 +50,7 @@ const routes = [
         name: 'server-settings',
         component: () => import('@/components/views/ServerSettingsView.vue'),
         meta: {
-          title: 'Server Settings',
+          title: 'Edge Settings',
           section: 'servers'
         }
       },
@@ -150,10 +150,34 @@ const routes = [
       },
       {
         path: 'users',
+        redirect: { name: 'users-information' }
+      },
+      {
+        path: 'users/information',
+        name: 'users-information',
+        component: () => import('@/components/views/UsersInformationView.vue'),
+        meta: {
+          title: 'Information',
+          section: 'users'
+        }
+      },
+      {
+        path: 'users/list',
         name: 'users',
         component: () => import('@/components/views/UsersView.vue'),
         meta: {
           title: 'Users',
+          section: 'users',
+          requiresAdmin: true
+        }
+      },
+      {
+        path: 'users/history',
+        name: 'users-history',
+        component: () => import('@/components/views/UsersHistoryView.vue'),
+        meta: {
+          title: 'History',
+          section: 'users',
           requiresAdmin: true
         }
       }

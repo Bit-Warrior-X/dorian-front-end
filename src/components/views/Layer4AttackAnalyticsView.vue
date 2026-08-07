@@ -404,7 +404,7 @@ const submitBlacklist = async () => {
   const selectedId = blacklistForm.value.serverId || selectedServer.value
   const serverId = Number(selectedId)
   if (!serverId) {
-    notifyError(L4_DDOS_TITLE, 'Please select a server first.')
+    notifyError(L4_DDOS_TITLE, 'Please select an edge first.')
     return
   }
 

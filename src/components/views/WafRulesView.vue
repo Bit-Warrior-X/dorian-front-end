@@ -85,6 +85,14 @@
               <td>
                 <div class="actions-cell">
                   <button
+                    v-if="!isPredefinedRule(rule)"
+                    class="secondary-btn table-action-btn"
+                    type="button"
+                    @click="openConfigureDialog(rule, 'waf')"
+                  >
+                    Edit
+                  </button>
+                  <button
                     v-if="isPredefinedRule(rule)"
                     class="secondary-btn table-action-btn"
                     type="button"
@@ -92,15 +100,20 @@
                   >
                     Duplicate
                   </button>
-                  <button
-                    v-if="canDeleteRule(rule)"
-                    class="secondary-btn table-action-btn table-action-btn--danger"
-                    type="button"
-                    :disabled="deletingId === rule.id"
-                    @click="requestDeleteConfirm(rule)"
+                  <span
+                    class="table-action-wrap"
+                    :title="!canDeleteRule(rule) ? deleteButtonTitle(rule) : undefined"
                   >
-                    {{ deletingId === rule.id ? 'Deleting…' : 'Delete' }}
-                  </button>
+                    <button
+                      class="secondary-btn table-action-btn table-action-btn--danger"
+                      type="button"
+                      :disabled="!canDeleteRule(rule) || deletingId === rule.id"
+                      :title="canDeleteRule(rule) ? deleteButtonTitle(rule) : undefined"
+                      @click="requestDeleteConfirm(rule)"
+                    >
+                      {{ deletingId === rule.id ? 'Deleting…' : 'Delete' }}
+                    </button>
+                  </span>
                 </div>
               </td>
             </tr>
@@ -420,7 +433,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import { createWafRule, deleteWafRule, duplicateWafRule, fetchWafRule, fetchWafRules, updateWafRule } from '@/api/wafRules'
@@ -531,6 +544,14 @@ watch(
 const isPredefinedRule = (rule) => String(rule?.role || '').toLowerCase() === 'predefined'
 
 const canDeleteRule = (rule) => Number(rule?.siteCount ?? 0) === 0
+
+const deleteButtonTitle = (rule) => {
+  const siteCount = Number(rule?.siteCount ?? 0)
+  if (siteCount > 0) {
+    return 'This WAF rule is applied to sites and cannot be deleted.'
+  }
+  return 'Delete WAF rule set'
+}
 
 const deleteConfirmMessage = computed(() => {
   const name = deleteTarget.value?.name || 'this WAF rule set'
@@ -674,6 +695,7 @@ const submitDuplicateRule = async () => {
 }
 
 const requestDeleteConfirm = (rule) => {
+  if (!canDeleteRule(rule)) return
   deleteTarget.value = rule
   isDeleteConfirmOpen.value = true
 }
@@ -901,6 +923,16 @@ const nextPage = () => {
 }
 
 watch(
+  () => route.name,
+  (name) => {
+    if (name === 'waf-rules') {
+      void loadRules()
+    }
+  },
+  { immediate: true },
+)
+
+watch(
   () => route.query.wafRuleId,
   (wafRuleId) => {
     const nextId = wafRuleId ? String(wafRuleId) : ''
@@ -921,12 +953,16 @@ watch(
 )
 
 onMounted(async () => {
-  await loadRules()
+  window.addEventListener('cdnproxy-sites-changed', loadRules)
   if (route.query.wafRuleId) {
     selectedRuleId.value = String(route.query.wafRuleId)
     isRuleDialogOpen.value = true
     await loadSelectedRule()
   }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('cdnproxy-sites-changed', loadRules)
 })
 </script>
 
@@ -1173,6 +1209,11 @@ onMounted(async () => {
   gap: 8px;
 }
 
+.table-action-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
 .table-action-btn {
   width: auto !important;
   min-width: 0 !important;
@@ -1198,6 +1239,11 @@ onMounted(async () => {
   color: var(--app-btn-danger-hover) !important;
   border-color: var(--app-btn-danger-bg) !important;
   background: rgba(239, 68, 68, 0.12) !important;
+}
+
+.table-action-btn--danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .dialog-section {

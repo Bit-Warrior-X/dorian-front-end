@@ -2,7 +2,7 @@
   <div class="l4-list-panel">
     <div class="panel-header">
       <div>
-        <h4>L4 Blacklist</h4>
+        <h4>Block IP</h4>
         <p class="panel-desc">Blocked source IPs for this server.</p>
       </div>
       <div class="panel-actions">
@@ -131,7 +131,7 @@ import {
 } from "@/api/l4";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
-const BLACKLIST_TITLE = "Blacklist Management";
+const BLACKLIST_TITLE = "Block IP";
 
 const props = defineProps({
   serverId: {

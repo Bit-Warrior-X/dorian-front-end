@@ -3,7 +3,7 @@
     <div class="content-card">
       <div class="filter-header">
         <h3>Filters</h3>
-        <button class="primary-btn" @click="openNewServerDialog">New Server</button>
+        <button class="primary-btn" @click="openNewServerDialog">New Edge</button>
       </div>
       <div class="filter-bar">
         <div class="filter-field">
@@ -38,7 +38,7 @@
 
     <div class="content-card servers-table-card">
       <div class="card-title">
-        <h3>Servers</h3>
+        <h3>Edges</h3>
       </div>
       <div class="table-wrap">
         <table class="servers-table">
@@ -172,7 +172,7 @@
     >
       <div class="dialog-header">
         <div class="dialog-header-text">
-          <h3>New Server</h3>
+          <h3>New Edge</h3>
           <p class="wizard-step-label">Step {{ newServerStep }} of 3</p>
         </div>
         <button
@@ -201,7 +201,7 @@
                 v-model="newServer.name"
                 type="text"
                 autocomplete="off"
-                placeholder="Enter server name"
+                placeholder="Enter edge name"
               />
             </div>
             <div class="dialog-field">
@@ -210,7 +210,7 @@
                 id="new-server-ip"
                 v-model="newServer.ip"
                 type="text"
-                placeholder="Enter server IP"
+                placeholder="Enter edge IP"
               />
             </div>
           </div>
@@ -341,7 +341,7 @@
           </p>
           <LicenseTierSelector
             v-model="licenseTier"
-            aria-label="License type for new server"
+            aria-label="License type for new edge"
             @update:model-value="onLicenseTierChange"
           />
           <p class="license-tier-hint license-tier-hint--deploy">
@@ -425,7 +425,7 @@
   >
     <div class="dialog-card" @click.stop>
       <div class="dialog-header">
-        <h3>Edit Server</h3>
+        <h3>Edit Edge</h3>
         <button class="dialog-close" @click="closeEditServerDialog" aria-label="Close dialog">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -443,7 +443,7 @@
                 id="edit-server-name"
                 v-model="editServer.name"
                 type="text"
-                placeholder="Enter server name"
+                placeholder="Enter edge name"
               />
             </div>
             <div class="dialog-field">
@@ -452,7 +452,7 @@
                 id="edit-server-ip"
                 v-model="editServer.ip"
                 type="text"
-                placeholder="Enter server IP"
+                placeholder="Enter edge IP"
               />
             </div>
           </div>
@@ -835,17 +835,17 @@ const filteredAvailableUsers = computed(() => {
 })
 
 const confirmTitle = computed(() => {
-  if (confirmAction.value === 'delete') return 'Delete server'
-  if (confirmAction.value === 'edit') return 'Server is modified'
+  if (confirmAction.value === 'delete') return 'Delete edge'
+  if (confirmAction.value === 'edit') return 'Edge is modified'
   return 'Confirm action'
 })
 
 const confirmMessage = computed(() => {
   if (confirmAction.value === 'delete') {
-    return 'Are you sure you want to delete this server? This action cannot be undone.'
+    return 'Are you sure you want to delete this edge? This action cannot be undone.'
   }
   if (confirmAction.value === 'edit') {
-    return 'Are you sure you want to apply these changes to the server?'
+    return 'Are you sure you want to apply these changes to the edge?'
   }
   return 'Are you sure you want to continue?'
 })
@@ -1117,7 +1117,7 @@ const onUseExistingLicenseChange = () => {
   }
 }
 
-const enqueueNotification = (message, type = 'success', title = 'Server Management') => {
+const enqueueNotification = (message, type = 'success', title = 'Edge Management') => {
   if (type === 'error') notifyError(title, message)
   else notifySuccess(title, message)
 }
@@ -1179,7 +1179,7 @@ const createServer = async () => {
     if (created?.os) detailParts.push(`os: ${displayServerOs(created.os)}`)
     if (created?.expiredDate) detailParts.push(`expires: ${created.expiredDate}`)
     const detail = detailParts.length ? ` ${detailParts.join(' · ')}` : ''
-    enqueueNotification(`The server is successfully created.${detail}`, 'success')
+    enqueueNotification(`The edge is successfully created.${detail}`, 'success')
     currentPage.value = 1
     // Clear busy state before closing so the dialog is not stuck behind pointer-events: none.
     isCreatingServer.value = false
@@ -1194,7 +1194,7 @@ const createServer = async () => {
         (error.name === 'TimeoutError' || error.name === 'AbortError'))
     if (isAbort) {
       enqueueNotification(
-        'The create request timed out in the browser, but the server may already have created it. Refreshing the list.',
+        'The create request timed out in the browser, but the edge may already exist. Refreshing the list.',
         'error'
       )
       void loadServers()
@@ -1202,7 +1202,7 @@ const createServer = async () => {
       await nextTick()
       isNewServerDialogOpen.value = false
     } else {
-      const msg = error?.message || 'The server could not be created.'
+      const msg = error?.message || 'The edge could not be created.'
       enqueueNotification(msg, 'error')
       isCreatingServer.value = false
       await nextTick()
@@ -1325,18 +1325,18 @@ const submitUpgradeVersionChoice = async () => {
     return
   }
   if (isSameProductVersion(v.version, server.version)) {
-    enqueueNotification('This version is already installed on the server.', 'error')
+    enqueueNotification('This version is already installed on the edge.', 'error')
     return
   }
   isUpgradingServer.value = true
   try {
     await upgradeServer(server.id, { versionUuid: uuid })
-    enqueueNotification(`The server is successfully upgraded to version ${v.version}.`, 'success')
+    enqueueNotification(`The edge is successfully upgraded to version ${v.version}.`, 'success')
     closeUpgradeDialog()
     void loadServers()
     void loadDeployVersionsCatalog()
   } catch (error) {
-    enqueueNotification(error?.message || 'The server could not be upgraded.', 'error')
+    enqueueNotification(error?.message || 'The edge could not be upgraded.', 'error')
   } finally {
     isUpgradingServer.value = false
   }
@@ -1387,7 +1387,7 @@ const applyEditServer = async () => {
     })
     await updateServerUsers(editServerId.value, updatedUsers)
   } catch {
-    enqueueNotification('The server could not be updated.', 'error')
+    enqueueNotification('The edge could not be updated.', 'error')
     return
   }
   servers.value[index] = {
@@ -1404,7 +1404,7 @@ const applyEditServer = async () => {
     sshPort: editServer.value.sshPort
   }
 
-  enqueueNotification('The server is successfully updated.', 'success')
+  enqueueNotification('The edge is successfully updated.', 'success')
   closeEditServerDialog()
 }
 
@@ -1428,12 +1428,12 @@ const handleDeleteServer = async () => {
   try {
     await deleteServer(confirmTarget.value.id)
     await loadServers()
-    enqueueNotification('The server is successfully deleted.', 'success')
+    enqueueNotification('The edge is successfully deleted.', 'success')
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value
     }
   } catch (error) {
-    enqueueNotification(error?.message || 'The server could not be deleted.', 'error')
+    enqueueNotification(error?.message || 'The edge could not be deleted.', 'error')
   }
 }
 

@@ -14,7 +14,7 @@
               <th>Password</th>
               <th>Role</th>
               <th>Status</th>
-              <th>Servers</th>
+              <th>Edges</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -110,11 +110,11 @@
             </select>
           </div>
           <div v-if="newUser.role === 'User'" class="dialog-field dialog-field--full">
-            <label>Servers</label>
+            <label>Edges</label>
             <div class="server-options">
               <label v-for="server in serverOptions" :key="server.id" class="server-option">
                 <input v-model="newUser.serverIds" type="checkbox" :value="server.id" />
-                <span>{{ server.name || server.ip || `Server #${server.id}` }}</span>
+                <span>{{ server.name || server.ip || `Edge #${server.id}` }}</span>
               </label>
             </div>
           </div>

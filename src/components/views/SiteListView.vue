@@ -37,9 +37,12 @@
           <label for="site-ssl-filter">SSL Type</label>
           <select id="site-ssl-filter" v-model="filters.sslType">
             <option value="">All</option>
-            <option value="none">None</option>
+            <option value="none">Not Configured</option>
+            <option value="letsencrypt">Let's Encrypt</option>
+            <option value="zerossl">ZeroSSL</option>
+            <option value="googletrust">Google Trust</option>
+            <option value="custom">Manual</option>
             <option value="managed">Managed</option>
-            <option value="custom">Custom</option>
           </select>
         </div>
       </div>
@@ -55,14 +58,13 @@
             <tr>
               <th>Domain</th>
               <th>Status</th>
-              <th>WAF ID</th>
+              <th>WAF Rule</th>
               <th>Certificate</th>
               <th>Expiry</th>
               <th>Cache Ratio</th>
               <th>Bandwidth</th>
               <th>SSL Type</th>
-              <th>Protocols</th>
-              <th>Servers</th>
+              <th>Edges</th>
               <th>Created</th>
               <th>Updated</th>
               <th>Settings</th>
@@ -70,10 +72,10 @@
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="13" class="muted-text">Loading sites…</td>
+              <td colspan="12" class="muted-text">Loading sites…</td>
             </tr>
             <tr v-else-if="!filteredSites.length">
-              <td colspan="13" class="muted-text">No sites found.</td>
+              <td colspan="12" class="muted-text">No sites found.</td>
             </tr>
             <tr v-for="site in paginatedSites" :key="site.id">
               <td class="domain-cell">{{ site.domain }}</td>
@@ -82,7 +84,7 @@
                   {{ site.status === 'ENABLE' ? 'Enabled' : 'Disabled' }}
                 </span>
               </td>
-              <td>{{ site.wafId ?? '—' }}</td>
+              <td>{{ site.wafName || '—' }}</td>
               <td>
                 <span class="status-pill server-status-pill" :class="certificateStatusClass(site.certificateStatus)">
                   {{ formatCertStatus(site.certificateStatus) }}
@@ -92,18 +94,6 @@
               <td>{{ formatCacheRatio(site.cacheRatio) }}</td>
               <td>{{ formatBandwidth(site.bandwidth) }}</td>
               <td>{{ formatSslType(site.sslType) }}</td>
-              <td>
-                <div v-if="protocolList(site.protocolBadges).length" class="site-protocols">
-                  <span
-                    v-for="protocol in protocolList(site.protocolBadges)"
-                    :key="protocol"
-                    class="site-protocol-pill"
-                  >
-                    {{ protocol }}
-                  </span>
-                </div>
-                <span v-else class="muted-text">—</span>
-              </td>
               <td>
                 <div v-if="site.servers?.length" class="site-servers">
                   <span v-for="server in site.servers" :key="server" class="site-server-pill">
@@ -167,7 +157,7 @@
     @click="!isSaving && closeNewSiteDialog()"
   >
     <div
-      class="dialog-card dialog-card--wide"
+      class="dialog-card dialog-card--site"
       :class="{ 'dialog-card--busy': isSaving }"
       @click.stop
     >
@@ -189,7 +179,7 @@
       <div class="dialog-body">
         <SiteFormSections
           :form="newSite"
-          :protocol-options="protocolOptions"
+          :waf-rule-options="wafRuleOptions"
           :selected-server-ids="selectedServers"
           :server-options="serverOptions"
           :server-search="serverSearch"
@@ -218,7 +208,7 @@
     class="dialog-backdrop"
     @click="closeEditSiteDialog"
   >
-    <div class="dialog-card dialog-card--wide" @click.stop>
+    <div class="dialog-card dialog-card--site" @click.stop>
       <div class="dialog-header">
         <h3>Edit Site</h3>
         <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeEditSiteDialog">
@@ -231,7 +221,7 @@
       <div class="dialog-body">
         <SiteFormSections
           :form="editSite"
-          :protocol-options="protocolOptions"
+          :waf-rule-options="wafRuleOptions"
           :selected-server-ids="selectedServers"
           :server-options="serverOptions"
           :server-search="serverSearch"
@@ -259,6 +249,16 @@
     @confirm="handleConfirmDialog"
     @cancel="clearConfirmDialog"
   />
+
+  <ConfirmDialog
+    v-model="isCustomWafWarningOpen"
+    title="Custom WAF Rule"
+    :message="customWafWarningMessage"
+    confirm-text="Continue"
+    cancel-text="Cancel"
+    @confirm="confirmCustomWafWarning"
+    @cancel="cancelCustomWafWarning"
+  />
 </template>
 
 <script setup>
@@ -268,14 +268,33 @@ import ConfirmDialog from '../ConfirmDialog.vue'
 import SiteFormSections from '../SiteFormSections.vue'
 import { createSite, deleteSite, fetchSites, updateSite } from '@/api/sites'
 import { fetchServers } from '@/api/servers'
+import { fetchWafRules } from '@/api/wafRules'
+import {
+  createUpstreamServer,
+  deleteUpstreamServers,
+  fetchUpstreamServers,
+  updateUpstreamServer,
+} from '@/api/upstreamServers'
+import {
+  createEmptyOriginServer,
+  getFilledOriginServers,
+  mapUpstreamToOriginServer,
+  toUpstreamPayload,
+  validateOriginServers,
+} from '@/utils/originServers'
 import { notifyError, notifySuccess } from '@/utils/notify'
 
 const SITES_TITLE = 'Site Management'
+
+const notifySitesChanged = () => {
+  window.dispatchEvent(new CustomEvent('cdnproxy-sites-changed'))
+}
 
 const router = useRouter()
 
 const sites = ref([])
 const serverOptions = ref([])
+const wafRuleOptions = ref([])
 const isLoading = ref(false)
 const isSaving = ref(false)
 const activeRowMenu = ref(null)
@@ -283,8 +302,13 @@ const isNewSiteDialogOpen = ref(false)
 const isEditSiteDialogOpen = ref(false)
 const editSiteId = ref(null)
 const isConfirmDialogOpen = ref(false)
+const isCustomWafWarningOpen = ref(false)
 const confirmAction = ref(null)
 const confirmTarget = ref(null)
+const pendingSaveAction = ref(null)
+
+const customWafWarningMessage =
+  'When you select a custom waf rule, if you change the rule in another site setting, the changed waf rule is applied to all sites. To avoid this, you can duplicate waf rule, rename it and apply the rule to the site.'
 
 const selectedServers = ref([])
 const isServerDropdownOpen = ref(false)
@@ -300,8 +324,6 @@ const filters = reactive({
   sslType: '',
 })
 
-const protocolOptions = ['HTTP', 'HTTPS', 'HTTP/2', 'HTTP/3', 'WebSocket']
-
 const emptySiteForm = () => ({
   domain: '',
   status: 'ENABLE',
@@ -313,11 +335,12 @@ const emptySiteForm = () => ({
   sslType: 'none',
   sslCert: '',
   sslCertKey: '',
-  protocols: [],
+  originServers: [createEmptyOriginServer()],
 })
 
 const newSite = reactive(emptySiteForm())
 const editSite = reactive(emptySiteForm())
+const editOriginInitialIds = ref([])
 
 const filteredSites = computed(() => {
   const domainQuery = filters.domain.trim().toLowerCase()
@@ -380,14 +403,6 @@ watch(
   },
 )
 
-const protocolList = (value) => {
-  if (!value) return []
-  return String(value)
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
 const formatCertStatus = (value) => {
   const normalized = String(value || 'none').toLowerCase()
   if (normalized === 'valid') return 'Valid'
@@ -408,9 +423,12 @@ const certificateStatusClass = (value) => {
 
 const formatSslType = (value) => {
   const normalized = String(value || 'none').toLowerCase()
+  if (normalized === 'letsencrypt') return "Let's Encrypt"
+  if (normalized === 'zerossl') return 'ZeroSSL'
+  if (normalized === 'googletrust') return 'Google Trust'
+  if (normalized === 'custom') return 'Manual'
   if (normalized === 'managed') return 'Managed'
-  if (normalized === 'custom') return 'Custom'
-  return 'None'
+  return 'Not Configured'
 }
 
 const formatCacheRatio = (value) => `${Number(value || 0).toFixed(2)}%`
@@ -441,6 +459,7 @@ const toDateTimeLocal = (value) => {
 const buildPayload = (form) => {
   const wafIdRaw = String(form.wafId ?? '').trim()
   const wafId = wafIdRaw === '' ? null : Number(wafIdRaw)
+  const sslType = String(form.sslType || 'none').toLowerCase()
   return {
     domain: form.domain.trim(),
     status: form.status,
@@ -449,11 +468,46 @@ const buildPayload = (form) => {
     certificateExpiry: form.certificateExpiry ? new Date(form.certificateExpiry).toISOString() : null,
     cacheRatio: Number(form.cacheRatio) || 0,
     bandwidth: Number(form.bandwidth) || 0,
-    sslType: form.sslType,
-    sslCert: form.sslType === 'custom' ? form.sslCert.trim() : '',
-    sslCertKey: form.sslType === 'custom' ? form.sslCertKey.trim() : '',
-    protocolBadges: form.protocols.join(','),
+    sslType,
+    sslCert: sslType === 'custom' ? form.sslCert.trim() : '',
+    sslCertKey: sslType === 'custom' ? form.sslCertKey.trim() : '',
     serverIds: [...selectedServers.value],
+  }
+}
+
+const getSelectedWafRule = (form) => {
+  const id = String(form.wafId ?? '').trim()
+  if (!id) return null
+  return wafRuleOptions.value.find((rule) => String(rule.id) === id) || null
+}
+
+const isCustomWafSelected = (form) =>
+  String(getSelectedWafRule(form)?.role || '').toLowerCase() === 'custom'
+
+const shouldWarnCustomWaf = (form) => isCustomWafSelected(form)
+
+const openCustomWafWarning = (action) => {
+  pendingSaveAction.value = action
+  isCustomWafWarningOpen.value = true
+}
+
+const cancelCustomWafWarning = () => {
+  isCustomWafWarningOpen.value = false
+  pendingSaveAction.value = null
+}
+
+const confirmCustomWafWarning = async () => {
+  const action = pendingSaveAction.value
+  isCustomWafWarningOpen.value = false
+  pendingSaveAction.value = null
+
+  if (action === 'create') {
+    await performCreateSite()
+    return
+  }
+  if (action === 'edit') {
+    confirmAction.value = 'edit'
+    isConfirmDialogOpen.value = true
   }
 }
 
@@ -461,7 +515,7 @@ const applyFormValues = (target, site) => {
   Object.assign(target, emptySiteForm())
   target.domain = site.domain || ''
   target.status = site.status || 'ENABLE'
-  target.wafId = site.wafId ?? ''
+  target.wafId = site.wafId != null ? String(site.wafId) : ''
   target.certificateStatus = site.certificateStatus || 'none'
   target.certificateExpiry = toDateTimeLocal(site.certificateExpiry)
   target.cacheRatio = site.cacheRatio ?? 0
@@ -469,7 +523,7 @@ const applyFormValues = (target, site) => {
   target.sslType = site.sslType || 'none'
   target.sslCert = site.sslCert || ''
   target.sslCertKey = site.sslCertKey || ''
-  target.protocols = protocolList(site.protocolBadges)
+  target.originServers = [createEmptyOriginServer()]
   selectedServers.value = site.serverIds ? [...site.serverIds] : []
 }
 
@@ -478,6 +532,45 @@ const resetNewSiteForm = () => {
   selectedServers.value = []
   serverSearch.value = ''
   isServerDropdownOpen.value = false
+}
+
+const loadOriginServersForEdit = async (siteId) => {
+  editOriginInitialIds.value = []
+  editSite.originServers = [createEmptyOriginServer()]
+  if (!siteId) return
+  try {
+    const data = await fetchUpstreamServers(siteId)
+    const origins = Array.isArray(data) ? data.map(mapUpstreamToOriginServer) : []
+    editSite.originServers = origins.length ? origins : [createEmptyOriginServer()]
+    editOriginInitialIds.value = origins
+      .map((origin) => origin.id)
+      .filter((id) => id != null)
+  } catch (error) {
+    editSite.originServers = [createEmptyOriginServer()]
+    editOriginInitialIds.value = []
+    notifyError(SITES_TITLE, error?.message || 'Origin servers could not be loaded.')
+  }
+}
+
+const syncOriginServers = async (siteId, origins, initialIds = []) => {
+  const list = getFilledOriginServers(origins)
+  const keptIds = new Set(
+    list.map((origin) => origin.id).filter((id) => id != null),
+  )
+  const removedIds = (initialIds || []).filter((id) => !keptIds.has(id))
+
+  if (removedIds.length) {
+    await deleteUpstreamServers(siteId, removedIds)
+  }
+
+  for (const origin of list) {
+    const payload = toUpstreamPayload(origin)
+    if (origin.id) {
+      await updateUpstreamServer(siteId, origin.id, payload)
+    } else {
+      await createUpstreamServer(siteId, payload)
+    }
+  }
 }
 
 const loadSites = async () => {
@@ -499,6 +592,15 @@ const loadServers = async () => {
     serverOptions.value = Array.isArray(data) ? data : []
   } catch {
     serverOptions.value = []
+  }
+}
+
+const loadWafRules = async () => {
+  try {
+    const data = await fetchWafRules('')
+    wafRuleOptions.value = Array.isArray(data) ? data : []
+  } catch {
+    wafRuleOptions.value = []
   }
 }
 
@@ -541,17 +643,19 @@ const closeNewSiteDialog = () => {
   isNewSiteDialogOpen.value = false
 }
 
-const openEditSite = (site) => {
+const openEditSite = async (site) => {
   editSiteId.value = site.id
   applyFormValues(editSite, site)
   serverSearch.value = ''
   isServerDropdownOpen.value = false
   isEditSiteDialogOpen.value = true
   activeRowMenu.value = null
+  await loadOriginServersForEdit(site.id)
 }
 
 const closeEditSiteDialog = () => {
   isEditSiteDialogOpen.value = false
+  editOriginInitialIds.value = []
 }
 
 const openSiteSettings = (site) => {
@@ -559,20 +663,33 @@ const openSiteSettings = (site) => {
   void router.push({ name: 'site-settings', query: { siteId: String(site.id) } })
 }
 
-const submitNewSite = async () => {
-  if (!newSite.domain.trim()) {
-    notifyError(SITES_TITLE, 'Domain is required.')
-    return
+const validateSiteForm = (form) => {
+  if (!form.domain.trim()) {
+    return 'Domain is required.'
   }
+  if (String(form.sslType || '').toLowerCase() === 'custom') {
+    if (!String(form.sslCert || '').trim() || !String(form.sslCertKey || '').trim()) {
+      return 'Manual SSL configuration requires both certificate and private key.'
+    }
+  }
+  const originError = validateOriginServers(form.originServers)
+  if (originError) return originError
+  return ''
+}
 
+const performCreateSite = async () => {
   isSaving.value = true
   try {
-    await createSite(buildPayload(newSite))
+    const created = await createSite(buildPayload(newSite))
+    if (created?.id) {
+      await syncOriginServers(created.id, newSite.originServers, [])
+    }
     notifySuccess(SITES_TITLE, 'The site is successfully created.')
     currentPage.value = 1
     isNewSiteDialogOpen.value = false
     resetNewSiteForm()
     await loadSites()
+    notifySitesChanged()
   } catch (error) {
     notifyError(SITES_TITLE, error?.message || 'The site could not be created.')
   } finally {
@@ -580,11 +697,33 @@ const submitNewSite = async () => {
   }
 }
 
-const requestEditConfirm = () => {
-  if (!editSite.domain.trim()) {
-    notifyError(SITES_TITLE, 'Domain is required.')
+const submitNewSite = async () => {
+  const validationError = validateSiteForm(newSite)
+  if (validationError) {
+    notifyError(SITES_TITLE, validationError)
     return
   }
+
+  if (shouldWarnCustomWaf(newSite)) {
+    openCustomWafWarning('create')
+    return
+  }
+
+  await performCreateSite()
+}
+
+const requestEditConfirm = () => {
+  const validationError = validateSiteForm(editSite)
+  if (validationError) {
+    notifyError(SITES_TITLE, validationError)
+    return
+  }
+
+  if (shouldWarnCustomWaf(editSite)) {
+    openCustomWafWarning('edit')
+    return
+  }
+
   confirmAction.value = 'edit'
   confirmTarget.value = null
   isConfirmDialogOpen.value = true
@@ -601,9 +740,11 @@ const applyEditSite = async () => {
   if (!editSiteId.value) return
   try {
     await updateSite(editSiteId.value, buildPayload(editSite))
+    await syncOriginServers(editSiteId.value, editSite.originServers, editOriginInitialIds.value)
     notifySuccess(SITES_TITLE, 'The site is successfully updated.')
     closeEditSiteDialog()
     await loadSites()
+    notifySitesChanged()
   } catch (error) {
     notifyError(SITES_TITLE, error?.message || 'The site could not be updated.')
   }
@@ -614,6 +755,7 @@ const handleDeleteSite = async () => {
   try {
     await deleteSite(confirmTarget.value.id)
     await loadSites()
+    notifySitesChanged()
     notifySuccess(SITES_TITLE, 'The site is successfully deleted.')
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value
@@ -650,6 +792,7 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutsideMenu)
   void loadSites()
   void loadServers()
+  void loadWafRules()
 })
 
 onBeforeUnmount(() => {
@@ -802,14 +945,12 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
 }
 
-.site-protocols,
 .site-servers {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.site-protocol-pill,
 .site-server-pill {
   padding: 4px 10px;
   border-radius: 999px;
@@ -958,11 +1099,15 @@ onBeforeUnmount(() => {
   border-radius: 18px;
   box-shadow: 0 24px 48px var(--app-shadow);
   border: 1px solid var(--app-border);
-  padding: 24px;
+  padding: 20px;
 }
 
-.dialog-card--wide {
-  max-width: 1180px;
+.dialog-card--site {
+  max-width: 720px;
+  max-height: min(88vh, 820px);
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
 }
 
 .dialog-card--busy {
@@ -973,12 +1118,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--app-heading);
 }
@@ -1011,14 +1157,18 @@ onBeforeUnmount(() => {
 .dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
 }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
+  gap: 10px;
+  margin-top: 14px;
+  flex-shrink: 0;
 }
 
 .secondary-btn {

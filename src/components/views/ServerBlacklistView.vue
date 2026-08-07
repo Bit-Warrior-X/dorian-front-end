@@ -311,7 +311,7 @@ const loadServers = async () => {
     const list = await fetchServers();
     servers.value = Array.isArray(list) ? list : [];
   } catch (error) {
-    notifyError(BLACKLIST_TITLE, error?.message || "The server list could not be loaded.");
+    notifyError(BLACKLIST_TITLE, error?.message || "The edge list could not be loaded.");
   }
 };
 
@@ -371,7 +371,7 @@ const createBlock = async () => {
     return;
   }
   if (!newBlock.value.server) {
-    validationError.value = "Please select a server.";
+    validationError.value = "Please select an edge.";
     return;
   }
   if (newBlock.value.triggerRule === "custom" && !customTriggerRule.value.trim()) {
@@ -381,7 +381,7 @@ const createBlock = async () => {
 
   const serverId = Number(newBlock.value.server);
   if (!serverId) {
-    validationError.value = "Please select a server.";
+    validationError.value = "Please select an edge.";
     return;
   }
 

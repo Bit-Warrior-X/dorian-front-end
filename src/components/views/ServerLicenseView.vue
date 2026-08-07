@@ -2,15 +2,15 @@
   <div class="servers-view">
     <div class="content-card filter-card">
       <div class="filter-row">
-        <label class="filter-label" for="server-license-target">Target server</label>
+        <label class="filter-label" for="server-license-target">Target edge</label>
         <select
           id="server-license-target"
           class="filter-select"
           v-model.number="selectedServer"
         >
-          <option disabled value="">Select a server</option>
+          <option disabled value="">Select an edge</option>
           <option v-for="server in serverOptions" :key="server.id" :value="server.id">
-            {{ server.name || server.ip || `Server #${server.id}` }}
+            {{ server.name || server.ip || `Edge #${server.id}` }}
           </option>
         </select>
         <div v-if="selectedServerData" class="filter-meta">

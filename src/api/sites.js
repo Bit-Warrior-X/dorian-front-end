@@ -20,3 +20,8 @@ export const deleteSite = async (id) =>
   apiRequest(`/sites/${id}`, {
     method: 'DELETE',
   })
+
+export const forkSiteWafRule = async (id) =>
+  apiRequest(`/sites/${id}/waf/fork`, {
+    method: 'POST',
+  })

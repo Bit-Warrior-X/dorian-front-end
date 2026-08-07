@@ -2,7 +2,7 @@
   <div class="l4-list-panel">
     <div class="panel-header">
       <div>
-        <h4>L4 Whitelist</h4>
+        <h4>Allow IP</h4>
         <p class="panel-desc">Allow trusted source IPs for this server.</p>
       </div>
       <div class="panel-actions">
@@ -124,7 +124,7 @@ import {
 } from "@/api/l4";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
-const WHITELIST_TITLE = "Whitelist Management";
+const WHITELIST_TITLE = "Allow IP";
 
 const props = defineProps({
   serverId: {

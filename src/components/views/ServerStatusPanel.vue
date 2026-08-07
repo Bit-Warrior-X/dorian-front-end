@@ -16,11 +16,11 @@
         </header>
         <div class="status-card-body">
           <div class="metric-row">
-            <span class="metric-label">Server name</span>
+            <span class="metric-label">Edge name</span>
             <span class="metric-value">{{ serverName }}</span>
           </div>
           <div class="metric-row">
-            <span class="metric-label">Server IP</span>
+            <span class="metric-label">Edge IP</span>
             <span class="metric-value">{{ serverIp }}</span>
           </div>
           <div class="metric-row">
