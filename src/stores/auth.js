@@ -1,4 +1,5 @@
 import { computed, reactive } from 'vue'
+import { clearSessionActivity, syncSessionIdleForAuthChange, touchSessionActivity } from './sessionIdle'
 
 const STORAGE_KEY = 'cdnproxy.auth'
 
@@ -42,12 +43,16 @@ const setSession = ({ user, token }) => {
   state.user = user || null
   state.token = token || null
   persist()
+  syncSessionIdleForAuthChange(Boolean(state.user))
+  touchSessionActivity(true)
 }
 
 const clearSession = () => {
   state.user = null
   state.token = null
   persist()
+  clearSessionActivity()
+  syncSessionIdleForAuthChange(false)
 }
 
 const isAuthenticated = computed(() => Boolean(state.user))

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginPage from '@/components/LoginPage.vue'
 import MainPage from '@/components/MainPage.vue'
 import { auth } from '@/stores/auth'
+import { isSessionIdleExpired } from '@/stores/sessionIdle'
 
 const routes = [
   {
@@ -199,6 +200,16 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   auth.hydrate()
+
+  if (auth.isAuthenticated.value && isSessionIdleExpired()) {
+    auth.clearSession()
+    if (to.name !== 'login') {
+      return {
+        name: 'login',
+        query: { reason: 'idle', redirect: to.fullPath }
+      }
+    }
+  }
 
   const isLoggedIn = auth.isAuthenticated.value
   const isAdmin = auth.state.user?.role === 'Admin'

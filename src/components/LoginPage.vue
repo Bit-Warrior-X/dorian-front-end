@@ -42,6 +42,10 @@
         </button>
       </form>
 
+      <div v-if="idleMessage" class="info-message">
+        {{ idleMessage }}
+      </div>
+
       <div v-if="errorMessage" class="error-message">
         {{ errorMessage }}
       </div>
@@ -54,7 +58,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { login } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
@@ -69,6 +73,12 @@ const password = ref('')
 const rememberMe = ref(false)
 const isLoading = ref(false)
 const errorMessage = ref('')
+
+const idleMessage = computed(() =>
+  String(route.query.reason || '').toLowerCase() === 'idle'
+    ? 'Your session expired after 15 minutes of inactivity. Please sign in again.'
+    : '',
+)
 
 const handleLogin = async () => {
   errorMessage.value = ''
@@ -279,6 +289,17 @@ const handleLogin = async () => {
   border-radius: 8px;
   font-size: 0.875rem;
   text-align: center;
+}
+
+.info-message {
+  margin-top: 16px;
+  padding: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .signup-link {

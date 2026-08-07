@@ -1,4 +1,5 @@
 import { getApiConfig } from './config'
+import { touchSessionActivity } from '@/stores/sessionIdle'
 
 const STORAGE_KEY = 'cdnproxy.auth'
 
@@ -42,6 +43,7 @@ export const apiRequest = async (path, options = {}) => {
   const token = getStoredToken()
   if (token) {
     headers.Authorization = `Bearer ${token}`
+    touchSessionActivity(false)
   }
 
   const response = await fetch(url, {
