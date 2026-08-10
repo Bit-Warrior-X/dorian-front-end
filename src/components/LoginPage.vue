@@ -87,10 +87,6 @@
           </button>
         </form>
 
-        <p v-if="idleMessage" class="login-alert login-alert--info" role="status">
-          {{ idleMessage }}
-        </p>
-
         <p v-if="errorMessage" class="login-alert login-alert--error" role="alert">
           {{ errorMessage }}
         </p>
@@ -600,12 +596,6 @@ onUnmounted(() => {
   if (wafInterval) clearInterval(wafInterval)
   if (threatInterval) clearInterval(threatInterval)
 })
-
-const idleMessage = computed(() =>
-  String(route.query.reason || '').toLowerCase() === 'idle'
-    ? 'Your session expired after 15 minutes of inactivity. Please sign in again.'
-    : '',
-)
 
 const handleLogin = async () => {
   errorMessage.value = ''
