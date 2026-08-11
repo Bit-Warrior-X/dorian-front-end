@@ -341,6 +341,7 @@ const emptySiteForm = () => ({
 const newSite = reactive(emptySiteForm())
 const editSite = reactive(emptySiteForm())
 const editOriginInitialIds = ref([])
+const editSiteInitialWafId = ref('')
 let originLoadToken = 0
 
 const filteredSites = computed(() => {
@@ -485,7 +486,11 @@ const getSelectedWafRule = (form) => {
 const isCustomWafSelected = (form) =>
   String(getSelectedWafRule(form)?.role || '').toLowerCase() === 'custom'
 
-const shouldWarnCustomWaf = (form) => isCustomWafSelected(form)
+const shouldWarnCustomWaf = (form, previousWafId) => {
+  if (!isCustomWafSelected(form)) return false
+  if (previousWafId === undefined) return true
+  return String(form.wafId ?? '').trim() !== String(previousWafId ?? '').trim()
+}
 
 const openCustomWafWarning = (action) => {
   pendingSaveAction.value = action
@@ -649,6 +654,7 @@ const closeNewSiteDialog = () => {
 const openEditSite = async (site) => {
   editSiteId.value = site.id
   applyFormValues(editSite, site)
+  editSiteInitialWafId.value = site.wafId != null ? String(site.wafId) : ''
   serverSearch.value = ''
   isServerDropdownOpen.value = false
   activeRowMenu.value = null
@@ -659,6 +665,7 @@ const openEditSite = async (site) => {
 const closeEditSiteDialog = () => {
   isEditSiteDialogOpen.value = false
   editOriginInitialIds.value = []
+  editSiteInitialWafId.value = ''
 }
 
 const openSiteSettings = (site) => {
@@ -722,7 +729,7 @@ const requestEditConfirm = () => {
     return
   }
 
-  if (shouldWarnCustomWaf(editSite)) {
+  if (shouldWarnCustomWaf(editSite, editSiteInitialWafId.value)) {
     openCustomWafWarning('edit')
     return
   }
