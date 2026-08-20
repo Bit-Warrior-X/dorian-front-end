@@ -114,7 +114,18 @@
                     <h3>SSL &amp; certificate</h3>
                     <p>{{ sslSectionHint }}</p>
                   </div>
-                  <button class="panel-link-btn" type="button" @click="onTabClick('origin')">Manage</button>
+                  <div class="overview-section__actions">
+                    <button
+                      class="overview-action-btn overview-action-btn--primary"
+                      type="button"
+                      :disabled="!canRenewCert || isRenewingCert || isCertIssuing(loadedSite.certificateStatus)"
+                      :title="renewCertHint"
+                      @click="renewCert"
+                    >
+                      {{ renewCertLabel }}
+                    </button>
+                    <button class="panel-link-btn" type="button" @click="onTabClick('origin')">Manage</button>
+                  </div>
                 </div>
                 <div class="detail-grid">
                   <div class="detail">
@@ -131,11 +142,15 @@
                   </div>
                   <div class="detail">
                     <span class="detail__label">Expires</span>
-                    <span class="detail__value">{{ formatOverviewDate(loadedSite.certificateExpiry) }}</span>
+                    <span class="detail__value">{{ formatCertExpiry(loadedSite.certificateExpiry) }}</span>
                   </div>
                   <div class="detail">
                     <span class="detail__label">Certificate source</span>
                     <span class="detail__value">{{ hasManualSsl(loadedSite) ? 'Manual upload' : 'Automatic / none' }}</span>
+                  </div>
+                  <div v-if="loadedSite.certificateError" class="detail detail--wide">
+                    <span class="detail__label">Last error</span>
+                    <span class="detail__value detail__value--error">{{ loadedSite.certificateError }}</span>
                   </div>
                 </div>
               </section>
@@ -232,10 +247,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchSite, fetchSites, forkSiteWafRule } from '@/api/sites'
+import { fetchSite, fetchSites, forkSiteWafRule, renewSiteCertificate } from '@/api/sites'
 import { notifyError, notifySuccess } from '@/utils/notify'
+import { certStatusClass, certStatusDetail, formatCertExpiry, formatCertStatus, isCertIssuing } from '@/utils/certificate'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import SiteOriginPanel from './SiteOriginPanel.vue'
 import WafPanel from './WafPanel.vue'
@@ -255,6 +271,7 @@ const isForkingWaf = ref(false)
 const pendingWafTab = ref(false)
 const wafEditUnlocked = ref(false)
 const wafPanelKey = ref(0)
+const isRenewingCert = ref(false)
 
 const isPredefinedWaf = computed(() =>
   String(loadedSite.value?.wafRole || '').toLowerCase() === 'predefined',
@@ -310,11 +327,8 @@ const edgesMetricHint = computed(() => {
 const sslSectionHint = computed(() => {
   const site = loadedSite.value
   if (!site) return ''
-  const status = String(site.certificateStatus || 'none').toLowerCase()
-  if (status === 'valid') return 'Certificate looks healthy for HTTPS traffic.'
-  if (status === 'expiring') return 'Certificate is approaching expiry — renew soon.'
-  if (status === 'expired') return 'Certificate has expired and may break HTTPS.'
-  return 'No active certificate configured for this site.'
+  if (site.certificateError) return site.certificateError
+  return certStatusDetail(site.certificateStatus)
 })
 
 const wafSectionHint = computed(() => {
@@ -378,25 +392,6 @@ const formatSslType = (value) => {
   return map[String(value || 'none').toLowerCase()] || String(value || '—')
 }
 
-const formatCertStatus = (value) => {
-  const normalized = String(value || 'none').toLowerCase()
-  const map = {
-    none: 'None',
-    valid: 'Valid',
-    expiring: 'Expiring',
-    expired: 'Expired',
-  }
-  return map[normalized] || normalized
-}
-
-const certStatusClass = (value) => {
-  const normalized = String(value || 'none').toLowerCase()
-  if (normalized === 'valid') return 'is-valid'
-  if (normalized === 'expiring') return 'is-expiring'
-  if (normalized === 'expired') return 'is-expired'
-  return 'is-none'
-}
-
 const formatWafRole = (role) =>
   String(role || '').toLowerCase() === 'predefined' ? 'Predefined' : 'Custom'
 
@@ -406,6 +401,31 @@ const wafRolePillClass = (role) =>
 const hasManualSsl = (site) =>
   String(site?.sslType || '').toLowerCase() === 'custom'
     && Boolean(String(site?.sslCert || '').trim())
+
+const canRenewCert = computed(() =>
+  String(loadedSite.value?.sslType || '').toLowerCase() === 'letsencrypt',
+)
+
+const renewCertLabel = computed(() => {
+  if (isRenewingCert.value || isCertIssuing(loadedSite.value?.certificateStatus)) {
+    return 'Renewing...'
+  }
+  return 'Renew Cert'
+})
+
+const renewCertHint = computed(() => {
+  const sslType = String(loadedSite.value?.sslType || '').toLowerCase()
+  if (sslType === 'letsencrypt') {
+    return 'Issue a new Let\'s Encrypt certificate using the current DNS-01 settings.'
+  }
+  if (sslType === 'custom') {
+    return 'Manual certificates cannot be renewed automatically. Upload a new certificate in Origin.'
+  }
+  if (sslType === 'zerossl' || sslType === 'googletrust') {
+    return 'Automatic renewal is only available for Let\'s Encrypt.'
+  }
+  return 'Select Let\'s Encrypt in Origin settings to renew automatically.'
+})
 
 const applyLoadedSite = (site) => {
   loadedSite.value = site
@@ -420,6 +440,20 @@ const onOriginUpdated = (site) => {
     siteOptions.value[index] = { ...siteOptions.value[index], ...site }
   }
   window.dispatchEvent(new CustomEvent('cdnproxy-sites-changed'))
+}
+
+const renewCert = async () => {
+  if (!loadedSite.value?.id || !canRenewCert.value || isRenewingCert.value) return
+  isRenewingCert.value = true
+  try {
+    const updated = await renewSiteCertificate(loadedSite.value.id)
+    onOriginUpdated(updated || loadedSite.value)
+    notifySuccess(SETTINGS_TITLE, "Let's Encrypt renewal started.")
+  } catch (error) {
+    notifyError(SETTINGS_TITLE, error?.message || 'Certificate could not be renewed.')
+  } finally {
+    isRenewingCert.value = false
+  }
 }
 
 const syncRouteTab = async (tabId) => {
@@ -579,6 +613,33 @@ watch(
   },
 )
 
+let certPollTimer = null
+const stopCertPoll = () => {
+  if (certPollTimer) {
+    clearInterval(certPollTimer)
+    certPollTimer = null
+  }
+}
+watch(
+  () => loadedSite.value?.certificateStatus,
+  (status) => {
+    if (!isCertIssuing(status) || !selectedSiteId.value) {
+      stopCertPoll()
+      return
+    }
+    if (certPollTimer) return
+    certPollTimer = setInterval(async () => {
+      try {
+        const site = await fetchSite(selectedSiteId.value)
+        onOriginUpdated(site)
+      } catch {
+        // Keep polling while renewal is in progress.
+      }
+    }, 1000)
+  },
+  { immediate: true },
+)
+
 onMounted(async () => {
   await loadSites()
   applyRouteQuery()
@@ -589,6 +650,8 @@ onMounted(async () => {
     await loadSelectedSite()
   }
 })
+
+onBeforeUnmount(stopCertPoll)
 </script>
 
 <style scoped>
@@ -896,6 +959,18 @@ onMounted(async () => {
   color: var(--app-text-muted);
 }
 
+.overview-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.overview-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .panel-link-btn {
   border: none;
   background: transparent;
@@ -935,6 +1010,16 @@ onMounted(async () => {
   font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-text);
+}
+
+.detail--wide {
+  grid-column: 1 / -1;
+}
+
+.detail__value--error {
+  color: #b91c1c;
+  font-weight: 600;
+  word-break: break-word;
 }
 
 .detail__muted {
@@ -1008,6 +1093,16 @@ onMounted(async () => {
 }
 
 .overview-pill--cert.is-expired {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
+.overview-pill--cert.is-pending {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.overview-pill--cert.is-failed {
   background: rgba(239, 68, 68, 0.14);
   color: #b91c1c;
 }

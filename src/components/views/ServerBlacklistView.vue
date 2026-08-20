@@ -13,8 +13,17 @@
           <label for="blacklist-server">Server</label>
           <select id="blacklist-server" v-model="serverFilter">
             <option value="">All</option>
-            <option v-for="server in servers" :key="server.id" :value="String(server.id)">
+            <option v-for="server in serverOptions" :key="server.id" :value="String(server.id)">
               {{ server.name }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="blacklist-site">Site</label>
+          <select id="blacklist-site" v-model="siteFilter">
+            <option value="">All</option>
+            <option v-for="site in siteOptions" :key="site.id" :value="String(site.id)">
+              {{ site.domain || `Site ${site.id}` }}
             </option>
           </select>
         </div>
@@ -62,6 +71,7 @@
               <th>TTL</th>
               <th>Remaining Time</th>
               <th>Source</th>
+              <th>Site</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -75,6 +85,7 @@
               <td>{{ entry.ttl || 'Indefinite' }}</td>
               <td>{{ formatRemainingTime(entry) }}</td>
               <td>{{ entry.server || '-' }}</td>
+              <td>{{ siteLabel(entry) }}</td>
               <td>
                 <button
                   class="icon-danger-btn"
@@ -206,6 +217,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import { fetchServers } from "@/api/servers";
+import { fetchSites } from "@/api/sites";
 import {
   fetchBlacklistEntries,
   createBlacklistEntry,
@@ -216,6 +228,7 @@ import { notifyError, notifySuccess } from "@/utils/notify";
 
 const BLACKLIST_TITLE = "Blocked List";
 const serverFilter = ref("");
+const siteFilter = ref("");
 const ruleFilter = ref("");
 const searchQuery = ref("");
 const isBlockDialogOpen = ref(false);
@@ -225,6 +238,7 @@ const isConfirmDialogOpen = ref(false);
 const confirmAction = ref(null);
 const confirmTargetId = ref(null);
 const servers = ref([]);
+const sites = ref([]);
 const now = ref(Date.now());
 let remainingTimeTimer = null;
 const newBlock = ref({
@@ -237,11 +251,69 @@ const newBlock = ref({
 });
 const blacklistEntries = ref([]);
 
+const selectedSite = computed(() =>
+  sites.value.find((site) => String(site.id) === String(siteFilter.value)) || null,
+);
+
+const siteOptions = computed(() => {
+  if (!serverFilter.value) return sites.value;
+  return sites.value.filter((site) =>
+    (site.serverIds || []).some((id) => String(id) === String(serverFilter.value)),
+  );
+});
+
+const serverOptions = computed(() => {
+  if (!selectedSite.value) return servers.value;
+  const allowed = new Set((selectedSite.value.serverIds || []).map((id) => String(id)));
+  return servers.value.filter((server) => allowed.has(String(server.id)));
+});
+
+const normalizeHost = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, "");
+
+const entryHost = (url) => {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  try {
+    const withScheme = raw.includes("://") ? raw : `https://${raw.replace(/^\/+/, "")}`;
+    return normalizeHost(new URL(withScheme).hostname);
+  } catch {
+    return "";
+  }
+};
+
+const entryMatchesSite = (entry, site) => {
+  if (!site) return true;
+  if (Number(entry.siteId) > 0) {
+    return String(entry.siteId) === String(site.id);
+  }
+  const domain = normalizeHost(site.domain);
+  if (!domain) return false;
+  const host = entryHost(entry.url);
+  if (host) {
+    return host === domain || host.endsWith(`.${domain}`);
+  }
+  const url = String(entry.url || "").toLowerCase();
+  return url.includes(domain);
+};
+
+const siteLabel = (entry) => {
+  if (Number(entry?.siteId) > 0) {
+    const site = sites.value.find((item) => String(item.id) === String(entry.siteId));
+    return site?.domain || `Site ${entry.siteId}`;
+  }
+  return "-";
+};
+
 const filteredEntries = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
   return blacklistEntries.value.filter((entry) => {
     const matchesServer =
       !serverFilter.value || String(entry.serverId) === String(serverFilter.value);
+    const matchesSite = entryMatchesSite(entry, selectedSite.value);
     const matchesRule =
       !ruleFilter.value || ruleFilter.value === "all" || entry.triggerRule === ruleFilter.value;
     const matchesQuery =
@@ -249,8 +321,9 @@ const filteredEntries = computed(() => {
       entry.ipAddress.toLowerCase().includes(query) ||
       entry.geolocation.toLowerCase().includes(query) ||
       entry.reason.toLowerCase().includes(query) ||
+      String(entry.url || "").toLowerCase().includes(query) ||
       entry.server?.toLowerCase().includes(query);
-    return matchesServer && matchesRule && matchesQuery;
+    return matchesServer && matchesSite && matchesRule && matchesQuery;
   });
 });
 
@@ -315,12 +388,23 @@ const loadServers = async () => {
   }
 };
 
-const loadBlacklist = async (serverId) => {
+const loadSites = async () => {
   try {
+    const list = await fetchSites();
+    sites.value = Array.isArray(list) ? list : [];
+  } catch (error) {
+    notifyError(BLACKLIST_TITLE, error?.message || "The site list could not be loaded.");
+  }
+};
+
+const loadBlacklist = async () => {
+  try {
+    const serverId = serverFilter.value ? Number(serverFilter.value) : undefined;
     const list = await fetchBlacklistEntries(serverId);
     const entries = Array.isArray(list) ? list : [];
     blacklistEntries.value = entries.map((entry) => ({
       ...entry,
+      siteId: Number(entry.siteId) || 0,
       ipAddress: entry.ipAddress || "",
       geolocation: entry.geolocation || "Manual",
       reason: entry.reason || "",
@@ -336,6 +420,7 @@ const loadBlacklist = async (serverId) => {
 
 const resetFilters = () => {
   serverFilter.value = "";
+  siteFilter.value = "";
   ruleFilter.value = "";
   searchQuery.value = "";
 };
@@ -393,6 +478,7 @@ const createBlock = async () => {
   try {
     await createBlacklistEntry({
       serverId,
+      siteId: siteFilter.value ? Number(siteFilter.value) : undefined,
       ipAddress,
       geolocation: "Manual",
       reason,
@@ -401,7 +487,7 @@ const createBlock = async () => {
       ttl: newBlock.value.ttl.trim() || "Indefinite",
       triggerRule
     });
-    await loadBlacklist(serverFilter.value ? Number(serverFilter.value) : undefined);
+    await loadBlacklist();
     notifySuccess(BLACKLIST_TITLE, "The blocked list entry is successfully created.");
     closeBlockDialog();
   } catch (error) {
@@ -452,7 +538,7 @@ const handleConfirmDialog = async () => {
       await deleteBlacklistEntry(confirmTargetId.value);
       notifySuccess(BLACKLIST_TITLE, "The blocked list entry is successfully deleted.");
     }
-    await loadBlacklist(serverFilter.value ? Number(serverFilter.value) : undefined);
+    await loadBlacklist();
   } catch (error) {
     notifyError(BLACKLIST_TITLE, error?.message || "The blocked list could not be updated.");
   }
@@ -460,7 +546,7 @@ const handleConfirmDialog = async () => {
 };
 
 onMounted(async () => {
-  await loadServers();
+  await Promise.all([loadServers(), loadSites()]);
   await loadBlacklist();
 
   // Update "Remaining Time" column reactively without needing a full page reload.
@@ -471,9 +557,17 @@ onMounted(async () => {
   }
 });
 
-watch(serverFilter, async (value) => {
-  const serverId = value ? Number(value) : undefined;
-  await loadBlacklist(serverId);
+watch(serverFilter, async () => {
+  if (siteFilter.value && !siteOptions.value.some((site) => String(site.id) === String(siteFilter.value))) {
+    siteFilter.value = "";
+  }
+  await loadBlacklist();
+});
+
+watch(siteFilter, () => {
+  if (serverFilter.value && !serverOptions.value.some((server) => String(server.id) === String(serverFilter.value))) {
+    serverFilter.value = "";
+  }
 });
 
 const clearConfirmDialog = () => {

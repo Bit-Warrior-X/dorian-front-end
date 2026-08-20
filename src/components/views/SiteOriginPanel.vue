@@ -114,6 +114,8 @@
               <span class="ssl-status-bar__label">Saved provider</span>
               <span class="ssl-status-bar__value">{{ formatSslType(initial.sslType) }}</span>
             </div>
+            <p class="ssl-status-bar__detail">{{ certStatusDetail(snapshot.certificateStatus) }}</p>
+            <p v-if="snapshot.certificateError" class="ssl-status-bar__error">{{ snapshot.certificateError }}</p>
           </div>
 
           <div class="mode-block">
@@ -138,7 +140,7 @@
 
           <div v-if="certificateMode === 'automatic'" class="subpanel">
             <div class="subpanel-label">Automatic provider</div>
-            <p class="subpanel-hint">The edge will request and renew certificates for the configured domain.</p>
+            <p class="subpanel-hint">Let's Encrypt uses DNS-01. Add a DNS-only (grey cloud) CNAME <code>_acme-challenge.&lt;domain&gt;</code> → <code>acme-validation.dorian.center</code>. Do not proxy it. Issuance runs in the background after you confirm.</p>
             <div class="segmented" role="radiogroup" aria-label="Certificate provider">
               <button
                 v-for="provider in automaticProviders"
@@ -224,9 +226,17 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { fetchSite, updateSite } from '@/api/sites'
 import { notifyError, notifySuccess } from '@/utils/notify'
+import {
+  certStatusClass,
+  certStatusDetail,
+  formatCertExpiry,
+  formatCertStatus,
+  isCertIssuing,
+} from '@/utils/certificate'
+import { notifySiteEdgeSync } from '@/utils/siteEdgeSync'
 import UpstreamServersPanel from './UpstreamServersPanel.vue'
 
 const DOMAIN_TITLE = 'Domain'
@@ -275,6 +285,7 @@ const snapshot = reactive({
   wafId: null,
   certificateStatus: 'none',
   certificateExpiry: null,
+  certificateError: '',
   cacheRatio: 0,
   bandwidth: 0,
   serverIds: [],
@@ -336,36 +347,6 @@ const isSslDirty = computed(
     || String(form.sslCertKey || '') !== String(initial.sslCertKey || ''),
 )
 
-const formatCertStatus = (value) => {
-  const normalized = String(value || 'none').toLowerCase()
-  const map = {
-    none: 'None',
-    valid: 'Valid',
-    expiring: 'Expiring',
-    expired: 'Expired',
-  }
-  return map[normalized] || normalized
-}
-
-const certStatusClass = (value) => {
-  const normalized = String(value || 'none').toLowerCase()
-  if (normalized === 'valid') return 'is-valid'
-  if (normalized === 'expiring') return 'is-expiring'
-  if (normalized === 'expired') return 'is-expired'
-  return 'is-none'
-}
-
-const formatCertExpiry = (value) => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
 const formatSslType = (value) => {
   const map = {
     none: 'Not configured',
@@ -383,6 +364,7 @@ const applySite = (site) => {
   snapshot.wafId = site.wafId ?? null
   snapshot.certificateStatus = site.certificateStatus || 'none'
   snapshot.certificateExpiry = site.certificateExpiry || null
+  snapshot.certificateError = site.certificateError || ''
   snapshot.cacheRatio = site.cacheRatio ?? 0
   snapshot.bandwidth = site.bandwidth ?? 0
   snapshot.serverIds = Array.isArray(site.serverIds) ? [...site.serverIds] : []
@@ -471,7 +453,7 @@ const buildPayload = ({ domain, sslType, sslCert, sslCertKey }) => {
 const persistSite = async (payload, title, successMessage) => {
   const updated = await updateSite(props.siteId, payload)
   applySite(updated || payload)
-  notifySuccess(title, successMessage)
+  notifySiteEdgeSync(title, updated?.edgeSync, { fallbackSuccess: successMessage })
   emit('updated', updated)
 }
 
@@ -526,7 +508,14 @@ const saveSsl = async () => {
 
   savingSsl.value = true
   try {
-    await persistSite(payload, SSL_TITLE, 'SSL settings updated.')
+    const isLetsEncrypt = String(form.sslType || '').toLowerCase() === 'letsencrypt'
+    await persistSite(
+      payload,
+      SSL_TITLE,
+      isLetsEncrypt
+        ? "Let's Encrypt issuance started. The certificate will appear when DNS-01 completes."
+        : 'SSL settings updated.',
+    )
   } catch (error) {
     notifyError(SSL_TITLE, error?.message || 'Could not update SSL settings.')
   } finally {
@@ -534,13 +523,63 @@ const saveSsl = async () => {
   }
 }
 
+let certPollTimer = null
+const stopCertPoll = () => {
+  if (certPollTimer) {
+    clearInterval(certPollTimer)
+    certPollTimer = null
+  }
+}
+const refreshCertStatus = async () => {
+  if (!props.siteId) return
+  try {
+    const site = await fetchSite(props.siteId)
+    const previous = String(snapshot.certificateStatus || '').toLowerCase()
+    applySite(site || {})
+    const status = String(site?.certificateStatus || '').toLowerCase()
+    if (isCertIssuing(status)) return
+    stopCertPoll()
+    emit('updated', site)
+    if (isCertIssuing(previous) && (status === 'valid' || status === 'expiring')) {
+      notifySuccess(SSL_TITLE, "Let's Encrypt certificate is ready.")
+    }
+    if (isCertIssuing(previous) && status === 'failed') {
+      notifyError(SSL_TITLE, site?.certificateError || "Let's Encrypt issuance failed.")
+    }
+  } catch {
+    // Keep polling while issuance is in progress.
+  }
+}
+const startCertPoll = () => {
+  if (certPollTimer || !props.siteId) return
+  void refreshCertStatus()
+  certPollTimer = setInterval(() => {
+    void refreshCertStatus()
+  }, 1000)
+}
+
+watch(
+  () => snapshot.certificateStatus,
+  (status) => {
+    if (isCertIssuing(status)) {
+      startCertPoll()
+      return
+    }
+    stopCertPoll()
+  },
+  { immediate: true },
+)
+
 watch(
   () => props.siteId,
   () => {
+    stopCertPoll()
     void loadSite()
   },
   { immediate: true },
 )
+
+onUnmounted(stopCertPoll)
 </script>
 
 <style scoped>
@@ -821,6 +860,26 @@ watch(
   border: 1px solid var(--app-border);
 }
 
+.ssl-status-bar__detail,
+.ssl-status-bar__error {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--type-caption);
+  line-height: 1.45;
+}
+
+.ssl-status-bar__detail {
+  color: var(--app-text-muted);
+}
+
+.ssl-status-bar__error {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  word-break: break-word;
+}
+
 .ssl-status-bar__item {
   display: flex;
   flex-direction: column;
@@ -863,6 +922,16 @@ watch(
 }
 
 .cert-pill.is-expired {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+.cert-pill.is-pending {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.cert-pill.is-failed {
   background: rgba(220, 38, 38, 0.12);
   color: #b91c1c;
 }

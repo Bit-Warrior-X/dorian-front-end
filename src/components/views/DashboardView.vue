@@ -1060,11 +1060,12 @@ const loadBandwidthSeries = async () => {
   if (!bandwidthServers.value.length) return
   try {
     const serverFilter = selectedEdge.value
+    const siteFilter = selectedSite.value
     const [payloadNicRx, payloadNicTx, payloadL7Rx, payloadL7Tx] = await Promise.all([
-      fetchBandwidthNicRxSeries(bandwidthRange.value, serverFilter),
-      fetchBandwidthNicTxSeries(bandwidthRange.value, serverFilter),
-      fetchBandwidthL7RxSeries(bandwidthRange.value, serverFilter),
-      fetchBandwidthL7TxSeries(bandwidthRange.value, serverFilter),
+      fetchBandwidthNicRxSeries(bandwidthRange.value, serverFilter, siteFilter),
+      fetchBandwidthNicTxSeries(bandwidthRange.value, serverFilter, siteFilter),
+      fetchBandwidthL7RxSeries(bandwidthRange.value, serverFilter, siteFilter),
+      fetchBandwidthL7TxSeries(bandwidthRange.value, serverFilter, siteFilter),
     ])
     bandwidthNicRxSeries.value = mapPayloadToSeries(payloadNicRx)
     bandwidthNicTxSeries.value = mapPayloadToSeries(payloadNicTx)
@@ -1091,7 +1092,7 @@ const loadBandwidthSeries = async () => {
 
 const loadRequestResponseSeries = async () => {
   try {
-    const payload = await fetchRequestResponseSeries(requestRange.value, selectedEdge.value)
+    const payload = await fetchRequestResponseSeries(requestRange.value, selectedEdge.value, selectedSite.value)
     const points = Array.isArray(payload) ? payload : []
     requestResponseSeries.value = [
       { name: 'Requests', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.requestCount ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
@@ -1114,7 +1115,7 @@ const loadRequestResponseSeries = async () => {
 
 const loadStatusCodeSeries = async () => {
   try {
-    const payload = await fetchStatusCodeSeries(statusRange.value, selectedEdge.value)
+    const payload = await fetchStatusCodeSeries(statusRange.value, selectedEdge.value, selectedSite.value)
     const points = Array.isArray(payload) ? payload : []
     statusCodeSeries.value = [
       { name: '2xx', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.success ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
@@ -1241,6 +1242,8 @@ watch(selectedEdge, () => {
 
 watch(selectedSite, () => {
   loadBandwidthSeries()
+  loadRequestResponseSeries()
+  loadStatusCodeSeries()
   loadTopTrafficPanels()
 })
 

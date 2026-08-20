@@ -30,7 +30,9 @@
             <option value="valid">Valid</option>
             <option value="expiring">Expiring</option>
             <option value="expired">Expired</option>
-            <option value="none">None</option>
+            <option value="issuing">Issuing</option>
+            <option value="failed">Failed</option>
+            <option value="none">Not configured</option>
           </select>
         </div>
         <div class="filter-field">
@@ -86,7 +88,11 @@
               </td>
               <td>{{ site.wafName || '—' }}</td>
               <td>
-                <span class="status-pill server-status-pill" :class="certificateStatusClass(site.certificateStatus)">
+                <span
+                  class="status-pill server-status-pill"
+                  :class="certificateStatusClass(site.certificateStatus)"
+                  :title="site.certificateError || certStatusDetail(site.certificateStatus)"
+                >
                   {{ formatCertStatus(site.certificateStatus) }}
                 </span>
               </td>
@@ -124,7 +130,16 @@
                     <button class="row-menu-item" type="button" @click="openSiteSettings(site)">
                       Site Settings
                     </button>
-                    <button class="row-menu-item danger" type="button" @click="requestDeleteConfirm(site)">
+                    <button
+                      class="row-menu-item"
+                      type="button"
+                      :disabled="!canRenewCert(site) || isRenewingCert(site)"
+                      :title="renewCertHint(site)"
+                      @click.stop="renewCert(site)"
+                    >
+                      {{ renewCertLabel(site) }}
+                    </button>
+                    <button class="row-menu-item danger" type="button" @click.stop="requestDeleteConfirm(site)">
                       Delete
                     </button>
                   </div>
@@ -251,6 +266,17 @@
   />
 
   <ConfirmDialog
+    v-model="isDeleteConfirmOpen"
+    title="Delete this site?"
+    :message="deleteConfirmMessage"
+    confirm-text="Delete"
+    cancel-text="Cancel"
+    danger
+    @confirm="handleDeleteSite"
+    @cancel="clearDeleteConfirm"
+  />
+
+  <ConfirmDialog
     v-model="isCustomWafWarningOpen"
     title="Custom WAF Rule"
     :message="customWafWarningMessage"
@@ -266,7 +292,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import SiteFormSections from '../SiteFormSections.vue'
-import { createSite, deleteSite, fetchSites, updateSite } from '@/api/sites'
+import { createSite, deleteSite, fetchSites, renewSiteCertificate, updateSite } from '@/api/sites'
 import { fetchServers } from '@/api/servers'
 import { fetchWafRules } from '@/api/wafRules'
 import {
@@ -283,6 +309,8 @@ import {
   validateOriginServers,
 } from '@/utils/originServers'
 import { notifyError, notifySuccess } from '@/utils/notify'
+import { certStatusDetail, formatCertStatus, isCertIssuing } from '@/utils/certificate'
+import { notifySiteEdgeSync } from '@/utils/siteEdgeSync'
 
 const SITES_TITLE = 'Site Management'
 
@@ -302,9 +330,11 @@ const isNewSiteDialogOpen = ref(false)
 const isEditSiteDialogOpen = ref(false)
 const editSiteId = ref(null)
 const isConfirmDialogOpen = ref(false)
+const isDeleteConfirmOpen = ref(false)
 const isCustomWafWarningOpen = ref(false)
 const confirmAction = ref(null)
 const confirmTarget = ref(null)
+const deleteTarget = ref(null)
 const pendingSaveAction = ref(null)
 
 const customWafWarningMessage =
@@ -348,7 +378,9 @@ const filteredSites = computed(() => {
   const domainQuery = filters.domain.trim().toLowerCase()
   return sites.value.filter((site) => {
     if (filters.status && site.status !== filters.status) return false
-    if (filters.certificateStatus && String(site.certificateStatus || 'none').toLowerCase() !== filters.certificateStatus) {
+    if (filters.certificateStatus === 'issuing') {
+      if (!isCertIssuing(site.certificateStatus)) return false
+    } else if (filters.certificateStatus && String(site.certificateStatus || 'none').toLowerCase() !== filters.certificateStatus) {
       return false
     }
     if (filters.sslType && String(site.sslType || 'none').toLowerCase() !== filters.sslType) {
@@ -377,15 +409,11 @@ const pageEnd = computed(() =>
 )
 
 const confirmTitle = computed(() => {
-  if (confirmAction.value === 'delete') return 'Delete site'
   if (confirmAction.value === 'edit') return 'Site is modified'
   return 'Confirm action'
 })
 
 const confirmMessage = computed(() => {
-  if (confirmAction.value === 'delete') {
-    return 'Are you sure you want to delete this site? This action cannot be undone.'
-  }
   if (confirmAction.value === 'edit') {
     return 'Are you sure you want to apply these changes to the site?'
   }
@@ -393,9 +421,16 @@ const confirmMessage = computed(() => {
 })
 
 const confirmConfirmText = computed(() => {
-  if (confirmAction.value === 'delete') return 'Delete'
   if (confirmAction.value === 'edit') return 'Apply'
   return 'Confirm'
+})
+
+const deleteConfirmMessage = computed(() => {
+  const domain = String(deleteTarget.value?.domain || '').trim()
+  if (domain) {
+    return `Do you want to delete "${domain}"? This cannot be undone.`
+  }
+  return 'Do you want to delete this site? This cannot be undone.'
 })
 
 watch(
@@ -405,21 +440,13 @@ watch(
   },
 )
 
-const formatCertStatus = (value) => {
-  const normalized = String(value || 'none').toLowerCase()
-  if (normalized === 'valid') return 'Valid'
-  if (normalized === 'expiring') return 'Expiring'
-  if (normalized === 'expired') return 'Expired'
-  return 'None'
-}
-
 const siteStatusClass = (status) => (status === 'ENABLE' ? 'active' : 'inactive')
 
 const certificateStatusClass = (value) => {
-  const normalized = String(value || 'none').toLowerCase()
-  if (normalized === 'valid') return 'active'
-  if (normalized === 'expiring') return 'maintenance'
-  if (normalized === 'expired') return 'stopped'
+  if (String(value || '').toLowerCase() === 'valid') return 'active'
+  if (String(value || '').toLowerCase() === 'expiring') return 'maintenance'
+  if (isCertIssuing(value)) return 'maintenance'
+  if (['expired', 'failed'].includes(String(value || '').toLowerCase())) return 'stopped'
   return 'unknown'
 }
 
@@ -581,18 +608,46 @@ const syncOriginServers = async (siteId, origins, initialIds = []) => {
   }
 }
 
-const loadSites = async () => {
-  isLoading.value = true
+const loadSites = async ({ silent = false } = {}) => {
+  if (!silent) isLoading.value = true
   try {
     const data = await fetchSites()
     sites.value = Array.isArray(data) ? data : []
   } catch (error) {
     sites.value = []
-    notifyError(SITES_TITLE, error?.message || 'Sites could not be loaded.')
+    if (!silent) {
+      notifyError(SITES_TITLE, error?.message || 'Sites could not be loaded.')
+    }
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
 }
+
+const hasPendingCertificate = computed(() =>
+  sites.value.some((site) => isCertIssuing(site?.certificateStatus)),
+)
+
+let certPollTimer = null
+const stopCertPoll = () => {
+  if (certPollTimer) {
+    clearInterval(certPollTimer)
+    certPollTimer = null
+  }
+}
+watch(
+  hasPendingCertificate,
+  (pending) => {
+    if (!pending) {
+      stopCertPoll()
+      return
+    }
+    if (certPollTimer) return
+    certPollTimer = setInterval(() => {
+      void loadSites({ silent: true })
+    }, 1000)
+  },
+  { immediate: true },
+)
 
 const loadServers = async () => {
   try {
@@ -673,6 +728,51 @@ const openSiteSettings = (site) => {
   void router.push({ name: 'site-settings', query: { siteId: String(site.id) } })
 }
 
+const renewingSiteId = ref(null)
+
+const canRenewCert = (site) =>
+  String(site?.sslType || '').toLowerCase() === 'letsencrypt'
+
+const isRenewingCert = (site) =>
+  String(renewingSiteId.value) === String(site?.id) || isCertIssuing(site?.certificateStatus)
+
+const renewCertLabel = (site) => (isRenewingCert(site) ? 'Renewing...' : 'Renew Cert')
+
+const renewCertHint = (site) => {
+  const sslType = String(site?.sslType || '').toLowerCase()
+  if (sslType === 'letsencrypt') {
+    return "Issue a new Let's Encrypt certificate using the current DNS-01 settings."
+  }
+  if (sslType === 'custom') {
+    return 'Manual certificates cannot be renewed automatically. Upload a new certificate in Origin.'
+  }
+  if (sslType === 'zerossl' || sslType === 'googletrust') {
+    return "Automatic renewal is only available for Let's Encrypt."
+  }
+  return "Select Let's Encrypt to renew automatically."
+}
+
+const renewCert = async (site) => {
+  if (!site?.id || !canRenewCert(site) || isRenewingCert(site)) return
+  renewingSiteId.value = site.id
+  activeRowMenu.value = null
+  try {
+    const updated = await renewSiteCertificate(site.id)
+    notifySuccess(SITES_TITLE, "Let's Encrypt renewal started.")
+    const index = sites.value.findIndex((item) => String(item.id) === String(site.id))
+    if (index !== -1 && updated) {
+      sites.value[index] = { ...sites.value[index], ...updated }
+    } else {
+      await loadSites({ silent: true })
+    }
+    notifySitesChanged()
+  } catch (error) {
+    notifyError(SITES_TITLE, error?.message || 'Certificate could not be renewed.')
+  } finally {
+    renewingSiteId.value = null
+  }
+}
+
 const validateSiteForm = (form) => {
   if (!form.domain.trim()) {
     return 'Domain is required.'
@@ -694,7 +794,11 @@ const performCreateSite = async () => {
     if (created?.id) {
       await syncOriginServers(created.id, newSite.originServers, [])
     }
-    notifySuccess(SITES_TITLE, 'The site is successfully created.')
+    notifySiteEdgeSync(SITES_TITLE, created?.edgeSync, {
+      fallbackSuccess: String(newSite.sslType || '').toLowerCase() === 'letsencrypt'
+        ? "Site created. Let's Encrypt certificate is being issued in the background."
+        : 'The site is successfully created.',
+    })
     currentPage.value = 1
     isNewSiteDialogOpen.value = false
     resetNewSiteForm()
@@ -740,18 +844,24 @@ const requestEditConfirm = () => {
 }
 
 const requestDeleteConfirm = (site) => {
-  confirmAction.value = 'delete'
-  confirmTarget.value = site
-  isConfirmDialogOpen.value = true
+  deleteTarget.value = site
+  isDeleteConfirmOpen.value = true
   activeRowMenu.value = null
+}
+
+const clearDeleteConfirm = () => {
+  isDeleteConfirmOpen.value = false
+  deleteTarget.value = null
 }
 
 const applyEditSite = async () => {
   if (!editSiteId.value) return
   try {
-    await updateSite(editSiteId.value, buildPayload(editSite))
+    const updated = await updateSite(editSiteId.value, buildPayload(editSite))
     await syncOriginServers(editSiteId.value, editSite.originServers, editOriginInitialIds.value)
-    notifySuccess(SITES_TITLE, 'The site is successfully updated.')
+    notifySiteEdgeSync(SITES_TITLE, updated?.edgeSync, {
+      fallbackSuccess: 'The site is successfully updated.',
+    })
     closeEditSiteDialog()
     await loadSites()
     notifySitesChanged()
@@ -761,25 +871,27 @@ const applyEditSite = async () => {
 }
 
 const handleDeleteSite = async () => {
-  if (!confirmTarget.value) return
+  const site = deleteTarget.value
+  if (!site?.id) return
   try {
-    await deleteSite(confirmTarget.value.id)
+    const result = await deleteSite(site.id)
     await loadSites()
     notifySitesChanged()
     notifySuccess(SITES_TITLE, 'The site is successfully deleted.')
+    notifySiteEdgeSync(SITES_TITLE, result?.edgeSync)
     if (currentPage.value > totalPages.value) {
       currentPage.value = totalPages.value
     }
   } catch (error) {
     notifyError(SITES_TITLE, error?.message || 'The site could not be deleted.')
+  } finally {
+    clearDeleteConfirm()
   }
 }
 
 const handleConfirmDialog = async () => {
   if (confirmAction.value === 'edit') {
     await applyEditSite()
-  } else if (confirmAction.value === 'delete') {
-    await handleDeleteSite()
   }
   clearConfirmDialog()
 }
@@ -807,6 +919,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutsideMenu)
+  stopCertPoll()
 })
 </script>
 
@@ -1080,6 +1193,16 @@ onBeforeUnmount(() => {
 .row-menu-item:hover {
   background: var(--app-accent-soft);
   color: var(--app-accent);
+}
+
+.row-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.row-menu-item:disabled:hover {
+  background: transparent;
+  color: var(--app-text);
 }
 
 .row-menu-item.danger {

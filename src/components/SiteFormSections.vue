@@ -94,6 +94,7 @@
 
       <div v-if="certificateMode === 'automatic'" class="site-form__subpanel">
         <div class="site-form__subpanel-label">Automatic Provider</div>
+        <p class="site-form__hint">Let's Encrypt uses DNS-01. Create a DNS-only (not proxied) CNAME <code>_acme-challenge.&lt;domain&gt;</code> → <code>acme-validation.dorian.center</code> before saving.</p>
         <div class="segmented" role="radiogroup" aria-label="Certificate provider">
           <button
             v-for="provider in automaticProviders"
@@ -671,6 +672,13 @@ const getServerLabelById = (serverId) => {
   color: var(--app-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.site-form__hint {
+  margin: 0 0 10px;
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+  line-height: 1.45;
 }
 
 .segmented {

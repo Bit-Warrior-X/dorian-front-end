@@ -11,3 +11,7 @@ export function notifySuccess(title, message, duration) {
 export function notifyError(title, message, duration) {
   return notify({ title, message, type: 'error', duration })
 }
+
+export function notifyWarning(title, message, duration) {
+  return notify({ title, message, type: 'warning', duration })
+}

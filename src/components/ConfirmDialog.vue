@@ -1,20 +1,27 @@
 <template>
-  <div v-if="modelValue" class="confirm-backdrop" @click="handleCancel">
-    <div class="confirm-card" @click.stop>
-      <div class="confirm-header">
-        <h3>{{ title }}</h3>
-      </div>
-      <p class="confirm-message">{{ message }}</p>
-      <div class="confirm-actions">
-        <button class="secondary-btn" @click="handleCancel">
-          {{ cancelText }}
-        </button>
-        <button class="primary-btn" @click="handleConfirm">
-          {{ confirmText }}
-        </button>
+  <Teleport to="body">
+    <div v-if="modelValue" class="confirm-backdrop" @click.self="handleCancel">
+      <div class="confirm-card" role="dialog" aria-modal="true" @click.stop>
+        <div class="confirm-header">
+          <h3>{{ title }}</h3>
+        </div>
+        <p class="confirm-message">{{ message }}</p>
+        <div class="confirm-actions">
+          <button class="secondary-btn" type="button" @click="handleCancel">
+            {{ cancelText }}
+          </button>
+          <button
+            class="primary-btn"
+            :class="{ 'primary-btn--danger': danger }"
+            type="button"
+            @click="handleConfirm"
+          >
+            {{ confirmText }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -38,6 +45,10 @@ const props = defineProps({
   cancelText: {
     type: String,
     default: 'Cancel'
+  },
+  danger: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -153,6 +164,17 @@ const handleConfirm = () => {
   border-color: var(--app-accent);
   color: var(--app-accent);
   background: var(--app-accent-soft);
+}
+
+.primary-btn--danger {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.primary-btn--danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 </style>
 

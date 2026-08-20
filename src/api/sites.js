@@ -25,3 +25,8 @@ export const forkSiteWafRule = async (id) =>
   apiRequest(`/sites/${id}/waf/fork`, {
     method: 'POST',
   })
+
+export const renewSiteCertificate = async (id) =>
+  apiRequest(`/sites/${id}/certificate/renew`, {
+    method: 'POST',
+  })
