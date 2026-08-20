@@ -489,12 +489,15 @@ const buildPayload = (form) => {
   const wafIdRaw = String(form.wafId ?? '').trim()
   const wafId = wafIdRaw === '' ? null : Number(wafIdRaw)
   const sslType = String(form.sslType || 'none').toLowerCase()
+  const isNone = sslType === 'none'
   return {
     domain: form.domain.trim(),
     status: form.status,
     wafId: Number.isFinite(wafId) ? wafId : null,
-    certificateStatus: form.certificateStatus,
-    certificateExpiry: form.certificateExpiry ? new Date(form.certificateExpiry).toISOString() : null,
+    certificateStatus: isNone ? 'none' : form.certificateStatus,
+    certificateExpiry: isNone
+      ? null
+      : (form.certificateExpiry ? new Date(form.certificateExpiry).toISOString() : null),
     cacheRatio: Number(form.cacheRatio) || 0,
     bandwidth: Number(form.bandwidth) || 0,
     sslType,

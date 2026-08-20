@@ -433,14 +433,17 @@ const validateSsl = () => {
 
 const buildPayload = ({ domain, sslType, sslCert, sslCertKey }) => {
   const normalizedSslType = String(sslType || 'none').toLowerCase()
+  const isNone = normalizedSslType === 'none'
   return {
     domain,
     status: snapshot.status,
     wafId: snapshot.wafId,
-    certificateStatus: snapshot.certificateStatus,
-    certificateExpiry: snapshot.certificateExpiry
-      ? new Date(snapshot.certificateExpiry).toISOString()
-      : null,
+    certificateStatus: isNone ? 'none' : snapshot.certificateStatus,
+    certificateExpiry: isNone
+      ? null
+      : (snapshot.certificateExpiry
+        ? new Date(snapshot.certificateExpiry).toISOString()
+        : null),
     cacheRatio: Number(snapshot.cacheRatio) || 0,
     bandwidth: Number(snapshot.bandwidth) || 0,
     sslType: normalizedSslType,
