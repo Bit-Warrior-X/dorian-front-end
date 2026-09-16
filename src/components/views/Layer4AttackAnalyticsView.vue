@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-view layer4-attack-view">
+  <div class="dashboard-view layer4-attack-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
         <h2>Layer 4 attack analytics</h2>
@@ -13,7 +13,7 @@
     <div class="dash-filterbar">
       <div class="dash-filter-field">
         <label for="layer4-server">Server</label>
-        <select id="layer4-server" v-model="selectedServer" class="dash-select">
+        <select id="layer4-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
           <option v-for="server in serverOptions" :key="server.value" :value="server.value">
             {{ server.label }}
           </option>
@@ -21,7 +21,7 @@
       </div>
       <div class="dash-filter-field">
         <label for="layer4-site">Site</label>
-        <select id="layer4-site" v-model="selectedSite" class="dash-select">
+        <select id="layer4-site" v-model="selectedSite" class="dash-select" :disabled="isLoading">
           <option v-for="site in siteOptions" :key="site.value" :value="site.value">
             {{ site.label }}
           </option>
@@ -36,6 +36,7 @@
             type="button"
             class="dash-range-pill"
             :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
+            :disabled="isLoading"
             @click="selectTimeRange(range.value)"
           >
             {{ range.label }}
@@ -44,6 +45,7 @@
             type="button"
             class="dash-range-pill dash-range-pill--custom"
             :class="{ active: isCustomRange }"
+            :disabled="isLoading"
             @click="showCustomDialog = true"
           >
             Custom
@@ -54,9 +56,22 @@
         <span class="dash-live-dot" aria-hidden="true"></span>
         {{ selectedRangeLabel }}
       </div>
-      <button type="button" class="dash-filter-apply" @click="applyFilters">
-        Apply
+      <button type="button" class="dash-filter-apply" :disabled="isLoading" @click="applyFilters">
+        <span v-if="isLoading" class="dash-spinner dash-spinner--btn" aria-hidden="true"></span>
+        {{ isLoading ? 'Loading…' : 'Apply' }}
       </button>
+    </div>
+
+    <div
+      v-if="isLoading"
+      class="dash-loading-overlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="dash-loading-overlay__content">
+        <span class="dash-spinner" aria-hidden="true"></span>
+        <span class="dash-loading-overlay__label">Loading L4 attack data…</span>
+      </div>
     </div>
 
     <nav class="dash-tabbar" aria-label="Layer 4 analytics sections">
@@ -279,22 +294,17 @@ import { notifyError, notifySuccess } from '@/utils/notify'
 import {
   formatApexTimeTick,
   getApexDatetimeXaxis,
+  getApexLinePalette,
+  getApexProductionStrokeFill,
+  getApexSeriesColors,
   getApexTimeRangeAnnotations,
   padSeriesToTimeRange,
 } from '@/utils/chartTheme'
 
 const L4_DDOS_TITLE = 'L4 DDoS Defense'
 
-const CHART_COLORS = {
-  viper: '#3FBD85',
-  l4: '#5B9DF0',
-  l7: '#B08CF0',
-  gold: '#C9A24A',
-  warn: '#E0A83F',
-  danger: '#E15241',
-  success: '#4FBD7A',
-  muted: '#8B978F',
-}
+const chartColors = () => getApexSeriesColors()
+const productionStrokeFill = (opts) => getApexProductionStrokeFill(opts)
 
 const chartGridColor = () => {
   if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
@@ -366,6 +376,7 @@ const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
 const customStartDate = ref(null)
 const customEndDate = ref(null)
+const isLoading = ref(false)
 const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
@@ -445,6 +456,7 @@ const applyCustomRange = () => {
   isCustomRange.value = true
   selectedTimeRange.value = 'custom'
   showCustomDialog.value = false
+  applyFilters()
 }
 
 const applyFilters = () => {
@@ -601,6 +613,8 @@ const loadSites = async () => {
 }
 
 const loadL4Analytics = async () => {
+  if (isLoading.value) return
+  isLoading.value = true
   const params = buildL4Params()
   try {
     const [summary, trafficSeries, protocolSeries, recentAttacks, topIps] = await Promise.all([
@@ -624,6 +638,8 @@ const loadL4Analytics = async () => {
     nextTick(() => renderChartsForTab(activeTab.value))
   } catch (error) {
     console.error('Failed to load l4 analytics', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -655,12 +671,8 @@ const renderTrafficChart = () => {
       pan: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-      type: 'gradient',
-      gradient: { opacityFrom: 0.3, opacityTo: 0.05 },
-    },
-    colors: [CHART_COLORS.viper, CHART_COLORS.danger],
+    ...productionStrokeFill({ variant: 'area' }),
+    colors: [chartColors().viper, chartColors().danger],
     xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
@@ -723,14 +735,8 @@ const renderProtocolChart = () => {
       pan: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    colors: [
-      CHART_COLORS.l4,
-      CHART_COLORS.warn,
-      CHART_COLORS.viper,
-      CHART_COLORS.l7,
-      CHART_COLORS.muted,
-    ],
+    ...productionStrokeFill({ variant: 'line' }),
+    colors: getApexLinePalette(),
     xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {

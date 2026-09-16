@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-view analytics-view">
+  <div class="dashboard-view analytics-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
         <h2>Traffic analytics</h2>
@@ -13,7 +13,7 @@
     <div class="dash-filterbar">
       <div class="dash-filter-field">
         <label for="analytics-server">Server</label>
-        <select id="analytics-server" v-model="selectedServer" class="dash-select">
+        <select id="analytics-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
           <option v-for="server in serverOptions" :key="server.value" :value="server.value">
             {{ server.label }}
           </option>
@@ -21,7 +21,7 @@
       </div>
       <div class="dash-filter-field">
         <label for="analytics-site">Site</label>
-        <select id="analytics-site" v-model="selectedSite" class="dash-select">
+        <select id="analytics-site" v-model="selectedSite" class="dash-select" :disabled="isLoading">
           <option v-for="site in siteOptions" :key="site.value" :value="site.value">
             {{ site.label }}
           </option>
@@ -36,6 +36,7 @@
             type="button"
             class="dash-range-pill"
             :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
+            :disabled="isLoading"
             @click="selectTimeRange(range.value)"
           >
             {{ range.label }}
@@ -44,6 +45,7 @@
             type="button"
             class="dash-range-pill dash-range-pill--custom"
             :class="{ active: isCustomRange }"
+            :disabled="isLoading"
             @click="showCustomDialog = true"
           >
             Custom
@@ -54,9 +56,22 @@
         <span class="dash-live-dot" aria-hidden="true"></span>
         {{ selectedRangeLabel }}
       </div>
-      <button type="button" class="dash-filter-apply" @click="applyFilters">
-        Apply
+      <button type="button" class="dash-filter-apply" :disabled="isLoading" @click="applyFilters">
+        <span v-if="isLoading" class="dash-spinner dash-spinner--btn" aria-hidden="true"></span>
+        {{ isLoading ? 'Loading…' : 'Apply' }}
       </button>
+    </div>
+
+    <div
+      v-if="isLoading"
+      class="dash-loading-overlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="dash-loading-overlay__content">
+        <span class="dash-spinner" aria-hidden="true"></span>
+        <span class="dash-loading-overlay__label">Loading analytics data…</span>
+      </div>
     </div>
 
     <nav class="dash-tabbar" aria-label="Analytics sections">
@@ -322,7 +337,7 @@
             </div>
           </div>
           <div class="world-map">
-            <SvgMap :map="world" :location-attributes="mapLocationAttributes" />
+            <SvgMap :key="mapRenderKey" :map="world" :location-attributes="mapLocationAttributes" />
             <div
               v-if="hoveredCountry"
               class="map-tooltip"
@@ -489,6 +504,11 @@ import { notifyError } from '@/utils/notify'
 import {
   formatApexTimeTick,
   getApexDatetimeXaxis,
+  getApexLinePalette,
+  getApexPiePalette,
+  getApexProductionStrokeFill,
+  getApexSeriesColors,
+  getApexStatusPalette,
   getApexTimeRangeAnnotations,
   padSeriesToTimeRange,
 } from '@/utils/chartTheme'
@@ -508,6 +528,12 @@ const timeSeriesAxis = (start, end) => {
     },
   }
 }
+
+const chartColors = () => getApexSeriesColors()
+const PIE_PALETTE = () => getApexPiePalette()
+const LINE_SERIES_PALETTE = () => getApexLinePalette()
+const STATUS_SERIES_COLORS = () => getApexStatusPalette()
+const productionStrokeFill = (opts) => getApexProductionStrokeFill(opts)
 
 const chartGridColor = () => {
   if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
@@ -546,52 +572,6 @@ const pieCenterValueColor = () => {
     '#f1f5f9'
   )
 }
-
-/** Brand chart colors from dorian-brand (Viper / L4 / L7 / Gold / Warn / Danger). */
-const CHART_COLORS = {
-  viper: '#3FBD85',
-  viperDeep: '#2E9E6C',
-  l4: '#5B9DF0',
-  l7: '#B08CF0',
-  gold: '#C9A24A',
-  warn: '#E0A83F',
-  danger: '#E15241',
-  success: '#4FBD7A',
-  muted: '#8B978F',
-}
-
-const PIE_PALETTE = [
-  CHART_COLORS.viper,
-  CHART_COLORS.l4,
-  CHART_COLORS.gold,
-  CHART_COLORS.danger,
-  CHART_COLORS.l7,
-  CHART_COLORS.warn,
-  CHART_COLORS.success,
-  CHART_COLORS.viperDeep,
-  CHART_COLORS.muted,
-  '#5B6560',
-  '#333F38',
-  '#171F1B',
-]
-
-const LINE_SERIES_PALETTE = [
-  CHART_COLORS.viper,
-  CHART_COLORS.l4,
-  CHART_COLORS.l7,
-  CHART_COLORS.gold,
-  CHART_COLORS.warn,
-  CHART_COLORS.danger,
-  CHART_COLORS.success,
-  CHART_COLORS.muted,
-]
-
-const STATUS_SERIES_COLORS = [
-  CHART_COLORS.success,
-  CHART_COLORS.l4,
-  CHART_COLORS.warn,
-  CHART_COLORS.danger,
-]
 
 const formatPieTotal = (value) => {
   const numeric = Number(value)
@@ -673,7 +653,7 @@ const getPieChartHeight = (mountEl) => {
 const buildPieChartOptions = (labels, series, hasData, mountEl) => {
   const safeLabels = hasData ? labels : ['No data']
   const safeSeries = hasData ? series : [1]
-  const colors = hasData ? PIE_PALETTE : [pieEmptyColor()]
+  const colors = hasData ? PIE_PALETTE() : [pieEmptyColor()]
   const chartHeight = getPieChartHeight(mountEl)
   const labelColor = chartLabelColor()
   const centerColor = pieCenterValueColor()
@@ -873,6 +853,7 @@ const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
 const customStartDate = ref(null)
 const customEndDate = ref(null)
+const isLoading = ref(false)
 const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
@@ -969,19 +950,28 @@ const protocolTableRows = ref([])
 const countryRequests = ref([])
 const countryRequestMap = computed(() =>
   countryRequests.value.reduce((acc, item) => {
-    acc[item.code.toLowerCase()] = item
+    const code = String(item.code || '').toLowerCase()
+    if (code) acc[code] = item
     return acc
   }, {})
+)
+const mapRenderKey = computed(() =>
+  countryRequests.value.map((item) => `${item.code}:${item.count}`).join('|') || 'empty',
 )
 const hoveredCountry = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
 const maxCountryCount = computed(() =>
   Math.max(0, ...countryRequests.value.map((item) => item.count))
 )
+const mapEmptyFill = () =>
+  typeof document !== 'undefined' &&
+  document.documentElement.getAttribute('data-theme') === 'dark'
+    ? 'rgba(255, 255, 255, 0.08)'
+    : 'rgba(148, 163, 184, 0.2)'
 const mapLocationAttributes = (location) => {
   const entry = countryRequestMap.value[location.id.toLowerCase()]
   const ratio = entry && maxCountryCount.value ? entry.count / maxCountryCount.value : 0
-  const fillColor = entry ? colorFromRate(ratio) : 'rgba(148, 163, 184, 0.2)'
+  const fillColor = entry ? colorFromRate(ratio) : mapEmptyFill()
   return {
     fill: fillColor,
     stroke: 'rgba(100, 116, 139, 0.6)',
@@ -1007,11 +997,11 @@ const mapLocationAttributes = (location) => {
 }
 
 const colorFromRate = (ratio) => {
-  if (ratio >= 0.8) return CHART_COLORS.danger
-  if (ratio >= 0.6) return CHART_COLORS.warn
-  if (ratio >= 0.4) return CHART_COLORS.gold
-  if (ratio >= 0.2) return CHART_COLORS.success
-  return CHART_COLORS.l4
+  if (ratio >= 0.8) return chartColors().danger
+  if (ratio >= 0.6) return chartColors().warn
+  if (ratio >= 0.4) return chartColors().gold
+  if (ratio >= 0.2) return chartColors().success
+  return chartColors().l4
 }
 
 const servers = ref([])
@@ -1183,6 +1173,7 @@ const applyCustomRange = () => {
     isCustomRange.value = true
     selectedTimeRange.value = 'custom'
     showCustomDialog.value = false
+    applyFilters()
   }
 }
 
@@ -1272,6 +1263,8 @@ const loadSites = async () => {
 }
 
 const loadAnalyticsData = async () => {
+  if (isLoading.value) return
+  isLoading.value = true
   const params = buildAnalyticsParams()
 
   let summary = null
@@ -1449,6 +1442,8 @@ const loadAnalyticsData = async () => {
   } catch (error) {
     console.error('Failed to load analytics data', error)
     notifyError(ANALYTICS_TITLE, error?.message || 'The analytics data could not be loaded.')
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -1526,12 +1521,8 @@ const renderRxBandwidthChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-      type: 'gradient',
-      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
-    },
-    colors: [CHART_COLORS.l4, CHART_COLORS.l7],
+    ...productionStrokeFill({ variant: 'area' }),
+    colors: [chartColors().l4, chartColors().l7],
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -1587,12 +1578,8 @@ const renderTxBandwidthChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-      type: 'gradient',
-      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
-    },
-    colors: [CHART_COLORS.l4, CHART_COLORS.l7],
+    ...productionStrokeFill({ variant: 'area' }),
+    colors: [chartColors().l4, chartColors().l7],
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -1647,12 +1634,8 @@ const renderRxTrafficChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-      type: 'gradient',
-      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
-    },
-    colors: [CHART_COLORS.viper, CHART_COLORS.gold],
+    ...productionStrokeFill({ variant: 'area' }),
+    colors: [chartColors().viper, chartColors().gold],
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -1708,12 +1691,8 @@ const renderTxTrafficChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-      type: 'gradient',
-      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
-    },
-    colors: [CHART_COLORS.viper, CHART_COLORS.gold],
+    ...productionStrokeFill({ variant: 'area' }),
+    colors: [chartColors().viper, chartColors().gold],
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -1765,8 +1744,8 @@ const renderRequestResponseChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    colors: [CHART_COLORS.viper, CHART_COLORS.warn],
+    ...productionStrokeFill({ variant: 'line' }),
+    colors: [chartColors().viper, chartColors().l4],
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -1811,8 +1790,8 @@ const renderStatusCodeChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    colors: STATUS_SERIES_COLORS,
+    ...productionStrokeFill({ variant: 'line' }),
+    colors: STATUS_SERIES_COLORS(),
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -1863,12 +1842,8 @@ const renderIpCountChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-      type: 'gradient',
-      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
-    },
-    colors: [CHART_COLORS.viper],
+    ...productionStrokeFill({ variant: 'area' }),
+    colors: [chartColors().viper],
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -1913,8 +1888,8 @@ const renderMethodChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    colors: LINE_SERIES_PALETTE,
+    ...productionStrokeFill({ variant: 'line' }),
+    colors: LINE_SERIES_PALETTE(),
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -1978,8 +1953,8 @@ const renderProtocolChart = () => {
       selection: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    colors: LINE_SERIES_PALETTE,
+    ...productionStrokeFill({ variant: 'line' }),
+    colors: LINE_SERIES_PALETTE(),
     xaxis: rangeAxis.xaxis,
     annotations: rangeAxis.annotations,
     yaxis: {
@@ -2492,12 +2467,11 @@ onBeforeUnmount(() => {
 }
 
 [data-theme='dark'] .world-map :deep(.svg-map__location) {
-  fill: #121815;
   stroke: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme='dark'] .world-map :deep(.svg-map__location:hover) {
-  fill: rgba(63, 189, 133, 0.85);
+  filter: brightness(1.25);
 }
 
 </style>

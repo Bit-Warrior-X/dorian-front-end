@@ -379,6 +379,10 @@ import {
   getApexAxisLabelStyle,
   getApexBaseChartOptions,
   getApexDatetimeXaxis,
+  getApexLinePalette,
+  getApexProductionStrokeFill,
+  getApexSeriesColors,
+  getApexStatusPalette,
   getApexThemePatch,
   getApexTimeRangeAnnotations,
   padSeriesToTimeRange,
@@ -389,13 +393,9 @@ import {
   resolveAngelosRuntimeStatus,
 } from '@/utils/serverLayerStatus'
 
-const CONSOLE_COLORS = {
-  accent: '#A855F7',
-  l4: '#5B9DF0',
-  l7: '#C084FC',
-  danger: '#F0555A',
-  warn: '#F0AC3F',
-}
+const seriesColors = () => getApexSeriesColors()
+const linePalette = () => getApexLinePalette()
+const productionStrokeFill = () => getApexProductionStrokeFill({ variant: 'line' })
 
 const dashboardRoot = ref(null)
 const bandwidthNicRxChart = ref(null)
@@ -431,7 +431,6 @@ const dashboardStats = ref({
   l7ThreatsPreviousMonth: 0,
 })
 
-const palette = [CONSOLE_COLORS.accent, CONSOLE_COLORS.l4, CONSOLE_COLORS.l7, CONSOLE_COLORS.danger, CONSOLE_COLORS.warn, '#22c55e', '#38bdf8']
 const bandwidthServers = ref([])
 const bandwidthRefreshMs = 60 * 1000
 const trafficRefreshMs = 60 * 1000
@@ -918,7 +917,7 @@ const loadBandwidthServers = async () => {
     bandwidthServers.value = list.map((server, index) => ({
       id: server.id,
       label: server.name || `Edge ${server.id}`,
-      color: palette[index % palette.length],
+      color: linePalette()[index % linePalette().length],
     }))
     bandwidthNicRxSeries.value = createEmptyBandwidthSeries()
     bandwidthNicTxSeries.value = createEmptyBandwidthSeries()
@@ -946,12 +945,13 @@ const destroyBandwidthCharts = () => {
   combinedChartInstance = null
 }
 
-const defaultLineOptions = (height = 280, colors = palette) => {
+const defaultLineOptions = (height = 280, colors = null) => {
   const now = Date.now()
   const rangeMs = getBandwidthRangeMs(bandwidthRange.value)
   const startMs = now - rangeMs
   const endMs = now
   const base = getApexBaseChartOptions()
+  const strokeFill = productionStrokeFill()
   return {
     ...base,
     chart: {
@@ -962,9 +962,8 @@ const defaultLineOptions = (height = 280, colors = palette) => {
       zoom: { enabled: false },
       animations: { enabled: true, easing: 'easeinout', speed: 800 },
     },
-    stroke: { curve: 'smooth', width: 2 },
-    markers: { size: 0 },
-    colors,
+    ...strokeFill,
+    colors: colors || linePalette(),
     xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
@@ -974,8 +973,8 @@ const defaultLineOptions = (height = 280, colors = palette) => {
     legend: { show: false },
     grid: {
       ...base.grid,
-      strokeDashArray: 0,
-      borderColor: 'rgba(255,255,255,0.05)',
+      strokeDashArray: 4,
+      borderColor: getApexBaseChartOptions().grid.borderColor,
     },
     tooltip: {
       ...base.tooltip,
@@ -1030,7 +1029,7 @@ const createCombinedChart = () => {
   const now = Date.now()
   const startMs = now - getBandwidthRangeMs(bandwidthRange.value)
   combinedChartInstance = new ApexCharts(bandwidthCombinedChart.value, {
-    ...defaultLineOptions(240, [CONSOLE_COLORS.accent, CONSOLE_COLORS.l4]),
+    ...defaultLineOptions(240, [seriesColors().viper, seriesColors().l4]),
     series: padSeriesToTimeRange(combinedBandwidthSeries.value, startMs, now),
     yaxis: {
       ...defaultLineOptions(240).yaxis,
@@ -1054,7 +1053,7 @@ const createRequestResponseChart = () => {
   const startMs = now - getBandwidthRangeMs(requestRange.value)
   const endMs = now
   requestResponseChartInstance = new ApexCharts(requestResponseChart.value, {
-    ...defaultLineOptions(220, [CONSOLE_COLORS.accent, CONSOLE_COLORS.l4]),
+    ...defaultLineOptions(220, [seriesColors().viper, seriesColors().l4]),
     xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     series: padSeriesToTimeRange(requestResponseSeries.value, startMs, endMs),
@@ -1080,7 +1079,7 @@ const createStatusCodeChart = () => {
   const startMs = now - getBandwidthRangeMs(statusRange.value)
   const endMs = now
   statusCodeChartInstance = new ApexCharts(statusCodeChart.value, {
-    ...defaultLineOptions(240, [CONSOLE_COLORS.accent, CONSOLE_COLORS.l4, CONSOLE_COLORS.warn, CONSOLE_COLORS.danger]),
+    ...defaultLineOptions(240, getApexStatusPalette()),
     xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     series: padSeriesToTimeRange(statusCodeSeries.value, startMs, endMs),

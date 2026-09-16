@@ -1,6 +1,7 @@
 /* Shared dashboard shell — fleet overview, analytics, etc. */
 
 .dashboard-view {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -114,6 +115,11 @@
   color: var(--app-accent);
 }
 
+.dash-range-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .dash-range-pill--custom {
   margin-left: 2px;
   border-left: 1px solid var(--app-border-strong);
@@ -141,10 +147,72 @@
   background: var(--app-accent-soft);
   color: var(--app-accent);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 88px;
 }
 
-.dash-filter-apply:hover {
+.dash-filter-apply:hover:not(:disabled) {
   filter: brightness(1.05);
+}
+
+.dash-filter-apply:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.dash-spinner {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 2px solid rgba(148, 163, 184, 0.35);
+  border-top-color: var(--app-accent, #3FBD85);
+  border-radius: 50%;
+  animation: dash-spin 0.7s linear infinite;
+}
+
+.dash-spinner--btn {
+  width: 12px;
+  height: 12px;
+  border-width: 1.5px;
+}
+
+.dash-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: block;
+  background: color-mix(in srgb, var(--app-bg, #0a0a0a) 72%, transparent);
+  backdrop-filter: blur(2px);
+  pointer-events: all;
+}
+
+.dash-loading-overlay__content {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: min(100vh, 100dvh);
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.dash-loading-overlay__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: var(--type-caption);
+  color: var(--app-text-secondary, #a3a3a3);
+  letter-spacing: 0.02em;
+}
+
+@keyframes dash-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .dash-tabbar {

@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-view security-analytics-view">
+  <div class="dashboard-view security-analytics-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
         <h2>Security analytics</h2>
@@ -13,7 +13,7 @@
     <div class="dash-filterbar">
       <div class="dash-filter-field">
         <label for="security-server">Server</label>
-        <select id="security-server" v-model="selectedServer" class="dash-select">
+        <select id="security-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
           <option v-for="server in serverOptions" :key="server.value" :value="server.value">
             {{ server.label }}
           </option>
@@ -21,7 +21,7 @@
       </div>
       <div class="dash-filter-field">
         <label for="security-site">Site</label>
-        <select id="security-site" v-model="selectedSite" class="dash-select">
+        <select id="security-site" v-model="selectedSite" class="dash-select" :disabled="isLoading">
           <option v-for="site in siteOptions" :key="site.value" :value="site.value">
             {{ site.label }}
           </option>
@@ -36,6 +36,7 @@
             type="button"
             class="dash-range-pill"
             :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
+            :disabled="isLoading"
             @click="selectTimeRange(range.value)"
           >
             {{ range.label }}
@@ -44,6 +45,7 @@
             type="button"
             class="dash-range-pill dash-range-pill--custom"
             :class="{ active: isCustomRange }"
+            :disabled="isLoading"
             @click="showCustomDialog = true"
           >
             Custom
@@ -54,9 +56,22 @@
         <span class="dash-live-dot" aria-hidden="true"></span>
         {{ selectedRangeLabel }}
       </div>
-      <button type="button" class="dash-filter-apply" @click="applyFilters">
-        Apply
+      <button type="button" class="dash-filter-apply" :disabled="isLoading" @click="applyFilters">
+        <span v-if="isLoading" class="dash-spinner dash-spinner--btn" aria-hidden="true"></span>
+        {{ isLoading ? 'Loading…' : 'Apply' }}
       </button>
+    </div>
+
+    <div
+      v-if="isLoading"
+      class="dash-loading-overlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="dash-loading-overlay__content">
+        <span class="dash-spinner" aria-hidden="true"></span>
+        <span class="dash-loading-overlay__label">Loading security data…</span>
+      </div>
     </div>
 
     <nav class="dash-tabbar" aria-label="Security analytics sections">
@@ -104,7 +119,7 @@
             </div>
           </div>
           <div class="world-map">
-            <SvgMap :map="world" :location-attributes="mapLocationAttributes" />
+            <SvgMap :key="mapRenderKey" :map="world" :location-attributes="mapLocationAttributes" />
             <div
               v-if="hoveredCountry"
               class="map-tooltip"
@@ -298,19 +313,14 @@ import {
 import {
   formatApexTimeTick,
   getApexDatetimeXaxis,
+  getApexProductionStrokeFill,
+  getApexSeriesColors,
   getApexTimeRangeAnnotations,
   padSeriesToTimeRange,
 } from '@/utils/chartTheme'
 
-const CHART_COLORS = {
-  viper: '#3FBD85',
-  l4: '#5B9DF0',
-  l7: '#B08CF0',
-  gold: '#C9A24A',
-  warn: '#E0A83F',
-  danger: '#E15241',
-  success: '#4FBD7A',
-}
+const chartColors = () => getApexSeriesColors()
+const productionStrokeFill = (opts) => getApexProductionStrokeFill(opts)
 
 const chartGridColor = () => {
   if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
@@ -354,6 +364,7 @@ const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
 const customStartDate = ref(null)
 const customEndDate = ref(null)
+const isLoading = ref(false)
 const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
@@ -413,9 +424,14 @@ const metricCards = computed(() => [
 
 const countryRequestMap = computed(() =>
   countryRequests.value.reduce((acc, item) => {
-    acc[item.code.toLowerCase()] = item
+    const code = String(item.code || '').toLowerCase()
+    if (code) acc[code] = item
     return acc
   }, {}),
+)
+
+const mapRenderKey = computed(() =>
+  countryRequests.value.map((item) => `${item.code}:${item.count}`).join('|') || 'empty',
 )
 
 const maxCountryCount = computed(() =>
@@ -426,11 +442,11 @@ const hoveredCountry = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
 
 const colorFromRate = (ratio) => {
-  if (ratio >= 0.8) return CHART_COLORS.danger
-  if (ratio >= 0.6) return CHART_COLORS.warn
-  if (ratio >= 0.4) return CHART_COLORS.gold
-  if (ratio >= 0.2) return CHART_COLORS.success
-  return CHART_COLORS.l4
+  if (ratio >= 0.8) return chartColors().danger
+  if (ratio >= 0.6) return chartColors().warn
+  if (ratio >= 0.4) return chartColors().gold
+  if (ratio >= 0.2) return chartColors().success
+  return chartColors().l4
 }
 
 const mapLocationAttributes = (location) => {
@@ -563,12 +579,8 @@ const renderBlockCountChart = () => {
       zoom: { enabled: false },
     },
     dataLabels: { enabled: false },
-    stroke: { curve: 'smooth', width: 2 },
-    fill: {
-      type: 'gradient',
-      gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
-    },
-    colors: [CHART_COLORS.danger],
+    ...productionStrokeFill({ variant: 'area' }),
+    colors: [chartColors().danger],
     xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
@@ -654,6 +666,7 @@ const applyCustomRange = () => {
     isCustomRange.value = true
     selectedTimeRange.value = 'custom'
     showCustomDialog.value = false
+    applyFilters()
   }
 }
 
@@ -690,6 +703,8 @@ const loadSites = async () => {
 }
 
 const loadSecurityAnalytics = async () => {
+  if (isLoading.value) return
+  isLoading.value = true
   const params = buildSecurityParams()
   try {
     const [
@@ -729,6 +744,8 @@ const loadSecurityAnalytics = async () => {
     nextTick(() => renderBlockCountChart())
   } catch (error) {
     console.error('Failed to load security analytics', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -1040,12 +1057,11 @@ onBeforeUnmount(() => {
 }
 
 [data-theme='dark'] .world-map :deep(.svg-map__location) {
-  fill: #121815;
   stroke: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme='dark'] .world-map :deep(.svg-map__location:hover) {
-  fill: rgba(63, 189, 133, 0.85);
+  filter: brightness(1.25);
 }
 
 @media (max-width: 900px) {

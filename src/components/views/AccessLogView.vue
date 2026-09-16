@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-view access-log-view">
+  <div class="dashboard-view access-log-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
         <h2>Access log</h2>
@@ -17,7 +17,7 @@
     <div class="dash-filterbar">
       <div class="dash-filter-field">
         <label for="access-server">Server</label>
-        <select id="access-server" v-model="selectedServer" class="dash-select">
+        <select id="access-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
           <option v-for="server in serverOptions" :key="server.value" :value="server.value">
             {{ server.label }}
           </option>
@@ -25,7 +25,7 @@
       </div>
       <div class="dash-filter-field">
         <label for="access-site">Site</label>
-        <select id="access-site" v-model="selectedSite" class="dash-select">
+        <select id="access-site" v-model="selectedSite" class="dash-select" :disabled="isLoading">
           <option v-for="site in siteOptions" :key="site.value" :value="site.value">
             {{ site.label }}
           </option>
@@ -39,6 +39,7 @@
           type="text"
           class="dash-input"
           placeholder="Host, path, IP…"
+          :disabled="isLoading"
         />
       </div>
       <div class="dash-filter-field">
@@ -49,11 +50,12 @@
           type="text"
           class="dash-input dash-input--sm"
           placeholder="200, 4xx…"
+          :disabled="isLoading"
         />
       </div>
       <div class="dash-filter-field">
         <label for="access-lines">Lines</label>
-        <select id="access-lines" v-model="linesLimit" class="dash-select">
+        <select id="access-lines" v-model="linesLimit" class="dash-select" :disabled="isLoading">
           <option value="100">100</option>
           <option value="200">200</option>
           <option value="1000">1000</option>
@@ -68,6 +70,7 @@
             type="button"
             class="dash-range-pill"
             :class="{ active: selectedTimeRange === time.value && !isCustomRange }"
+            :disabled="isLoading"
             @click="selectTimeRange(time.value)"
           >
             {{ time.label }}
@@ -76,6 +79,7 @@
             type="button"
             class="dash-range-pill dash-range-pill--custom"
             :class="{ active: isCustomRange }"
+            :disabled="isLoading"
             @click="showCustomDialog = true"
           >
             Custom
@@ -91,13 +95,26 @@
           type="button"
           class="dash-filter-apply dash-filter-apply--ghost"
           :class="{ paused: isPaused }"
+          :disabled="isLoading"
           @click="togglePause"
         >
           {{ isPaused ? 'Resume' : 'Pause' }}
         </button>
-        <button type="button" class="dash-filter-apply" @click="exportCsv">
+        <button type="button" class="dash-filter-apply" :disabled="isLoading" @click="exportCsv">
           Export
         </button>
+      </div>
+    </div>
+
+    <div
+      v-if="isLoading"
+      class="dash-loading-overlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="dash-loading-overlay__content">
+        <span class="dash-spinner" aria-hidden="true"></span>
+        <span class="dash-loading-overlay__label">{{ loadingLabel }}</span>
       </div>
     </div>
 
@@ -186,7 +203,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
@@ -204,6 +221,7 @@ const showCustomDialog = ref(false)
 const isCustomRange = ref(false)
 const customStartDate = ref('')
 const customEndDate = ref('')
+const isFilterBusy = ref(false)
 const selectedServer = ref('')
 const selectedSite = ref('all')
 const serverList = ref([])
@@ -211,6 +229,13 @@ const sites = ref([])
 const logs = ref([])
 const wsRef = ref(null)
 const wsToken = ref(0)
+
+const isLoading = computed(() => status.value === 'Connecting' || isFilterBusy.value)
+const loadingLabel = computed(() => {
+  if (status.value === 'Connecting') return 'Connecting to log stream…'
+  if (isFilterBusy.value) return 'Applying time range…'
+  return 'Loading…'
+})
 
 const timeRanges = [
   { label: '15m', value: '15m' },
@@ -277,17 +302,26 @@ const metricCards = computed(() => [
   { label: '5xx errors', value: formatNumber(stats.value.serverError), tone: 'danger' },
 ])
 
-const selectTimeRange = (value) => {
+const selectTimeRange = async (value) => {
+  isFilterBusy.value = true
   selectedTimeRange.value = value
   isCustomRange.value = false
+  await nextTick()
+  window.setTimeout(() => {
+    isFilterBusy.value = false
+  }, 120)
 }
 
-const applyCustomRange = () => {
-  if (customStartDate.value && customEndDate.value) {
-    isCustomRange.value = true
-    selectedTimeRange.value = 'custom'
-    showCustomDialog.value = false
-  }
+const applyCustomRange = async () => {
+  if (!customStartDate.value || !customEndDate.value) return
+  isFilterBusy.value = true
+  isCustomRange.value = true
+  selectedTimeRange.value = 'custom'
+  showCustomDialog.value = false
+  await nextTick()
+  window.setTimeout(() => {
+    isFilterBusy.value = false
+  }, 120)
 }
 
 const togglePause = () => {
@@ -684,12 +718,13 @@ onBeforeUnmount(() => {
   max-width: 1680px;
   width: 100%;
   margin: 0 auto;
-  height: calc(100dvh - 112px);
-  max-height: calc(100dvh - 112px);
+  /* Fill the main content area (no shell topbar on this route). */
+  height: calc(100dvh - (2 * var(--space-page-y, 22px)));
+  max-height: calc(100dvh - (2 * var(--space-page-y, 22px)));
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px !important;
   flex: 1 1 auto;
   overflow: hidden;
   box-sizing: border-box;
@@ -698,7 +733,8 @@ onBeforeUnmount(() => {
 .access-log-view :deep(.dash-topbar),
 .access-log-view :deep(.dash-filterbar),
 .access-log-view > .dash-topbar,
-.access-log-view > .dash-filterbar {
+.access-log-view > .dash-filterbar,
+.access-log-view > .access-stats {
   flex-shrink: 0;
 }
 
@@ -721,19 +757,19 @@ onBeforeUnmount(() => {
 .access-stats {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
 .access-stat-card {
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 10px;
+  padding: 10px 14px;
   border: 1.5px solid var(--app-border);
   background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 84px;
+  gap: 4px;
+  min-height: 0;
 }
 
 .access-stat-label {

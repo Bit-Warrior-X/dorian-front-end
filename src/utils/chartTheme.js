@@ -17,10 +17,126 @@ export function getApexChartColors() {
         chartBg: '#0a0a0a',
       }
     : {
-        grid: 'rgba(148, 163, 184, 0.35)',
+        grid: 'rgba(148, 163, 184, 0.28)',
         label: '#64748b',
         chartBg: '#ffffff',
       }
+}
+
+/**
+ * Production series palette (Dorian brand).
+ * Tuned for dark/light contrast — not neon SaaS purple.
+ */
+export function getApexSeriesColors() {
+  if (isDarkTheme()) {
+    return {
+      viper: '#3FBD85',
+      viperDeep: '#2E9E6C',
+      l4: '#6BA8F5',
+      l7: '#B89AF5',
+      gold: '#D4B05C',
+      warn: '#E0A83F',
+      danger: '#E15241',
+      success: '#4FBD7A',
+      muted: '#8B978F',
+      cyan: '#5BB8C9',
+    }
+  }
+  return {
+    viper: '#2E9E6C',
+    viperDeep: '#1F6E4A',
+    l4: '#3B82F6',
+    l7: '#8B6FCF',
+    gold: '#B8923E',
+    warn: '#C9922E',
+    danger: '#D14335',
+    success: '#3FA86A',
+    muted: '#6B756F',
+    cyan: '#3A9AAB',
+  }
+}
+
+/** Ordered multi-series line palette for production charts. */
+export function getApexLinePalette() {
+  const c = getApexSeriesColors()
+  return [c.viper, c.l4, c.l7, c.gold, c.cyan, c.warn, c.danger, c.success, c.muted]
+}
+
+export function getApexPiePalette() {
+  const c = getApexSeriesColors()
+  return [
+    c.viper,
+    c.l4,
+    c.gold,
+    c.danger,
+    c.l7,
+    c.warn,
+    c.success,
+    c.viperDeep,
+    c.cyan,
+    c.muted,
+  ]
+}
+
+/** HTTP status family colors: 2xx / 3xx / 4xx / 5xx */
+export function getApexStatusPalette() {
+  const c = getApexSeriesColors()
+  return [c.success, c.l4, c.warn, c.danger]
+}
+
+/** Shared stroke styles for production charts. */
+export function getApexProductionStrokeFill(opts = {}) {
+  const width = opts.width ?? 2
+  const curve = opts.curve ?? 'smooth'
+  const variant = opts.variant ?? (opts.opacityFrom != null && opts.opacityFrom <= 0.15 ? 'line' : 'area')
+
+  const stroke = {
+    curve,
+    width,
+    lineCap: 'round',
+    show: true,
+  }
+
+  // ApexCharts Line.js uses fill.fillPath() as the *stroke paint* for type:'line'.
+  // That path applies fill.opacity to the stroke color (hexToRgba). So opacity:0
+  // makes lines fully transparent while tooltips/markers still work. Gradient fill
+  // on line charts is also wrong — stroke becomes a gradient URL.
+  // Use solid + opacity 1 so strokes stay opaque; no area path is drawn for lines.
+  if (variant === 'line') {
+    return {
+      stroke: {
+        ...stroke,
+        width: opts.width ?? 2.5,
+      },
+      fill: {
+        type: 'solid',
+        opacity: 1,
+      },
+      markers: {
+        size: 0,
+        strokeWidth: 0,
+        hover: { size: 4 },
+      },
+    }
+  }
+
+  return {
+    stroke,
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 0.4,
+        opacityFrom: opts.opacityFrom ?? 0.28,
+        opacityTo: opts.opacityTo ?? 0.04,
+        stops: [0, 90, 100],
+      },
+    },
+    markers: {
+      size: 0,
+      strokeWidth: 0,
+      hover: { size: 4 },
+    },
+  }
 }
 
 export function getApexFontFamily() {
@@ -48,7 +164,7 @@ export function getApexBaseChartOptions() {
     },
     grid: {
       borderColor: colors.grid,
-      strokeDashArray: 6,
+      strokeDashArray: 4,
       padding: {
         left: 4,
         right: 12,
@@ -65,14 +181,18 @@ export function getApexThemePatch() {
   const colors = getApexChartColors()
   const base = getApexBaseChartOptions()
   const labelStyle = getApexAxisLabelStyle()
+  const series = getApexSeriesColors()
   return {
     ...base,
+    colors: getApexLinePalette(),
     xaxis: {
       labels: { style: labelStyle },
     },
     yaxis: {
       labels: { style: { colors: colors.label } },
     },
+    // Keep theme patches aware of brand series for consumers that merge shallowly.
+    __seriesColors: series,
   }
 }
 

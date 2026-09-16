@@ -228,7 +228,7 @@
       </button>
       
       <NotificationToastStack />
-      <header v-if="!isDashboardRoute" class="view-header app-topbar">
+      <header v-if="!hideShellTopbar" class="view-header app-topbar">
         <div class="app-topbar__left">
           <button
             v-if="isPanelOpen"
@@ -289,7 +289,18 @@ const isAnalyticsRoute = computed(
 )
 
 const isRouteActive = (name) => route.name === name
-const isDashboardRoute = computed(() => route.name === 'dashboard')
+/** Pages that render theme/user controls in their own dash-topbar. */
+const hideShellTopbar = computed(
+  () =>
+    Boolean(route.meta?.hideShellTopbar) ||
+    [
+      'dashboard',
+      'access-log',
+      'security-analytics',
+      'security-analytics-detail',
+      'layer4-attack-analytics',
+    ].includes(route.name)
+)
 
 const currentViewTitle = computed(() => route.meta?.title || 'Dashboard')
 const isAdmin = computed(
