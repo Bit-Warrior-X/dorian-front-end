@@ -91,7 +91,7 @@
   --app-login-card: rgba(10, 10, 10, 0.92);
   --tier-card-bg: #ffffff;
   --tier-card-border: #e5e5e5;
-  --tier-pricing-bg: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+  --tier-pricing-bg: linear-gradient(180deg, #f7faf8 0%, #eef5f1 100%);
   --tier-meta-bg: #fafafa;
   --chart-grid: rgba(148, 163, 184, 0.35);
   --chart-label: #64748b;
@@ -213,7 +213,7 @@
   --app-login-card: var(--dorian-panel);
   --tier-card-bg: var(--dorian-panel);
   --tier-card-border: rgba(255, 255, 255, 0.1);
-  --tier-pricing-bg: #000000;
+  --tier-pricing-bg: var(--dorian-viper-dim);
   --tier-meta-bg: #050505;
   --chart-grid: rgba(255, 255, 255, 0.08);
   --chart-label: #a3a3a3;

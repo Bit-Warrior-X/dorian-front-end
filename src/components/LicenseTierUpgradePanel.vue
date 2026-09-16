@@ -4,6 +4,7 @@
     <p v-if="errorMessage" class="error-banner" role="alert">{{ errorMessage }}</p>
     <LicenseTierSelector
       v-model="selectedTier"
+      v-model:billing-period="billingPeriod"
       :disabled="isSubmitting"
       :aria-label="'License type for ' + (server?.name || 'server')"
     />
@@ -36,7 +37,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { upgradeServerLicense } from '@/api/servers'
-import { normalizeLicenseTier } from '@/data/licensePlans'
+import { normalizeLicenseTier, BILLING_PERIODS } from '@/data/licensePlans'
 import LicenseTierSelector from './LicenseTierSelector.vue'
 
 const props = defineProps({
@@ -61,6 +62,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'success', 'pending'])
 
 const selectedTier = ref(normalizeLicenseTier(props.server?.license))
+const billingPeriod = ref(BILLING_PERIODS.ANNUAL)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 
@@ -68,6 +70,7 @@ watch(
   () => [props.server?.id, props.server?.license],
   () => {
     selectedTier.value = normalizeLicenseTier(props.server?.license)
+    billingPeriod.value = BILLING_PERIODS.ANNUAL
     errorMessage.value = ''
   }
 )
@@ -78,7 +81,11 @@ watch(isSubmitting, (v) => {
 
 const initialTier = computed(() => normalizeLicenseTier(props.server?.license))
 
-const canSubmit = computed(() => selectedTier.value !== initialTier.value)
+const canSubmit = computed(() => {
+  if (selectedTier.value !== initialTier.value) return true
+  // Same tier is still valid when changing billing period (duration / pricing).
+  return selectedTier.value !== 'Trial'
+})
 
 const submit = async () => {
   if (!props.server?.id || !canSubmit.value) return
@@ -88,6 +95,7 @@ const submit = async () => {
   try {
     updated = await upgradeServerLicense(props.server.id, {
       licenseType: selectedTier.value,
+      billingPeriod: billingPeriod.value,
     })
   } catch (e) {
     errorMessage.value = e?.message || 'License upgrade failed.'
@@ -111,17 +119,17 @@ const submit = async () => {
 .intro {
   margin: 0;
   font-size: var(--type-base);
-  color: #475569;
+  color: var(--app-text-secondary);
   line-height: 1.5;
 }
 
 .error-banner {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(254, 242, 242, 0.95);
-  border: 1px solid rgba(239, 68, 68, 0.45);
-  color: #991b1b;
+  border-radius: var(--btn-radius, 8px);
+  background: rgba(225, 82, 65, 0.1);
+  border: 0.5px solid rgba(225, 82, 65, 0.4);
+  color: var(--dorian-danger, #e15241);
   font-size: var(--type-base);
   font-weight: 600;
 }
@@ -132,15 +140,15 @@ const submit = async () => {
   align-items: center;
   gap: 10px;
   font-size: var(--type-base);
-  color: #475569;
+  color: var(--app-text-secondary);
 }
 
 .spinner {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid rgba(148, 163, 184, 0.5);
-  border-top-color: rgba(79, 70, 229, 0.9);
+  border: 2px solid rgba(139, 151, 143, 0.35);
+  border-top-color: var(--app-accent);
   animation: spin 0.7s linear infinite;
 }
 
@@ -159,31 +167,37 @@ const submit = async () => {
 
 .btn-primary,
 .btn-secondary {
-  border-radius: 10px;
+  border-radius: var(--btn-radius, 8px);
   padding: 10px 18px;
   font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s ease, transform 0.15s ease;
+  transition: opacity 0.2s ease, background 0.15s ease;
 }
 
 .btn-primary {
   border: none;
-  color: #fff;
+  color: var(--app-btn-primary-fg, #fff);
   background: var(--app-btn-primary-bg);
-  box-shadow: 0 4px 14px var(--app-btn-primary-shadow, rgba(168, 85, 247, 0.35));
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--app-btn-primary-hover);
 }
 
 .btn-primary:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 .btn-secondary {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-elevated);
-  color: var(--app-text);
+  border: 0.5px solid var(--dorian-gold-500, #c9a24a);
+  background: transparent;
+  color: var(--dorian-gold-500, #c9a24a);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--dorian-gold-dim, rgba(58, 46, 20, 0.12));
 }
 
 .btn-secondary:disabled {

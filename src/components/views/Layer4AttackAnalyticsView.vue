@@ -276,6 +276,12 @@ import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { notifyError, notifySuccess } from '@/utils/notify'
+import {
+  formatApexTimeTick,
+  getApexDatetimeXaxis,
+  getApexTimeRangeAnnotations,
+  padSeriesToTimeRange,
+} from '@/utils/chartTheme'
 
 const L4_DDOS_TITLE = 'L4 DDoS Defense'
 
@@ -312,20 +318,39 @@ const chartTooltipTheme = () =>
     ? 'dark'
     : 'light'
 
-const chartDatetimeXaxis = () => ({
-  type: 'datetime',
-  tickAmount: 6,
-  axisBorder: { show: true, color: chartGridColor() },
-  axisTicks: { show: true, color: chartGridColor() },
-  labels: {
-    show: true,
-    datetimeUTC: false,
-    format: 'HH:mm',
-    hideOverlappingLabels: false,
-    rotate: 0,
-    style: { colors: chartLabelColor(), fontSize: '11px' },
-  },
-})
+const resolveRangeMs = (filters) => {
+  switch (String(filters?.range || '')) {
+    case '1h':
+      return 60 * 60 * 1000
+    case '2h':
+      return 2 * 60 * 60 * 1000
+    case '4h':
+      return 4 * 60 * 60 * 1000
+    case '6h':
+      return 6 * 60 * 60 * 1000
+    case '24h':
+      return 24 * 60 * 60 * 1000
+    default:
+      return 60 * 60 * 1000
+  }
+}
+
+const resolveRangeWindow = (filters) => {
+  const now = new Date()
+  if (filters.isCustom && filters.start && filters.end) {
+    return { start: new Date(filters.start), end: new Date(filters.end) }
+  }
+  if (filters.range === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start, end: now }
+  }
+  if (filters.range === 'yesterday') {
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start: new Date(end.getTime() - 24 * 60 * 60 * 1000), end }
+  }
+  const duration = resolveRangeMs(filters)
+  return { start: new Date(now.getTime() - duration), end: now }
+}
 
 const activeTab = ref('overview')
 const l4Tabs = [
@@ -605,12 +630,17 @@ const loadL4Analytics = async () => {
 const renderTrafficChart = () => {
   if (!trafficChart.value) return
 
-  const allowedSeries = mapSeriesPoints(trafficPoints.value, 'allowedTraffic')
-  const blockedSeries = mapSeriesPoints(trafficPoints.value, 'blockedTraffic')
-  const allPoints = [...allowedSeries, ...blockedSeries]
-  const hasPoints = allPoints.length > 0
-  const minX = hasPoints ? Math.min(...allPoints.map((p) => p.x)) : null
-  const maxX = hasPoints ? Math.max(...allPoints.map((p) => p.x)) : null
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+  const series = padSeriesToTimeRange(
+    [
+      { name: 'Allowed', data: mapSeriesPoints(trafficPoints.value, 'allowedTraffic') },
+      { name: 'Blocked', data: mapSeriesPoints(trafficPoints.value, 'blockedTraffic') },
+    ],
+    startMs,
+    endMs,
+  )
 
   const options = {
     chart: {
@@ -631,20 +661,18 @@ const renderTrafficChart = () => {
       gradient: { opacityFrom: 0.3, opacityTo: 0.05 },
     },
     colors: [CHART_COLORS.viper, CHART_COLORS.danger],
-    xaxis: {
-      ...chartDatetimeXaxis(),
-      ...(hasPoints && { min: minX, max: maxX }),
-    },
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
       labels: {
         style: { colors: chartLabelColor() },
         formatter: (val) => formatThroughput(val),
       },
     },
-    grid: { borderColor: chartGridColor() },
+    grid: { borderColor: chartGridColor(), padding: { left: 4, right: 12 } },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: { formatter: (val) => formatApexTimeTick(val, startMs, endMs) },
       y: { formatter: (val) => formatThroughput(val) },
     },
     legend: {
@@ -653,10 +681,7 @@ const renderTrafficChart = () => {
       fontSize: '12px',
       labels: { colors: chartLabelColor() },
     },
-    series: [
-      { name: 'Allowed', data: allowedSeries },
-      { name: 'Blocked', data: blockedSeries },
-    ],
+    series,
   }
 
   if (trafficChartInstance) {
@@ -670,18 +695,20 @@ const renderTrafficChart = () => {
 const renderProtocolChart = () => {
   if (!protocolChart.value) return
 
-  const series = [
-    { name: 'TCP', data: mapSeriesPoints(protocolPoints.value, 'tcp') },
-    { name: 'UDP', data: mapSeriesPoints(protocolPoints.value, 'udp') },
-    { name: 'ICMP', data: mapSeriesPoints(protocolPoints.value, 'icmp') },
-    { name: 'GRE', data: mapSeriesPoints(protocolPoints.value, 'gre') },
-    { name: 'OTHER', data: mapSeriesPoints(protocolPoints.value, 'other') },
-  ]
-
-  const allPoints = series.flatMap((s) => s.data)
-  const hasPoints = allPoints.length > 0
-  const minX = hasPoints ? Math.min(...allPoints.map((p) => p.x)) : null
-  const maxX = hasPoints ? Math.max(...allPoints.map((p) => p.x)) : null
+  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+  const series = padSeriesToTimeRange(
+    [
+      { name: 'TCP', data: mapSeriesPoints(protocolPoints.value, 'tcp') },
+      { name: 'UDP', data: mapSeriesPoints(protocolPoints.value, 'udp') },
+      { name: 'ICMP', data: mapSeriesPoints(protocolPoints.value, 'icmp') },
+      { name: 'GRE', data: mapSeriesPoints(protocolPoints.value, 'gre') },
+      { name: 'OTHER', data: mapSeriesPoints(protocolPoints.value, 'other') },
+    ],
+    startMs,
+    endMs,
+  )
 
   const options = {
     chart: {
@@ -704,20 +731,18 @@ const renderProtocolChart = () => {
       CHART_COLORS.l7,
       CHART_COLORS.muted,
     ],
-    xaxis: {
-      ...chartDatetimeXaxis(),
-      ...(hasPoints && { min: minX, max: maxX }),
-    },
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
       labels: {
         style: { colors: chartLabelColor() },
         formatter: (val) => formatThroughput(val),
       },
     },
-    grid: { borderColor: chartGridColor() },
+    grid: { borderColor: chartGridColor(), padding: { left: 4, right: 12 } },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: { formatter: (val) => formatApexTimeTick(val, startMs, endMs) },
       y: { formatter: (val) => formatThroughput(val) },
     },
     legend: {

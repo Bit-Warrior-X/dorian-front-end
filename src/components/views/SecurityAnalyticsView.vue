@@ -295,6 +295,12 @@ import {
   fetchSecuritySeries,
   fetchSecuritySummaryGroup,
 } from '@/api/securityAnalytics'
+import {
+  formatApexTimeTick,
+  getApexDatetimeXaxis,
+  getApexTimeRangeAnnotations,
+  padSeriesToTimeRange,
+} from '@/utils/chartTheme'
 
 const CHART_COLORS = {
   viper: '#3FBD85',
@@ -539,7 +545,13 @@ const resolveRangeWindow = (filters) => {
 const renderBlockCountChart = () => {
   if (!blockCountChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = [{ name: 'Blocked', data: mapBlockPoints(blockSeries.value) }]
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+  const series = padSeriesToTimeRange(
+    [{ name: 'Blocked', data: mapBlockPoints(blockSeries.value) }],
+    startMs,
+    endMs,
+  )
   const options = {
     chart: {
       type: 'area',
@@ -557,23 +569,18 @@ const renderBlockCountChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: [CHART_COLORS.danger],
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 24,
-      labels: { style: { colors: chartLabelColor() } },
-    },
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
       labels: {
         style: { colors: chartLabelColor() },
         formatter: (val) => `${Math.round(val)}`,
       },
     },
-    grid: { borderColor: chartGridColor() },
+    grid: { borderColor: chartGridColor(), padding: { left: 4, right: 12 } },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: { formatter: (val) => formatApexTimeTick(val, startMs, endMs) },
       y: { formatter: (val) => `${Math.round(val)}` },
     },
     series,

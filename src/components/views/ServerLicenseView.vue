@@ -186,13 +186,15 @@ onMounted(() => {
 .meta-pill.license {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 6px 12px;
+  border-radius: 4px;
+  padding: 5px 11px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   font-size: var(--type-caption);
   font-weight: 600;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  border: 1px solid rgba(124, 58, 237, 0.28);
+  letter-spacing: 0.02em;
+  background: var(--dorian-viper-dim, rgba(23, 53, 42, 0.14));
+  color: var(--dorian-viper-400, var(--app-accent));
+  border: 0.5px solid rgba(46, 158, 108, 0.35);
 }
 
 .license-tab-body {

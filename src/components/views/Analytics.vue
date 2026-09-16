@@ -486,8 +486,28 @@ import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
 import { notifyError } from '@/utils/notify'
+import {
+  formatApexTimeTick,
+  getApexDatetimeXaxis,
+  getApexTimeRangeAnnotations,
+  padSeriesToTimeRange,
+} from '@/utils/chartTheme'
 
 const ANALYTICS_TITLE = 'Analytics'
+
+const timeSeriesAxis = (start, end) => {
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+  return {
+    startMs,
+    endMs,
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
+    tooltipX: {
+      formatter: (val) => formatApexTimeTick(val, startMs, endMs),
+    },
+  }
+}
 
 const chartGridColor = () => {
   if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
@@ -1490,10 +1510,11 @@ const buildRateRows = (rows) => {
 const renderRxBandwidthChart = () => {
   if (!rxBandwidthChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = [
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange([
     ...(nicRxBandwidthSeries.value.length ? [{ name: 'NIC RX Bandwidth', data: nicRxBandwidthSeries.value[0].data }] : []),
     ...(l7RxBandwidthSeries.value.length ? [{ name: 'L7 RX Bandwidth', data: l7RxBandwidthSeries.value[0].data }] : []),
-  ]
+  ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1511,12 +1532,8 @@ const renderRxBandwidthChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: [CHART_COLORS.l4, CHART_COLORS.l7],
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => formatKiloBps(val),
@@ -1534,7 +1551,7 @@ const renderRxBandwidthChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => formatKiloBps(val),
       },
@@ -1554,10 +1571,11 @@ const renderRxBandwidthChart = () => {
 const renderTxBandwidthChart = () => {
   if (!txBandwidthChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = [
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange([
     ...(nicTxBandwidthSeries.value.length ? [{ name: 'NIC TX Bandwidth', data: nicTxBandwidthSeries.value[0].data }] : []),
     ...(l7TxBandwidthSeries.value.length ? [{ name: 'L7 TX Bandwidth', data: l7TxBandwidthSeries.value[0].data }] : []),
-  ]
+  ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1575,12 +1593,8 @@ const renderTxBandwidthChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: [CHART_COLORS.l4, CHART_COLORS.l7],
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => formatKiloBps(val),
@@ -1591,7 +1605,7 @@ const renderTxBandwidthChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => formatKiloBps(val),
       },
@@ -1617,10 +1631,11 @@ const renderTxBandwidthChart = () => {
 const renderRxTrafficChart = () => {
   if (!rxTrafficChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = [
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange([
     ...(nicRxTrafficSeries.value.length ? [{ name: 'NIC RX Traffic', data: nicRxTrafficSeries.value[0].data }] : []),
     ...(l7RxTrafficSeries.value.length ? [{ name: 'L7 RX Traffic', data: l7RxTrafficSeries.value[0].data }] : []),
-  ]
+  ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1638,12 +1653,8 @@ const renderRxTrafficChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: [CHART_COLORS.viper, CHART_COLORS.gold],
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => formatKiloBytes(val),
@@ -1654,7 +1665,7 @@ const renderRxTrafficChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => formatKiloBytes(val),
       },
@@ -1681,10 +1692,11 @@ const renderRxTrafficChart = () => {
 const renderTxTrafficChart = () => {
   if (!txTrafficChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = [
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange([
     ...(nicTxTrafficSeries.value.length ? [{ name: 'NIC TX Traffic', data: nicTxTrafficSeries.value[0].data }] : []),
     ...(l7TxTrafficSeries.value.length ? [{ name: 'L7 TX Traffic', data: l7TxTrafficSeries.value[0].data }] : []),
-  ]
+  ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1702,12 +1714,8 @@ const renderTxTrafficChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: [CHART_COLORS.viper, CHART_COLORS.gold],
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => formatKiloBytes(val),
@@ -1718,7 +1726,7 @@ const renderTxTrafficChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => formatKiloBytes(val),
       },
@@ -1744,7 +1752,8 @@ const renderTxTrafficChart = () => {
 const renderRequestResponseChart = () => {
   if (!requestResponseChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = requestResponseSeries.value
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange(requestResponseSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1758,12 +1767,8 @@ const renderRequestResponseChart = () => {
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     colors: [CHART_COLORS.viper, CHART_COLORS.warn],
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1774,7 +1779,7 @@ const renderRequestResponseChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => `${Math.round(val)}`,
       },
@@ -1793,7 +1798,8 @@ const renderRequestResponseChart = () => {
 const renderStatusCodeChart = () => {
   if (!statusCodeChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = statusCodeSeries.value
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange(statusCodeSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1807,12 +1813,8 @@ const renderStatusCodeChart = () => {
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     colors: STATUS_SERIES_COLORS,
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1823,7 +1825,7 @@ const renderStatusCodeChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => `${Math.round(val)}`,
       },
@@ -1848,7 +1850,8 @@ const renderStatusCodeChart = () => {
 const renderIpCountChart = () => {
   if (!ipCountChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = ipCountSeries.value
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange(ipCountSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1866,12 +1869,8 @@ const renderIpCountChart = () => {
       gradient: { opacityFrom: 0.35, opacityTo: 0.05 },
     },
     colors: [CHART_COLORS.viper],
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1882,7 +1881,7 @@ const renderIpCountChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => `${Math.round(val)} IPs`,
       },
@@ -1901,7 +1900,8 @@ const renderIpCountChart = () => {
 const renderMethodChart = () => {
   if (!methodChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = methodSeries.value
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange(methodSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1915,12 +1915,8 @@ const renderMethodChart = () => {
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     colors: LINE_SERIES_PALETTE,
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1931,7 +1927,7 @@ const renderMethodChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => `${Math.round(val)}`,
       },
@@ -1969,7 +1965,8 @@ const renderProtocolPie = () => {
 const renderProtocolChart = () => {
   if (!protocolChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const series = protocolSeries.value
+  const rangeAxis = timeSeriesAxis(start, end)
+  const series = padSeriesToTimeRange(protocolSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     chart: {
       foreColor: chartLabelColor(),
@@ -1983,12 +1980,8 @@ const renderProtocolChart = () => {
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
     colors: LINE_SERIES_PALETTE,
-    xaxis: {
-      type: 'datetime',
-      min: start.getTime(),
-      max: end.getTime(),
-      tickAmount: 20,
-    },
+    xaxis: rangeAxis.xaxis,
+    annotations: rangeAxis.annotations,
     yaxis: {
       labels: {
         formatter: (val) => `${Math.round(val)}`,
@@ -1999,7 +1992,7 @@ const renderProtocolChart = () => {
     },
     tooltip: {
       theme: chartTooltipTheme(),
-      x: { format: 'yyyy/MM/dd HH:mm' },
+      x: rangeAxis.tooltipX,
       y: {
         formatter: (val) => `${Math.round(val)}`,
       },

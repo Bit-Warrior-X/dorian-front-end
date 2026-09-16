@@ -378,7 +378,10 @@ import { fetchServers, fetchServerHostMetrics } from '@/api/servers'
 import {
   getApexAxisLabelStyle,
   getApexBaseChartOptions,
+  getApexDatetimeXaxis,
   getApexThemePatch,
+  getApexTimeRangeAnnotations,
+  padSeriesToTimeRange,
 } from '@/utils/chartTheme'
 import {
   layerDotClass,
@@ -946,6 +949,8 @@ const destroyBandwidthCharts = () => {
 const defaultLineOptions = (height = 280, colors = palette) => {
   const now = Date.now()
   const rangeMs = getBandwidthRangeMs(bandwidthRange.value)
+  const startMs = now - rangeMs
+  const endMs = now
   const base = getApexBaseChartOptions()
   return {
     ...base,
@@ -960,25 +965,25 @@ const defaultLineOptions = (height = 280, colors = palette) => {
     stroke: { curve: 'smooth', width: 2 },
     markers: { size: 0 },
     colors,
-    xaxis: {
-      type: 'datetime',
-      labels: {
-        datetimeUTC: false,
-        style: getApexAxisLabelStyle('10px'),
-        formatter: (value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-      range: rangeMs,
-      min: now - rangeMs,
-      max: now,
-    },
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
       min: 0,
       labels: { style: getApexAxisLabelStyle('10px') },
     },
     legend: { show: false },
-    grid: { strokeDashArray: 0, borderColor: 'rgba(255,255,255,0.05)' },
+    grid: {
+      ...base.grid,
+      strokeDashArray: 0,
+      borderColor: 'rgba(255,255,255,0.05)',
+    },
+    tooltip: {
+      ...base.tooltip,
+      x: {
+        formatter: (val) =>
+          new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+      },
+    },
   }
 }
 
@@ -986,64 +991,106 @@ const MINI_BANDWIDTH_CHART_HEIGHT = 240
 
 const createBandwidthCharts = () => {
   if (!bandwidthServers.value.length) return
+  const now = Date.now()
+  const startMs = now - getBandwidthRangeMs(bandwidthRange.value)
   const opts = (h) => ({
     ...defaultLineOptions(h),
     colors: bandwidthServers.value.map((s) => s.color),
     yaxis: { ...defaultLineOptions(h).yaxis, labels: { formatter: (v) => formatBandwidthValue(v), style: getApexAxisLabelStyle('10px') } },
-    tooltip: { theme: 'dark', y: { formatter: (v) => formatBandwidthValue(v) } },
+    tooltip: {
+      theme: 'dark',
+      x: {
+        formatter: (val) =>
+          new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+      },
+      y: { formatter: (v) => formatBandwidthValue(v) },
+    },
   })
+  const pad = (series) => padSeriesToTimeRange(series, startMs, now)
   if (bandwidthNicRxChart.value) {
-    nicRxChartInstance = new ApexCharts(bandwidthNicRxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: bandwidthNicRxSeries.value })
+    nicRxChartInstance = new ApexCharts(bandwidthNicRxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: pad(bandwidthNicRxSeries.value) })
     nicRxChartInstance.render()
   }
   if (bandwidthNicTxChart.value) {
-    nicTxChartInstance = new ApexCharts(bandwidthNicTxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: bandwidthNicTxSeries.value })
+    nicTxChartInstance = new ApexCharts(bandwidthNicTxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: pad(bandwidthNicTxSeries.value) })
     nicTxChartInstance.render()
   }
   if (bandwidthL7RxChart.value) {
-    l7RxChartInstance = new ApexCharts(bandwidthL7RxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: bandwidthL7RxSeries.value })
+    l7RxChartInstance = new ApexCharts(bandwidthL7RxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: pad(bandwidthL7RxSeries.value) })
     l7RxChartInstance.render()
   }
   if (bandwidthL7TxChart.value) {
-    l7TxChartInstance = new ApexCharts(bandwidthL7TxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: bandwidthL7TxSeries.value })
+    l7TxChartInstance = new ApexCharts(bandwidthL7TxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: pad(bandwidthL7TxSeries.value) })
     l7TxChartInstance.render()
   }
 }
 
 const createCombinedChart = () => {
   if (!bandwidthCombinedChart.value) return
+  const now = Date.now()
+  const startMs = now - getBandwidthRangeMs(bandwidthRange.value)
   combinedChartInstance = new ApexCharts(bandwidthCombinedChart.value, {
     ...defaultLineOptions(240, [CONSOLE_COLORS.accent, CONSOLE_COLORS.l4]),
-    series: combinedBandwidthSeries.value,
+    series: padSeriesToTimeRange(combinedBandwidthSeries.value, startMs, now),
     yaxis: {
       ...defaultLineOptions(240).yaxis,
       labels: { formatter: (v) => formatBandwidthValue(v), style: getApexAxisLabelStyle('10px') },
     },
-    tooltip: { theme: 'dark', y: { formatter: (v) => formatBandwidthValue(v) } },
+    tooltip: {
+      theme: 'dark',
+      x: {
+        formatter: (val) =>
+          new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+      },
+      y: { formatter: (v) => formatBandwidthValue(v) },
+    },
   })
   combinedChartInstance.render()
 }
 
 const createRequestResponseChart = () => {
   if (!requestResponseChart.value) return
+  const now = Date.now()
+  const startMs = now - getBandwidthRangeMs(requestRange.value)
+  const endMs = now
   requestResponseChartInstance = new ApexCharts(requestResponseChart.value, {
     ...defaultLineOptions(220, [CONSOLE_COLORS.accent, CONSOLE_COLORS.l4]),
-    series: requestResponseSeries.value,
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
+    series: padSeriesToTimeRange(requestResponseSeries.value, startMs, endMs),
     yaxis: {
       ...defaultLineOptions(220).yaxis,
       labels: { formatter: (v) => `${Math.round(v)}`, style: getApexAxisLabelStyle('10px') },
     },
-    tooltip: { theme: 'dark', y: { formatter: (v) => `${Math.round(v)} rps` } },
+    tooltip: {
+      theme: 'dark',
+      x: {
+        formatter: (val) =>
+          new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+      },
+      y: { formatter: (v) => `${Math.round(v)} rps` },
+    },
   })
   requestResponseChartInstance.render()
 }
 
 const createStatusCodeChart = () => {
   if (!statusCodeChart.value) return
+  const now = Date.now()
+  const startMs = now - getBandwidthRangeMs(statusRange.value)
+  const endMs = now
   statusCodeChartInstance = new ApexCharts(statusCodeChart.value, {
     ...defaultLineOptions(240, [CONSOLE_COLORS.accent, CONSOLE_COLORS.l4, CONSOLE_COLORS.warn, CONSOLE_COLORS.danger]),
-    series: statusCodeSeries.value,
-    tooltip: { theme: 'dark' },
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
+    series: padSeriesToTimeRange(statusCodeSeries.value, startMs, endMs),
+    tooltip: {
+      theme: 'dark',
+      x: {
+        formatter: (val) =>
+          new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+      },
+    },
   })
   statusCodeChartInstance.render()
 }
@@ -1072,19 +1119,21 @@ const loadBandwidthSeries = async () => {
     bandwidthL7RxSeries.value = mapPayloadToSeries(payloadL7Rx)
     bandwidthL7TxSeries.value = mapPayloadToSeries(payloadL7Tx)
 
+    const now = Date.now()
+    const rangeMs = getBandwidthRangeMs(bandwidthRange.value)
+    const startMs = now - rangeMs
+    const endMs = now
     const rangeOpts = {
-      xaxis: {
-        range: getBandwidthRangeMs(bandwidthRange.value),
-        min: Date.now() - getBandwidthRangeMs(bandwidthRange.value),
-        max: Date.now(),
-      },
+      xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
+      annotations: getApexTimeRangeAnnotations(startMs, endMs),
     }
+    const pad = (series) => padSeriesToTimeRange(series, startMs, endMs)
 
-    if (nicRxChartInstance) { nicRxChartInstance.updateSeries(bandwidthNicRxSeries.value, true); nicRxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(nicRxChartInstance) }
-    if (nicTxChartInstance) { nicTxChartInstance.updateSeries(bandwidthNicTxSeries.value, true); nicTxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(nicTxChartInstance) }
-    if (l7RxChartInstance) { l7RxChartInstance.updateSeries(bandwidthL7RxSeries.value, true); l7RxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(l7RxChartInstance) }
-    if (l7TxChartInstance) { l7TxChartInstance.updateSeries(bandwidthL7TxSeries.value, true); l7TxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(l7TxChartInstance) }
-    if (combinedChartInstance) { combinedChartInstance.updateSeries(combinedBandwidthSeries.value, true); combinedChartInstance.updateOptions(rangeOpts, false, true) }
+    if (nicRxChartInstance) { nicRxChartInstance.updateSeries(pad(bandwidthNicRxSeries.value), true); nicRxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(nicRxChartInstance) }
+    if (nicTxChartInstance) { nicTxChartInstance.updateSeries(pad(bandwidthNicTxSeries.value), true); nicTxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(nicTxChartInstance) }
+    if (l7RxChartInstance) { l7RxChartInstance.updateSeries(pad(bandwidthL7RxSeries.value), true); l7RxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(l7RxChartInstance) }
+    if (l7TxChartInstance) { l7TxChartInstance.updateSeries(pad(bandwidthL7TxSeries.value), true); l7TxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(l7TxChartInstance) }
+    if (combinedChartInstance) { combinedChartInstance.updateSeries(pad(combinedBandwidthSeries.value), true); combinedChartInstance.updateOptions(rangeOpts, false, true) }
   } catch (error) {
     console.error('Failed to load bandwidth series', error)
   }
@@ -1099,13 +1148,15 @@ const loadRequestResponseSeries = async () => {
       { name: 'Responses', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.responseCount ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
     ]
     if (requestResponseChartInstance) {
-      requestResponseChartInstance.updateSeries(requestResponseSeries.value, true)
+      const now = Date.now()
+      const startMs = now - getBandwidthRangeMs(requestRange.value)
+      requestResponseChartInstance.updateSeries(
+        padSeriesToTimeRange(requestResponseSeries.value, startMs, now),
+        true,
+      )
       requestResponseChartInstance.updateOptions({
-        xaxis: {
-          range: getBandwidthRangeMs(requestRange.value),
-          min: Date.now() - getBandwidthRangeMs(requestRange.value),
-          max: Date.now(),
-        },
+        xaxis: getApexDatetimeXaxis(startMs, now, { tickCount: 6, fontSize: '10px' }),
+        annotations: getApexTimeRangeAnnotations(startMs, now),
       }, false, true)
     }
   } catch (error) {
@@ -1124,13 +1175,15 @@ const loadStatusCodeSeries = async () => {
       { name: '5xx', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.server ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
     ]
     if (statusCodeChartInstance) {
-      statusCodeChartInstance.updateSeries(statusCodeSeries.value, true)
+      const now = Date.now()
+      const startMs = now - getBandwidthRangeMs(statusRange.value)
+      statusCodeChartInstance.updateSeries(
+        padSeriesToTimeRange(statusCodeSeries.value, startMs, now),
+        true,
+      )
       statusCodeChartInstance.updateOptions({
-        xaxis: {
-          range: getBandwidthRangeMs(statusRange.value),
-          min: Date.now() - getBandwidthRangeMs(statusRange.value),
-          max: Date.now(),
-        },
+        xaxis: getApexDatetimeXaxis(startMs, now, { tickCount: 6, fontSize: '10px' }),
+        annotations: getApexTimeRangeAnnotations(startMs, now),
       }, false, true)
     }
   } catch (error) {

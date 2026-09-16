@@ -341,6 +341,7 @@
           </p>
           <LicenseTierSelector
             v-model="licenseTier"
+            v-model:billing-period="licenseBillingPeriod"
             aria-label="License type for new edge"
             @update:model-value="onLicenseTierChange"
           />
@@ -349,7 +350,9 @@
               A new 3-day trial license will be generated and bound to the target host.
             </template>
             <template v-else>
-              A new {{ licenseTier }} license (365 days) will be generated for the target host.
+              A new {{ licenseTier }} license
+              ({{ licenseBillingPeriod === 'monthly' ? '30 days' : '365 days' }},
+              billed {{ licenseBillingPeriod }}) will be generated for the target host.
               Optionally load an existing license file to reuse it instead.
             </template>
           </p>
@@ -714,6 +717,7 @@ import {
 } from '@/api/servers'
 import { fetchUsers } from '@/api/users'
 import { useAuth } from '@/stores/auth'
+import { BILLING_PERIODS } from '@/data/licensePlans'
 import { notifyError, notifySuccess } from '@/utils/notify'
 
 /** Synchronous guard: reactive isCreatingServer can still allow parallel createServer() in the same tick. */
@@ -728,6 +732,7 @@ const allUsers = ref([])
 const selectedUsers = ref([])
 const isUserDropdownOpen = ref(false)
 const licenseTier = ref('Trial')
+const licenseBillingPeriod = ref(BILLING_PERIODS.ANNUAL)
 const useExistingLicense = ref(false)
 const licenseFileName = ref('')
 const licenseInput = ref(null)
@@ -939,6 +944,7 @@ const openNewServerDialog = () => {
   userSearch.value = ''
   isUserDropdownOpen.value = false
   licenseTier.value = 'Trial'
+  licenseBillingPeriod.value = BILLING_PERIODS.ANNUAL
   useExistingLicense.value = false
   licenseFileName.value = ''
   createVersions.value = []
@@ -1156,6 +1162,7 @@ const createServer = async () => {
     // licenseType: one of 'Trial' | 'L4' | 'L7' | 'Unified'.
     // The Go backend lowercases this and forwards it to deploy_license as license_type.
     licenseType: licenseTier.value,
+    billingPeriod: licenseBillingPeriod.value,
     // licenseFile is only meaningful for non-Trial tiers when the user opted to reuse
     // an existing license. The Go backend forwards it as license_string to deploy_license.
     licenseFile:
