@@ -1,15 +1,19 @@
 <template>
-  <div class="l4-panel">
+  <div class="l4-panel edge-subpanel">
     <div class="l4-settings">
-      <div class="l4-settings-header">
-        <h4>XDP Config</h4>
-      </div>
+      <header class="edge-subpanel__intro">
+        <div>
+          <p class="edge-subpanel__kicker">L4 defense</p>
+          <h4>XDP config</h4>
+          <p>Tune how Sparta attaches to the NIC and reacts to L4 floods.</p>
+        </div>
+      </header>
       <div class="l4-settings-body">
         <div class="l4-config">
           <div class="l4-config-row l4-config-row--global-tcp">
             <section class="l4-config-section">
               <div class="l4-config-title">
-                <h5>Global Config</h5>
+                <h5>Global config</h5>
               </div>
               <div class="l4-form">
                 <div class="l4-form-sections">
@@ -146,26 +150,29 @@
             </section>
             <section class="l4-config-section">
               <div class="l4-config-title">
-                <h5>TCP Detailed Config</h5>
+                <h5>TCP detailed config</h5>
               </div>
               <div class="l4-form">
                 <div class="l4-form-sections">
                   <div class="l4-section">
                     <div class="l4-section-header">
                       <h5>TCP Connection Limit</h5>
-                      <button
-                        type="button"
-                        class="l4-toggle"
-                        role="switch"
-                        :aria-checked="tcpDetailedForm.connectionLimitEnabled"
-                        @click="tcpDetailedForm.connectionLimitEnabled = !tcpDetailedForm.connectionLimitEnabled"
-                      >
-                        <span class="toggle-track" :class="{ off: !tcpDetailedForm.connectionLimitEnabled }">
-                          <span class="toggle-label on">Yes</span>
-                          <span class="toggle-label off">No</span>
-                          <span class="toggle-knob" :class="{ on: tcpDetailedForm.connectionLimitEnabled }"></span>
-                        </span>
-                      </button>
+                      <div class="l4-yn" role="group" aria-label="Enable">
+                          <button
+                            type="button"
+                            class="l4-yn__opt"
+                            :class="{ active: tcpDetailedForm.connectionLimitEnabled }"
+                            :aria-pressed="tcpDetailedForm.connectionLimitEnabled"
+                            @click="tcpDetailedForm.connectionLimitEnabled = true"
+                          >Yes</button>
+                          <button
+                            type="button"
+                            class="l4-yn__opt l4-yn__opt--no"
+                            :class="{ active: !tcpDetailedForm.connectionLimitEnabled }"
+                            :aria-pressed="!tcpDetailedForm.connectionLimitEnabled"
+                            @click="tcpDetailedForm.connectionLimitEnabled = false"
+                          >No</button>
+                        </div>
                     </div>
                     <div class="l4-form-grid">
                       <div class="l4-field">
@@ -201,19 +208,22 @@
                         i
                       </button>
                     </h5>
-                    <button
-                      type="button"
-                      class="l4-toggle"
-                      role="switch"
-                      :aria-checked="tcpDetailedForm.segmentationCheck"
-                      @click="tcpDetailedForm.segmentationCheck = !tcpDetailedForm.segmentationCheck"
-                    >
-                      <span class="toggle-track" :class="{ off: !tcpDetailedForm.segmentationCheck }">
-                        <span class="toggle-label on">Yes</span>
-                        <span class="toggle-label off">No</span>
-                        <span class="toggle-knob" :class="{ on: tcpDetailedForm.segmentationCheck }"></span>
-                      </span>
-                    </button>
+                    <div class="l4-yn" role="group" aria-label="Enable">
+                        <button
+                          type="button"
+                          class="l4-yn__opt"
+                          :class="{ active: tcpDetailedForm.segmentationCheck }"
+                          :aria-pressed="tcpDetailedForm.segmentationCheck"
+                          @click="tcpDetailedForm.segmentationCheck = true"
+                        >Yes</button>
+                        <button
+                          type="button"
+                          class="l4-yn__opt l4-yn__opt--no"
+                          :class="{ active: !tcpDetailedForm.segmentationCheck }"
+                          :aria-pressed="!tcpDetailedForm.segmentationCheck"
+                          @click="tcpDetailedForm.segmentationCheck = false"
+                        >No</button>
+                      </div>
                   </div>
                 </div>
               </div>
@@ -223,19 +233,22 @@
             <section class="l4-config-section">
               <div class="l4-config-title">
                 <h5>TCP SYN Flood</h5>
-                <button
-                  type="button"
-                  class="l4-toggle"
-                  role="switch"
-                  :aria-checked="synForm.enabled"
-                  @click="synForm.enabled = !synForm.enabled"
-                >
-                  <span class="toggle-track" :class="{ off: !synForm.enabled }">
-                    <span class="toggle-label on">Yes</span>
-                    <span class="toggle-label off">No</span>
-                    <span class="toggle-knob" :class="{ on: synForm.enabled }"></span>
-                  </span>
-                </button>
+                <div class="l4-yn" role="group" aria-label="Enable">
+                    <button
+                      type="button"
+                      class="l4-yn__opt"
+                      :class="{ active: synForm.enabled }"
+                      :aria-pressed="synForm.enabled"
+                      @click="synForm.enabled = true"
+                    >Yes</button>
+                    <button
+                      type="button"
+                      class="l4-yn__opt l4-yn__opt--no"
+                      :class="{ active: !synForm.enabled }"
+                      :aria-pressed="!synForm.enabled"
+                      @click="synForm.enabled = false"
+                    >No</button>
+                  </div>
               </div>
               <div class="l4-form">
                 <div class="l4-form-sections">
@@ -375,19 +388,22 @@
             <section class="l4-config-section">
           <div class="l4-config-title">
             <h5>TCP ACK Flood</h5>
-            <button
-              type="button"
-              class="l4-toggle"
-              role="switch"
-              :aria-checked="ackForm.enabled"
-              @click="ackForm.enabled = !ackForm.enabled"
-            >
-              <span class="toggle-track" :class="{ off: !ackForm.enabled }">
-                <span class="toggle-label on">Yes</span>
-                <span class="toggle-label off">No</span>
-                <span class="toggle-knob" :class="{ on: ackForm.enabled }"></span>
-              </span>
-            </button>
+            <div class="l4-yn" role="group" aria-label="Enable">
+                <button
+                  type="button"
+                  class="l4-yn__opt"
+                  :class="{ active: ackForm.enabled }"
+                  :aria-pressed="ackForm.enabled"
+                  @click="ackForm.enabled = true"
+                >Yes</button>
+                <button
+                  type="button"
+                  class="l4-yn__opt l4-yn__opt--no"
+                  :class="{ active: !ackForm.enabled }"
+                  :aria-pressed="!ackForm.enabled"
+                  @click="ackForm.enabled = false"
+                >No</button>
+              </div>
           </div>
           <div class="l4-form">
             <div class="l4-form-sections">
@@ -504,19 +520,22 @@
         <section class="l4-config-section">
           <div class="l4-config-title">
             <h5>TCP RST Flood</h5>
-            <button
-              type="button"
-              class="l4-toggle"
-              role="switch"
-              :aria-checked="rstForm.enabled"
-              @click="rstForm.enabled = !rstForm.enabled"
-            >
-              <span class="toggle-track" :class="{ off: !rstForm.enabled }">
-                <span class="toggle-label on">Yes</span>
-                <span class="toggle-label off">No</span>
-                <span class="toggle-knob" :class="{ on: rstForm.enabled }"></span>
-              </span>
-            </button>
+            <div class="l4-yn" role="group" aria-label="Enable">
+                <button
+                  type="button"
+                  class="l4-yn__opt"
+                  :class="{ active: rstForm.enabled }"
+                  :aria-pressed="rstForm.enabled"
+                  @click="rstForm.enabled = true"
+                >Yes</button>
+                <button
+                  type="button"
+                  class="l4-yn__opt l4-yn__opt--no"
+                  :class="{ active: !rstForm.enabled }"
+                  :aria-pressed="!rstForm.enabled"
+                  @click="rstForm.enabled = false"
+                >No</button>
+              </div>
           </div>
           <div class="l4-form">
             <div class="l4-form-sections">
@@ -634,19 +653,22 @@
         <section class="l4-config-section">
           <div class="l4-config-title">
             <h5>ICMP Flood</h5>
-            <button
-              type="button"
-              class="l4-toggle"
-              role="switch"
-              :aria-checked="icmpForm.enabled"
-              @click="icmpForm.enabled = !icmpForm.enabled"
-            >
-              <span class="toggle-track" :class="{ off: !icmpForm.enabled }">
-                <span class="toggle-label on">Yes</span>
-                <span class="toggle-label off">No</span>
-                <span class="toggle-knob" :class="{ on: icmpForm.enabled }"></span>
-              </span>
-            </button>
+            <div class="l4-yn" role="group" aria-label="Enable">
+                <button
+                  type="button"
+                  class="l4-yn__opt"
+                  :class="{ active: icmpForm.enabled }"
+                  :aria-pressed="icmpForm.enabled"
+                  @click="icmpForm.enabled = true"
+                >Yes</button>
+                <button
+                  type="button"
+                  class="l4-yn__opt l4-yn__opt--no"
+                  :class="{ active: !icmpForm.enabled }"
+                  :aria-pressed="!icmpForm.enabled"
+                  @click="icmpForm.enabled = false"
+                >No</button>
+              </div>
           </div>
           <div class="l4-form">
             <div class="l4-form-sections">
@@ -764,19 +786,22 @@
         <section class="l4-config-section">
           <div class="l4-config-title">
             <h5>UDP Flood</h5>
-            <button
-              type="button"
-              class="l4-toggle"
-              role="switch"
-              :aria-checked="udpForm.enabled"
-              @click="udpForm.enabled = !udpForm.enabled"
-            >
-              <span class="toggle-track" :class="{ off: !udpForm.enabled }">
-                <span class="toggle-label on">Yes</span>
-                <span class="toggle-label off">No</span>
-                <span class="toggle-knob" :class="{ on: udpForm.enabled }"></span>
-              </span>
-            </button>
+            <div class="l4-yn" role="group" aria-label="Enable">
+                <button
+                  type="button"
+                  class="l4-yn__opt"
+                  :class="{ active: udpForm.enabled }"
+                  :aria-pressed="udpForm.enabled"
+                  @click="udpForm.enabled = true"
+                >Yes</button>
+                <button
+                  type="button"
+                  class="l4-yn__opt l4-yn__opt--no"
+                  :class="{ active: !udpForm.enabled }"
+                  :aria-pressed="!udpForm.enabled"
+                  @click="udpForm.enabled = false"
+                >No</button>
+              </div>
           </div>
           <div class="l4-form">
             <div class="l4-form-sections">
@@ -893,19 +918,22 @@
         <section class="l4-config-section">
           <div class="l4-config-title">
             <h5>GRE Flood</h5>
-            <button
-              type="button"
-              class="l4-toggle"
-              role="switch"
-              :aria-checked="greForm.enabled"
-              @click="greForm.enabled = !greForm.enabled"
-            >
-              <span class="toggle-track" :class="{ off: !greForm.enabled }">
-                <span class="toggle-label on">Yes</span>
-                <span class="toggle-label off">No</span>
-                <span class="toggle-knob" :class="{ on: greForm.enabled }"></span>
-              </span>
-            </button>
+            <div class="l4-yn" role="group" aria-label="Enable">
+                <button
+                  type="button"
+                  class="l4-yn__opt"
+                  :class="{ active: greForm.enabled }"
+                  :aria-pressed="greForm.enabled"
+                  @click="greForm.enabled = true"
+                >Yes</button>
+                <button
+                  type="button"
+                  class="l4-yn__opt l4-yn__opt--no"
+                  :class="{ active: !greForm.enabled }"
+                  :aria-pressed="!greForm.enabled"
+                  @click="greForm.enabled = false"
+                >No</button>
+              </div>
           </div>
           <div class="l4-form">
             <div class="l4-form-sections">
@@ -1023,19 +1051,22 @@
         <section class="l4-config-section">
           <div class="l4-config-title">
             <h5>Geo IP Check</h5>
-            <button
-              type="button"
-              class="l4-toggle"
-              role="switch"
-              :aria-checked="geoIpForm.enabled"
-              @click="geoIpForm.enabled = !geoIpForm.enabled"
-            >
-              <span class="toggle-track" :class="{ off: !geoIpForm.enabled }">
-                <span class="toggle-label on">Yes</span>
-                <span class="toggle-label off">No</span>
-                <span class="toggle-knob" :class="{ on: geoIpForm.enabled }"></span>
-              </span>
-            </button>
+            <div class="l4-yn" role="group" aria-label="Enable">
+                <button
+                  type="button"
+                  class="l4-yn__opt"
+                  :class="{ active: geoIpForm.enabled }"
+                  :aria-pressed="geoIpForm.enabled"
+                  @click="geoIpForm.enabled = true"
+                >Yes</button>
+                <button
+                  type="button"
+                  class="l4-yn__opt l4-yn__opt--no"
+                  :class="{ active: !geoIpForm.enabled }"
+                  :aria-pressed="!geoIpForm.enabled"
+                  @click="geoIpForm.enabled = false"
+                >No</button>
+              </div>
           </div>
           <div class="l4-form">
             <div class="l4-form-sections">
@@ -1729,6 +1760,160 @@ watch(
 </script>
 
 <style scoped>
+.edge-subpanel {
+  --cfg-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.edge-subpanel__intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
+}
+
+.edge-subpanel__kicker {
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.edge-subpanel__intro h4 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--app-heading);
+}
+
+.edge-subpanel__intro p:not(.edge-subpanel__kicker) {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
+  line-height: 1.45;
+  max-width: 44rem;
+}
+
+.edge-subpanel__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.l4-panel.edge-subpanel {
+  gap: 0;
+}
+
+.l4-yn {
+  display: inline-flex;
+  align-items: stretch;
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface) 85%, transparent);
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.l4-yn__opt {
+  min-width: 40px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--app-text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.l4-yn__opt:hover:not(.active) {
+  color: var(--app-text);
+  background: color-mix(in srgb, var(--app-accent) 8%, transparent);
+}
+
+.l4-yn__opt.active {
+  background: rgba(46, 158, 108, 0.16);
+  color: var(--dorian-viper-400, #3fbd85);
+  box-shadow: inset 0 0 0 1px rgba(46, 158, 108, 0.35);
+}
+
+.l4-yn__opt--no.active {
+  background: rgba(225, 82, 65, 0.14);
+  color: #e15241;
+  box-shadow: inset 0 0 0 1px rgba(225, 82, 65, 0.34);
+}
+
+.l4-yn__opt:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 1px;
+}
+
+.l4-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.l4-settings-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.l4-config {
+  gap: 14px !important;
+}
+
+.l4-config-row {
+  gap: 12px !important;
+}
+
+.l4-config-section {
+  padding: 14px !important;
+  border-radius: 8px !important;
+  border-color: var(--app-border) !important;
+  background: var(--app-surface-elevated, var(--app-surface)) !important;
+}
+
+.l4-config-title h5 {
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em;
+}
+
+.l4-input,
+.l4-field input,
+.l4-field select {
+  border-radius: 6px !important;
+}
+
+.l4-field label {
+  font-size: 10.5px !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 650 !important;
+}
+
 .l4-panel {
   display: flex;
   flex-direction: column;
@@ -1780,7 +1965,7 @@ watch(
 .l4-config-section {
   padding: 16px 16px 18px;
   border: 1px solid var(--app-border-strong);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--app-surface-elevated);
 }
 
@@ -1883,18 +2068,19 @@ watch(
 .country-chip {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: var(--type-caption);
-  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(46, 158, 108, 0.12);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-size: 11.5px;
+  font-weight: 650;
+  border: 1px solid rgba(46, 158, 108, 0.24);
 }
 
 .continent-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 12px;
 }
 
@@ -1902,10 +2088,10 @@ watch(
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-solid);
   color: var(--app-text-secondary);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: var(--type-caption);
-  font-weight: 600;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 650;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -2088,7 +2274,7 @@ watch(
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-elevated);
 }

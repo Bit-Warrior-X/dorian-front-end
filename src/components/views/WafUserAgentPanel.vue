@@ -591,9 +591,11 @@ watch(
 }
 
 .waf-section-desc {
-  margin: 6px 0 0 0;
+  margin: 0;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 44rem;
 }
 
 .waf-section-header {
@@ -651,7 +653,7 @@ watch(
 
 .waf-table-wrapper {
   overflow: auto;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--app-border-strong);
   width: 100%;
   flex: 1;
@@ -769,7 +771,7 @@ watch(
   width: min(720px, 100%);
   max-height: 80vh;
   background: var(--app-surface-solid);
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
   display: flex;
   flex-direction: column;
@@ -898,7 +900,7 @@ watch(
 
 .option-btn.active {
   background: var(--app-accent-soft);
-  border-color: rgba(124, 58, 237, 0.5);
+  border-color: rgba(46, 158, 108, 0.45);
   color: var(--app-accent);
 }
 

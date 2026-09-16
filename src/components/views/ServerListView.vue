@@ -1,65 +1,107 @@
 <template>
-  <div class="servers-view">
-    <div class="content-card">
-      <div class="filter-header">
-        <h3>Filters</h3>
-        <button class="primary-btn" @click="openNewServerDialog">New Edge</button>
+  <div class="edges-view">
+    <section class="edges-metrics" aria-label="Edge fleet metrics">
+      <article
+        v-for="metric in edgeMetricCards"
+        :key="metric.label"
+        class="edges-metric"
+        :class="`edges-metric--${metric.tone}`"
+      >
+        <span class="edges-metric__label">{{ metric.label }}</span>
+        <strong class="edges-metric__value num">{{ metric.value }}</strong>
+        <span class="edges-metric__hint">{{ metric.hint }}</span>
+      </article>
+    </section>
+
+    <div class="edges-filterbar">
+      <div class="edges-filter-field edges-filter-field--grow">
+        <label for="edge-name-filter">Name</label>
+        <input
+          id="edge-name-filter"
+          v-model="filters.name"
+          type="search"
+          placeholder="Search by name…"
+        />
       </div>
-      <div class="filter-bar">
-        <div class="filter-field">
-          <label for="status-filter">Status</label>
-          <select id="status-filter">
-            <option value="">All</option>
-            <option value="active">Normal</option>
-            <option value="inactive">Pause</option>
-            <option value="maintenance">Expired</option>
-          </select>
-        </div>
-        <div class="filter-field">
-          <label for="name-filter">Name</label>
-          <input id="name-filter" type="text" placeholder="Search by name" />
-        </div>
-        <div class="filter-field">
-          <label for="ip-filter">IP</label>
-          <input id="ip-filter" type="text" placeholder="Search by IP" />
-        </div>
-        <div class="filter-field">
-          <label for="license-filter">License Type</label>
-          <select id="license-filter">
-            <option value="">All</option>
-            <option value="Trial">Trial</option>
-            <option value="L4">L4</option>
-            <option value="L7">L7</option>
-            <option value="Unified">Unified</option>
-          </select>
-        </div>
+      <div class="edges-filter-field">
+        <label for="edge-ip-filter">IP</label>
+        <input
+          id="edge-ip-filter"
+          v-model="filters.ip"
+          type="search"
+          placeholder="Search by IP…"
+        />
+      </div>
+      <div class="edges-filter-field">
+        <label for="edge-angelos-filter">Angelos</label>
+        <select id="edge-angelos-filter" v-model="filters.angelos">
+          <option value="">All</option>
+          <option value="running">Running</option>
+          <option value="stopped">Stopped</option>
+          <option value="deployed">Deployed</option>
+          <option value="unknown">Unknown</option>
+        </select>
+      </div>
+      <div class="edges-filter-field">
+        <label for="edge-license-filter">License</label>
+        <select id="edge-license-filter" v-model="filters.license">
+          <option value="">All</option>
+          <option value="Trial">Trial</option>
+          <option value="L4">L4</option>
+          <option value="L7">L7</option>
+          <option value="Unified">Unified</option>
+        </select>
+      </div>
+      <div class="edges-filter-summary">
+        <span class="edges-live-dot" aria-hidden="true"></span>
+        {{ filteredServers.length }} shown · runtime status
       </div>
     </div>
 
-    <div class="content-card servers-table-card">
-      <div class="card-title">
-        <h3>Edges</h3>
+    <section class="edges-panel">
+      <div class="edges-panel__head">
+        <div class="edges-panel__head-left">
+          <h3>Edge nodes</h3>
+          <span class="edges-count-tag">{{ filteredServers.length }}</span>
+        </div>
+        <button class="edges-primary-btn" type="button" @click="openNewServerDialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New Edge
+        </button>
       </div>
-      <div class="table-wrap">
-        <table class="servers-table">
+
+      <div class="edges-table-wrap">
+        <table class="edges-table">
           <thead>
             <tr>
-              <th class="col-layer-dots" aria-label="L4 and L7 status"></th>
-              <th>Name</th>
-              <th>IP</th>
+              <th class="edges-col-layers" aria-label="L4 and L7 status"></th>
+              <th>Edge</th>
               <th>Angelos</th>
-              <th>Users</th>
               <th>License</th>
+              <th>Users</th>
               <th>Version</th>
               <th>OS</th>
-              <th>Expired Date</th>
+              <th>Expires</th>
               <th>Created</th>
-              <th>Settings</th>
+              <th class="edges-col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="server in paginatedServers" :key="server.id">
-              <td class="col-layer-dots">
+            <tr v-if="!filteredServers.length">
+              <td colspan="10" class="edges-empty">
+                No edges match these filters.
+                <button class="edges-empty-link" type="button" @click="openNewServerDialog">Create an edge</button>
+              </td>
+            </tr>
+            <tr
+              v-for="server in paginatedServers"
+              :key="server.id"
+              class="edges-row"
+              :class="edgeRowClass(server)"
+            >
+              <td class="edges-col-layers">
                 <span class="layer-status-dots" :aria-busy="isRuntimeStatusRefreshing(server.id)">
                   <LayerStatusDot
                     layer="l4"
@@ -77,63 +119,97 @@
                   />
                 </span>
               </td>
-              <td>{{ server.name }}</td>
-              <td>{{ server.ip }}</td>
               <td>
-                <span
-                  class="status-pill server-status-pill"
-                  :class="isRuntimeStatusRefreshing(server.id) ? 'runtime-status-loading' : angelosStatusClass(server)"
+                <div class="edges-identity">
+                  <span class="edges-identity__name">{{ server.name }}</span>
+                  <span class="edges-identity__ip num">{{ server.ip }}</span>
+                </div>
+              </td>
+              <td>
+                <div
+                  class="edges-angelos"
+                  :class="isRuntimeStatusRefreshing(server.id) ? 'edges-angelos--loading' : `edges-angelos--${angelosStatusClass(server)}`"
                   :aria-busy="isRuntimeStatusRefreshing(server.id)"
                   :aria-label="isRuntimeStatusRefreshing(server.id) ? 'Angelos: checking status' : undefined"
                 >
-                  <template v-if="!isRuntimeStatusRefreshing(server.id)">
-                    {{ angelosStatusLabel(server) }}
-                  </template>
-                </span>
+                  <span class="edges-angelos__dot" aria-hidden="true"></span>
+                  <strong v-if="!isRuntimeStatusRefreshing(server.id)">{{ angelosStatusLabel(server) }}</strong>
+                  <strong v-else>Checking…</strong>
+                </div>
               </td>
               <td>
-                <div v-if="server.managedUsers?.length" class="server-users">
-                  <span v-for="user in server.managedUsers" :key="user" class="server-user-pill">
+                <span class="edges-license">{{ server.license || '—' }}</span>
+              </td>
+              <td>
+                <div v-if="server.managedUsers?.length" class="edges-users">
+                  <span
+                    v-for="user in server.managedUsers.slice(0, 2)"
+                    :key="user"
+                    class="edges-user-chip"
+                  >
                     {{ user }}
                   </span>
+                  <span
+                    v-if="server.managedUsers.length > 2"
+                    class="edges-user-more"
+                    :title="server.managedUsers.slice(2).join(', ')"
+                  >
+                    +{{ server.managedUsers.length - 2 }}
+                  </span>
                 </div>
-                <span v-else class="muted-text">—</span>
+                <span v-else class="edges-muted">—</span>
               </td>
-              <td>{{ server.license }}</td>
-              <td>{{ displayServerVersion(server.version) }}</td>
-              <td>{{ displayServerOs(server.os) }}</td>
-              <td>{{ server.expiredDate }}</td>
-              <td>{{ server.created }}</td>
               <td>
+                <span class="edges-meta num">{{ displayServerVersion(server.version) }}</span>
+              </td>
+              <td>
+                <span class="edges-meta">{{ displayServerOs(server.os) }}</span>
+              </td>
+              <td>
+                <div
+                  class="edges-expiry"
+                  :class="`edges-expiry--${licenseExpiryTone(server)}`"
+                >
+                  <strong>{{ formatEdgeExpiryLabel(server) }}</strong>
+                  <span v-if="server.expiredDate">{{ server.expiredDate }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="edges-meta">{{ server.created || '—' }}</span>
+              </td>
+              <td class="edges-col-actions">
                 <div class="menu-wrap">
                   <button
-                    class="icon-btn"
+                    class="edges-icon-btn"
                     title="Settings"
+                    type="button"
                     @click.stop="toggleRowMenu(server.id)"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0L5.636 18.364M18.364 5.636l-4.243 4.243m-4.242 0L5.636 5.636"></path>
+                      <circle cx="12" cy="5" r="1.5" />
+                      <circle cx="12" cy="12" r="1.5" />
+                      <circle cx="12" cy="19" r="1.5" />
                     </svg>
                   </button>
                   <div v-if="activeRowMenu === server.id" class="row-menu">
-                    <button class="row-menu-item" @click="openEditServer(server)">
+                    <button class="row-menu-item" type="button" @click="openEditServer(server)">
                       Edit
                     </button>
-                    <button class="row-menu-item" @click="openUpgradeDialog(server)">
+                    <button class="row-menu-item" type="button" @click="openUpgradeDialog(server)">
                       Upgrade
                     </button>
                     <button
                       class="row-menu-item"
+                      type="button"
                       :disabled="isRuntimeStatusRefreshing(server.id)"
                       @click="refreshRuntimeStatus(server)"
                     >
                       {{ isRuntimeStatusRefreshing(server.id) ? 'Refreshing…' : 'Refresh status' }}
                     </button>
-                    <button class="row-menu-item" @click="openLicenseUpgradeDialog(server)">
+                    <button class="row-menu-item" type="button" @click="openLicenseUpgradeDialog(server)">
                       License
                     </button>
-                    <button class="row-menu-item danger" @click="requestDeleteConfirm(server)">
+                    <button class="row-menu-item danger" type="button" @click="requestDeleteConfirm(server)">
                       Delete
                     </button>
                   </div>
@@ -143,21 +219,22 @@
           </tbody>
         </table>
       </div>
-      <div class="table-footer">
-        <span class="pagination-info">
-          Showing {{ pageStart }}-{{ pageEnd }} of {{ servers.length }}
+
+      <div class="edges-footer">
+        <span class="edges-footer__info num">
+          {{ pageStart }}–{{ pageEnd }} of {{ filteredServers.length }}
         </span>
-        <div class="pagination-controls">
-          <button class="pagination-btn" :disabled="currentPage === 1" @click="prevPage">
+        <div class="edges-footer__pager">
+          <button class="edges-pager-btn" type="button" :disabled="currentPage === 1" @click="prevPage">
             Prev
           </button>
-          <span class="pagination-page">Page {{ currentPage }} of {{ totalPages }}</span>
-          <button class="pagination-btn" :disabled="currentPage === totalPages" @click="nextPage">
+          <span class="edges-footer__page num">{{ currentPage }} / {{ totalPages }}</span>
+          <button class="edges-pager-btn" type="button" :disabled="currentPage === totalPages" @click="nextPage">
             Next
           </button>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 
   <div
@@ -166,14 +243,17 @@
     @click="!isCreatingServer && !isLoadingCreateVersions && closeNewServerDialog()"
   >
     <div
-      class="dialog-card dialog-card--wide dialog-card--form"
+      class="dialog-card dialog-card--wide dialog-card--form dialog-card--edge-wizard"
       :class="{ 'dialog-card--busy': isCreatingServer || isLoadingCreateVersions }"
       @click.stop
     >
       <div class="dialog-header">
         <div class="dialog-header-text">
+          <p class="edge-wizard-kicker">Infrastructure</p>
           <h3>New Edge</h3>
-          <p class="wizard-step-label">Step {{ newServerStep }} of 3</p>
+          <p class="wizard-step-label">
+            Step {{ newServerStep }} of {{ edgeWizardSteps.length }} — {{ currentEdgeWizardStep.label }}
+          </p>
         </div>
         <button
           class="dialog-close"
@@ -188,11 +268,41 @@
           </svg>
         </button>
       </div>
+
+      <nav class="edge-wizard-steps" aria-label="New edge steps">
+        <button
+          v-for="(step, index) in edgeWizardSteps"
+          :key="step.id"
+          type="button"
+          class="edge-wizard-step"
+          :class="{
+            'is-active': index + 1 === newServerStep,
+            'is-complete': index + 1 < newServerStep,
+            'is-reachable': index + 1 <= newServerStep,
+          }"
+          :disabled="isCreatingServer || isLoadingCreateVersions || index + 1 > newServerStep"
+          :aria-current="index + 1 === newServerStep ? 'step' : undefined"
+          @click="goToNewServerStep(index + 1)"
+        >
+          <span class="edge-wizard-step__index">{{ index + 1 }}</span>
+          <span class="edge-wizard-step__label">{{ step.label }}</span>
+        </button>
+      </nav>
+
+      <aside class="edge-wizard-guide" :aria-label="`${currentEdgeWizardStep.label} guidance`">
+        <div class="edge-wizard-guide__title">{{ currentEdgeWizardStep.title }}</div>
+        <p class="edge-wizard-guide__lead">{{ currentEdgeWizardStep.description }}</p>
+        <ul class="edge-wizard-guide__list">
+          <li v-for="tip in currentEdgeWizardStep.tips" :key="tip">{{ tip }}</li>
+        </ul>
+      </aside>
+
       <form class="new-server-dialog-form" @submit.prevent="onNewServerFormSubmit">
       <div class="dialog-body">
         <div v-show="newServerStep === 1" class="new-server-step-basic">
         <div class="new-server-basic-panel dialog-section">
-          <h4>Basic Setting</h4>
+          <p class="edge-panel-kicker">Host</p>
+          <h4>Connection</h4>
           <div class="new-server-basic-fields">
             <div class="dialog-field">
               <label for="new-server-name">Name</label>
@@ -201,31 +311,35 @@
                 v-model="newServer.name"
                 type="text"
                 autocomplete="off"
-                placeholder="Enter edge name"
+                placeholder="edge-eu-1"
               />
             </div>
             <div class="dialog-field">
-              <label for="new-server-ip">IP</label>
+              <label for="new-server-ip">IP address</label>
               <input
                 id="new-server-ip"
                 v-model="newServer.ip"
                 type="text"
-                placeholder="Enter edge IP"
+                placeholder="203.0.113.10"
               />
             </div>
+          </div>
+          <div v-if="createSubmitError && newServerStep === 1" class="upgrade-error" role="alert">
+            {{ createSubmitError }}
           </div>
         </div>
 
         <div class="new-server-basic-panel dialog-section">
-          <h4>SSH Setting</h4>
+          <p class="edge-panel-kicker">Access</p>
+          <h4>SSH</h4>
           <div class="new-server-basic-fields">
             <div class="dialog-field">
-              <label for="new-server-username">UserName</label>
+              <label for="new-server-username">Username</label>
               <input
                 id="new-server-username"
                 v-model="newServer.username"
                 type="text"
-                placeholder="Enter username"
+                placeholder="root"
               />
             </div>
             <div class="dialog-field">
@@ -250,6 +364,7 @@
         </div>
 
         <div class="new-server-basic-panel dialog-section">
+          <p class="edge-panel-kicker">Access control</p>
           <h4>Management users</h4>
           <div class="new-server-basic-fields">
             <div v-if="selectedUsers.length" class="selected-users">
@@ -299,7 +414,8 @@
         </div>
 
         <div v-show="newServerStep === 2">
-        <div class="dialog-section">
+        <div class="dialog-section edge-wizard-section">
+          <p class="edge-panel-kicker">Deploy</p>
           <h4>Product version</h4>
           <p class="license-tier-hint">
             <template v-if="isLoadingCreateVersions">
@@ -334,8 +450,12 @@
         </div>
 
         <div v-show="newServerStep === 3" class="new-server-step-license">
-        <div class="dialog-section dialog-section--license dialog-section--license-full">
+        <div class="dialog-section dialog-section--license dialog-section--license-full edge-wizard-section">
+          <p class="edge-panel-kicker">Entitlement</p>
           <h4>License</h4>
+          <div v-if="createSubmitError" class="upgrade-error" role="alert">
+            {{ createSubmitError }}
+          </div>
           <p class="license-tier-hint license-tier-hint--intro">
             Select a license tier for this deployment. Each plan lists pricing and included capabilities below.
           </p>
@@ -388,7 +508,7 @@
         <span class="btn-spinner btn-spinner--inline" aria-hidden="true"></span>
         Deploying package to the target host… This may take a minute.
       </p>
-      <div class="dialog-footer">
+      <div class="dialog-footer dialog-footer--wizard">
         <button
           class="secondary-btn"
           type="button"
@@ -397,25 +517,30 @@
         >
           {{ newServerStep === 1 ? 'Cancel' : 'Back' }}
         </button>
-        <button
-          v-if="newServerStep < 3"
-          class="primary-btn"
-          type="button"
-          :disabled="isCreatingServer || isLoadingCreateVersions || !canProceedNewServerStep"
-          @click="goToNextNewServerStep"
-        >
-          <span v-if="isLoadingCreateVersions" class="btn-spinner" aria-hidden="true"></span>
-          {{ isLoadingCreateVersions ? 'Loading…' : 'Next' }}
-        </button>
-        <button
-          v-else
-          class="primary-btn"
-          type="submit"
-          :disabled="isCreatingServer || !canSubmitCreateServer"
-        >
-          <span v-if="isCreatingServer" class="btn-spinner" aria-hidden="true"></span>
-          {{ isCreatingServer ? 'Deploying…' : 'Deploy' }}
-        </button>
+        <div class="dialog-footer__actions">
+          <span class="edge-wizard-progress">
+            Step {{ newServerStep }} of {{ edgeWizardSteps.length }}
+          </span>
+          <button
+            v-if="newServerStep < 3"
+            class="primary-btn"
+            type="button"
+            :disabled="isCreatingServer || isLoadingCreateVersions || !canProceedNewServerStep"
+            @click="goToNextNewServerStep"
+          >
+            <span v-if="isLoadingCreateVersions" class="btn-spinner" aria-hidden="true"></span>
+            {{ isLoadingCreateVersions ? 'Loading…' : 'Next' }}
+          </button>
+          <button
+            v-else
+            class="primary-btn"
+            type="submit"
+            :disabled="isCreatingServer || !canSubmitCreateServer"
+          >
+            <span v-if="isCreatingServer" class="btn-spinner" aria-hidden="true"></span>
+            {{ isCreatingServer ? 'Deploying…' : 'Deploy' }}
+          </button>
+        </div>
       </div>
       </form>
     </div>
@@ -684,7 +809,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, reactive, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import LayerStatusDot from '../LayerStatusDot.vue'
 import LicenseTierUpgradePanel from '../LicenseTierUpgradePanel.vue'
@@ -702,6 +827,7 @@ import {
   angelosStatusLabel,
   layerDotDescription,
   layerDotTitle,
+  resolveAngelosRuntimeStatus,
   resolveLayerStatus,
 } from '@/utils/serverLayerStatus'
 import {
@@ -725,6 +851,44 @@ let createServerSyncLock = false
 
 const isNewServerDialogOpen = ref(false)
 const newServerStep = ref(1)
+const edgeWizardSteps = [
+  {
+    id: 'connection',
+    label: 'Connection',
+    title: 'Connect to the host',
+    description: 'Identify the edge and provide SSH credentials so Angelos can install packages.',
+    tips: [
+      'Use a reachable public or private IP the control plane can SSH to.',
+      'Prefer a dedicated deploy user with sudo when possible.',
+      'Assign management users who should see this edge in the console.',
+    ],
+  },
+  {
+    id: 'version',
+    label: 'Version',
+    title: 'Choose a build',
+    description: 'We detect the host OS, then show compatible Dorian packages to deploy.',
+    tips: [
+      'Pick the latest stable build unless you need a specific patch.',
+      'OS detection runs over SSH when you leave the Connection step.',
+      'If no versions appear, confirm the host OS is supported.',
+    ],
+  },
+  {
+    id: 'license',
+    label: 'License',
+    title: 'Pick entitlement',
+    description: 'Select Trial, L4, L7, or Unified capacity for this edge before deploy.',
+    tips: [
+      'Trial is best for smoke tests and short evaluations.',
+      'L4 / L7 / Unified unlock the matching protection layers.',
+      'You can upload an existing .lic file instead of generating one.',
+    ],
+  },
+]
+const currentEdgeWizardStep = computed(
+  () => edgeWizardSteps[Math.max(0, Math.min(edgeWizardSteps.length, newServerStep.value) - 1)],
+)
 const detectedHostOs = ref('')
 const isCreatingServer = ref(false)
 const auth = useAuth()
@@ -763,6 +927,7 @@ const selectedUpgradeVersionUuid = ref('')
 const createVersions = ref([])
 const isLoadingCreateVersions = ref(false)
 const createVersionsError = ref('')
+const createSubmitError = ref('')
 const selectedCreateVersionUuid = ref('')
 
 const canProceedBasicStep = computed(() => {
@@ -808,8 +973,14 @@ const licenseUpgradeTarget = ref(null)
 const isLicenseUpgrading = ref(false)
 const servers = ref([])
 const deployVersionsCatalog = ref([])
-const pageSize = ref(6)
+const pageSize = ref(8)
 const currentPage = ref(1)
+const filters = reactive({
+  name: '',
+  ip: '',
+  angelos: '',
+  license: '',
+})
 const newServer = ref({
   name: '',
   ip: '',
@@ -817,6 +988,69 @@ const newServer = ref({
   password: '',
   sshPort: ''
 })
+
+const filteredServers = computed(() => {
+  const nameQuery = filters.name.trim().toLowerCase()
+  const ipQuery = filters.ip.trim().toLowerCase()
+  return servers.value.filter((server) => {
+    if (nameQuery && !String(server.name || '').toLowerCase().includes(nameQuery)) return false
+    if (ipQuery && !String(server.ip || '').toLowerCase().includes(ipQuery)) return false
+    if (filters.angelos && resolveAngelosRuntimeStatus(server) !== filters.angelos) return false
+    if (filters.license && String(server.license || '') !== filters.license) return false
+    return true
+  })
+})
+
+const edgeMetricCards = computed(() => {
+  const list = servers.value
+  const total = list.length
+  const angelosRunning = list.filter((server) => resolveAngelosRuntimeStatus(server) === 'running').length
+  const l4Running = list.filter((server) => resolveLayerStatus(server, 'l4') === 'running').length
+  const l7Running = list.filter((server) => resolveLayerStatus(server, 'l7') === 'running').length
+  const licenseRisk = list.filter((server) => {
+    const tone = licenseExpiryTone(server)
+    return tone === 'expired' || tone === 'expiring'
+  }).length
+  return [
+    { label: 'Edges', value: String(total), hint: 'Registered nodes', tone: 'viper' },
+    { label: 'Angelos', value: String(angelosRunning), hint: 'Runtime healthy', tone: 'signal' },
+    { label: 'L4 live', value: String(l4Running), hint: 'Sparta running', tone: 'l4' },
+    { label: 'L7 live', value: String(l7Running), hint: 'Athens running', tone: 'ok' },
+    { label: 'License risk', value: String(licenseRisk), hint: 'Expired or ≤14d', tone: 'warn' },
+  ]
+})
+
+const licenseExpiryTone = (server) => {
+  const raw = server?.expiredDate
+  if (!raw || raw === '—') return 'none'
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return 'none'
+  const days = Math.ceil((date.getTime() - Date.now()) / 86400000)
+  if (days < 0) return 'expired'
+  if (days <= 14) return 'expiring'
+  return 'ok'
+}
+
+const formatEdgeExpiryLabel = (server) => {
+  const tone = licenseExpiryTone(server)
+  if (tone === 'expired') return 'Expired'
+  if (tone === 'expiring') {
+    const days = Math.ceil((new Date(server.expiredDate).getTime() - Date.now()) / 86400000)
+    return days === 0 ? 'Expires today' : `${days}d left`
+  }
+  if (tone === 'ok') return 'Active'
+  return '—'
+}
+
+const edgeRowClass = (server) => {
+  const classes = []
+  if (resolveAngelosRuntimeStatus(server) === 'running') classes.push('edges-row--live')
+  if (resolveAngelosRuntimeStatus(server) === 'stopped') classes.push('edges-row--stopped')
+  const tone = licenseExpiryTone(server)
+  if (tone === 'expired') classes.push('edges-row--license-danger')
+  else if (tone === 'expiring') classes.push('edges-row--license-warn')
+  return classes
+}
 
 const usersById = computed(() => {
   const map = new Map()
@@ -862,20 +1096,20 @@ const confirmConfirmText = computed(() => {
 })
 
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(servers.value.length / pageSize.value))
+  Math.max(1, Math.ceil(filteredServers.value.length / pageSize.value))
 )
 
 const paginatedServers = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
-  return servers.value.slice(start, start + pageSize.value)
+  return filteredServers.value.slice(start, start + pageSize.value)
 })
 
 const pageStart = computed(() =>
-  servers.value.length ? (currentPage.value - 1) * pageSize.value + 1 : 0
+  filteredServers.value.length ? (currentPage.value - 1) * pageSize.value + 1 : 0
 )
 
 const pageEnd = computed(() =>
-  Math.min(currentPage.value * pageSize.value, servers.value.length)
+  Math.min(currentPage.value * pageSize.value, filteredServers.value.length)
 )
 
 const loadCreateVersionsForHost = async () => {
@@ -932,6 +1166,13 @@ const goToPrevNewServerStep = () => {
   newServerStep.value -= 1
 }
 
+const goToNewServerStep = (step) => {
+  const target = Number(step)
+  if (!Number.isFinite(target) || target < 1 || target > newServerStep.value) return
+  if (isCreatingServer.value || isLoadingCreateVersions.value) return
+  newServerStep.value = target
+}
+
 const onNewServerFormSubmit = () => {
   if (newServerStep.value === 3) {
     void createServer()
@@ -949,6 +1190,7 @@ const openNewServerDialog = () => {
   licenseFileName.value = ''
   createVersions.value = []
   createVersionsError.value = ''
+  createSubmitError.value = ''
   selectedCreateVersionUuid.value = ''
   detectedHostOs.value = ''
   newServerStep.value = 1
@@ -1084,6 +1326,13 @@ onMounted(() => {
 })
 
 watch(
+  () => [filters.name, filters.ip, filters.angelos, filters.license],
+  () => {
+    currentPage.value = 1
+  },
+)
+
+watch(
   () => auth.state.user,
   () => {
     void loadServers()
@@ -1151,6 +1400,7 @@ const createServer = async () => {
   }
   createServerSyncLock = true
   isCreatingServer.value = true
+  createSubmitError.value = ''
   const idempotencyKey =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
@@ -1190,6 +1440,7 @@ const createServer = async () => {
     currentPage.value = 1
     // Clear busy state before closing so the dialog is not stuck behind pointer-events: none.
     isCreatingServer.value = false
+    createSubmitError.value = ''
     await nextTick()
     isNewServerDialogOpen.value = false
     void loadServers()
@@ -1210,11 +1461,11 @@ const createServer = async () => {
       isNewServerDialogOpen.value = false
     } else {
       const msg = error?.message || 'The edge could not be created.'
+      createSubmitError.value = msg
       enqueueNotification(msg, 'error')
+      // Keep the wizard open so the customer can change host/credentials and retry.
       isCreatingServer.value = false
-      await nextTick()
-      isNewServerDialogOpen.value = false
-      void loadServers()
+      newServerStep.value = 1
     }
   } finally {
     isCreatingServer.value = false
@@ -1454,12 +1705,613 @@ const nextPage = () => {
 </script>
 
 <style scoped>
-.servers-view {
+
+.edges-view {
+  --edges-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-gap-lg);
+  gap: 12px;
+  max-width: 1680px;
+  margin: 0 auto;
   min-height: 100%;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
+
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.edges-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--edges-radius);
+  padding: 8px 12px;
+  background: var(--dorian-viper-500, var(--app-accent));
+  color: #08120e;
+  font-weight: 650;
+  font-size: 13px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.edges-primary-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.edges-primary-btn:hover {
+  filter: brightness(1.06);
+}
+
+.edges-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.edges-metric {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px 12px 16px;
+  border-radius: var(--edges-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.edges-metric::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--metric-accent, var(--dorian-viper-500, var(--app-accent)));
+}
+
+.edges-metric--viper { --metric-accent: var(--dorian-viper-500, #2e9e6c); }
+.edges-metric--signal { --metric-accent: var(--dorian-viper-400, #3fbd85); }
+.edges-metric--l4 { --metric-accent: #5b9df0; }
+.edges-metric--ok { --metric-accent: #4fbd7a; }
+.edges-metric--warn { --metric-accent: #e0a83f; }
+
+.edges-metric__label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+.edges-metric__value {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.3rem;
+  font-weight: 650;
+  color: var(--app-heading);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.edges-metric__hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--app-text-muted);
+}
+
+.edges-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--edges-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.edges-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 128px;
+}
+
+.edges-filter-field--grow {
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.edges-filter-field label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.edges-filter-field input,
+.edges-filter-field select {
+  border: 1px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 8px 11px;
+  font-size: 13px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  outline: none;
+}
+
+.edges-filter-field input:focus,
+.edges-filter-field select:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+.edges-filter-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(46, 158, 108, 0.08);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.edges-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dorian-viper-400, var(--app-accent));
+  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.16);
+  animation: edges-live-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes edges-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.edges-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--edges-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  overflow: hidden;
+}
+
+.edges-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface-elevated) 70%, transparent);
+}
+
+.edges-panel__head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.edges-panel__head h3 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.edges-count-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.edges-table-wrap {
+  overflow-x: auto;
+  flex: 1;
+}
+
+.edges-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+.edges-table th,
+.edges-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--app-border);
+  vertical-align: middle;
+}
+
+.edges-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--app-surface-elevated);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--app-text-muted);
+  font-weight: 650;
+}
+
+.edges-row {
+  transition: background 0.12s ease;
+  box-shadow: inset 3px 0 0 transparent;
+}
+
+.edges-row:hover {
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 6%, transparent);
+}
+
+.edges-row--live {
+  box-shadow: inset 3px 0 0 var(--dorian-viper-500, #2e9e6c);
+}
+
+.edges-row--license-danger {
+  background: rgba(225, 82, 65, 0.05);
+}
+
+.edges-row--license-danger:hover {
+  background: rgba(225, 82, 65, 0.09);
+}
+
+.edges-row--license-warn {
+  background: rgba(224, 168, 63, 0.05);
+}
+
+.edges-row--license-warn:hover {
+  background: rgba(224, 168, 63, 0.09);
+}
+
+.edges-col-layers {
+  width: 52px;
+  padding-left: 14px !important;
+}
+
+.edges-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.edges-identity__name {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.25;
+}
+
+.edges-identity__ip {
+  font-size: 11.5px;
+  color: var(--app-text-muted);
+}
+
+.edges-angelos {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.edges-angelos__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.edges-angelos strong {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.edges-angelos--running {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.14);
+  border-color: rgba(46, 158, 108, 0.32);
+}
+
+.edges-angelos--running .edges-angelos__dot {
+  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.2);
+  animation: edges-live-pulse 1.8s ease-in-out infinite;
+}
+
+.edges-angelos--deployed {
+  color: #5b9df0;
+  background: rgba(91, 157, 240, 0.14);
+  border-color: rgba(91, 157, 240, 0.3);
+}
+
+.edges-angelos--stopped {
+  color: #e15241;
+  background: rgba(225, 82, 65, 0.14);
+  border-color: rgba(225, 82, 65, 0.34);
+}
+
+.edges-angelos--unknown,
+.edges-angelos--loading {
+  color: var(--app-text-muted);
+  background: rgba(139, 151, 143, 0.12);
+  border-color: rgba(139, 151, 143, 0.24);
+}
+
+.edges-license {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.edges-users {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.edges-user-chip,
+.edges-user-more {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(46, 158, 108, 0.24);
+  background: rgba(46, 158, 108, 0.1);
+  color: var(--dorian-viper-400, #3fbd85);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.edges-user-more {
+  border-color: var(--app-border);
+  background: rgba(139, 151, 143, 0.1);
+  color: var(--app-text-muted);
+}
+
+.edges-meta {
+  font-size: 12.5px;
+  color: var(--app-text);
+}
+
+.edges-muted {
+  color: var(--app-text-muted);
+  font-size: 12.5px;
+}
+
+.edges-expiry {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.edges-expiry strong {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.edges-expiry span {
+  font-size: 10px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  opacity: 0.82;
+}
+
+.edges-expiry--ok {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.14);
+  border-color: rgba(46, 158, 108, 0.32);
+}
+
+.edges-expiry--expiring {
+  color: #d4921f;
+  background: rgba(224, 168, 63, 0.14);
+  border-color: rgba(224, 168, 63, 0.32);
+}
+
+.edges-expiry--expired {
+  color: #e15241;
+  background: rgba(225, 82, 65, 0.14);
+  border-color: rgba(225, 82, 65, 0.34);
+}
+
+.edges-expiry--none {
+  color: var(--app-text-muted);
+  background: transparent;
+  border-color: transparent;
+  padding-left: 0;
+}
+
+.edges-col-actions {
+  width: 48px;
+}
+
+.edges-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.edges-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.edges-icon-btn:hover {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
+}
+
+.edges-empty {
+  text-align: center;
+  padding: 40px 16px !important;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.edges-empty-link {
+  display: inline;
+  margin-left: 6px;
+  border: none;
+  background: none;
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-weight: 650;
+  cursor: pointer;
+  padding: 0;
+}
+
+.edges-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface-elevated) 70%, transparent);
+}
+
+.edges-footer__info,
+.edges-footer__page {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.edges-footer__pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edges-pager-btn {
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface);
+  color: var(--app-text);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.edges-pager-btn:hover:not(:disabled) {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+}
+
+.edges-pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.menu-wrap:has(.row-menu) {
+  z-index: 5;
+}
+
+.row-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 148px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-elevated, var(--app-surface));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  z-index: 20;
+}
+
+.row-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.row-menu-item:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+  color: var(--app-accent);
+}
+
+.row-menu-item.danger {
+  color: #e15241;
+}
+
+.row-menu-item.danger:hover:not(:disabled) {
+  background: rgba(225, 82, 65, 0.1);
+  color: #e15241;
+}
+
+.row-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1200px) {
+  .edges-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .edges-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .edges-filter-summary {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+.servers-view { display: none; }
 
 .servers-table-card {
   flex: 1;
@@ -1563,17 +2415,21 @@ const nextPage = () => {
 }
 
 .dialog-card--form {
-  max-height: min(92vh, 880px);
+  max-height: min(92vh, 900px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding: 0;
 }
 
+.dialog-card--edge-wizard {
+  max-width: 860px;
+}
+
 .dialog-card--form .dialog-header {
   flex-shrink: 0;
   margin-bottom: 0;
-  padding: 12px 16px;
+  padding: 14px 16px 10px;
   border-bottom: 1px solid var(--app-border);
 }
 
@@ -1584,39 +2440,177 @@ const nextPage = () => {
   min-width: 0;
 }
 
+.edge-wizard-kicker {
+  margin: 0 0 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
 .wizard-step-label {
   margin: 0;
-  font-size: var(--type-caption);
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--app-text-muted);
+}
+
+.edge-wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 16px 0;
+  flex-shrink: 0;
+}
+
+.edge-wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface-elevated) 80%, transparent);
+  color: var(--app-text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.edge-wizard-step:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.edge-wizard-step.is-reachable:not(:disabled):hover {
+  border-color: rgba(46, 158, 108, 0.45);
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.edge-wizard-step.is-complete {
+  border-color: rgba(46, 158, 108, 0.28);
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.1);
+}
+
+.edge-wizard-step.is-active {
+  border-color: rgba(46, 158, 108, 0.45);
+  background: rgba(46, 158, 108, 0.12);
+  color: var(--app-heading);
+  opacity: 1;
+  box-shadow: inset 0 -2px 0 var(--dorian-viper-500, var(--app-accent));
+}
+
+.edge-wizard-step__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.edge-wizard-step.is-active .edge-wizard-step__index,
+.edge-wizard-step.is-complete .edge-wizard-step__index {
+  background: var(--dorian-viper-500, #2e9e6c);
+  border-color: var(--dorian-viper-500, #2e9e6c);
+  color: #08120e;
+}
+
+.edge-wizard-step__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.edge-wizard-guide {
+  margin: 12px 16px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(46, 158, 108, 0.24);
+  background: rgba(46, 158, 108, 0.08);
+  flex-shrink: 0;
+}
+
+.edge-wizard-guide__title {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.edge-wizard-guide__lead {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--app-text-muted);
+}
+
+.edge-wizard-guide__list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edge-wizard-guide__list li {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--app-text-secondary, var(--app-text-muted));
+}
+
+.edge-panel-kicker {
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.edge-wizard-section h4,
+.new-server-basic-panel h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--app-heading);
 }
 
 .new-server-step-basic {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
   align-items: stretch;
 }
 
 .new-server-basic-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
-  background: var(--app-surface-elevated);
-}
-
-.new-server-basic-panel h4 {
-  margin: 0;
+  border-radius: 8px;
+  background: var(--app-surface-elevated, var(--app-surface));
 }
 
 .new-server-basic-fields {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
 }
 
@@ -1626,6 +2620,10 @@ const nextPage = () => {
 
 @media (max-width: 960px) {
   .new-server-step-basic {
+    grid-template-columns: 1fr;
+  }
+
+  .edge-wizard-steps {
     grid-template-columns: 1fr;
   }
 }
@@ -1658,6 +2656,26 @@ const nextPage = () => {
   padding: 12px 16px;
   border-top: 1px solid var(--app-border);
   background: var(--app-surface-solid);
+}
+
+.dialog-footer--wizard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-footer__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edge-wizard-progress {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--app-text-muted);
 }
 
 .dialog-section--license .license-tier-hint {
@@ -2205,15 +3223,15 @@ const nextPage = () => {
 .user-chip {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: var(--type-caption);
-  font-weight: 600;
-  border: 1px solid rgba(46, 158, 108, 0.2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(46, 158, 108, 0.12);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-size: 12px;
+  font-weight: 650;
+  border: 1px solid rgba(46, 158, 108, 0.24);
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .user-chip:hover {

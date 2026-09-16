@@ -1,238 +1,236 @@
 <template>
-  <div class="sites-view">
-    <div class="content-card filter-card">
-      <div class="filter-row">
-        <label class="filter-label" for="site-settings-target">Target site</label>
-        <select
-          id="site-settings-target"
-          class="filter-select"
-          v-model="selectedSiteId"
-          @change="onSiteSelected"
-        >
-          <option disabled value="">Select a site</option>
-          <option v-for="site in siteOptions" :key="site.id" :value="String(site.id)">
-            {{ site.domain }}
-          </option>
-        </select>
-        <div v-if="loadedSite" class="filter-meta">
-          <span class="meta-pill status" :class="siteStatusClass(loadedSite.status)">
-            {{ siteStatusLabel(loadedSite.status) }}
-          </span>
-          <span v-if="loadedSite.wafName" class="meta-pill license">WAF Rule: {{ loadedSite.wafName }}</span>
-          <span class="meta-pill license">Edges: {{ (loadedSite.serverIds || []).length }}</span>
+  <div class="cfg-view">
+    <header class="cfg-topbar">
+      <div class="cfg-topbar__left">
+        <p class="cfg-kicker">Delivery</p>
+        <h2>Configure site</h2>
+        <p>{{ configureSubtitle }}</p>
+      </div>
+      <div class="cfg-topbar__right">
+        <div class="cfg-site-picker">
+          <label for="site-settings-target">Site</label>
+          <select
+            id="site-settings-target"
+            v-model="selectedSiteId"
+            @change="onSiteSelected"
+          >
+            <option disabled value="">Select a site</option>
+            <option v-for="site in siteOptions" :key="site.id" :value="String(site.id)">
+              {{ site.domain }}
+            </option>
+          </select>
         </div>
       </div>
+    </header>
+
+    <div v-if="!selectedSiteId" class="cfg-empty">
+      <h3>Choose a site to configure</h3>
+      <p>Pick a hostname above to manage SSL, origins, WAF protection, and edge traffic.</p>
     </div>
 
-    <div v-if="selectedSiteId" class="content-card settings-card">
-      <div class="settings-tabs">
-        <div class="tabs-header">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            class="tab-btn"
-            :class="{ active: activeTab === tab.id }"
-            type="button"
-            :disabled="tab.id === 'waf' && !selectedSiteId"
-            @click="onTabClick(tab.id)"
-          >
-            {{ tab.label }}
-          </button>
+    <template v-else>
+      <section v-if="loadedSite" class="cfg-statusbar" aria-label="Site status">
+        <div class="cfg-status-domain">
+          <strong>{{ loadedSite.domain }}</strong>
+          <span>{{ overviewSummary }}</span>
         </div>
-        <div
-          class="tabs-body"
-          :class="{
-            'no-outline':
-              activeTab === 'general'
-              || activeTab === 'origin'
-              || activeTab === 'waf'
-              || activeTab === 'traffic',
-          }"
+        <div class="cfg-status-pills">
+          <span class="cfg-pill" :class="siteStatusClass(loadedSite.status)">
+            {{ siteStatusLabel(loadedSite.status) }}
+          </span>
+          <span
+            class="cfg-activity"
+            :class="`cfg-activity--${siteActivityTone(loadedSite)}`"
+            :title="siteActivityTitle(loadedSite)"
+          >
+            <span class="cfg-activity__dot" aria-hidden="true"></span>
+            {{ siteActivityLabel(loadedSite) }}
+          </span>
+          <span class="cfg-pill cfg-pill--muted" :class="certStatusClass(loadedSite.certificateStatus)">
+            SSL {{ formatCertStatus(loadedSite.certificateStatus) }}
+          </span>
+          <span v-if="loadedSite.wafName" class="cfg-pill cfg-pill--muted">
+            {{ loadedSite.wafName }}
+          </span>
+          <span class="cfg-pill cfg-pill--muted">
+            {{ assignedServers.length }} {{ assignedServers.length === 1 ? 'edge' : 'edges' }}
+          </span>
+        </div>
+      </section>
+
+      <nav class="cfg-tabs" aria-label="Configuration sections">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          type="button"
+          class="cfg-tab"
+          :class="{ active: activeTab === tab.id }"
+          :disabled="tab.id === 'waf' && !selectedSiteId"
+          @click="onTabClick(tab.id)"
         >
-          <div v-if="activeTab === 'general' && loadedSite" class="site-overview">
-            <header class="overview-hero">
-              <div class="overview-hero__main">
-                <p class="overview-kicker">Site overview</p>
-                <h2 class="overview-domain">{{ loadedSite.domain }}</h2>
-                <p class="overview-summary">{{ overviewSummary }}</p>
-                <div class="overview-badges">
-                  <span class="overview-pill overview-pill--status" :class="siteStatusClass(loadedSite.status)">
-                    {{ siteStatusLabel(loadedSite.status) }}
-                  </span>
-                  <span class="overview-pill overview-pill--cert" :class="certStatusClass(loadedSite.certificateStatus)">
-                    SSL {{ formatCertStatus(loadedSite.certificateStatus) }}
-                  </span>
-                  <span
-                    v-if="loadedSite.wafName"
-                    class="overview-pill overview-pill--waf"
-                    :class="wafRolePillClass(loadedSite.wafRole)"
+          <span class="cfg-tab__label">{{ tab.label }}</span>
+          <span class="cfg-tab__hint">{{ tab.hint }}</span>
+        </button>
+      </nav>
+
+      <section class="cfg-panel">
+        <div v-if="activeTab === 'general' && loadedSite" class="cfg-overview">
+          <p class="cfg-section-kicker">Live metrics</p>
+          <div class="cfg-metrics">
+            <article class="cfg-metric cfg-metric--signal">
+              <span class="cfg-metric__label">Egress</span>
+              <strong class="cfg-metric__value num">{{ formatLiveBandwidth(loadedSite.currentBandwidth) }}</strong>
+              <span class="cfg-metric__hint">Latest L7 TX sample</span>
+            </article>
+            <article class="cfg-metric cfg-metric--ok">
+              <span class="cfg-metric__label">Cache hit</span>
+              <strong class="cfg-metric__value num">{{ formatCacheRatio(loadedSite.cacheRatio) }}</strong>
+              <span class="cfg-metric__hint">CDN cache efficiency</span>
+            </article>
+            <article class="cfg-metric cfg-metric--l4">
+              <span class="cfg-metric__label">Edges</span>
+              <strong class="cfg-metric__value num">{{ assignedServers.length }}</strong>
+              <span class="cfg-metric__hint">{{ edgesMetricHint }}</span>
+            </article>
+            <article class="cfg-metric cfg-metric--viper">
+              <span class="cfg-metric__label">Updated</span>
+              <strong class="cfg-metric__value cfg-metric__value--sm">{{ formatOverviewDate(loadedSite.updatedAt) }}</strong>
+              <span class="cfg-metric__hint">Created {{ formatOverviewDate(loadedSite.createdAt) }}</span>
+            </article>
+          </div>
+
+          <div class="cfg-sections">
+            <section class="cfg-section">
+              <div class="cfg-section__head">
+                <div>
+                  <h3>SSL &amp; certificate</h3>
+                  <p>{{ sslSectionHint }}</p>
+                </div>
+                <div class="cfg-section__actions">
+                  <button
+                    class="cfg-btn cfg-btn--primary"
+                    type="button"
+                    :disabled="!canRenewCert || isRenewingCert || isCertIssuing(loadedSite.certificateStatus)"
+                    :title="renewCertHint"
+                    @click="renewCert"
                   >
-                    {{ loadedSite.wafName }}
-                  </span>
+                    {{ renewCertLabel }}
+                  </button>
+                  <button class="cfg-btn" type="button" @click="onTabClick('origin')">
+                    Manage in Origin
+                  </button>
                 </div>
               </div>
-              <div class="overview-actions">
-                <button class="overview-action-btn" type="button" @click="onTabClick('origin')">
-                  Open Origin
-                </button>
-                <button class="overview-action-btn" type="button" @click="onTabClick('traffic')">
-                  Open Traffic
-                </button>
-                <button class="overview-action-btn overview-action-btn--primary" type="button" @click="onTabClick('waf')">
+              <div class="cfg-detail-grid">
+                <div class="cfg-detail">
+                  <span class="cfg-detail__label">Provider</span>
+                  <span class="cfg-detail__value">{{ formatSslType(loadedSite.sslType) }}</span>
+                </div>
+                <div class="cfg-detail">
+                  <span class="cfg-detail__label">Status</span>
+                  <span class="cfg-detail__value">
+                    <span class="cfg-pill" :class="certStatusClass(loadedSite.certificateStatus)">
+                      {{ formatCertStatus(loadedSite.certificateStatus) }}
+                    </span>
+                  </span>
+                </div>
+                <div class="cfg-detail">
+                  <span class="cfg-detail__label">Expires</span>
+                  <span class="cfg-detail__value">{{ formatCertExpiry(loadedSite.certificateExpiry) }}</span>
+                </div>
+                <div class="cfg-detail">
+                  <span class="cfg-detail__label">Source</span>
+                  <span class="cfg-detail__value">{{ hasManualSsl(loadedSite) ? 'Manual upload' : 'Automatic / none' }}</span>
+                </div>
+                <div v-if="loadedSite.certificateError" class="cfg-detail cfg-detail--wide">
+                  <span class="cfg-detail__label">Last error</span>
+                  <span class="cfg-detail__value cfg-detail__value--error">{{ loadedSite.certificateError }}</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="cfg-section">
+              <div class="cfg-section__head">
+                <div>
+                  <h3>WAF protection</h3>
+                  <p>{{ wafSectionHint }}</p>
+                </div>
+                <button class="cfg-btn" type="button" @click="onTabClick('waf')">
                   Open WAF
                 </button>
               </div>
-            </header>
-
-            <div class="overview-metrics">
-              <article class="metric">
-                <span class="metric__label">Cache hit ratio</span>
-                <strong class="metric__value">{{ formatCacheRatio(loadedSite.cacheRatio) }}</strong>
-                <span class="metric__hint">How often responses are served from CDN cache</span>
-              </article>
-              <article class="metric">
-                <span class="metric__label">Bandwidth limit</span>
-                <strong class="metric__value">{{ formatBandwidth(loadedSite.bandwidth) }}</strong>
-                <span class="metric__hint">Configured traffic ceiling for this site</span>
-              </article>
-              <article class="metric">
-                <span class="metric__label">Edges</span>
-                <strong class="metric__value">{{ assignedServers.length }}</strong>
-                <span class="metric__hint">{{ edgesMetricHint }}</span>
-              </article>
-              <article class="metric">
-                <span class="metric__label">Last updated</span>
-                <strong class="metric__value metric__value--sm">{{ formatOverviewDate(loadedSite.updatedAt) }}</strong>
-                <span class="metric__hint">Created {{ formatOverviewDate(loadedSite.createdAt) }}</span>
-              </article>
-            </div>
-
-            <div class="overview-sections">
-              <section class="overview-section">
-                <div class="overview-section__head">
-                  <div>
-                    <h3>SSL &amp; certificate</h3>
-                    <p>{{ sslSectionHint }}</p>
-                  </div>
-                  <div class="overview-section__actions">
-                    <button
-                      class="overview-action-btn overview-action-btn--primary"
-                      type="button"
-                      :disabled="!canRenewCert || isRenewingCert || isCertIssuing(loadedSite.certificateStatus)"
-                      :title="renewCertHint"
-                      @click="renewCert"
-                    >
-                      {{ renewCertLabel }}
-                    </button>
-                    <button class="panel-link-btn" type="button" @click="onTabClick('origin')">Manage</button>
-                  </div>
+              <div class="cfg-detail-grid">
+                <div class="cfg-detail">
+                  <span class="cfg-detail__label">Active rule</span>
+                  <span class="cfg-detail__value">{{ loadedSite.wafName || 'Not assigned' }}</span>
                 </div>
-                <div class="detail-grid">
-                  <div class="detail">
-                    <span class="detail__label">Provider</span>
-                    <span class="detail__value">{{ formatSslType(loadedSite.sslType) }}</span>
-                  </div>
-                  <div class="detail">
-                    <span class="detail__label">Status</span>
-                    <span class="detail__value">
-                      <span class="overview-pill overview-pill--cert" :class="certStatusClass(loadedSite.certificateStatus)">
-                        {{ formatCertStatus(loadedSite.certificateStatus) }}
-                      </span>
+                <div class="cfg-detail">
+                  <span class="cfg-detail__label">Type</span>
+                  <span class="cfg-detail__value">
+                    <span v-if="loadedSite.wafRole" class="role-pill" :class="wafRolePillClass(loadedSite.wafRole)">
+                      {{ formatWafRole(loadedSite.wafRole) }}
                     </span>
-                  </div>
-                  <div class="detail">
-                    <span class="detail__label">Expires</span>
-                    <span class="detail__value">{{ formatCertExpiry(loadedSite.certificateExpiry) }}</span>
-                  </div>
-                  <div class="detail">
-                    <span class="detail__label">Certificate source</span>
-                    <span class="detail__value">{{ hasManualSsl(loadedSite) ? 'Manual upload' : 'Automatic / none' }}</span>
-                  </div>
-                  <div v-if="loadedSite.certificateError" class="detail detail--wide">
-                    <span class="detail__label">Last error</span>
-                    <span class="detail__value detail__value--error">{{ loadedSite.certificateError }}</span>
-                  </div>
+                    <span v-else class="cfg-muted">—</span>
+                  </span>
                 </div>
-              </section>
+              </div>
+            </section>
 
-              <section class="overview-section">
-                <div class="overview-section__head">
-                  <div>
-                    <h3>WAF protection</h3>
-                    <p>{{ wafSectionHint }}</p>
-                  </div>
-                  <button class="panel-link-btn" type="button" @click="onTabClick('waf')">Manage</button>
+            <section class="cfg-section cfg-section--wide">
+              <div class="cfg-section__head">
+                <div>
+                  <h3>Assigned edges</h3>
+                  <p>Edge nodes that currently accept traffic for this domain.</p>
                 </div>
-                <div class="detail-grid">
-                  <div class="detail">
-                    <span class="detail__label">Active rule</span>
-                    <span class="detail__value">{{ loadedSite.wafName || 'Not assigned' }}</span>
-                  </div>
-                  <div class="detail">
-                    <span class="detail__label">Type</span>
-                    <span class="detail__value">
-                      <span v-if="loadedSite.wafRole" class="role-pill" :class="wafRolePillClass(loadedSite.wafRole)">
-                        {{ formatWafRole(loadedSite.wafRole) }}
-                      </span>
-                      <span v-else class="detail__muted">—</span>
-                    </span>
-                  </div>
+                <button class="cfg-btn" type="button" @click="onTabClick('traffic')">
+                  Manage traffic
+                </button>
+              </div>
+              <div v-if="assignedServers.length" class="cfg-edges">
+                <div v-for="server in assignedServers" :key="server.id" class="cfg-edge">
+                  <span class="cfg-edge__dot" aria-hidden="true"></span>
+                  <span>{{ server.name }}</span>
                 </div>
-              </section>
-
-              <section class="overview-section overview-section--wide">
-                <div class="overview-section__head">
-                  <div>
-                    <h3>Assigned edges</h3>
-                    <p>Edges that currently serve this domain.</p>
-                  </div>
-                  <button class="panel-link-btn" type="button" @click="onTabClick('traffic')">Manage traffic</button>
-                </div>
-                <div v-if="assignedServers.length" class="edge-chips">
-                  <div v-for="server in assignedServers" :key="server.id" class="edge-chip">
-                    <span class="edge-chip__dot" aria-hidden="true"></span>
-                    <span class="edge-chip__name">{{ server.name }}</span>
-                  </div>
-                </div>
-                <p v-else class="info-empty">
-                  No edges assigned yet. Assign edges when editing the site, then configure Traffic.
-                </p>
-              </section>
-            </div>
+              </div>
+              <p v-else class="cfg-info-empty">
+                No edges assigned yet. Open Traffic to attach edge nodes, or edit the site from All sites.
+              </p>
+            </section>
           </div>
-
-          <div v-else-if="activeTab === 'general'" class="site-overview-empty">
-            <p>Select a site to view its overview.</p>
-          </div>
-
-          <SiteOriginPanel
-            v-else-if="activeTab === 'origin'"
-            :site-id="selectedSiteId"
-            @updated="onOriginUpdated"
-          />
-
-          <div v-else-if="activeTab === 'waf' && !canShowWafPanel" class="waf-fork-prompt">
-            <h3>Predefined WAF Rule</h3>
-            <p>
-              This site uses the predefined WAF rule
-              <strong>{{ loadedSite?.wafName || '—' }}</strong>.
-              Modifying it will create a custom copy for this site only.
-            </p>
-            <button
-              class="primary-btn"
-              type="button"
-              :disabled="isForkingWaf || !loadedSite"
-              @click="openWafModifyConfirm"
-            >
-              Modify WAF Rule
-            </button>
-          </div>
-
-          <WafPanel v-else-if="activeTab === 'waf' && canShowWafPanel" :key="wafPanelKey" :site-id="selectedSiteId" />
-          <TrafficPanel v-else-if="activeTab === 'traffic'" :site-id="selectedSiteId" />
         </div>
-      </div>
-    </div>
+
+        <div v-else-if="activeTab === 'general'" class="cfg-panel-empty">
+          <p>Loading site overview…</p>
+        </div>
+
+        <SiteOriginPanel
+          v-else-if="activeTab === 'origin'"
+          :site-id="selectedSiteId"
+          @updated="onOriginUpdated"
+        />
+
+        <div v-else-if="activeTab === 'waf' && !canShowWafPanel" class="cfg-waf-prompt">
+          <p class="cfg-section-kicker">Security</p>
+          <h3>Predefined WAF rule</h3>
+          <p>
+            This site uses the shared rule
+            <strong>{{ loadedSite?.wafName || '—' }}</strong>.
+            Editing it creates a custom copy for this site only, so other sites stay unchanged.
+          </p>
+          <button
+            class="cfg-btn cfg-btn--primary"
+            type="button"
+            :disabled="isForkingWaf || !loadedSite"
+            @click="openWafModifyConfirm"
+          >
+            Customize WAF for this site
+          </button>
+        </div>
+
+        <WafPanel v-else-if="activeTab === 'waf' && canShowWafPanel" :key="wafPanelKey" :site-id="selectedSiteId" />
+        <TrafficPanel v-else-if="activeTab === 'traffic'" :site-id="selectedSiteId" />
+      </section>
+    </template>
 
     <ConfirmDialog
       v-model="isWafModifyConfirmOpen"
@@ -285,10 +283,10 @@ const wafModifyConfirmMessage = computed(() => {
 })
 
 const tabs = [
-  { id: 'general', label: 'Overview' },
-  { id: 'origin', label: 'Origin' },
-  { id: 'waf', label: 'WAF' },
-  { id: 'traffic', label: 'Traffic' },
+  { id: 'general', label: 'Overview', hint: 'Status & shortcuts' },
+  { id: 'origin', label: 'Origin', hint: 'Backend & SSL' },
+  { id: 'waf', label: 'WAF', hint: 'Security rules' },
+  { id: 'traffic', label: 'Traffic', hint: 'Edges & routing' },
 ]
 
 const assignedServers = computed(() => {
@@ -302,10 +300,41 @@ const assignedServers = computed(() => {
   }))
 })
 
+const configureSubtitle = computed(() => {
+  if (!loadedSite.value) {
+    return 'Select a hostname to manage origins, SSL, WAF, and edge traffic.'
+  }
+  return `Configuring ${loadedSite.value.domain}`
+})
+
+const isSiteEnabled = (site) => String(site?.status || '').toUpperCase() === 'ENABLE'
+
+const siteActivityKey = (site) => {
+  if (!isSiteEnabled(site)) return 'offline'
+  if (Number(site?.currentBandwidth) > 0) return 'active'
+  return 'idle'
+}
+
+const siteActivityLabel = (site) => {
+  const key = siteActivityKey(site)
+  if (key === 'active') return 'Active'
+  if (key === 'idle') return 'Idle'
+  return 'Offline'
+}
+
+const siteActivityTone = (site) => siteActivityKey(site)
+
+const siteActivityTitle = (site) => {
+  const key = siteActivityKey(site)
+  if (key === 'active') return 'Enabled and currently serving live L7 egress'
+  if (key === 'idle') return 'Enabled, but no live egress in the latest sample'
+  return 'Site is disabled'
+}
+
 const overviewSummary = computed(() => {
   const site = loadedSite.value
   if (!site) return ''
-  const enabled = String(site.status || '').toUpperCase() === 'ENABLE'
+  const enabled = isSiteEnabled(site)
   const edges = assignedServers.value.length
   const waf = site.wafName ? `protected by ${site.wafName}` : 'without an assigned WAF rule'
   const edgeText =
@@ -314,7 +343,7 @@ const overviewSummary = computed(() => {
       : edges === 1
         ? 'served by 1 edge'
         : `served by ${edges} edges`
-  return `${enabled ? 'Enabled' : 'Disabled'} site, ${edgeText}, ${waf}.`
+  return `${enabled ? 'Enabled' : 'Disabled'} · ${edgeText} · ${waf}`
 })
 
 const edgesMetricHint = computed(() => {
@@ -367,17 +396,12 @@ const formatCacheRatio = (value) => {
   return `${ratio.toFixed(ratio % 1 === 0 ? 0 : 2)}%`
 }
 
-const formatBandwidth = (value) => {
-  const bytes = Number(value)
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let size = bytes
-  let unitIndex = 0
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024
-    unitIndex += 1
-  }
-  return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+const formatLiveBandwidth = (kbps) => {
+  const value = Number(kbps || 0)
+  if (!Number.isFinite(value) || value <= 0) return '0 Kbps'
+  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} Gbps`
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} Mbps`
+  return `${Math.round(value)} Kbps`
 }
 
 const formatSslType = (value) => {
@@ -614,12 +638,63 @@ watch(
 )
 
 let certPollTimer = null
+let siteLiveTimer = null
+let siteLiveInFlight = false
+const SITE_LIVE_REFRESH_MS = 15_000
+
 const stopCertPoll = () => {
   if (certPollTimer) {
     clearInterval(certPollTimer)
     certPollTimer = null
   }
 }
+
+const stopSiteLivePoll = () => {
+  if (siteLiveTimer) {
+    clearInterval(siteLiveTimer)
+    siteLiveTimer = null
+  }
+}
+
+const refreshSiteLive = async () => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  if (siteLiveInFlight) return
+  siteLiveInFlight = true
+  try {
+    const data = await fetchSites()
+    siteOptions.value = Array.isArray(data) ? data : []
+    if (!selectedSiteId.value) return
+    const site = await fetchSite(selectedSiteId.value)
+    // Refresh overview metrics without broadcasting a global sites-changed event.
+    if (loadedSite.value && String(loadedSite.value.id) === String(site.id)) {
+      loadedSite.value = site
+      const index = siteOptions.value.findIndex((item) => String(item.id) === String(site.id))
+      if (index !== -1) {
+        siteOptions.value[index] = { ...siteOptions.value[index], ...site }
+      }
+    } else {
+      applyLoadedSite(site)
+    }
+  } catch {
+    // Silent refresh — keep current view on transient errors.
+  } finally {
+    siteLiveInFlight = false
+  }
+}
+
+const startSiteLivePoll = () => {
+  stopSiteLivePoll()
+  siteLiveTimer = window.setInterval(() => {
+    void refreshSiteLive()
+  }, SITE_LIVE_REFRESH_MS)
+}
+
+const onVisibilityChange = () => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    void refreshSiteLive()
+  }
+}
+
 watch(
   () => loadedSite.value?.certificateStatus,
   (status) => {
@@ -641,6 +716,7 @@ watch(
 )
 
 onMounted(async () => {
+  document.addEventListener('visibilitychange', onVisibilityChange)
   await loadSites()
   applyRouteQuery()
   if (!selectedSiteId.value && siteOptions.value.length) {
@@ -649,558 +725,582 @@ onMounted(async () => {
   } else if (selectedSiteId.value) {
     await loadSelectedSite()
   }
+  startSiteLivePoll()
 })
 
-onBeforeUnmount(stopCertPoll)
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  stopCertPoll()
+  stopSiteLivePoll()
+})
 </script>
 
 <style scoped>
-.sites-view {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.content-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.filter-card {
-  padding-bottom: 20px;
-}
-
-.filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-}
-
-.filter-label {
-  font-size: var(--type-base);
-  font-weight: 600;
-  color: var(--app-text-secondary);
-}
-
-.filter-select {
-  min-width: 220px;
-  border-radius: 12px;
-  border: 1px solid var(--app-input-border);
-  padding: 8px 12px;
-  font-size: var(--type-base);
-  color: var(--app-text);
-  background: var(--app-input-bg);
-  box-shadow: 0 1px 6px var(--app-shadow);
-}
-
-.filter-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.meta-pill {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: var(--type-caption);
-  font-weight: 600;
-}
-
-.meta-pill.status.on {
-  background: rgba(34, 197, 94, 0.12);
-  color: #15803d;
-}
-
-.meta-pill.status.off {
-  background: rgba(239, 68, 68, 0.12);
-  color: #b91c1c;
-}
-
-.meta-pill.license {
-  background: var(--app-surface-muted);
-  color: var(--app-text-secondary);
-}
-
-.settings-tabs {
-  border-top: none;
-  padding-top: 0;
-}
-
-.tabs-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.tab-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
-  color: var(--app-text-muted);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: var(--type-base);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-btn.active {
-  background: var(--app-accent-soft);
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-  box-shadow: 0 6px 14px rgba(124, 58, 237, 0.15);
-}
-
-.tab-btn:hover:not(.active):not(:disabled) {
-  border-color: var(--app-border-strong);
-  color: var(--app-text);
-  background: var(--app-surface-hover);
-}
-
-.tab-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.tabs-body {
-  border: 1px solid var(--app-border-strong);
-  border-radius: 14px;
-  overflow: visible;
-  background: var(--app-surface);
-}
-
-.tabs-body.no-outline {
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  overflow: visible;
-}
-
-.site-overview {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.site-overview-empty {
-  padding: 48px 24px;
-  text-align: center;
-  color: var(--app-text-muted);
-  font-size: var(--type-base);
-}
-
-.overview-hero {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 22px 24px;
-  border-radius: 16px;
-  border: 1px solid var(--app-border);
-  background:
-    radial-gradient(120% 140% at 0% 0%, rgba(14, 165, 233, 0.1), transparent 55%),
-    linear-gradient(180deg, var(--app-surface-muted), var(--app-surface-solid));
-}
-
-.overview-kicker {
-  margin: 0 0 6px;
-  font-size: var(--type-caption);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-}
-
-.overview-domain {
-  margin: 0 0 8px;
-  font-size: clamp(1.45rem, 2.6vw, 1.95rem);
-  font-weight: 700;
-  line-height: 1.15;
-  color: var(--app-heading);
-  word-break: break-word;
-}
-
-.overview-summary {
-  margin: 0 0 14px;
-  max-width: 52rem;
-  font-size: var(--type-base);
-  line-height: 1.45;
-  color: var(--app-text-secondary);
-}
-
-.overview-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.overview-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.overview-action-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
-  color: var(--app-text-secondary);
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: var(--type-base);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.overview-action-btn:hover {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-  background: var(--app-accent-soft);
-}
-
-.overview-action-btn--primary {
-  border-color: var(--app-accent);
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-}
-
-.overview-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.metric {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 16px 18px;
-  border-radius: 14px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-muted);
-  min-height: 118px;
-}
-
-.metric__label {
-  font-size: var(--type-caption);
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-}
-
-.metric__value {
-  font-size: var(--type-metric-value);
-  font-weight: 700;
-  line-height: 1.15;
-  color: var(--app-heading);
-}
-
-.metric__value--sm {
-  font-size: var(--type-metric-value);
-}
-
-.metric__hint {
-  margin-top: auto;
-  font-size: var(--type-caption);
-  line-height: 1.35;
-  color: var(--app-text-muted);
-}
-
-.overview-sections {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.overview-section {
+.cfg-view {
+  --cfg-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 18px;
-  border-radius: 14px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-muted);
+  max-width: 1680px;
+  margin: 0 auto;
+  min-height: 100%;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
-.overview-section--wide {
-  grid-column: 1 / -1;
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
 }
 
-.overview-section__head {
+.cfg-topbar {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cfg-kicker {
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.cfg-topbar__left h2 {
+  margin: 0 0 3px;
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--app-heading);
+  line-height: 1.2;
+}
+
+.cfg-topbar__left p:last-child {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.cfg-site-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 240px;
+}
+
+.cfg-site-picker label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.cfg-site-picker select {
+  border: 1px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  outline: none;
+  min-width: 260px;
+}
+
+.cfg-site-picker select:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+.cfg-empty,
+.cfg-panel-empty {
+  padding: 36px 20px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--cfg-radius);
+  background: var(--app-surface);
+  text-align: center;
+  color: var(--app-text-muted);
+}
+
+.cfg-empty h3 {
+  margin: 0 0 6px;
+  color: var(--app-heading);
+  font-size: 1.05rem;
+}
+
+.cfg-empty p {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.cfg-statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--cfg-radius);
+  background: var(--app-surface);
 }
 
-.overview-section__head h3 {
-  margin: 0 0 4px;
-  font-size: var(--type-section-title);
+.cfg-status-domain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cfg-status-domain strong {
+  font-size: 15px;
+  color: var(--app-heading);
+}
+
+.cfg-status-domain span {
+  font-size: 12.5px;
+  color: var(--app-text-muted);
+}
+
+.cfg-status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cfg-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  border: 1px solid transparent;
+}
+
+.cfg-pill--muted,
+.cfg-pill.is-none {
+  color: var(--app-text-muted);
+  background: rgba(139, 151, 143, 0.1);
+  border-color: rgba(139, 151, 143, 0.2);
+}
+
+.cfg-pill.on,
+.cfg-pill.is-valid {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.12);
+  border-color: rgba(46, 158, 108, 0.26);
+}
+
+.cfg-pill.off,
+.cfg-pill.is-failed,
+.cfg-pill.is-expired {
+  color: #e15241;
+  background: rgba(225, 82, 65, 0.12);
+  border-color: rgba(225, 82, 65, 0.26);
+}
+
+.cfg-pill.is-expiring,
+.cfg-pill.is-issuing,
+.cfg-pill.is-pending {
+  color: #e0a83f;
+  background: rgba(224, 168, 63, 0.12);
+  border-color: rgba(224, 168, 63, 0.26);
+}
+
+.cfg-activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+}
+
+.cfg-activity__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.cfg-activity--active {
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.cfg-activity--active .cfg-activity__dot {
+  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.2);
+  animation: cfg-pulse 1.8s ease-in-out infinite;
+}
+
+.cfg-activity--idle { color: #e0a83f; }
+.cfg-activity--offline { color: var(--app-text-muted); }
+
+@keyframes cfg-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.cfg-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cfg-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--cfg-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cfg-tab:hover:not(.active):not(:disabled) {
+  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
+  background: color-mix(in srgb, var(--app-accent) 5%, var(--app-surface));
+}
+
+.cfg-tab.active {
+  border-color: rgba(46, 158, 108, 0.45);
+  background: rgba(46, 158, 108, 0.1);
+  box-shadow: inset 0 -2px 0 var(--dorian-viper-500, var(--app-accent));
+}
+
+.cfg-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cfg-tab__label {
+  font-size: 13.5px;
   font-weight: 650;
   color: var(--app-heading);
 }
 
-.overview-section__head p {
-  margin: 0;
-  font-size: var(--type-base);
-  line-height: 1.4;
+.cfg-tab.active .cfg-tab__label {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.cfg-tab__hint {
+  font-size: 11.5px;
   color: var(--app-text-muted);
 }
 
-.overview-section__actions {
+.cfg-panel {
+  border: 1px solid var(--app-border);
+  border-radius: var(--cfg-radius);
+  background: var(--app-surface);
+  padding: 16px;
+  min-height: 320px;
+}
+
+.cfg-overview {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cfg-section-kicker {
+  margin: 0;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.cfg-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
-.overview-action-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+.cfg-metric {
+  position: relative;
+  padding: 12px 14px 12px 16px;
+  border-radius: var(--cfg-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-elevated, var(--app-surface));
+  overflow: hidden;
 }
 
-.panel-link-btn {
-  border: none;
-  background: transparent;
-  color: var(--app-accent);
-  font-size: var(--type-caption);
-  font-weight: 600;
+.cfg-metric::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--metric-accent, var(--app-accent));
+}
+
+.cfg-metric--viper { --metric-accent: var(--dorian-viper-500, #2e9e6c); }
+.cfg-metric--ok { --metric-accent: #4fbd7a; }
+.cfg-metric--l4 { --metric-accent: #5b9df0; }
+.cfg-metric--signal { --metric-accent: var(--dorian-viper-400, #3fbd85); }
+
+.cfg-metric__label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  font-weight: 650;
+}
+
+.cfg-metric__value {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.25rem;
+  font-weight: 650;
+  color: var(--app-heading);
+  letter-spacing: -0.02em;
+}
+
+.cfg-metric__value--sm {
+  font-size: 1rem;
+}
+
+.cfg-metric__hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--app-text-muted);
+}
+
+.cfg-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cfg-section {
+  padding: 14px;
+  border-radius: var(--cfg-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-elevated, var(--app-surface));
+}
+
+.cfg-section--wide {
+  grid-column: 1 / -1;
+}
+
+.cfg-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cfg-section__head h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.cfg-section__head p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--app-text-muted);
+  line-height: 1.4;
+}
+
+.cfg-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: none;
+}
+
+.cfg-btn {
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface);
+  color: var(--app-text);
+  border-radius: 6px;
+  padding: 7px 11px;
+  font-size: 12.5px;
+  font-weight: 650;
   cursor: pointer;
-  padding: 4px 0;
   white-space: nowrap;
 }
 
-.panel-link-btn:hover {
-  text-decoration: underline;
+.cfg-btn:hover:not(:disabled) {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
-.detail-grid {
+.cfg-btn--primary {
+  border: none;
+  background: var(--dorian-viper-500, var(--app-accent));
+  color: #08120e;
+}
+
+.cfg-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  color: #08120e;
+  background: var(--dorian-viper-500, var(--app-accent));
+}
+
+.cfg-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cfg-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 16px;
+  gap: 10px 14px;
 }
 
-.detail {
+.cfg-detail {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
-.detail__label {
-  font-size: var(--type-caption);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+.cfg-detail--wide {
+  grid-column: 1 / -1;
+}
+
+.cfg-detail__label {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--app-text-muted);
 }
 
-.detail__value {
-  font-size: var(--type-base);
-  font-weight: 600;
-  color: var(--app-text);
-}
-
-.detail--wide {
-  grid-column: 1 / -1;
-}
-
-.detail__value--error {
-  color: #b91c1c;
-  font-weight: 600;
+.cfg-detail__value {
+  font-size: 13px;
+  color: var(--app-heading);
   word-break: break-word;
 }
 
-.detail__muted {
-  color: var(--app-text-muted);
-  font-weight: 500;
+.cfg-detail__value--error {
+  color: #e15241;
 }
 
-.info-empty {
-  margin: 0;
-  font-size: var(--type-base);
-  line-height: 1.45;
+.cfg-muted {
   color: var(--app-text-muted);
 }
 
-.edge-chips {
+.cfg-edges {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.edge-chip {
+.cfg-edge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
-}
-
-.edge-chip__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #22c55e;
-}
-
-.edge-chip__name {
-  font-size: var(--type-base);
-  font-weight: 600;
-  color: var(--app-text);
-}
-
-.overview-pill {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 5px 11px;
-  font-size: var(--type-caption);
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(46, 158, 108, 0.24);
+  background: rgba(46, 158, 108, 0.1);
+  color: var(--dorian-viper-400, #3fbd85);
+  font-size: 12.5px;
   font-weight: 600;
 }
 
-.overview-pill--status.on {
-  background: rgba(34, 197, 94, 0.14);
-  color: #15803d;
+.cfg-edge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
-.overview-pill--status.off {
-  background: rgba(239, 68, 68, 0.14);
-  color: #b91c1c;
-}
-
-.overview-pill--cert.is-valid {
-  background: rgba(34, 197, 94, 0.14);
-  color: #15803d;
-}
-
-.overview-pill--cert.is-expiring {
-  background: rgba(245, 158, 11, 0.16);
-  color: #b45309;
-}
-
-.overview-pill--cert.is-expired {
-  background: rgba(239, 68, 68, 0.14);
-  color: #b91c1c;
-}
-
-.overview-pill--cert.is-pending {
-  background: rgba(37, 99, 235, 0.12);
-  color: #1d4ed8;
-}
-
-.overview-pill--cert.is-failed {
-  background: rgba(239, 68, 68, 0.14);
-  color: #b91c1c;
-}
-
-.overview-pill--cert.is-none {
-  background: var(--app-surface-solid);
+.cfg-info-empty {
+  margin: 0;
+  font-size: 13px;
   color: var(--app-text-muted);
-  border: 1px solid var(--app-border);
 }
 
-.overview-pill--waf.role-pill--predefined,
-.overview-pill.role-pill--predefined {
-  color: #1d4ed8;
-  background: rgba(59, 130, 246, 0.14);
-  border: 1px solid rgba(59, 130, 246, 0.28);
+.cfg-waf-prompt {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.overview-pill--waf.role-pill--custom,
-.overview-pill.role-pill--custom {
-  color: #0f766e;
-  background: rgba(20, 184, 166, 0.14);
-  border: 1px solid rgba(20, 184, 166, 0.28);
+.cfg-waf-prompt h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--app-heading);
+}
+
+.cfg-waf-prompt p {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.cfg-waf-prompt .cfg-btn {
+  align-self: flex-start;
+  margin-top: 4px;
 }
 
 .role-pill {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: var(--type-caption);
-  font-weight: 600;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 650;
   line-height: 1.2;
 }
 
 .role-pill--predefined {
-  color: #1d4ed8;
-  background: rgba(59, 130, 246, 0.16);
-  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #5b9df0;
+  background: rgba(91, 157, 240, 0.14);
+  border: 1px solid rgba(91, 157, 240, 0.3);
 }
 
 .role-pill--custom {
-  color: #0f766e;
-  background: rgba(20, 184, 166, 0.16);
-  border: 1px solid rgba(20, 184, 166, 0.35);
-}
-
-:global([data-theme='dark']) .role-pill.role-pill--predefined,
-:global([data-theme='dark']) .overview-pill.role-pill--predefined {
-  color: #93c5fd !important;
-  background: rgba(59, 130, 246, 0.22) !important;
-  border-color: rgba(59, 130, 246, 0.45) !important;
-}
-
-:global([data-theme='dark']) .role-pill.role-pill--custom,
-:global([data-theme='dark']) .overview-pill.role-pill--custom {
-  color: #5eead4 !important;
-  background: rgba(20, 184, 166, 0.18) !important;
-  border-color: rgba(45, 212, 191, 0.42) !important;
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.14);
+  border: 1px solid rgba(46, 158, 108, 0.28);
 }
 
 @media (max-width: 1100px) {
-  .overview-metrics {
+  .cfg-tabs,
+  .cfg-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 760px) {
-  .overview-metrics,
-  .overview-sections,
-  .detail-grid {
+  .cfg-tabs,
+  .cfg-metrics,
+  .cfg-sections,
+  .cfg-detail-grid {
     grid-template-columns: 1fr;
   }
 
-  .overview-section--wide {
+  .cfg-section--wide {
     grid-column: auto;
   }
-}
 
-.waf-fork-prompt {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 24px;
-  border-radius: 12px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-muted);
-}
-
-.waf-fork-prompt h3 {
-  margin: 0;
-  font-size: var(--type-section-title);
-  color: var(--app-heading);
-}
-
-.waf-fork-prompt p {
-  margin: 0;
-  color: var(--app-text-secondary);
-  line-height: 1.5;
+  .cfg-section__head {
+    flex-direction: column;
+  }
 }
 </style>

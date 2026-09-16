@@ -587,32 +587,35 @@ onUnmounted(stopCertPoll)
 
 <style scoped>
 .origin-panel {
+  --cfg-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .origin-intro {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
-  padding: 4px 2px 2px;
+  gap: 16px;
+  padding: 2px 0 0;
 }
 
 .origin-kicker {
-  margin: 0 0 4px;
-  font-size: var(--type-caption);
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--app-text-muted);
+  color: var(--dorian-viper-400, var(--app-accent));
 }
 
 .origin-intro h4 {
-  margin: 0 0 6px;
-  font-size: var(--type-metric-value);
+  margin: 0 0 4px;
+  font-size: 1.15rem;
   font-weight: 650;
+  letter-spacing: -0.02em;
   color: var(--app-heading);
 }
 
@@ -620,39 +623,39 @@ onUnmounted(stopCertPoll)
   margin: 0;
   max-width: 42rem;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .origin-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   justify-content: flex-end;
   flex-shrink: 0;
 }
 
 .summary-chip {
-  min-width: 120px;
+  min-width: 112px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--cfg-radius);
   border: 1px solid var(--app-border);
-  background: var(--app-surface-muted);
+  background: var(--app-surface-elevated, var(--app-surface));
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .summary-chip__label {
-  font-size: var(--type-small);
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 650;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--app-text-muted);
 }
 
 .summary-chip__value {
-  font-size: var(--type-base);
+  font-size: 13px;
   font-weight: 650;
   color: var(--app-heading);
   word-break: break-all;
@@ -660,33 +663,33 @@ onUnmounted(stopCertPoll)
 
 .helper-banner {
   margin: 0;
-  padding: 14px 16px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: var(--cfg-radius);
   border: 1px dashed var(--app-border);
-  background: var(--app-surface-muted);
+  background: color-mix(in srgb, var(--app-surface-elevated) 70%, transparent);
   color: var(--app-text-muted);
-  font-size: var(--type-base);
+  font-size: 13px;
 }
 
 .helper-banner--error {
-  border-color: rgba(185, 28, 28, 0.35);
-  color: #b91c1c;
-  background: rgba(185, 28, 28, 0.06);
+  border-color: rgba(225, 82, 65, 0.35);
+  color: #e15241;
+  background: rgba(225, 82, 65, 0.08);
 }
 
 .origin-card {
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
+  border-radius: var(--cfg-radius);
   border: 1px solid var(--app-border);
-  background: var(--app-surface-solid);
+  background: var(--app-surface-elevated, var(--app-surface));
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .origin-card--dirty {
-  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
+  border-color: rgba(46, 158, 108, 0.45);
+  box-shadow: 0 0 0 2px rgba(46, 158, 108, 0.12);
 }
 
 .origin-card__head {
@@ -694,7 +697,7 @@ onUnmounted(stopCertPoll)
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px 0;
+  padding: 14px 14px 0;
 }
 
 .origin-card__title-row {
@@ -707,51 +710,56 @@ onUnmounted(stopCertPoll)
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: var(--type-caption);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(46, 158, 108, 0.12);
+  border: 1px solid rgba(46, 158, 108, 0.24);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .origin-card__head h5 {
-  margin: 0 0 4px;
-  font-size: var(--type-section-title);
+  margin: 0 0 3px;
+  font-size: 14px;
   font-weight: 650;
   color: var(--app-heading);
 }
 
 .origin-card__head p {
   margin: 0;
-  font-size: var(--type-base);
+  font-size: 12.5px;
   color: var(--app-text-muted);
   line-height: 1.4;
 }
 
 .dirty-tag {
   flex-shrink: 0;
-  margin-top: 4px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: var(--type-caption);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  margin-top: 2px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(46, 158, 108, 0.12);
+  border: 1px solid rgba(46, 158, 108, 0.24);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .origin-card__body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px 18px;
+  gap: 14px;
+  padding: 14px;
 }
 
 .origin-card__body--ssl {
-  gap: 18px;
+  gap: 16px;
 }
 
 .origin-card__body--flush {
@@ -762,10 +770,10 @@ onUnmounted(stopCertPoll)
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 12px 18px;
+  gap: 8px;
+  padding: 10px 14px;
   border-top: 1px solid var(--app-border);
-  background: var(--app-surface-muted);
+  background: color-mix(in srgb, var(--app-surface) 85%, transparent);
 }
 
 .form-field {
@@ -775,8 +783,10 @@ onUnmounted(stopCertPoll)
 }
 
 .form-field label {
-  font-size: var(--type-caption);
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--app-text-muted);
 }
 
@@ -784,7 +794,7 @@ onUnmounted(stopCertPoll)
   display: flex;
   align-items: stretch;
   border: 1px solid var(--app-input-border);
-  border-radius: 12px;
+  border-radius: 6px;
   background: var(--app-input-bg);
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -792,7 +802,7 @@ onUnmounted(stopCertPoll)
 
 .domain-input-row:focus-within {
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
 }
 
 .domain-prefix {
@@ -800,9 +810,10 @@ onUnmounted(stopCertPoll)
   align-items: center;
   padding: 0 12px;
   border-right: 1px solid var(--app-input-border);
-  background: var(--app-surface-muted);
+  background: color-mix(in srgb, var(--app-surface) 80%, transparent);
   color: var(--app-text-muted);
-  font-size: var(--type-base);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -812,17 +823,17 @@ onUnmounted(stopCertPoll)
   min-width: 0;
   border: 0;
   outline: none;
-  padding: 12px 14px;
-  font-size: var(--type-base);
+  padding: 10px 12px;
+  font-size: 13.5px;
   color: var(--app-text);
   background: transparent;
 }
 
 .form-field textarea {
   border: 1px solid var(--app-input-border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: var(--type-caption);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
   color: var(--app-text);
   background: var(--app-input-bg);
   outline: none;
@@ -834,22 +845,22 @@ onUnmounted(stopCertPoll)
 
 .form-field textarea:focus {
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
 }
 
 .field-hint,
 .subpanel-hint,
 .ssl-none-note {
   margin: 0;
-  font-size: var(--type-caption);
+  font-size: 12px;
   line-height: 1.45;
   color: var(--app-text-muted);
 }
 
 .ssl-none-note {
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--app-surface-muted);
+  padding: 12px;
+  border-radius: var(--cfg-radius);
+  background: color-mix(in srgb, var(--app-surface) 80%, transparent);
   border: 1px dashed var(--app-border);
 }
 
@@ -858,8 +869,8 @@ onUnmounted(stopCertPoll)
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   padding: 12px;
-  border-radius: 12px;
-  background: var(--app-surface-muted);
+  border-radius: var(--cfg-radius);
+  background: color-mix(in srgb, var(--app-surface) 80%, transparent);
   border: 1px solid var(--app-border);
 }
 
@@ -867,7 +878,7 @@ onUnmounted(stopCertPoll)
 .ssl-status-bar__error {
   grid-column: 1 / -1;
   margin: 0;
-  font-size: var(--type-caption);
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -877,29 +888,29 @@ onUnmounted(stopCertPoll)
 
 .ssl-status-bar__error {
   padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(220, 38, 38, 0.08);
-  color: #b91c1c;
+  border-radius: 6px;
+  background: rgba(225, 82, 65, 0.08);
+  color: #e15241;
   word-break: break-word;
 }
 
 .ssl-status-bar__item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
 }
 
 .ssl-status-bar__label {
-  font-size: var(--type-small);
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 650;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--app-text-muted);
 }
 
 .ssl-status-bar__value {
-  font-size: var(--type-base);
+  font-size: 13px;
   font-weight: 650;
   color: var(--app-heading);
 }
@@ -908,48 +919,51 @@ onUnmounted(stopCertPoll)
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: var(--type-caption);
-  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 650;
+  border: 1px solid transparent;
 }
 
 .cert-pill.is-valid {
-  background: rgba(22, 163, 74, 0.12);
-  color: #15803d;
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.12);
+  border-color: rgba(46, 158, 108, 0.26);
 }
 
 .cert-pill.is-expiring {
-  background: rgba(217, 119, 6, 0.14);
-  color: #b45309;
+  color: #e0a83f;
+  background: rgba(224, 168, 63, 0.12);
+  border-color: rgba(224, 168, 63, 0.26);
 }
 
-.cert-pill.is-expired {
-  background: rgba(220, 38, 38, 0.12);
-  color: #b91c1c;
+.cert-pill.is-expired,
+.cert-pill.is-failed {
+  color: #e15241;
+  background: rgba(225, 82, 65, 0.12);
+  border-color: rgba(225, 82, 65, 0.26);
 }
 
 .cert-pill.is-pending {
-  background: rgba(37, 99, 235, 0.12);
-  color: #1d4ed8;
-}
-
-.cert-pill.is-failed {
-  background: rgba(220, 38, 38, 0.12);
-  color: #b91c1c;
+  color: #5b9df0;
+  background: rgba(91, 157, 240, 0.12);
+  border-color: rgba(91, 157, 240, 0.26);
 }
 
 .cert-pill.is-none {
-  background: var(--app-surface-hover, rgba(0, 0, 0, 0.04));
   color: var(--app-text-muted);
+  background: rgba(139, 151, 143, 0.1);
+  border-color: rgba(139, 151, 143, 0.2);
 }
 
 .mode-block__label,
 .subpanel-label {
   margin: 0 0 8px;
-  font-size: var(--type-caption);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--app-text-muted);
 }
@@ -957,57 +971,61 @@ onUnmounted(stopCertPoll)
 .type-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .type-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  min-height: 92px;
-  padding: 14px;
-  border-radius: 14px;
+  gap: 4px;
+  min-height: 84px;
+  padding: 12px;
+  border-radius: var(--cfg-radius);
   border: 1px solid var(--app-border);
-  background: var(--app-surface-muted);
+  background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .type-card:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--app-accent) 50%, var(--app-border));
+  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
 }
 
 .type-card.active {
-  border-color: var(--app-accent);
-  background: var(--app-accent-soft);
-  box-shadow: inset 0 0 0 1px var(--app-accent);
+  border-color: rgba(46, 158, 108, 0.45);
+  background: rgba(46, 158, 108, 0.1);
+  box-shadow: inset 0 -2px 0 var(--dorian-viper-500, var(--app-accent));
 }
 
 .type-card:disabled {
-  opacity: 0.65;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .type-card__label {
-  font-size: var(--type-base);
+  font-size: 13.5px;
   font-weight: 650;
   color: var(--app-heading);
 }
 
+.type-card.active .type-card__label {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
 .type-card__desc {
-  font-size: var(--type-caption);
+  font-size: 12px;
   line-height: 1.4;
   color: var(--app-text-muted);
 }
 
 .subpanel {
-  padding: 14px;
-  border-radius: 14px;
+  padding: 12px;
+  border-radius: var(--cfg-radius);
   border: 1px solid var(--app-border);
-  background: var(--app-surface-muted);
+  background: var(--app-surface);
 }
 
 .subpanel--stack {
@@ -1019,28 +1037,28 @@ onUnmounted(stopCertPoll)
 .segmented {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .segmented__btn {
   border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
+  background: var(--app-surface);
   color: var(--app-text-secondary);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: var(--type-base);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .segmented__btn.active {
-  border-color: var(--app-accent);
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
+  border-color: rgba(46, 158, 108, 0.45);
+  background: rgba(46, 158, 108, 0.12);
+  color: var(--dorian-viper-400, var(--app-accent));
 }
 
 .segmented__btn:disabled {
-  opacity: 0.65;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 

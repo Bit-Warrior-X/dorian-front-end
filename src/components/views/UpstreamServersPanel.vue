@@ -386,7 +386,7 @@ watch(
 
 .content-card {
   background: var(--app-surface-muted);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 18px;
   border: 1px solid var(--app-border-strong);
 }
@@ -568,16 +568,19 @@ watch(
 }
 
 .waf-section-header h4 {
-  margin: 0 0 6px 0;
-  font-size: var(--type-section-title);
-  font-weight: 600;
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--app-heading);
 }
 
 .waf-section-desc {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 44rem;
 }
 
 .header-actions {
@@ -592,7 +595,7 @@ watch(
 }
 
 .table-wrap {
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--app-border-strong);
   overflow: hidden;
 }

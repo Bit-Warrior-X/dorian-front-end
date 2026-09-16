@@ -373,9 +373,10 @@ onBeforeUnmount(() => {
 }
 
 .waf-section-header h4 {
-  margin: 0 0 6px;
-  font-size: var(--type-section-title);
-  font-weight: 600;
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--app-heading);
 }
 
@@ -383,7 +384,9 @@ onBeforeUnmount(() => {
 .helper-text {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
+  font-size: 13px;
+  line-height: 1.45;
+  max-width: 44rem;
 }
 
 .error-text {
@@ -400,7 +403,7 @@ onBeforeUnmount(() => {
 .section-card {
   background: var(--app-surface-muted);
   border: 1px solid var(--app-border-strong);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 18px;
 }
 
@@ -425,7 +428,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-solid);
   color: var(--app-text-secondary);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 10px 14px;
   cursor: pointer;
   min-width: 160px;
@@ -439,10 +442,10 @@ onBeforeUnmount(() => {
 }
 
 .server-tab.active {
-  background: var(--app-accent-soft);
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-  box-shadow: 0 6px 14px rgba(124, 58, 237, 0.12);
+  background: rgba(46, 158, 108, 0.1);
+  border-color: rgba(46, 158, 108, 0.4);
+  color: var(--dorian-viper-400, var(--app-accent));
+  box-shadow: inset 0 -2px 0 var(--dorian-viper-500, var(--app-accent));
 }
 
 .server-tab__name {
@@ -492,7 +495,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   min-height: 44px;
   border: 1px solid var(--app-input-border);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 8px 12px;
   background: var(--app-input-bg);
 }
@@ -507,12 +510,14 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border-radius: 999px;
-  padding: 4px 8px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: var(--type-caption);
-  font-weight: 600;
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: rgba(46, 158, 108, 0.12);
+  border: 1px solid rgba(46, 158, 108, 0.24);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .port-tag-remove {
@@ -556,7 +561,7 @@ onBeforeUnmount(() => {
   max-height: 240px;
   overflow-y: auto;
   border: 1px solid var(--app-border-strong);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--app-surface-solid);
   box-shadow: 0 16px 32px var(--app-shadow);
   padding: 6px;
