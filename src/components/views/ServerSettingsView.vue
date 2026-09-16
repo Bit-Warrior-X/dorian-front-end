@@ -1,11 +1,15 @@
 <template>
-  <div class="servers-view">
-    <div class="content-card filter-card">
-      <div class="filter-row">
-        <label class="filter-label" for="server-settings-target">Target edge</label>
+  <div class="edge-cfg">
+    <header class="edge-cfg__topbar">
+      <div class="edge-cfg__topbar-left">
+        <p class="edge-cfg__kicker">Infrastructure</p>
+        <h2>Configure edge</h2>
+        <p>{{ configureSubtitle }}</p>
+      </div>
+      <div class="edge-cfg__picker">
+        <label for="server-settings-target">Edge</label>
         <select
           id="server-settings-target"
-          class="filter-select"
           v-model.number="selectedServer"
         >
           <option disabled value="">Select an edge</option>
@@ -13,7 +17,21 @@
             {{ server.name || server.ip || `Edge #${server.id}` }}
           </option>
         </select>
-        <div v-if="selectedServerData" class="filter-meta">
+      </div>
+    </header>
+
+    <div v-if="!selectedServerData" class="edge-cfg__empty">
+      <h3>Choose an edge to configure</h3>
+      <p>Pick a node above to monitor runtime health, listening ports, and L4 protection.</p>
+    </div>
+
+    <template v-else>
+      <section class="edge-cfg__statusbar" aria-label="Edge status">
+        <div class="edge-cfg__status-copy">
+          <strong>{{ selectedServerData.name || selectedServerData.ip || `Edge #${selectedServerData.id}` }}</strong>
+          <span>{{ statusSummary }}</span>
+        </div>
+        <div class="edge-cfg__status-pills">
           <span class="layer-status-dots layer-status-dots--meta">
             <LayerStatusDot
               layer="l4"
@@ -28,66 +46,66 @@
               :aria-label="layerDotTitle(selectedServerData, 'l7')"
             />
           </span>
-          <span class="meta-pill status server-status-pill" :class="angelosStatusClass(selectedServerData)">
-            Angelos: {{ angelosStatusLabel(selectedServerData) }}
-          </span>
-          <span class="meta-pill license">License: {{ selectedServerData.license }}</span>
-        </div>
-      </div>
-    </div>
-    <div v-if="selectedServerData" class="content-card settings-card">
-      <div class="settings-tabs">
-        <div class="tabs-header">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
-            class="tab-btn"
-            :class="{ active: activeTab === tab.id }"
-            type="button"
-            @click="selectTab(tab.id)"
+          <div
+            class="edge-cfg__angelos"
+            :class="`edge-cfg__angelos--${angelosStatusClass(selectedServerData)}`"
           >
-            {{ tab.label }}
-          </button>
+            <span class="edge-cfg__angelos-dot" aria-hidden="true"></span>
+            <strong>{{ angelosStatusLabel(selectedServerData) }}</strong>
+          </div>
+          <span class="edge-cfg__pill">{{ selectedServerData.license || 'No license' }}</span>
+          <span v-if="selectedServerData.ip" class="edge-cfg__pill edge-cfg__pill--muted num">
+            {{ selectedServerData.ip }}
+          </span>
         </div>
-        <div
-          ref="tabsBodyEl"
-          class="tabs-body"
-          :class="{
-            'no-outline':
-              activeTab === 'server-status' ||
-              activeTab === 'listening-ports' ||
-              activeTab === 'l4-config' ||
-              activeTab === 'l4-blacklist' ||
-              activeTab === 'l4-whitelist',
-          }"
+      </section>
+
+      <nav class="edge-cfg__tabs" aria-label="Edge configuration sections">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          type="button"
+          class="edge-cfg__tab"
+          :class="{ active: activeTab === tab.id }"
+          @click="selectTab(tab.id)"
         >
-          <ServerStatusPanel
-            v-if="activeTab === 'server-status' && selectedServerData"
-            :server-id="selectedServer"
-            :server="selectedServerData"
-            @updated="onServerStatusUpdated"
-          />
-          <ListeningPortsPanel
-            v-else-if="activeTab === 'listening-ports'"
-            :key="`listening-ports-${selectedServer}`"
-            :server-id="selectedServer"
-          />
-          <L4DdosDefensePanel
-            v-else-if="activeTab === 'l4-config'"
-            :key="`l4-config-${selectedServer}`"
-            :server-id="selectedServer"
-          />
-          <L4BlacklistPanel
-            v-else-if="activeTab === 'l4-blacklist'"
-            :key="`l4-blacklist-${selectedServer}`"
-            :server-id="selectedServer"
-          />
-          <L4WhitelistPanel
-            v-else-if="activeTab === 'l4-whitelist'"
-            :key="`l4-whitelist-${selectedServer}`"
-            :server-id="selectedServer"
-          />
-          <table v-else class="config-table">
+          <span class="edge-cfg__tab-label">{{ tab.label }}</span>
+          <span class="edge-cfg__tab-hint">{{ tab.hint }}</span>
+        </button>
+      </nav>
+
+      <section
+        ref="tabsBodyEl"
+        class="edge-cfg__panel"
+      >
+        <ServerStatusPanel
+          v-if="activeTab === 'server-status' && selectedServerData"
+          :server-id="selectedServer"
+          :server="selectedServerData"
+          @updated="onServerStatusUpdated"
+        />
+        <ListeningPortsPanel
+          v-else-if="activeTab === 'listening-ports'"
+          :key="`listening-ports-${selectedServer}`"
+          :server-id="selectedServer"
+        />
+        <L4DdosDefensePanel
+          v-else-if="activeTab === 'l4-config'"
+          :key="`l4-config-${selectedServer}`"
+          :server-id="selectedServer"
+        />
+        <L4BlacklistPanel
+          v-else-if="activeTab === 'l4-blacklist'"
+          :key="`l4-blacklist-${selectedServer}`"
+          :server-id="selectedServer"
+        />
+        <L4WhitelistPanel
+          v-else-if="activeTab === 'l4-whitelist'"
+          :key="`l4-whitelist-${selectedServer}`"
+          :server-id="selectedServer"
+        />
+        <div v-else-if="activeConfigRows.length" class="edge-cfg__table-wrap">
+          <table class="edge-cfg__table">
             <thead>
               <tr>
                 <th>Setting</th>
@@ -99,232 +117,300 @@
               <tr v-for="row in activeConfigRows" :key="row.name">
                 <td>{{ row.name }}</td>
                 <td>
-                  <span v-if="row.type === 'toggle'" class="value-pill" :class="{ on: row.value === 'On' }">
+                  <span v-if="row.type === 'toggle'" class="edge-cfg__value" :class="{ on: row.value === 'On' }">
                     {{ row.value }}
                   </span>
                   <span v-else>{{ row.value }}</span>
                 </td>
-                <td class="config-note">{{ row.note }}</td>
+                <td class="edge-cfg__note">{{ row.note }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      </section>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { fetchServers } from "@/api/servers";
-import L4DdosDefensePanel from "./L4DdosDefensePanel.vue";
-import L4BlacklistPanel from "./L4BlacklistPanel.vue";
-import L4WhitelistPanel from "./L4WhitelistPanel.vue";
-import LayerStatusDot from "../LayerStatusDot.vue";
-import ListeningPortsPanel from "./ListeningPortsPanel.vue";
-import ServerStatusPanel from "./ServerStatusPanel.vue";
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { fetchServers } from '@/api/servers'
+import L4DdosDefensePanel from './L4DdosDefensePanel.vue'
+import L4BlacklistPanel from './L4BlacklistPanel.vue'
+import L4WhitelistPanel from './L4WhitelistPanel.vue'
+import LayerStatusDot from '../LayerStatusDot.vue'
+import ListeningPortsPanel from './ListeningPortsPanel.vue'
+import ServerStatusPanel from './ServerStatusPanel.vue'
 import {
   angelosStatusClass,
   angelosStatusLabel,
   layerDotDescription,
   layerDotTitle,
   resolveLayerStatus,
-} from "@/utils/serverLayerStatus";
+} from '@/utils/serverLayerStatus'
 
-const route = useRoute();
-const router = useRouter();
-const serverOptions = ref([]);
-const selectedServer = ref("");
-const tabsBodyEl = ref(null);
+const route = useRoute()
+const router = useRouter()
+const serverOptions = ref([])
+const selectedServer = ref('')
+const tabsBodyEl = ref(null)
 const selectedServerData = computed(() =>
-  serverOptions.value.find((server) => server.id === selectedServer.value)
-);
+  serverOptions.value.find((server) => server.id === selectedServer.value),
+)
+
+const configureSubtitle = computed(() => {
+  if (!selectedServerData.value) {
+    return 'Select an edge to manage runtime health, ports, and L4 protection.'
+  }
+  const name = selectedServerData.value.name || selectedServerData.value.ip || `Edge #${selectedServerData.value.id}`
+  return `Configuring ${name}`
+})
+
+const statusSummary = computed(() => {
+  const server = selectedServerData.value
+  if (!server) return ''
+  const angelos = angelosStatusLabel(server)
+  const license = server.license || 'unlicensed'
+  const ip = server.ip ? ` · ${server.ip}` : ''
+  return `Angelos ${angelos} · ${license}${ip}`
+})
 
 const loadServers = async () => {
   try {
-    const data = await fetchServers();
-    serverOptions.value = Array.isArray(data) ? data : [];
+    const data = await fetchServers()
+    serverOptions.value = Array.isArray(data) ? data : []
   } catch {
-    serverOptions.value = [];
+    serverOptions.value = []
   }
 
   if (!selectedServer.value && serverOptions.value.length) {
-    selectedServer.value = serverOptions.value[0].id;
+    selectedServer.value = serverOptions.value[0].id
   }
-};
+}
 
 const tabs = [
-  {
-    id: "server-status",
-    label: "Monitor Server",
-    rows: []
-  },
-  {
-    id: "listening-ports",
-    label: "Listening Ports",
-    rows: []
-  },
-  {
-    id: "l4-config",
-    label: "XDP Config",
-    rows: []
-  },
-  {
-    id: "l4-blacklist",
-    label: "Block IP",
-    rows: []
-  },
-  {
-    id: "l4-whitelist",
-    label: "Allow IP",
-    rows: []
-  }
-];
+  { id: 'server-status', label: 'Monitor', hint: 'Runtime & health', rows: [] },
+  { id: 'listening-ports', label: 'Ports', hint: 'Client listeners', rows: [] },
+  { id: 'l4-config', label: 'XDP', hint: 'L4 defense', rows: [] },
+  { id: 'l4-blacklist', label: 'Block IP', hint: 'Deny lists', rows: [] },
+  { id: 'l4-whitelist', label: 'Allow IP', hint: 'Trust lists', rows: [] },
+]
 
-const activeTab = ref(tabs[0].id);
+const activeTab = ref(tabs[0].id)
 const activeConfigRows = computed(() => {
-  const active = tabs.find((tab) => tab.id === activeTab.value);
-  if (!active) return [];
+  const active = tabs.find((tab) => tab.id === activeTab.value)
+  if (!active) return []
   if (
-    active.id === "server-status" ||
-    active.id === "listening-ports" ||
-    active.id === "l4-config" ||
-    active.id === "l4-blacklist" ||
-    active.id === "l4-whitelist"
+    active.id === 'server-status'
+    || active.id === 'listening-ports'
+    || active.id === 'l4-config'
+    || active.id === 'l4-blacklist'
+    || active.id === 'l4-whitelist'
   ) {
-    return [];
+    return []
   }
-  return active.rows;
-});
+  return active.rows
+})
 
 const selectTab = (tabId) => {
-  activeTab.value = tabId;
+  activeTab.value = tabId
   requestAnimationFrame(() => {
-    tabsBodyEl.value?.scrollIntoView({ block: "start", behavior: "smooth" });
-  });
-};
+    tabsBodyEl.value?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  })
+}
 
 const applyRouteQuery = () => {
-  if (String(route.query.tab || "").toLowerCase() === "license") {
+  if (String(route.query.tab || '').toLowerCase() === 'license') {
     void router.replace({
-      name: "server-license",
+      name: 'server-license',
       query: route.query.server != null ? { server: route.query.server } : {},
-    });
-    return;
+    })
+    return
   }
 
-  const raw = route.query.server;
-  if (raw != null && String(raw).trim() !== "") {
-    const id = Number(raw);
+  const raw = route.query.server
+  if (raw != null && String(raw).trim() !== '') {
+    const id = Number(raw)
     if (!Number.isNaN(id)) {
-      selectedServer.value = id;
+      selectedServer.value = id
     }
   }
-  const tab = String(route.query.tab || "").toLowerCase();
-  if (["basic", "monitor-server", "server-status"].includes(tab)) {
-    selectTab("server-status");
-  } else if (tab === "listening-ports") {
-    selectTab("listening-ports");
-  } else if (tab === "l4-blacklist" || tab === "blacklist") {
-    selectTab("l4-blacklist");
-  } else if (tab === "l4-whitelist" || tab === "whitelist") {
-    selectTab("l4-whitelist");
-  } else if (tab === "l4-config" || tab === "l4-ddos" || tab === "l4") {
-    selectTab("l4-config");
+  const tab = String(route.query.tab || '').toLowerCase()
+  if (['basic', 'monitor-server', 'server-status'].includes(tab)) {
+    selectTab('server-status')
+  } else if (tab === 'listening-ports') {
+    selectTab('listening-ports')
+  } else if (tab === 'l4-blacklist' || tab === 'blacklist') {
+    selectTab('l4-blacklist')
+  } else if (tab === 'l4-whitelist' || tab === 'whitelist') {
+    selectTab('l4-whitelist')
+  } else if (tab === 'l4-config' || tab === 'l4-ddos' || tab === 'l4') {
+    selectTab('l4-config')
   }
-};
+}
 
 const onServerStatusUpdated = (updated) => {
-  if (!updated?.id) return;
-  const index = serverOptions.value.findIndex((server) => server.id === updated.id);
-  if (index === -1) return;
+  if (!updated?.id) return
+  const index = serverOptions.value.findIndex((server) => server.id === updated.id)
+  if (index === -1) return
   serverOptions.value[index] = {
     ...serverOptions.value[index],
     ...updated,
     serviceStatus: updated.serviceStatus ?? updated.service_status ?? serverOptions.value[index].serviceStatus,
     l4Status: updated.l4Status ?? updated.l4_status ?? serverOptions.value[index].l4Status,
     l7Status: updated.l7Status ?? updated.l7_status ?? serverOptions.value[index].l7Status,
-  };
-};
+  }
+}
 
 watch(
   () => route.fullPath,
   () => {
-    applyRouteQuery();
-  }
-);
+    applyRouteQuery()
+  },
+)
 
 onMounted(() => {
   void loadServers().then(() => {
-    applyRouteQuery();
-  });
-});
+    applyRouteQuery()
+  })
+})
 </script>
 
 <style scoped>
-.servers-view {
+.edge-cfg {
+  --cfg-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
+  max-width: 1680px;
+  margin: 0 auto;
+  min-height: 100%;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
-.content-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
 }
 
-.content-card h2 {
-  font-size: var(--type-section-title);
-  font-weight: 600;
+.edge-cfg__topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.edge-cfg__kicker {
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.edge-cfg__topbar-left h2 {
+  margin: 0 0 3px;
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   color: var(--app-heading);
-  margin: 0 0 12px 0;
+  line-height: 1.2;
 }
 
-.filter-card {
-  padding-bottom: 20px;
-}
-
-.filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+.edge-cfg__topbar-left p:last-child {
   margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
 }
 
-.filter-label {
-  font-size: var(--type-base);
-  font-weight: 600;
-  color: var(--app-text-secondary);
-}
-
-.filter-select {
-  min-width: 220px;
-  border-radius: 12px;
-  border: 1px solid var(--app-input-border);
-  padding: 8px 12px;
-  font-size: var(--type-base);
-  color: var(--app-text);
-  background: var(--app-input-bg);
-  box-shadow: 0 1px 6px var(--app-shadow);
-}
-
-.filter-select:focus {
-  outline: 2px solid var(--app-accent-soft);
-  outline-offset: 2px;
-  border-color: var(--app-accent);
-}
-
-.filter-meta {
+.edge-cfg__picker {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 240px;
+}
+
+.edge-cfg__picker label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.edge-cfg__picker select {
+  border: 1px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  outline: none;
+  min-width: 260px;
+}
+
+.edge-cfg__picker select:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+.edge-cfg__empty {
+  padding: 36px 20px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--cfg-radius);
+  background: var(--app-surface);
+  text-align: center;
+  color: var(--app-text-muted);
+}
+
+.edge-cfg__empty h3 {
+  margin: 0 0 6px;
+  color: var(--app-heading);
+  font-size: 1.05rem;
+}
+
+.edge-cfg__empty p {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.edge-cfg__statusbar {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--cfg-radius);
+  background: var(--app-surface);
+}
+
+.edge-cfg__status-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.edge-cfg__status-copy strong {
+  font-size: 15px;
+  color: var(--app-heading);
+}
+
+.edge-cfg__status-copy span {
+  font-size: 12.5px;
+  color: var(--app-text-muted);
+}
+
+.edge-cfg__status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .layer-status-dots--meta {
@@ -333,120 +419,196 @@ onMounted(() => {
   gap: 6px;
 }
 
-.meta-pill.license {
+.edge-cfg__angelos {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: var(--type-caption);
-  font-weight: 600;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  border: 1px solid rgba(124, 58, 237, 0.28);
+  gap: 7px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
 }
 
-.settings-tabs {
-  border-top: none;
-  padding-top: 0;
+.edge-cfg__angelos-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
 }
 
-.tabs-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
+.edge-cfg__angelos strong {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
-.tab-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
+.edge-cfg__angelos--running {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.14);
+  border-color: rgba(46, 158, 108, 0.32);
+}
+
+.edge-cfg__angelos--running .edge-cfg__angelos-dot {
+  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.2);
+  animation: edge-cfg-pulse 1.8s ease-in-out infinite;
+}
+
+.edge-cfg__angelos--deployed {
+  color: #5b9df0;
+  background: rgba(91, 157, 240, 0.14);
+  border-color: rgba(91, 157, 240, 0.3);
+}
+
+.edge-cfg__angelos--stopped {
+  color: #e15241;
+  background: rgba(225, 82, 65, 0.14);
+  border-color: rgba(225, 82, 65, 0.34);
+}
+
+.edge-cfg__angelos--unknown {
   color: var(--app-text-muted);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: var(--type-base);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background: rgba(139, 151, 143, 0.12);
+  border-color: rgba(139, 151, 143, 0.24);
 }
 
-.tab-btn.active {
-  background: var(--app-accent-soft);
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-  box-shadow: 0 6px 14px rgba(124, 58, 237, 0.15);
+@keyframes edge-cfg-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 
-.tab-btn:hover:not(.active) {
-  border-color: var(--app-border-strong);
-  color: var(--app-text);
-  background: var(--app-surface-hover);
+.edge-cfg__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.12);
+  border: 1px solid rgba(46, 158, 108, 0.26);
 }
 
-.tabs-body {
-  border: 1px solid var(--app-border-strong);
-  border-radius: 14px;
-  overflow: visible;
+.edge-cfg__pill--muted {
+  color: var(--app-text-muted);
+  background: rgba(139, 151, 143, 0.1);
+  border-color: rgba(139, 151, 143, 0.2);
+}
+
+.edge-cfg__tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.edge-cfg__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--cfg-radius);
+  border: 1px solid var(--app-border);
   background: var(--app-surface);
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.tabs-body.no-outline {
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  overflow: visible;
+.edge-cfg__tab:hover:not(.active) {
+  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
+  background: color-mix(in srgb, var(--app-accent) 5%, var(--app-surface));
 }
 
-.config-table {
+.edge-cfg__tab.active {
+  border-color: rgba(46, 158, 108, 0.45);
+  background: rgba(46, 158, 108, 0.1);
+  box-shadow: inset 0 -2px 0 var(--dorian-viper-500, var(--app-accent));
+}
+
+.edge-cfg__tab-label {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.edge-cfg__tab.active .edge-cfg__tab-label {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.edge-cfg__tab-hint {
+  font-size: 11.5px;
+  color: var(--app-text-muted);
+}
+
+.edge-cfg__panel {
+  border: 1px solid var(--app-border);
+  border-radius: var(--cfg-radius);
+  background: var(--app-surface);
+  padding: 16px;
+  min-height: 320px;
+}
+
+.edge-cfg__table-wrap {
+  overflow-x: auto;
+}
+
+.edge-cfg__table {
   width: 100%;
   border-collapse: collapse;
   min-width: 540px;
 }
 
-.config-table thead {
-  background: var(--app-surface-muted);
-}
-
-.config-table th,
-.config-table td {
+.edge-cfg__table th,
+.edge-cfg__table td {
   text-align: left;
-  padding: 12px 16px;
-  font-size: var(--type-base);
+  padding: 11px 12px;
+  font-size: 13px;
   color: var(--app-text);
-  border-bottom: 1px solid var(--app-border-strong);
+  border-bottom: 1px solid var(--app-border);
 }
 
-.config-table th {
-  font-size: var(--type-caption);
+.edge-cfg__table th {
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--app-text-muted);
-  font-weight: 600;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--app-surface-elevated) 80%, transparent);
 }
 
-.config-note {
+.edge-cfg__note {
   color: var(--app-text-muted);
 }
 
-.value-pill {
+.edge-cfg__value {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: var(--type-caption);
-  font-weight: 600;
-  color: var(--app-text-secondary);
-  background: rgba(148, 163, 184, 0.18);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--app-text-muted);
+  background: rgba(139, 151, 143, 0.12);
+  border: 1px solid rgba(139, 151, 143, 0.2);
 }
 
-.value-pill.on {
-  color: #15803d;
-  background: rgba(34, 197, 94, 0.18);
+.edge-cfg__value.on {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.14);
+  border-color: rgba(46, 158, 108, 0.28);
 }
 
-.content-card p {
-  margin: 0;
-  color: var(--app-text-secondary);
-  font-size: var(--type-base);
+@media (max-width: 1100px) {
+  .edge-cfg__tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .edge-cfg__tabs {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
-

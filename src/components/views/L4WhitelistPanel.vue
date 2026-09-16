@@ -1,11 +1,12 @@
 <template>
-  <div class="l4-list-panel">
-    <div class="panel-header">
+  <div class="edge-subpanel">
+    <header class="edge-subpanel__intro">
       <div>
+        <p class="edge-subpanel__kicker">L4 defense</p>
         <h4>Allow IP</h4>
-        <p class="panel-desc">Allow trusted source IPs for this server.</p>
+        <p>Trusted source IPs that bypass L4 blocking on this edge.</p>
       </div>
-      <div class="panel-actions">
+      <div class="edge-subpanel__actions">
         <button
           type="button"
           class="secondary-btn"
@@ -18,7 +19,7 @@
           Add IP
         </button>
       </div>
-    </div>
+    </header>
 
     <div class="table-wrap">
       <table class="list-table">
@@ -271,43 +272,67 @@ watch(
 </script>
 
 <style scoped>
-.l4-list-panel {
+
+.edge-subpanel {
+  --cfg-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   width: 100%;
 }
 
-.panel-header {
+.edge-subpanel__intro {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
 }
 
-.panel-header h4 {
-  margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: 600;
+.edge-subpanel__kicker {
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.edge-subpanel__intro h4 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   color: var(--app-heading);
 }
 
-.panel-desc {
-  margin: 6px 0 0 0;
+.edge-subpanel__intro p:not(.edge-subpanel__kicker) {
+  margin: 0;
+  font-size: 13px;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
+  line-height: 1.45;
+  max-width: 44rem;
 }
 
-.panel-actions {
+.edge-subpanel__actions {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
+
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
 
 .table-wrap {
   overflow: auto;
-  border-radius: 12px;
-  border: 1px solid var(--app-border-strong);
+  border-radius: var(--cfg-radius);
+  border: 1px solid var(--app-border);
   width: 100%;
   max-height: 520px;
   background: var(--app-surface);
@@ -316,25 +341,26 @@ watch(
 .list-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--type-base);
-  min-width: 560px;
+  font-size: 13px;
+  min-width: 640px;
 }
 
 .list-table th,
 .list-table td {
-  padding: 12px 14px;
+  padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid var(--app-border-strong);
+  border-bottom: 1px solid var(--app-border);
   color: var(--app-text);
   word-break: break-word;
 }
 
 .list-table th {
-  font-size: var(--type-caption);
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--app-text-muted);
-  background: var(--app-surface-muted);
+  font-weight: 650;
+  background: color-mix(in srgb, var(--app-surface-elevated) 80%, transparent);
 }
 
 .list-table tr:last-child td {
@@ -344,71 +370,49 @@ watch(
 .empty-cell {
   text-align: center;
   color: var(--app-text-muted);
-  font-style: italic;
+  padding: 28px 12px !important;
 }
 
-.primary-btn,
-.primary-btn:hover:not(:disabled) {
-  /* flat styles from theme.css */
-}
-
-.secondary-btn {
-  border: 1px solid var(--app-border-strong);
-  border-radius: 10px;
-  padding: 9px 14px;
-  font-size: var(--type-base);
-  font-weight: 600;
-  background: var(--app-surface-solid);
-  color: var(--app-text-secondary);
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.secondary-btn:hover:not(:disabled) {
-  background: var(--app-surface-hover);
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-}
-
+.primary-btn:disabled,
 .secondary-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .icon-action-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   padding: 0;
-  color: var(--app-accent);
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  color: var(--app-text-muted);
 }
 
 .icon-action-btn:hover {
-  background: var(--app-surface-hover);
   border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
 }
 
 .icon-action-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   fill: currentColor;
 }
 
 .icon-action-btn.danger {
-  color: #dc2626;
+  color: #e15241;
 }
 
 .icon-action-btn.danger:hover {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.45);
-  color: #ef4444;
+  background: rgba(225, 82, 65, 0.1);
+  border-color: rgba(225, 82, 65, 0.4);
+  color: #e15241;
 }
 
 .dialog-overlay {
@@ -425,13 +429,13 @@ watch(
 .dialog-card {
   width: min(520px, 100%);
   background: var(--app-surface-solid);
-  border: 1px solid var(--app-border-strong);
-  border-radius: 16px;
-  box-shadow: 0 20px 50px var(--app-shadow);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  box-shadow: 0 18px 40px var(--app-shadow);
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px 22px 18px;
+  gap: 14px;
+  padding: 18px;
 }
 
 .dialog-header {
@@ -443,86 +447,83 @@ watch(
 
 .dialog-header h4 {
   margin: 0;
-  font-size: var(--type-metric-value);
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 650;
   color: var(--app-heading);
 }
 
 .icon-btn {
-  border: none;
-  background: var(--app-surface-hover);
-  color: var(--app-text-secondary);
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: var(--type-section-title);
-  transition: background 0.2s ease, color 0.2s ease;
+  font-size: 14px;
 }
 
 .icon-btn:hover {
-  background: var(--app-surface-elevated);
-  color: var(--app-text);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
 }
 
 .dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .form-field {
-  display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .form-field label {
-  font-size: var(--type-caption);
-  font-weight: 600;
-  color: var(--app-text-secondary);
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--app-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-top: 8px;
 }
 
 .required {
-  color: #dc2626;
+  color: #e15241;
 }
 
 .form-input {
   border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: var(--type-base);
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 13px;
   color: var(--app-text);
   background: var(--app-input-bg);
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-input:focus {
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
 }
 
 .field-control {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .field-error {
   margin: 0;
-  font-size: var(--type-caption);
-  color: #dc2626;
-  font-weight: 600;
+  color: #e15241;
+  font-size: 12px;
 }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 </style>

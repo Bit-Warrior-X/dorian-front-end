@@ -26,6 +26,90 @@ const parseJson = async (response) => {
   }
 }
 
+const firstNonEmptyString = (...values) => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+/** Prefer actionable fields from dashboard + deploy_license error bodies. */
+export const extractApiErrorMessage = (payload, response) => {
+  const status = response?.status
+  const statusHint =
+    Number.isFinite(status) && status > 0
+      ? `Request failed (HTTP ${status})`
+      : 'Request failed'
+
+  if (payload == null) {
+    return firstNonEmptyString(response?.statusText, statusHint)
+  }
+
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim()
+    if (!trimmed) return firstNonEmptyString(response?.statusText, statusHint)
+    // Cloudflare replaces many origin 502/504 JSON bodies with a short/HTML error page.
+    if (
+      trimmed.startsWith('<') ||
+      /^error code:\s*502$/i.test(trimmed) ||
+      /^error code:\s*504$/i.test(trimmed)
+    ) {
+      if (status === 502 || status === 504) {
+        return 'Could not reach the target host from the control plane (gateway timeout/error). Check SSH IP, port, and firewall rules, or try a different server.'
+      }
+      return firstNonEmptyString(response?.statusText, statusHint)
+    }
+    try {
+      return extractApiErrorMessage(JSON.parse(trimmed), response)
+    } catch {
+      const brace = trimmed.indexOf('{')
+      if (brace >= 0) {
+        try {
+          const nested = extractApiErrorMessage(JSON.parse(trimmed.slice(brace)), response)
+          if (nested && nested !== statusHint) return nested
+        } catch {
+          /* keep raw text */
+        }
+      }
+      return trimmed.length > 800 ? `${trimmed.slice(0, 800)}…` : trimmed
+    }
+  }
+
+  if (typeof payload === 'object') {
+    const nestedError =
+      typeof payload.error === 'string'
+        ? payload.error
+        : payload.error && typeof payload.error === 'object'
+          ? firstNonEmptyString(payload.error.message, payload.error.description)
+          : ''
+
+    // Prefer detailed fields over generic HTTP status text in `error` (e.g. "Bad Gateway").
+    const genericHttpLabel = /^(bad gateway|gateway timeout|internal server error|service unavailable|bad request|unauthorized|forbidden|not found)$/i
+    const detail = firstNonEmptyString(
+      payload.message,
+      payload.script_error,
+      payload.description,
+      nestedError && !genericHttpLabel.test(nestedError) ? nestedError : '',
+      payload.detail,
+      nestedError,
+    )
+    if (detail) {
+      const brace = detail.indexOf('{')
+      if (brace >= 0 && detail.includes('"')) {
+        try {
+          const nested = extractApiErrorMessage(JSON.parse(detail.slice(brace)), response)
+          if (nested && nested !== statusHint) return nested
+        } catch {
+          /* use detail as-is */
+        }
+      }
+      return detail
+    }
+  }
+
+  return firstNonEmptyString(response?.statusText, statusHint)
+}
+
 export const resolveApiBaseUrl = async () => {
   const { apiBaseUrl } = await getApiConfig()
   if (apiBaseUrl) return apiBaseUrl
@@ -58,11 +142,7 @@ export const apiRequest = async (path, options = {}) => {
   const payload = await parseJson(response)
 
   if (!response.ok) {
-    const message =
-      payload?.message ||
-      payload?.error ||
-      response.statusText ||
-      'Request failed'
+    const message = extractApiErrorMessage(payload, response)
     const error = new Error(message)
     error.status = response.status
     error.payload = payload

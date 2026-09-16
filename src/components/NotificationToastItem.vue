@@ -202,7 +202,10 @@ const typeLabel = computed(() => {
   font-weight: 500;
   line-height: 1.45;
   color: var(--app-text-muted);
+  white-space: pre-wrap;
   word-break: break-word;
+  max-height: 12rem;
+  overflow-y: auto;
 }
 
 .toast__close {

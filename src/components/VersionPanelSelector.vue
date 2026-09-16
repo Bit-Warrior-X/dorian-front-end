@@ -1,69 +1,82 @@
 <template>
   <div
     class="version-selector"
+    :class="{ 'version-selector--compact': compact }"
     role="radiogroup"
     :aria-label="ariaLabel"
   >
-    <div class="version-grid">
+    <div class="version-list">
       <button
         v-for="(item, index) in versions"
         :key="item.uuid"
         type="button"
-        class="version-card"
-        :class="[
-          cardAccentClass(item, index),
-          {
-            selected: modelValue === item.uuid,
-            disabled: disabled || isInstalled(item),
-            'version-card--installed': isInstalled(item),
-            'version-card--latest': isLatest(index) && !isInstalled(item),
-          },
-        ]"
+        class="version-row"
+        :class="{
+          'is-selected': modelValue === item.uuid && !isInstalled(item),
+          'is-installed': isInstalled(item),
+          'is-latest': isLatest(index) && !isInstalled(item),
+          'is-disabled': disabled || isInstalled(item),
+        }"
         :disabled="disabled || isInstalled(item)"
         :aria-pressed="modelValue === item.uuid"
         @click="select(item.uuid)"
       >
-        <div class="version-card-accent" aria-hidden="true"></div>
+        <span class="version-row__accent" aria-hidden="true"></span>
 
-        <header class="version-header">
-          <div class="version-header-text">
-            <span v-if="badgeFor(item, index)" class="version-badge">{{ badgeFor(item, index) }}</span>
-            <span class="version-title">v{{ displayVersion(item) }}</span>
-            <span class="version-tagline">{{ versionPackageLabel(item) }}</span>
+        <div class="version-row__body">
+          <div class="version-row__top">
+            <div class="version-row__identity">
+              <span class="version-row__version num">v{{ displayVersion(item) }}</span>
+              <span
+                v-if="badgeFor(item, index)"
+                class="version-row__badge"
+                :class="badgeClass(item, index)"
+              >
+                {{ badgeFor(item, index) }}
+              </span>
+            </div>
+            <div class="version-row__end">
+              <span
+                v-if="compact"
+                class="version-row__updated num"
+              >
+                {{ formatVersionUpdated(item.updated) }}
+              </span>
+              <span class="version-row__check" aria-hidden="true">
+                <svg
+                  v-if="isInstalled(item) || modelValue === item.uuid"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                >
+                  <path
+                    d="M3.5 8.5L6.5 11.5L12.5 4.5"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </span>
+            </div>
           </div>
-          <span
-            class="version-radio"
-            :class="{
-              checked: modelValue === item.uuid && !isInstalled(item),
-              'version-radio--installed': isInstalled(item),
-            }"
-            aria-hidden="true"
-          >
-            <svg
-              v-if="isInstalled(item) || modelValue === item.uuid"
-              viewBox="0 0 16 16"
-              fill="none"
-            >
-              <path
-                d="M3.5 8.5L6.5 11.5L12.5 4.5"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </span>
-        </header>
 
-        <section class="version-section version-section--release">
-          <h4 class="version-section-label">Release</h4>
-          <div class="release-block">
-            <span v-if="formatVersionOs(item.os)" class="release-label">OS</span>
-            <span v-if="formatVersionOs(item.os)" class="release-date release-os">{{ formatVersionOs(item.os) }}</span>
-            <span class="release-label">Updated</span>
-            <span class="release-date">{{ formatVersionUpdated(item.updated) }}</span>
-          </div>
-        </section>
+          <template v-if="!compact">
+            <p class="version-row__package" :title="versionPackageLabel(item)">
+              {{ versionPackageLabel(item) }}
+            </p>
+
+            <div class="version-row__meta">
+              <span v-if="formatVersionOs(item.os)" class="version-row__meta-item">
+                <span class="version-row__meta-label">OS</span>
+                <span class="version-row__meta-value">{{ formatVersionOs(item.os) }}</span>
+              </span>
+              <span class="version-row__meta-item">
+                <span class="version-row__meta-label">Updated</span>
+                <span class="version-row__meta-value num">{{ formatVersionUpdated(item.updated) }}</span>
+              </span>
+            </div>
+          </template>
+        </div>
       </button>
     </div>
   </div>
@@ -95,6 +108,11 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  /** Single-line rows: version + badge + date (for upgrade / filtered lists). */
+  compact: {
+    type: Boolean,
+    default: false,
+  },
   ariaLabel: {
     type: String,
     default: 'Product version',
@@ -118,10 +136,10 @@ const badgeFor = (item, index) => {
   return null
 }
 
-const cardAccentClass = (item, index) => {
-  if (isInstalled(item)) return 'version-card--green'
-  if (isLatest(index)) return 'version-card--indigo'
-  return index % 2 === 0 ? 'version-card--blue' : 'version-card--violet'
+const badgeClass = (item, index) => {
+  if (isInstalled(item)) return 'version-row__badge--installed'
+  if (isLatest(index)) return 'version-row__badge--latest'
+  return ''
 }
 
 const select = (uuid) => {
@@ -137,240 +155,255 @@ const select = (uuid) => {
   width: 100%;
 }
 
-.version-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
-}
-
-.version-card {
-  position: relative;
-  text-align: left;
+.version-list {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  padding: 0;
+  gap: 8px;
+}
+
+.version-row {
+  position: relative;
+  display: flex;
+  width: 100%;
   min-width: 0;
-  border-radius: 16px;
-  border: 2px solid var(--tier-card-border, #e2e8f0);
-  background: var(--tier-card-bg, #fff);
+  padding: 0;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  text-align: left;
   cursor: pointer;
   overflow: hidden;
-  transition:
-    border-color 0.22s ease,
-    box-shadow 0.22s ease,
-    transform 0.18s ease;
   font: inherit;
-  color: #1e293b;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
-.version-card:hover:not(.disabled):not(.selected) {
-  border-color: var(--app-accent);
-  box-shadow: 0 8px 24px var(--app-accent-soft, rgba(168, 85, 247, 0.12));
-  transform: translateY(-2px);
-}
-
-.version-card.selected {
-  border-color: var(--app-accent);
-  box-shadow:
-    0 0 0 1px rgba(168, 85, 247, 0.35),
-    0 12px 32px var(--app-shadow, rgba(0, 0, 0, 0.2));
-}
-
-.version-card.disabled:not(.version-card--installed) {
-  opacity: 0.72;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.version-card--installed {
-  border-color: #22c55e;
-  background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
-  box-shadow:
-    0 0 0 1px rgba(34, 197, 94, 0.3),
-    0 4px 16px rgba(34, 197, 94, 0.12);
-  cursor: not-allowed;
-  transform: none;
-}
-
-.version-card--installed:hover {
-  border-color: #22c55e;
-  box-shadow:
-    0 0 0 1px rgba(34, 197, 94, 0.35),
-    0 4px 16px rgba(34, 197, 94, 0.15);
-  transform: none;
-}
-
-.version-card-accent {
-  height: 4px;
-  width: 100%;
+.version-row__accent {
+  width: 3px;
   flex-shrink: 0;
+  background: var(--app-border-strong, var(--app-border));
+  transition: background 0.15s ease;
 }
 
-.version-card--green .version-card-accent {
-  background: linear-gradient(90deg, #4ade80, #16a34a);
+.version-row__body {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.version-card--blue .version-card-accent {
-  background: linear-gradient(90deg, #60a5fa, #3b82f6);
-}
-
-.version-card--violet .version-card-accent {
-  background: var(--app-accent-gradient);
-}
-
-.version-card--indigo .version-card-accent {
-  background: linear-gradient(90deg, #818cf8, #4f46e5);
-}
-
-.version-header {
+.version-row__top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px 12px;
+  gap: 10px;
 }
 
-.version-header-text {
+.version-row__identity {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   min-width: 0;
 }
 
-.version-badge {
-  align-self: flex-start;
-  font-size: var(--type-small);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #4338ca;
-  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  padding: 3px 8px;
-  border-radius: 999px;
-  margin-bottom: 4px;
-}
-
-.version-card--installed .version-badge {
-  color: #166534;
-  background: rgba(34, 197, 94, 0.18);
-  border-color: rgba(34, 197, 94, 0.45);
-}
-
-.version-card--installed .version-title {
-  color: #15803d;
-}
-
-.version-card--installed .release-block {
-  background: rgba(34, 197, 94, 0.1);
-  border-color: rgba(34, 197, 94, 0.28);
-}
-
-.version-card--installed .release-label {
-  color: #16a34a;
-}
-
-.version-title {
-  font-weight: 800;
-  font-size: var(--type-metric-value);
-  color: var(--app-heading, #0f172a);
+.version-row__version {
+  font-size: 15px;
+  font-weight: 650;
   letter-spacing: -0.02em;
+  color: var(--app-heading);
   line-height: 1.2;
 }
 
-.version-tagline {
-  font-size: var(--type-caption);
-  color: var(--app-text-muted, #64748b);
-  font-weight: 500;
-  word-break: break-all;
-  line-height: 1.35;
+.version-row__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  background: color-mix(in srgb, var(--app-surface-elevated) 80%, transparent);
 }
 
-.version-radio {
+.version-row__badge--latest {
+  color: var(--dorian-viper-400, var(--app-accent));
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 35%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 12%, transparent);
+}
+
+.version-row__badge--installed {
+  color: var(--dorian-viper-400, var(--app-accent));
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 40%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 14%, transparent);
+}
+
+.version-row__end {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+}
+
+.version-row__updated {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+}
+
+.version-row__check {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 2px solid #cbd5e1;
-  display: flex;
+  border: 1.5px solid var(--app-border);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  background: transparent;
+  color: transparent;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
-.version-radio.checked {
-  border-color: #4f46e5;
-  background: #4f46e5;
-  color: #fff;
+.version-row__check svg {
+  width: 11px;
+  height: 11px;
 }
 
-.version-radio--installed {
-  border-color: #16a34a;
-  background: #16a34a;
-  color: #fff;
+.version-selector--compact .version-list {
+  gap: 6px;
 }
 
-.version-radio svg {
-  width: 12px;
-  height: 12px;
+.version-selector--compact .version-row__body {
+  padding: 14px 14px;
+  gap: 0;
 }
 
-.version-section {
-  padding: 0 16px 12px;
+.version-selector--compact .version-row__top {
+  align-items: center;
 }
 
-.version-section-label {
-  margin: 0 0 8px;
-  font-size: var(--type-small);
+.version-selector--compact .version-row__version {
+  font-size: 17px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #94a3b8;
+  letter-spacing: -0.03em;
 }
 
-.release-block {
+.version-selector--compact .version-row__badge {
+  font-size: 10.5px;
+  padding: 3px 8px;
+}
+
+.version-selector--compact .version-row__check {
+  width: 22px;
+  height: 22px;
+}
+
+.version-row__package {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--app-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-row__meta {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--tier-pricing-bg, linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%));
-  border: 1px solid var(--app-border, #e2e8f0);
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 2px;
 }
 
-.release-label {
-  font-size: var(--type-caption);
-  font-weight: 600;
-  text-transform: uppercase;
+.version-row__meta-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.version-row__meta-label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
   letter-spacing: 0.06em;
-  color: #94a3b8;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
 }
 
-.release-date {
-  font-size: var(--type-base);
-  font-weight: 700;
-  color: var(--app-heading, #0f172a);
-  line-height: 1.35;
+.version-row__meta-value {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--app-heading);
 }
 
-.release-os {
-  margin-bottom: 6px;
+.version-row:hover:not(.is-disabled):not(.is-selected) {
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 40%, var(--app-border));
 }
 
-.version-card.selected .release-block {
-  background: var(--app-accent-soft, linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%));
-  border-color: rgba(168, 85, 247, 0.35);
+.version-row:hover:not(.is-disabled):not(.is-selected) .version-row__accent {
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 55%, var(--app-border));
 }
 
-.version-section--release {
-  padding-bottom: 16px;
+.version-row.is-latest:not(.is-selected):not(.is-installed) .version-row__accent {
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 45%, var(--app-border));
 }
 
-@media (max-width: 720px) {
-  .version-grid {
-    grid-template-columns: 1fr;
+.version-row.is-selected {
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 55%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 8%, var(--app-surface));
+}
+
+.version-row.is-selected .version-row__accent {
+  background: var(--dorian-viper-500, var(--app-accent));
+}
+
+.version-row.is-selected .version-row__check {
+  border-color: var(--dorian-viper-500, var(--app-accent));
+  background: var(--dorian-viper-500, var(--app-accent));
+  color: #08120e;
+}
+
+.version-row.is-installed {
+  cursor: not-allowed;
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 30%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 6%, var(--app-surface));
+}
+
+.version-row.is-installed .version-row__accent {
+  background: var(--dorian-viper-500, var(--app-accent));
+}
+
+.version-row.is-installed .version-row__check {
+  border-color: var(--dorian-viper-500, var(--app-accent));
+  background: var(--dorian-viper-500, var(--app-accent));
+  color: #08120e;
+}
+
+.version-row.is-disabled:not(.is-installed) {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .version-row__package {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 }
 </style>

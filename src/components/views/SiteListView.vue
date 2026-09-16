@@ -1,126 +1,207 @@
 <template>
   <div class="sites-view">
-    <div class="content-card">
-      <div class="filter-header">
-        <h3>Filters</h3>
-        <button class="primary-btn" type="button" @click="openNewSiteDialog">New Site</button>
+    <header class="sites-topbar">
+      <div class="sites-topbar__left">
+        <p class="sites-kicker">Delivery</p>
+        <h2>Sites</h2>
+        <p>{{ sitesSubtitle }}</p>
       </div>
-      <div class="filter-bar">
-        <div class="filter-field">
-          <label for="site-status-filter">Status</label>
-          <select id="site-status-filter" v-model="filters.status">
-            <option value="">All</option>
-            <option value="ENABLE">Enabled</option>
-            <option value="DISABLE">Disabled</option>
-          </select>
-        </div>
-        <div class="filter-field">
-          <label for="site-domain-filter">Domain</label>
-          <input
-            id="site-domain-filter"
-            v-model="filters.domain"
-            type="text"
-            placeholder="Search by domain"
-          />
-        </div>
-        <div class="filter-field">
-          <label for="site-cert-filter">Certificate</label>
-          <select id="site-cert-filter" v-model="filters.certificateStatus">
-            <option value="">All</option>
-            <option value="valid">Valid</option>
-            <option value="expiring">Expiring</option>
-            <option value="expired">Expired</option>
-            <option value="issuing">Issuing</option>
-            <option value="failed">Failed</option>
-            <option value="none">Not configured</option>
-          </select>
-        </div>
-        <div class="filter-field">
-          <label for="site-ssl-filter">SSL Type</label>
-          <select id="site-ssl-filter" v-model="filters.sslType">
-            <option value="">All</option>
-            <option value="none">Not Configured</option>
-            <option value="letsencrypt">Let's Encrypt</option>
-            <option value="zerossl">ZeroSSL</option>
-            <option value="googletrust">Google Trust</option>
-            <option value="custom">Manual</option>
-            <option value="managed">Managed</option>
-          </select>
-        </div>
+      <div class="sites-topbar__right">
+        <button class="sites-primary-btn" type="button" @click="openNewSiteDialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New Site
+        </button>
+      </div>
+    </header>
+
+    <section class="sites-metrics" aria-label="Site fleet metrics">
+      <article
+        v-for="metric in siteMetricCards"
+        :key="metric.label"
+        class="sites-metric"
+        :class="`sites-metric--${metric.tone}`"
+      >
+        <span class="sites-metric__label">{{ metric.label }}</span>
+        <strong class="sites-metric__value num">{{ metric.value }}</strong>
+        <span class="sites-metric__hint">{{ metric.hint }}</span>
+      </article>
+    </section>
+
+    <div class="sites-filterbar">
+      <div class="sites-filter-field sites-filter-field--grow">
+        <label for="site-domain-filter">Domain</label>
+        <input
+          id="site-domain-filter"
+          v-model="filters.domain"
+          type="search"
+          placeholder="Search domains…"
+        />
+      </div>
+      <div class="sites-filter-field">
+        <label for="site-status-filter">Status</label>
+        <select id="site-status-filter" v-model="filters.status">
+          <option value="">All</option>
+          <option value="ENABLE">Enabled</option>
+          <option value="DISABLE">Disabled</option>
+        </select>
+      </div>
+      <div class="sites-filter-field">
+        <label for="site-activity-filter">Activity</label>
+        <select id="site-activity-filter" v-model="filters.activity">
+          <option value="">All</option>
+          <option value="active">Active</option>
+          <option value="idle">Idle</option>
+          <option value="offline">Offline</option>
+        </select>
+      </div>
+      <div class="sites-filter-field">
+        <label for="site-cert-filter">Certificate</label>
+        <select id="site-cert-filter" v-model="filters.certificateStatus">
+          <option value="">All</option>
+          <option value="valid">Valid</option>
+          <option value="expiring">Expiring</option>
+          <option value="expired">Expired</option>
+          <option value="issuing">Issuing</option>
+          <option value="failed">Failed</option>
+          <option value="none">Not configured</option>
+        </select>
+      </div>
+      <div class="sites-filter-field">
+        <label for="site-ssl-filter">SSL</label>
+        <select id="site-ssl-filter" v-model="filters.sslType">
+          <option value="">All</option>
+          <option value="none">Not Configured</option>
+          <option value="letsencrypt">Let's Encrypt</option>
+          <option value="zerossl">ZeroSSL</option>
+          <option value="googletrust">Google Trust</option>
+          <option value="custom">Manual</option>
+          <option value="managed">Managed</option>
+        </select>
+      </div>
+      <div class="sites-filter-summary">
+        <span class="sites-live-dot" aria-hidden="true"></span>
+        {{ filteredSites.length }} shown · live egress
       </div>
     </div>
 
-    <div class="content-card sites-table-card">
-      <div class="card-title">
-        <h3>Sites</h3>
+    <section class="sites-panel">
+      <div class="sites-panel__head">
+        <h3>Protected hostnames</h3>
+        <span class="sites-count-tag">{{ filteredSites.length }}</span>
       </div>
-      <div class="table-wrap">
+
+      <div class="sites-table-wrap">
         <table class="sites-table">
           <thead>
             <tr>
               <th>Domain</th>
-              <th>Status</th>
-              <th>WAF Rule</th>
+              <th>Live</th>
+              <th>Protection</th>
               <th>Certificate</th>
-              <th>Expiry</th>
-              <th>Cache Ratio</th>
-              <th>Bandwidth</th>
-              <th>SSL Type</th>
+              <th>Egress</th>
+              <th>Cache hit</th>
               <th>Edges</th>
-              <th>Created</th>
-              <th>Updated</th>
-              <th>Settings</th>
+              <th class="sites-col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="12" class="muted-text">Loading sites…</td>
+              <td colspan="8" class="sites-empty">Loading sites…</td>
             </tr>
             <tr v-else-if="!filteredSites.length">
-              <td colspan="12" class="muted-text">No sites found.</td>
+              <td colspan="8" class="sites-empty">
+                No sites match these filters.
+                <button class="sites-empty-link" type="button" @click="openNewSiteDialog">Create a site</button>
+              </td>
             </tr>
-            <tr v-for="site in paginatedSites" :key="site.id">
-              <td class="domain-cell">{{ site.domain }}</td>
+            <tr
+              v-for="site in paginatedSites"
+              :key="site.id"
+              class="sites-row"
+              :class="siteRowClass(site)"
+              @click="openSiteSettings(site)"
+            >
               <td>
-                <span class="status-pill server-status-pill" :class="siteStatusClass(site.status)">
-                  {{ site.status === 'ENABLE' ? 'Enabled' : 'Disabled' }}
+                <div class="sites-domain">
+                  <span class="sites-domain__name">{{ site.domain }}</span>
+                  <span class="sites-domain__meta">{{ formatSslType(site.sslType) }}</span>
+                </div>
+              </td>
+              <td>
+                <div
+                  class="sites-live-badge"
+                  :class="`sites-live-badge--${siteActivityTone(site)}`"
+                  :title="siteActivityTitle(site)"
+                >
+                  <span class="sites-live-badge__dot" aria-hidden="true"></span>
+                  <div class="sites-live-badge__copy">
+                    <strong>{{ siteActivityLabel(site) }}</strong>
+                    <span>{{ site.status === 'ENABLE' ? 'Enabled' : 'Disabled' }}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="sites-waf" :title="site.wafName || 'No WAF rule'">
+                  {{ site.wafName || '—' }}
                 </span>
               </td>
-              <td>{{ site.wafName || '—' }}</td>
               <td>
-                <span
-                  class="status-pill server-status-pill"
+                <div
+                  class="sites-cert-badge"
                   :class="certificateStatusClass(site.certificateStatus)"
                   :title="site.certificateError || certStatusDetail(site.certificateStatus)"
                 >
-                  {{ formatCertStatus(site.certificateStatus) }}
+                  <span class="sites-cert-badge__status">{{ formatCertStatus(site.certificateStatus) }}</span>
+                  <span class="sites-cert-badge__expiry">{{ formatCertExpiryLine(site) }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="sites-egress num" :class="{ 'is-hot': Number(site.currentBandwidth) > 0 }">
+                  {{ formatLiveBandwidth(site.currentBandwidth) }}
                 </span>
               </td>
-              <td>{{ formatDate(site.certificateExpiry) }}</td>
-              <td>{{ formatCacheRatio(site.cacheRatio) }}</td>
-              <td>{{ formatBandwidth(site.bandwidth) }}</td>
-              <td>{{ formatSslType(site.sslType) }}</td>
               <td>
-                <div v-if="site.servers?.length" class="site-servers">
-                  <span v-for="server in site.servers" :key="server" class="site-server-pill">
+                <span
+                  class="sites-cache num"
+                  :class="{ 'is-hot': siteHasCacheSample(site) }"
+                  :title="cacheHitTitle(site)"
+                >
+                  {{ formatCacheRatio(site.cacheRatio) }}
+                </span>
+              </td>
+              <td>
+                <div v-if="site.servers?.length" class="sites-edges">
+                  <span
+                    v-for="server in site.servers.slice(0, 2)"
+                    :key="server"
+                    class="sites-edge-chip"
+                  >
                     {{ server }}
                   </span>
+                  <span
+                    v-if="site.servers.length > 2"
+                    class="sites-edge-more"
+                    :title="site.servers.slice(2).join(', ')"
+                  >
+                    +{{ site.servers.length - 2 }}
+                  </span>
                 </div>
-                <span v-else class="muted-text">—</span>
+                <span v-else class="sites-muted">Unassigned</span>
               </td>
-              <td>{{ formatDate(site.createdAt) }}</td>
-              <td>{{ formatDate(site.updatedAt) }}</td>
-              <td>
+              <td class="sites-col-actions" @click.stop>
                 <div class="menu-wrap">
                   <button
-                    class="icon-btn"
-                    title="Settings"
+                    class="sites-icon-btn"
+                    title="Site actions"
                     type="button"
                     @click.stop="toggleRowMenu(site.id)"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="3"></circle>
-                      <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-4.242 0L5.636 18.364M18.364 5.636l-4.243 4.243m-4.242 0L5.636 5.636"></path>
+                      <circle cx="12" cy="5" r="1.5" />
+                      <circle cx="12" cy="12" r="1.5" />
+                      <circle cx="12" cy="19" r="1.5" />
                     </svg>
                   </button>
                   <div v-if="activeRowMenu === site.id" class="row-menu">
@@ -128,7 +209,7 @@
                       Edit
                     </button>
                     <button class="row-menu-item" type="button" @click="openSiteSettings(site)">
-                      Site Settings
+                      Configure
                     </button>
                     <button
                       class="row-menu-item"
@@ -149,21 +230,22 @@
           </tbody>
         </table>
       </div>
-      <div class="table-footer">
-        <span class="pagination-info">
-          Showing {{ pageStart }}-{{ pageEnd }} of {{ filteredSites.length }}
+
+      <div class="sites-footer">
+        <span class="sites-footer__info num">
+          {{ pageStart }}–{{ pageEnd }} of {{ filteredSites.length }}
         </span>
-        <div class="pagination-controls">
-          <button class="pagination-btn" type="button" :disabled="currentPage === 1" @click="prevPage">
+        <div class="sites-footer__pager">
+          <button class="sites-pager-btn" type="button" :disabled="currentPage === 1" @click="prevPage">
             Prev
           </button>
-          <span class="pagination-page">Page {{ currentPage }} of {{ totalPages }}</span>
-          <button class="pagination-btn" type="button" :disabled="currentPage === totalPages" @click="nextPage">
+          <span class="sites-footer__page num">{{ currentPage }} / {{ totalPages }}</span>
+          <button class="sites-pager-btn" type="button" :disabled="currentPage === totalPages" @click="nextPage">
             Next
           </button>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 
   <div
@@ -459,11 +541,12 @@ const selectedServers = ref([])
 const isServerDropdownOpen = ref(false)
 const serverSearch = ref('')
 
-const pageSize = ref(6)
+const pageSize = ref(8)
 const currentPage = ref(1)
 
 const filters = reactive({
   status: '',
+  activity: '',
   domain: '',
   certificateStatus: '',
   sslType: '',
@@ -489,10 +572,35 @@ const editOriginInitialIds = ref([])
 const editSiteInitialWafId = ref('')
 let originLoadToken = 0
 
+const isSiteEnabled = (site) => String(site?.status || '').toUpperCase() === 'ENABLE'
+
+const siteActivityKey = (site) => {
+  if (!isSiteEnabled(site)) return 'offline'
+  if (Number(site?.currentBandwidth) > 0) return 'active'
+  return 'idle'
+}
+
+const siteActivityLabel = (site) => {
+  const key = siteActivityKey(site)
+  if (key === 'active') return 'Active'
+  if (key === 'idle') return 'Idle'
+  return 'Offline'
+}
+
+const siteActivityTone = (site) => siteActivityKey(site)
+
+const siteActivityTitle = (site) => {
+  const key = siteActivityKey(site)
+  if (key === 'active') return 'Enabled and currently serving live L7 egress'
+  if (key === 'idle') return 'Enabled, but no live egress in the latest sample'
+  return 'Site is disabled'
+}
+
 const filteredSites = computed(() => {
   const domainQuery = filters.domain.trim().toLowerCase()
   return sites.value.filter((site) => {
     if (filters.status && site.status !== filters.status) return false
+    if (filters.activity && siteActivityKey(site) !== filters.activity) return false
     if (filters.certificateStatus === 'issuing') {
       if (!isCertIssuing(site.certificateStatus)) return false
     } else if (filters.certificateStatus && String(site.certificateStatus || 'none').toLowerCase() !== filters.certificateStatus) {
@@ -523,6 +631,62 @@ const pageEnd = computed(() =>
   Math.min(currentPage.value * pageSize.value, filteredSites.value.length),
 )
 
+const enabledSitesCount = computed(() =>
+  sites.value.filter((site) => String(site.status || '').toUpperCase() === 'ENABLE').length,
+)
+
+const activeSitesCount = computed(() =>
+  sites.value.filter((site) => siteActivityKey(site) === 'active').length,
+)
+
+const validTlsCount = computed(() =>
+  sites.value.filter((site) => String(site.certificateStatus || '').toLowerCase() === 'valid').length,
+)
+
+const totalEgressKbps = computed(() =>
+  sites.value.reduce((sum, site) => sum + (Number(site.currentBandwidth) || 0), 0),
+)
+
+const sitesSubtitle = computed(() => {
+  const total = sites.value.length
+  const enabled = enabledSitesCount.value
+  const active = activeSitesCount.value
+  return `${total} hostnames · ${enabled} enabled · ${active} active`
+})
+
+const siteMetricCards = computed(() => [
+  {
+    label: 'Sites',
+    value: String(sites.value.length),
+    hint: 'Hostnames on the fabric',
+    tone: 'viper',
+  },
+  {
+    label: 'Active',
+    value: String(activeSitesCount.value),
+    hint: 'Serving live egress now',
+    tone: 'signal',
+  },
+  {
+    label: 'Enabled',
+    value: String(enabledSitesCount.value),
+    hint: `${Math.max(0, sites.value.length - enabledSitesCount.value)} disabled`,
+    tone: 'ok',
+  },
+  {
+    label: 'TLS valid',
+    value: String(validTlsCount.value),
+    hint: 'Certificates ready to serve',
+    tone: 'l4',
+  },
+  {
+    label: 'Live egress',
+    value: formatLiveBandwidth(totalEgressKbps.value),
+    hint: 'Sum of site L7 TX',
+    tone: 'viper',
+  },
+])
+
 const confirmTitle = computed(() => {
   if (confirmAction.value === 'edit') return 'Site is modified'
   return 'Confirm action'
@@ -549,20 +713,52 @@ const deleteConfirmMessage = computed(() => {
 })
 
 watch(
-  () => [filters.status, filters.domain, filters.certificateStatus, filters.sslType],
+  () => [filters.status, filters.activity, filters.domain, filters.certificateStatus, filters.sslType],
   () => {
     currentPage.value = 1
   },
 )
 
-const siteStatusClass = (status) => (status === 'ENABLE' ? 'active' : 'inactive')
-
 const certificateStatusClass = (value) => {
-  if (String(value || '').toLowerCase() === 'valid') return 'active'
-  if (String(value || '').toLowerCase() === 'expiring') return 'maintenance'
-  if (isCertIssuing(value)) return 'maintenance'
-  if (['expired', 'failed'].includes(String(value || '').toLowerCase())) return 'stopped'
-  return 'unknown'
+  const status = String(value || '').toLowerCase()
+  if (status === 'valid') return 'sites-cert-badge--valid'
+  if (status === 'expiring') return 'sites-cert-badge--expiring'
+  if (isCertIssuing(value)) return 'sites-cert-badge--issuing'
+  if (status === 'expired') return 'sites-cert-badge--expired'
+  if (status === 'failed') return 'sites-cert-badge--failed'
+  return 'sites-cert-badge--none'
+}
+
+const siteRowClass = (site) => {
+  const classes = []
+  const activity = siteActivityKey(site)
+  if (activity === 'active') classes.push('sites-row--live')
+  if (activity === 'offline') classes.push('sites-row--offline')
+
+  const cert = String(site?.certificateStatus || '').toLowerCase()
+  if (cert === 'expired' || cert === 'failed') classes.push('sites-row--cert-danger')
+  else if (cert === 'expiring') classes.push('sites-row--cert-warn')
+  else if (cert === 'valid') classes.push('sites-row--cert-ok')
+
+  return classes
+}
+
+const formatCertExpiryLine = (site) => {
+  const status = String(site?.certificateStatus || '').toLowerCase()
+  if (!site?.certificateExpiry) {
+    if (status === 'none' || !status) return 'No certificate'
+    if (isCertIssuing(status)) return 'Issuing…'
+    if (status === 'failed') return 'Needs attention'
+    return '—'
+  }
+  const date = new Date(site.certificateExpiry)
+  if (Number.isNaN(date.getTime())) return '—'
+  const formatted = date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+  const days = Math.ceil((date.getTime() - Date.now()) / 86400000)
+  if (days < 0) return `Expired ${Math.abs(days)}d ago`
+  if (days === 0) return 'Expires today'
+  if (days <= 30) return `${days}d left · ${formatted}`
+  return `Expires ${formatted}`
 }
 
 const formatSslType = (value) => {
@@ -575,14 +771,34 @@ const formatSslType = (value) => {
   return 'Not Configured'
 }
 
-const formatCacheRatio = (value) => `${Number(value || 0).toFixed(2)}%`
+const formatLiveBandwidth = (kbps) => {
+  const value = Number(kbps || 0)
+  if (!Number.isFinite(value) || value <= 0) return '0 Kbps'
+  if (value >= 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} Gbps`
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} Mbps`
+  return `${Math.round(value)} Kbps`
+}
 
-const formatBandwidth = (bytes) => {
-  const value = Number(bytes || 0)
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)} GB`
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)} MB`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(2)} KB`
-  return `${value} B`
+const formatCacheRatio = (value) => {
+  const ratio = Number(value)
+  if (!Number.isFinite(ratio) || ratio < 0) return '0%'
+  const pct = ratio <= 1 ? ratio * 100 : ratio
+  return `${pct.toFixed(pct % 1 === 0 ? 0 : 1)}%`
+}
+
+const siteHasCacheSample = (site) => {
+  const hit = Number(site?.cacheHitCount || 0)
+  const miss = Number(site?.cacheMissCount || 0)
+  const bypass = Number(site?.cacheBypassCount || 0)
+  return hit + miss + bypass > 0 || Number(site?.cacheRatio || 0) > 0
+}
+
+const cacheHitTitle = (site) => {
+  const hit = Number(site?.cacheHitCount || 0)
+  const miss = Number(site?.cacheMissCount || 0)
+  const bypass = Number(site?.cacheBypassCount || 0)
+  if (hit + miss + bypass <= 0) return 'No cacheable responses in latest sample'
+  return `${hit.toLocaleString()} hit · ${miss.toLocaleString()} miss · ${bypass.toLocaleString()} bypass`
 }
 
 const formatDate = (value) => {
@@ -791,12 +1007,43 @@ const hasPendingCertificate = computed(() =>
 )
 
 let certPollTimer = null
+let sitesLiveTimer = null
+let sitesLiveInFlight = false
+const SITES_LIVE_REFRESH_MS = 15_000
+const SITES_CERT_REFRESH_MS = 1_000
+
 const stopCertPoll = () => {
   if (certPollTimer) {
     clearInterval(certPollTimer)
     certPollTimer = null
   }
 }
+
+const stopSitesLivePoll = () => {
+  if (sitesLiveTimer) {
+    clearInterval(sitesLiveTimer)
+    sitesLiveTimer = null
+  }
+}
+
+const refreshSitesLive = async () => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  if (sitesLiveInFlight) return
+  sitesLiveInFlight = true
+  try {
+    await loadSites({ silent: true })
+  } finally {
+    sitesLiveInFlight = false
+  }
+}
+
+const startSitesLivePoll = () => {
+  stopSitesLivePoll()
+  sitesLiveTimer = window.setInterval(() => {
+    void refreshSitesLive()
+  }, SITES_LIVE_REFRESH_MS)
+}
+
 watch(
   hasPendingCertificate,
   (pending) => {
@@ -806,8 +1053,8 @@ watch(
     }
     if (certPollTimer) return
     certPollTimer = setInterval(() => {
-      void loadSites({ silent: true })
-    }, 1000)
+      void refreshSitesLive()
+    }, SITES_CERT_REFRESH_MS)
   },
   { immediate: true },
 )
@@ -1076,226 +1323,567 @@ const nextPage = () => {
   if (currentPage.value < totalPages.value) currentPage.value += 1
 }
 
+const onVisibilityChange = () => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    void refreshSitesLive()
+  }
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutsideMenu)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   void loadSites()
   void loadServers()
   void loadWafRules()
+  startSitesLivePoll()
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutsideMenu)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   stopCertPoll()
+  stopSitesLivePoll()
 })
 </script>
 
 <style scoped>
 .sites-view {
+  --sites-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
+  max-width: 1680px;
+  margin: 0 auto;
   min-height: 100%;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
-.sites-table-card {
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.sites-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.sites-kicker {
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.sites-topbar__left h2 {
+  margin: 0 0 3px;
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--app-heading);
+  line-height: 1.2;
+}
+
+.sites-topbar__left p:last-child {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.sites-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sites-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  border-radius: var(--sites-radius);
+  padding: 9px 14px;
+  background: var(--dorian-viper-500, var(--app-accent));
+  color: #08120e;
+  font-weight: 650;
+  font-size: 13px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.sites-primary-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sites-primary-btn:hover {
+  filter: brightness(1.06);
+}
+
+.sites-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sites-metric {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px 12px 16px;
+  border-radius: var(--sites-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.sites-metric::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--metric-accent, var(--dorian-viper-500, var(--app-accent)));
+}
+
+.sites-metric--viper { --metric-accent: var(--dorian-viper-500, #2e9e6c); }
+.sites-metric--ok { --metric-accent: #4fbd7a; }
+.sites-metric--l4 { --metric-accent: #5b9df0; }
+.sites-metric--signal { --metric-accent: var(--dorian-viper-400, #3fbd85); }
+
+.sites-metric__label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+.sites-metric__value {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.3rem;
+  font-weight: 650;
+  color: var(--app-heading);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.sites-metric__hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--app-text-muted);
+}
+
+.sites-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--sites-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.sites-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 128px;
+}
+
+.sites-filter-field--grow {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.sites-filter-field label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.sites-filter-field input,
+.sites-filter-field select {
+  border: 1px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 8px 11px;
+  font-size: 13px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  outline: none;
+}
+
+.sites-filter-field input:focus,
+.sites-filter-field select:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+.sites-filter-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(46, 158, 108, 0.28);
+  background: rgba(46, 158, 108, 0.08);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sites-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dorian-viper-400, var(--app-accent));
+  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.16);
+  animation: sites-live-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes sites-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.sites-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-.content-card {
+  border-radius: var(--sites-radius);
+  border: 1px solid var(--app-border);
   background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 4px 20px var(--app-shadow);
+  overflow: hidden;
+}
+
+.sites-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface-elevated) 70%, transparent);
+}
+
+.sites-panel__head h3 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.sites-count-tag {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 6px;
   border: 1px solid var(--app-border);
-}
-
-.card-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.card-title h3 {
-  margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.filter-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.filter-header h3 {
-  margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
-  margin: 0;
-}
-
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1 1 200px;
-  min-width: 160px;
-}
-
-.filter-field label {
-  font-size: var(--type-caption);
-  color: var(--app-text-muted);
-  font-weight: 500;
-}
-
-.filter-field input,
-.filter-field select {
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: var(--type-base);
-  background: var(--app-input-bg);
-  color: var(--app-text);
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.filter-field input::placeholder {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
   color: var(--app-text-muted);
 }
 
-.filter-field input:focus,
-.filter-field select:focus {
-  border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
-}
-
-.table-wrap {
+.sites-table-wrap {
   overflow-x: auto;
-  overflow-y: visible;
-  border-radius: 12px;
-  border: 1px solid var(--app-border);
   flex: 1;
 }
 
 .sites-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1200px;
-}
-
-.sites-table thead {
-  background: var(--app-surface-elevated);
+  min-width: 920px;
 }
 
 .sites-table th,
 .sites-table td {
   text-align: left;
-  padding: 14px 16px;
-  font-size: var(--type-base);
-  color: var(--app-text);
+  padding: 11px 14px;
   border-bottom: 1px solid var(--app-border);
+  vertical-align: middle;
 }
 
 .sites-table th {
-  font-size: var(--type-caption);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--app-surface-elevated);
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--app-text-muted);
-  font-weight: 600;
+  font-weight: 650;
 }
 
-.sites-table tbody tr:hover {
-  background: var(--app-surface-hover);
+.sites-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+  box-shadow: inset 3px 0 0 transparent;
 }
 
-.domain-cell {
-  font-weight: 600;
+.sites-row:hover {
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 6%, transparent);
 }
 
-.muted-text {
-  color: var(--app-text-muted);
-  font-size: var(--type-base);
+.sites-row--live {
+  box-shadow: inset 3px 0 0 var(--dorian-viper-500, #2e9e6c);
 }
 
-.site-servers {
+.sites-row--cert-danger {
+  background: rgba(225, 82, 65, 0.05);
+}
+
+.sites-row--cert-danger:hover {
+  background: rgba(225, 82, 65, 0.09);
+}
+
+.sites-row--cert-warn {
+  background: rgba(224, 168, 63, 0.05);
+}
+
+.sites-row--cert-warn:hover {
+  background: rgba(224, 168, 63, 0.09);
+}
+
+.sites-row--offline:not(.sites-row--cert-danger):not(.sites-row--cert-warn) {
+  opacity: 0.88;
+}
+
+.sites-domain {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.site-server-pill {
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: var(--type-caption);
-  font-weight: 600;
-  color: var(--dorian-viper-400, #3fbd85);
-  background: var(--app-accent-soft);
-  border: 1px solid rgba(46, 158, 108, 0.28);
+.sites-domain__name {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+  word-break: break-word;
+  line-height: 1.3;
 }
 
-.table-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.pagination-info {
+.sites-domain__meta {
+  font-size: 11.5px;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
 }
 
-.pagination-controls {
+.sites-live-badge {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
 }
 
-.pagination-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-elevated);
-  color: var(--app-text);
-  transition: all 0.2s ease;
+.sites-live-badge__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
 }
 
-.pagination-btn:hover:not(:disabled) {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-  background: var(--app-accent-soft);
+.sites-live-badge__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
 }
 
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.sites-live-badge__copy strong {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
-.pagination-page {
+.sites-live-badge__copy span {
+  font-size: 10px;  
+  font-weight: 550;
+  opacity: 0.78;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+}
+
+.sites-live-badge--active {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.14);
+  border-color: rgba(46, 158, 108, 0.32);
+}
+
+.sites-live-badge--active .sites-live-badge__dot {
+  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.2);
+  animation: sites-live-pulse 1.8s ease-in-out infinite;
+}
+
+.sites-live-badge--idle {
+  color: #d4921f;
+  background: rgba(224, 168, 63, 0.14);
+  border-color: rgba(224, 168, 63, 0.32);
+}
+
+.sites-live-badge--offline {
   color: var(--app-text-muted);
-  font-size: var(--type-caption);
+  background: rgba(139, 151, 143, 0.12);
+  border-color: rgba(139, 151, 143, 0.24);
 }
 
-.icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+.sites-cert-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.sites-cert-badge__status {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.sites-cert-badge__expiry {
+  font-size: 10px;
+  font-weight: 550;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  opacity: 0.82;
+  line-height: 1.25;
+}
+
+.sites-cert-badge--valid {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.14);
+  border-color: rgba(46, 158, 108, 0.32);
+}
+
+.sites-cert-badge--expiring,
+.sites-cert-badge--issuing {
+  color: #d4921f;
+  background: rgba(224, 168, 63, 0.14);
+  border-color: rgba(224, 168, 63, 0.32);
+}
+
+.sites-cert-badge--expired,
+.sites-cert-badge--failed {
+  color: #e15241;
+  background: rgba(225, 82, 65, 0.14);
+  border-color: rgba(225, 82, 65, 0.34);
+}
+
+.sites-cert-badge--none {
+  color: var(--app-text-muted);
+  background: rgba(139, 151, 143, 0.12);
+  border-color: rgba(139, 151, 143, 0.24);
+}
+
+.sites-waf {
+  display: inline-block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-text);
+  font-size: 12.5px;
+}
+
+.sites-egress {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-text-muted);
+}
+
+.sites-egress.is-hot {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.sites-cache {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-text-muted);
+}
+
+.sites-cache.is-hot {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.sites-edges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.sites-edge-chip {
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.1);
+  border: 1px solid rgba(46, 158, 108, 0.22);
+}
+
+.sites-edge-more {
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--app-text-muted);
+  background: var(--app-surface-elevated);
+  border: 1px solid var(--app-border);
+}
+
+.sites-muted,
+.sites-empty {
+  color: var(--app-text-muted);
+  font-size: 12.5px;
+}
+
+.sites-empty {
+  padding: 24px 12px !important;
+  text-align: center;
+}
+
+.sites-empty-link {
+  display: inline;
+  margin-left: 6px;
+  border: none;
+  background: none;
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sites-col-actions {
+  width: 48px;
+  text-align: right;
+}
+
+.sites-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
   border: 1px solid var(--app-border-strong);
   background: var(--app-surface-elevated);
   color: var(--app-text-muted);
@@ -1303,20 +1891,61 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.12s ease;
 }
 
-.icon-btn svg {
-  width: 18px;
-  height: 18px;
+.sites-icon-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
-.icon-btn:hover {
+.sites-icon-btn:hover {
   border-color: var(--app-accent);
   color: var(--app-accent);
   background: var(--app-accent-soft);
-  box-shadow: 0 4px 12px var(--app-shadow);
-  transform: translateY(-1px);
+}
+
+.sites-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--app-border);
+}
+
+.sites-footer__info,
+.sites-footer__page {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.sites-footer__pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sites-pager-btn {
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface-elevated);
+  color: var(--app-text);
+  border-radius: 6px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sites-pager-btn:hover:not(:disabled) {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
+}
+
+.sites-pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .menu-wrap {
@@ -1331,29 +1960,28 @@ onBeforeUnmount(() => {
 
 .row-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 4px);
   right: 0;
-  min-width: 168px;
+  min-width: 148px;
   background: var(--app-surface-solid);
   border: 1px solid var(--app-border);
-  border-radius: 12px;
-  box-shadow: 0 12px 32px var(--app-shadow);
-  padding: 6px;
+  border-radius: 6px;
+  box-shadow: 0 10px 24px var(--app-shadow);
+  padding: 4px;
   z-index: 50;
 }
 
 .row-menu-item {
   width: 100%;
   text-align: left;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 7px 10px;
+  border-radius: 4px;
   border: none;
   background: transparent;
-  font-size: var(--type-base);
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--app-text);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .row-menu-item:hover {
@@ -1378,6 +2006,30 @@ onBeforeUnmount(() => {
 .row-menu-item.danger:hover {
   background: rgba(239, 68, 68, 0.15);
   color: #fca5a5;
+}
+
+@media (max-width: 1200px) {
+  .sites-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .sites-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sites-filter-summary {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .sites-metrics {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dialog-backdrop {

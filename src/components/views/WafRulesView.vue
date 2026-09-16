@@ -1,92 +1,132 @@
 <template>
-  <div class="waf-rules-view">
-    <div class="content-card">
-      <div class="filter-header">
-        <h3>Filters</h3>
-        <button class="primary-btn" type="button" @click="openCreateDialog">New Rule</button>
+  <div class="waf-view">
+    <header class="waf-topbar">
+      <div class="waf-topbar__left">
+        <p class="waf-kicker">Security</p>
+        <h2>WAF rules</h2>
+        <p>{{ wafSubtitle }}</p>
       </div>
-      <div class="filter-bar">
-        <div class="filter-field">
-          <label for="waf-rule-name-filter">Name</label>
-          <input
-            id="waf-rule-name-filter"
-            v-model="filters.name"
-            type="text"
-            placeholder="Search by name"
-          />
-        </div>
-        <div class="filter-field">
-          <label for="waf-rule-role-filter">Role</label>
-          <select id="waf-rule-role-filter" v-model="filters.role">
-            <option value="">All</option>
-            <option value="predefined">Predefined</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-        <div class="filter-field">
-          <label for="waf-rule-count-filter">Rule Count</label>
-          <select id="waf-rule-count-filter" v-model="filters.ruleCount">
-            <option value="">All</option>
-            <option value="5">&gt;= 5</option>
-            <option value="10">&gt;= 10</option>
-            <option value="20">&gt;= 20</option>
-            <option value="30">&gt;= 30</option>
-          </select>
-        </div>
-        <div class="filter-field">
-          <label for="waf-site-count-filter">Sites Count</label>
-          <select id="waf-site-count-filter" v-model="filters.siteCount">
-            <option value="">All</option>
-            <option value="1">&gt;= 1</option>
-            <option value="2">&gt;= 2</option>
-            <option value="5">&gt;= 5</option>
-            <option value="10">&gt;= 10</option>
-          </select>
-        </div>
+      <div class="waf-topbar__right">
+        <button class="waf-primary-btn" type="button" @click="openCreateDialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New Rule
+        </button>
+      </div>
+    </header>
+
+    <section class="waf-metrics" aria-label="WAF rule metrics">
+      <article
+        v-for="metric in wafMetricCards"
+        :key="metric.label"
+        class="waf-metric"
+        :class="`waf-metric--${metric.tone}`"
+      >
+        <span class="waf-metric__label">{{ metric.label }}</span>
+        <strong class="waf-metric__value num">{{ metric.value }}</strong>
+        <span class="waf-metric__hint">{{ metric.hint }}</span>
+      </article>
+    </section>
+
+    <div class="waf-filterbar">
+      <div class="waf-filter-field waf-filter-field--grow">
+        <label for="waf-rule-name-filter">Name</label>
+        <input
+          id="waf-rule-name-filter"
+          v-model="filters.name"
+          type="search"
+          placeholder="Search rule sets…"
+        />
+      </div>
+      <div class="waf-filter-field">
+        <label for="waf-rule-role-filter">Role</label>
+        <select id="waf-rule-role-filter" v-model="filters.role">
+          <option value="">All</option>
+          <option value="predefined">Predefined</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="waf-filter-field">
+        <label for="waf-rule-count-filter">Rules</label>
+        <select id="waf-rule-count-filter" v-model="filters.ruleCount">
+          <option value="">All</option>
+          <option value="5">&gt;= 5</option>
+          <option value="10">&gt;= 10</option>
+          <option value="20">&gt;= 20</option>
+          <option value="30">&gt;= 30</option>
+        </select>
+      </div>
+      <div class="waf-filter-field">
+        <label for="waf-site-count-filter">Sites</label>
+        <select id="waf-site-count-filter" v-model="filters.siteCount">
+          <option value="">All</option>
+          <option value="1">&gt;= 1</option>
+          <option value="2">&gt;= 2</option>
+          <option value="5">&gt;= 5</option>
+          <option value="10">&gt;= 10</option>
+        </select>
+      </div>
+      <div class="waf-filter-summary">
+        <span class="waf-live-dot" aria-hidden="true"></span>
+        {{ filteredRules.length }} shown
       </div>
     </div>
 
-    <div class="content-card rules-table-card">
-      <div class="card-title">
-        <h3>WAF Rule Sets</h3>
+    <section class="waf-panel">
+      <div class="waf-panel__head">
+        <h3>Rule sets</h3>
+        <span class="waf-count-tag">{{ filteredRules.length }}</span>
       </div>
-      <div class="table-wrap">
-        <table class="rules-table">
+
+      <div class="waf-table-wrap">
+        <table class="waf-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Role</th>
               <th>Rules</th>
               <th>Sites</th>
-              <th>Actions</th>
+              <th class="waf-col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="5" class="muted-text">Loading WAF rule sets…</td>
+              <td colspan="5" class="waf-empty">Loading WAF rule sets…</td>
             </tr>
             <tr v-else-if="!filteredRules.length">
-              <td colspan="5" class="muted-text">No WAF rule sets found.</td>
+              <td colspan="5" class="waf-empty">
+                No WAF rule sets match these filters.
+                <button class="waf-empty-link" type="button" @click="openCreateDialog">Create a rule set</button>
+              </td>
             </tr>
             <tr
               v-for="rule in paginatedRules"
               :key="rule.id"
+              class="waf-row"
+              :class="{ 'waf-row--predefined': isPredefinedRule(rule) }"
             >
-              <td class="name-cell">
-                <button type="button" class="name-link" @click="openRuleDialog(rule)">
+              <td>
+                <button type="button" class="waf-name-link" @click="openRuleDialog(rule)">
                   {{ rule.name }}
                 </button>
               </td>
               <td>
                 <span class="role-pill" :class="rolePillClass(rule.role)">{{ formatRole(rule.role) }}</span>
               </td>
-              <td>{{ rule.ruleCount ?? 0 }}</td>
-              <td>{{ rule.siteCount ?? 0 }}</td>
               <td>
-                <div class="actions-cell">
+                <span class="waf-stat num">{{ rule.ruleCount ?? 0 }}</span>
+              </td>
+              <td>
+                <span class="waf-stat num" :class="{ 'is-hot': Number(rule.siteCount) > 0 }">
+                  {{ rule.siteCount ?? 0 }}
+                </span>
+              </td>
+              <td class="waf-col-actions">
+                <div class="waf-actions">
                   <button
                     v-if="!isPredefinedRule(rule)"
-                    class="secondary-btn table-action-btn"
+                    class="waf-action-btn"
                     type="button"
                     @click="openConfigureDialog(rule, 'waf')"
                   >
@@ -94,18 +134,18 @@
                   </button>
                   <button
                     v-if="isPredefinedRule(rule)"
-                    class="secondary-btn table-action-btn"
+                    class="waf-action-btn"
                     type="button"
                     @click="openDuplicateDialog(rule)"
                   >
                     Duplicate
                   </button>
                   <span
-                    class="table-action-wrap"
+                    class="waf-action-wrap"
                     :title="!canDeleteRule(rule) ? deleteButtonTitle(rule) : undefined"
                   >
                     <button
-                      class="secondary-btn table-action-btn table-action-btn--danger"
+                      class="waf-action-btn waf-action-btn--danger"
                       type="button"
                       :disabled="!canDeleteRule(rule) || deletingId === rule.id"
                       :title="canDeleteRule(rule) ? deleteButtonTitle(rule) : undefined"
@@ -120,21 +160,22 @@
           </tbody>
         </table>
       </div>
-      <div class="table-footer">
-        <span class="pagination-info">
-          Showing {{ pageStart }}-{{ pageEnd }} of {{ filteredRules.length }}
+
+      <div class="waf-footer">
+        <span class="waf-footer__info num">
+          {{ pageStart }}–{{ pageEnd }} of {{ filteredRules.length }}
         </span>
-        <div class="pagination-controls">
-          <button class="pagination-btn" type="button" :disabled="currentPage === 1" @click="prevPage">
+        <div class="waf-footer__pager">
+          <button class="waf-pager-btn" type="button" :disabled="currentPage === 1" @click="prevPage">
             Prev
           </button>
-          <span class="pagination-page">Page {{ currentPage }} of {{ totalPages }}</span>
-          <button class="pagination-btn" type="button" :disabled="currentPage === totalPages" @click="nextPage">
+          <span class="waf-footer__page num">{{ currentPage }} / {{ totalPages }}</span>
+          <button class="waf-pager-btn" type="button" :disabled="currentPage === totalPages" @click="nextPage">
             Next
           </button>
         </div>
       </div>
-    </div>
+    </section>
 
     <div
       v-if="isRuleDialogOpen && loadedRule"
@@ -476,6 +517,30 @@ const filters = reactive({
   role: '',
   ruleCount: '',
   siteCount: '',
+})
+
+const wafSubtitle = computed(() => {
+  const total = rules.value.length
+  if (!total) return 'Create and manage WAF rule sets applied across your sites.'
+  const custom = rules.value.filter((rule) => String(rule.role || '').toLowerCase() === 'custom').length
+  const assigned = rules.value.reduce((sum, rule) => sum + Number(rule.siteCount || 0), 0)
+  return `${total} rule set${total === 1 ? '' : 's'} · ${custom} custom · ${assigned} site assignment${assigned === 1 ? '' : 's'}`
+})
+
+const wafMetricCards = computed(() => {
+  const list = rules.value
+  const total = list.length
+  const predefined = list.filter((rule) => String(rule.role || '').toLowerCase() === 'predefined').length
+  const custom = list.filter((rule) => String(rule.role || '').toLowerCase() !== 'predefined').length
+  const withSites = list.filter((rule) => Number(rule.siteCount || 0) > 0).length
+  const totalRules = list.reduce((sum, rule) => sum + Number(rule.ruleCount || 0), 0)
+  return [
+    { label: 'Rule sets', value: String(total), hint: 'Total catalogs', tone: 'viper' },
+    { label: 'Predefined', value: String(predefined), hint: 'Shared templates', tone: 'l4' },
+    { label: 'Custom', value: String(custom), hint: 'Site-specific sets', tone: 'signal' },
+    { label: 'In use', value: String(withSites), hint: 'Assigned to sites', tone: 'ok' },
+    { label: 'Rules', value: String(totalRules), hint: 'Across all sets', tone: 'warn' },
+  ]
 })
 
 const tabs = [
@@ -967,15 +1032,445 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.waf-rules-view {
+
+.waf-view {
+  --waf-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-gap-lg, 14px);
+  gap: 14px;
+  max-width: 1680px;
+  margin: 0 auto;
+  min-height: 100%;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
+
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.waf-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.waf-kicker {
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.waf-topbar__left h2 {
+  margin: 0 0 3px;
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--app-heading);
+  line-height: 1.2;
+}
+
+.waf-topbar__left p:last-child {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.waf-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  border-radius: var(--waf-radius);
+  padding: 9px 14px;
+  background: var(--dorian-viper-500, var(--app-accent));
+  color: #08120e;
+  font-weight: 650;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.waf-primary-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.waf-primary-btn:hover {
+  filter: brightness(1.06);
+}
+
+.waf-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.waf-metric {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px 12px 16px;
+  border-radius: var(--waf-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.waf-metric::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--metric-accent, var(--dorian-viper-500, var(--app-accent)));
+}
+
+.waf-metric--viper { --metric-accent: var(--dorian-viper-500, #2e9e6c); }
+.waf-metric--signal { --metric-accent: var(--dorian-viper-400, #3fbd85); }
+.waf-metric--l4 { --metric-accent: #5b9df0; }
+.waf-metric--ok { --metric-accent: #4fbd7a; }
+.waf-metric--warn { --metric-accent: #e0a83f; }
+
+.waf-metric__label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+.waf-metric__value {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.3rem;
+  font-weight: 650;
+  color: var(--app-heading);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.waf-metric__hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--app-text-muted);
+}
+
+.waf-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--waf-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.waf-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 128px;
+}
+
+.waf-filter-field--grow {
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.waf-filter-field label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.waf-filter-field input,
+.waf-filter-field select {
+  border: 1px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 8px 11px;
+  font-size: 13px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  outline: none;
+}
+
+.waf-filter-field input:focus,
+.waf-filter-field select:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+.waf-filter-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(46, 158, 108, 0.08);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.waf-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dorian-viper-400, var(--app-accent));
+  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.16);
+  animation: waf-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes waf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.waf-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: var(--waf-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  overflow: hidden;
+}
+
+.waf-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface-elevated) 70%, transparent);
+}
+
+.waf-panel__head h3 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.waf-count-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.waf-table-wrap {
+  overflow-x: auto;
+  flex: 1;
+}
+
+.waf-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.waf-table th,
+.waf-table td {
+  text-align: left;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--app-border);
+  vertical-align: middle;
+}
+
+.waf-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--app-surface-elevated);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--app-text-muted);
+  font-weight: 650;
+}
+
+.waf-row {
+  transition: background 0.12s ease;
+  box-shadow: inset 3px 0 0 transparent;
+}
+
+.waf-row:hover {
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 6%, transparent);
+}
+
+.waf-row--predefined {
+  box-shadow: inset 3px 0 0 #5b9df0;
+}
+
+.waf-name-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+  cursor: pointer;
+  text-align: left;
+}
+
+.waf-name-link:hover {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.waf-stat {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-text-muted);
+}
+
+.waf-stat.is-hot {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.waf-col-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.waf-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.waf-action-btn {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.waf-action-btn:hover:not(:disabled) {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  background: var(--app-accent-soft);
+}
+
+.waf-action-btn--danger {
+  color: #e15241;
+}
+
+.waf-action-btn--danger:hover:not(:disabled) {
+  border-color: rgba(225, 82, 65, 0.45);
+  color: #e15241;
+  background: rgba(225, 82, 65, 0.1);
+}
+
+.waf-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.waf-empty {
+  text-align: center;
+  padding: 40px 16px !important;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.waf-empty-link {
+  display: inline;
+  margin-left: 6px;
+  border: none;
+  background: none;
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-weight: 650;
+  cursor: pointer;
+  padding: 0;
+}
+
+.waf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface-elevated) 70%, transparent);
+}
+
+.waf-footer__info,
+.waf-footer__page {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.waf-footer__pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.waf-pager-btn {
+  border: 1px solid var(--app-border-strong);
+  background: var(--app-surface);
+  color: var(--app-text);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.waf-pager-btn:hover:not(:disabled) {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+}
+
+.waf-pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1200px) {
+  .waf-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .waf-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .waf-filter-summary {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+.waf-rules-view { display: none; }
 
 .content-card {
   background: var(--app-surface);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: var(--space-card, 14px 16px);
   box-shadow: 0 4px 20px var(--app-shadow);
   border: 1px solid var(--app-border);
@@ -1056,7 +1551,7 @@ onBeforeUnmount(() => {
 .table-wrap {
   overflow-x: auto;
   overflow-y: visible;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--app-border);
 }
 
@@ -1120,11 +1615,12 @@ onBeforeUnmount(() => {
 .role-pill {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: var(--type-caption);
-  font-weight: 600;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 650;
   line-height: 1.2;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
 }
 
 .role-pill--predefined {
@@ -1134,9 +1630,9 @@ onBeforeUnmount(() => {
 }
 
 .role-pill--custom {
-  color: var(--app-accent-hover);
-  background: rgba(124, 58, 237, 0.14);
-  border: 1px solid rgba(124, 58, 237, 0.35);
+  color: var(--dorian-viper-400, #3fbd85);
+  background: rgba(46, 158, 108, 0.14);
+  border: 1px solid rgba(46, 158, 108, 0.28);
 }
 
 :global([data-theme='dark']) .role-pill.role-pill--predefined {
@@ -1146,9 +1642,9 @@ onBeforeUnmount(() => {
 }
 
 :global([data-theme='dark']) .role-pill.role-pill--custom {
-  color: #e879f9 !important;
-  background: rgba(217, 70, 239, 0.18) !important;
-  border-color: rgba(217, 70, 239, 0.42) !important;
+  color: #5eead4 !important;
+  background: rgba(46, 158, 108, 0.18) !important;
+  border-color: rgba(46, 158, 108, 0.42) !important;
 }
 
 .table-footer {
@@ -1266,7 +1762,7 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 16px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--app-surface-elevated);
 }
 
@@ -1298,7 +1794,7 @@ onBeforeUnmount(() => {
   padding: 0;
   list-style: none;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--app-surface-elevated);
   max-height: 320px;
   overflow: auto;
@@ -1329,7 +1825,7 @@ onBeforeUnmount(() => {
 .rule-badge {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 3px 8px;
   font-size: var(--type-caption);
   font-weight: 700;
@@ -1347,7 +1843,7 @@ onBeforeUnmount(() => {
 .rule-badge--field {
   color: var(--app-accent);
   background: var(--app-accent-soft);
-  border: 1px solid rgba(124, 58, 237, 0.28);
+  border: 1px solid rgba(46, 158, 108, 0.28);
 }
 
 .rule-badge--disabled {
@@ -1370,9 +1866,9 @@ onBeforeUnmount(() => {
 }
 
 :global([data-theme='dark']) .rule-badge--field {
-  color: #c084fc !important;
-  background: rgba(168, 85, 247, 0.22) !important;
-  border-color: rgba(168, 85, 247, 0.45) !important;
+  color: #5eead4 !important;
+  background: rgba(46, 158, 108, 0.18) !important;
+  border-color: rgba(46, 158, 108, 0.42) !important;
 }
 
 :global([data-theme='dark']) .rule-badge--disabled {
@@ -1385,7 +1881,7 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 14px 16px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--app-surface-elevated);
 }
 
@@ -1477,7 +1973,7 @@ onBeforeUnmount(() => {
 
 .dialog-card {
   background: var(--app-surface-solid);
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 24px;
   width: min(420px, 92vw);
   border: 1px solid var(--app-border);
@@ -1554,7 +2050,7 @@ onBeforeUnmount(() => {
 .wizard-step-circle {
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

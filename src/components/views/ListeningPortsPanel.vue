@@ -1,18 +1,19 @@
 <template>
-  <div class="listening-ports-panel">
-    <div class="waf-section-header">
+  <div class="edge-subpanel">
+    <header class="edge-subpanel__intro">
       <div>
-        <h4>Listening Ports</h4>
-        <p class="waf-section-desc">Configure which ports accept client traffic on this edge.</p>
+        <p class="edge-subpanel__kicker">Traffic</p>
+        <h4>Listening ports</h4>
+        <p>Configure which ports accept client traffic on this edge.</p>
       </div>
-      <div class="header-actions">
+      <div class="edge-subpanel__actions">
         <button class="primary-btn" type="button" @click="openAddDialog">Add Port</button>
       </div>
-    </div>
+    </header>
 
-    <div class="section-card list-card">
-      <div class="list-header">
-        <h4>Port List</h4>
+    <div class="edge-subpanel__card">
+      <div class="edge-subpanel__card-head">
+        <h5>Port list</h5>
         <button class="ghost-btn" type="button" @click="refreshPorts">Refresh</button>
       </div>
       <div class="table-wrap">
@@ -36,7 +37,7 @@
                   role="img"
                 ></span>
               </td>
-              <td>{{ entry.port }}</td>
+              <td class="num">{{ entry.port }}</td>
               <td>{{ entry.protocol }}</td>
               <td class="description-cell">
                 <span class="description-text">{{ entry.description || "—" }}</span>
@@ -69,9 +70,9 @@
       </div>
     </div>
 
-    <div class="section-card list-card system-bound-card">
-      <div class="list-header">
-        <h4>System Bound Ports</h4>
+    <div class="edge-subpanel__card">
+      <div class="edge-subpanel__card-head">
+        <h5>System bound ports</h5>
         <button class="ghost-btn" type="button" @click="refreshPorts">Refresh</button>
       </div>
       <p class="helper-text system-bound-lead">
@@ -88,8 +89,8 @@
           </thead>
           <tbody>
             <tr v-for="entry in systemBoundPorts" :key="`${entry.port}-${entry.address}`">
-              <td>{{ entry.port }}</td>
-              <td>{{ entry.address || "—" }}</td>
+              <td class="num">{{ entry.port }}</td>
+              <td class="num">{{ entry.address || "—" }}</td>
               <td class="description-cell">{{ entry.process || "—" }}</td>
             </tr>
           </tbody>
@@ -374,96 +375,116 @@ watch(
 </script>
 
 <style scoped>
-.listening-ports-panel {
+
+.edge-subpanel {
+  --cfg-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  width: 100%;
 }
 
-.content-card,
-.section-card {
-  background: var(--app-surface-muted);
-  border-radius: 14px;
-  padding: 18px;
-  border: 1px solid var(--app-border-strong);
+.edge-subpanel__intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
 }
 
-.list-header {
+.edge-subpanel__kicker {
+  margin: 0 0 3px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.edge-subpanel__intro h4 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--app-heading);
+}
+
+.edge-subpanel__intro p:not(.edge-subpanel__kicker) {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
+  line-height: 1.45;
+  max-width: 44rem;
+}
+
+.edge-subpanel__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+
+.edge-subpanel__card {
+  border: 1px solid var(--app-border);
+  border-radius: var(--cfg-radius);
+  background: var(--app-surface-elevated, var(--app-surface));
+  padding: 12px;
+}
+
+.edge-subpanel__card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.list-header h4 {
+.edge-subpanel__card-head h5 {
   margin: 0;
-  font-size: var(--type-base);
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 650;
   color: var(--app-heading);
-}
-
-.waf-section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.waf-section-header h4 {
-  margin: 0 0 6px 0;
-  font-size: var(--type-section-title);
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.waf-section-desc {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: var(--type-base);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .helper-text {
-  margin: 0 0 14px 0;
+  margin: 0 0 12px;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
-}
-
-.system-bound-card {
-  margin-top: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .system-bound-lead {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
 }
 
 .bound-error {
-  color: #b91c1c;
+  color: #e15241;
 }
 
 .field-error {
   margin: 6px 0 0;
-  color: #b91c1c;
-  font-size: var(--type-caption);
+  color: #e15241;
+  font-size: 12px;
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
 }
 
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .form-field--wide {
@@ -471,27 +492,28 @@ watch(
 }
 
 .form-field label {
-  font-size: var(--type-caption);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--app-text-muted);
-  font-weight: 500;
 }
 
 .form-field input,
 .form-field select {
   border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: var(--type-base);
+  border-radius: 6px;
+  padding: 9px 11px;
+  font-size: 13px;
   color: var(--app-text);
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   background: var(--app-input-bg);
 }
 
 .form-field input:focus,
 .form-field select:focus {
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
 }
 
 .dialog-backdrop {
@@ -509,74 +531,56 @@ watch(
   width: 100%;
   max-width: 520px;
   background: var(--app-surface-solid);
-  border-radius: 18px;
-  box-shadow: 0 24px 48px var(--app-shadow);
-  border: 1px solid var(--app-border-strong);
-  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 18px 40px var(--app-shadow);
+  border: 1px solid var(--app-border);
+  padding: 18px;
 }
 
 .dialog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .dialog-header h4 {
   margin: 0;
-  font-size: var(--type-metric-value);
-  font-weight: 600;
+  font-size: 1.05rem;
+  font-weight: 650;
   color: var(--app-heading);
 }
 
 .dialog-close {
-  border: none;
-  background: var(--app-surface-hover);
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
   color: var(--app-text-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
 }
 
 .dialog-close:hover {
-  background: var(--app-surface-elevated);
-  color: var(--app-text);
+  border-color: var(--app-accent);
+  color: var(--app-accent);
 }
 
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.ghost-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
-  color: var(--app-text-secondary);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: var(--type-caption);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.ghost-btn:hover {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-  background: var(--app-accent-soft);
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .table-wrap {
-  border-radius: 12px;
-  border: 1px solid var(--app-border-strong);
+  border-radius: 6px;
+  border: 1px solid var(--app-border);
   overflow-x: auto;
-  overflow-y: visible;
+  background: var(--app-surface);
 }
 
 .ports-table {
@@ -585,42 +589,40 @@ watch(
   min-width: 520px;
 }
 
-.ports-table thead {
-  background: var(--app-surface-muted);
-}
-
 .ports-table th,
 .ports-table td {
   text-align: left;
-  padding: 12px 16px;
-  font-size: var(--type-base);
+  padding: 10px 12px;
+  font-size: 13px;
   color: var(--app-text);
-  border-bottom: 1px solid var(--app-border-strong);
+  border-bottom: 1px solid var(--app-border);
 }
 
 .ports-table th {
-  font-size: var(--type-caption);
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--app-text-muted);
-  font-weight: 600;
+  font-weight: 650;
+  background: color-mix(in srgb, var(--app-surface-elevated) 80%, transparent);
 }
 
 .description-cell {
-  color: var(--app-text-secondary);
-  font-size: var(--type-base);
+  color: var(--app-text-muted);
+  font-size: 12.5px;
 }
 
 .status-dot {
   display: inline-flex;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   background: #94a3b8;
 }
 
 .status-dot.active {
-  background: #22c55e;
+  background: var(--dorian-viper-400, #3fbd85);
+  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.18);
 }
 
 .status-dot.inactive {
@@ -628,35 +630,32 @@ watch(
 }
 
 .icon-danger-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid rgba(239, 68, 68, 0.6);
-  background: rgba(254, 242, 242, 0.9);
-  color: #b91c1c;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid rgba(225, 82, 65, 0.45);
+  background: rgba(225, 82, 65, 0.08);
+  color: #e15241;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
   padding: 0;
 }
 
 .icon-danger-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
 }
 
 .icon-danger-btn:hover {
-  border-color: rgba(220, 38, 38, 0.8);
-  color: #991b1b;
-  background: rgba(239, 68, 68, 0.16);
+  background: rgba(225, 82, 65, 0.14);
 }
 
 .empty-state {
-  padding: 18px;
+  padding: 20px 12px;
   text-align: center;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
+  font-size: 13px;
 }
 </style>

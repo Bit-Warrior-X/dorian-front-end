@@ -538,7 +538,7 @@ onMounted(() => {
   flex-direction: column;
   min-height: 380px;
   border: 1px solid var(--app-border-strong);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--app-surface-solid);
   overflow: hidden;
 }
@@ -618,7 +618,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: var(--type-caption);
   font-weight: 600;
   color: var(--app-accent);
