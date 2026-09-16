@@ -484,6 +484,8 @@ const dashboardStats = ref({
 const bandwidthServers = ref([])
 const bandwidthRefreshMs = 60 * 1000
 const trafficRefreshMs = 60 * 1000
+/** Cap chart points so ApexCharts stays responsive on long ranges. */
+const CHART_MAX_POINTS = 320
 
 let nicRxChartInstance = null
 let nicTxChartInstance = null
@@ -495,6 +497,9 @@ let statusCodeChartInstance = null
 let bandwidthTimer = null
 let trafficTimer = null
 let layoutResizeObserver = null
+let resizeRaf = 0
+let loadGeneration = 0
+let filterReloadTimer = 0
 
 const rangePillOptions = [
   { label: '1H', value: '1h' },
@@ -507,9 +512,9 @@ const rangePillOptions = [
   { label: '1M', value: '1m' },
 ]
 
-const bandwidthRange = ref('1d')
-const requestRange = ref('1d')
-const statusRange = ref('1d')
+const bandwidthRange = ref('4h')
+const requestRange = ref('4h')
+const statusRange = ref('4h')
 
 const bandwidthRangeLabel = computed(() =>
   rangePillOptions.find((o) => o.value === bandwidthRange.value)?.label || bandwidthRange.value,
@@ -908,25 +913,22 @@ const loadEdgeMetrics = async (servers) => {
   })
   edgeMetrics.value = next
 
-  await Promise.all(
+  const results = await Promise.all(
     list.map(async (server) => {
       try {
         const payload = await fetchServerHostMetrics(server.id)
-        edgeMetrics.value = {
-          ...edgeMetrics.value,
-          [server.id]: {
-            loading: false,
-            cpuPercent: Number(payload?.cpuPercent),
-          },
-        }
+        return [server.id, { loading: false, cpuPercent: Number(payload?.cpuPercent) }]
       } catch {
-        edgeMetrics.value = {
-          ...edgeMetrics.value,
-          [server.id]: { loading: false, cpuPercent: null },
-        }
+        return [server.id, { loading: false, cpuPercent: null }]
       }
     }),
   )
+
+  const merged = { ...edgeMetrics.value }
+  results.forEach(([id, metric]) => {
+    merged[id] = metric
+  })
+  edgeMetrics.value = merged
 }
 
 const setRange = (value) => {
@@ -952,6 +954,18 @@ const getBandwidthRangeMs = (value) => {
 const createEmptyBandwidthSeries = () =>
   serversForCharts.value.map((server) => ({ name: server.label, data: [] }))
 
+const downsamplePoints = (data, maxPoints = CHART_MAX_POINTS) => {
+  if (!Array.isArray(data) || data.length <= maxPoints) return data
+  const last = data[data.length - 1]
+  const step = (data.length - 1) / (maxPoints - 1)
+  const out = new Array(maxPoints)
+  for (let i = 0; i < maxPoints - 1; i += 1) {
+    out[i] = data[Math.round(i * step)]
+  }
+  out[maxPoints - 1] = last
+  return out
+}
+
 const mapPayloadToSeries = (payload) => {
   const seriesMap = new Map()
   if (Array.isArray(payload)) {
@@ -961,10 +975,12 @@ const mapPayloadToSeries = (payload) => {
   }
   return serversForCharts.value.map((server) => {
     const points = seriesMap.get(server.id) || []
-    const data = points
-      .map((point) => ({ x: new Date(point.timestamp).getTime(), y: Number(point.bandwidth ?? 0) }))
-      .filter((point) => !Number.isNaN(point.x))
-      .sort((a, b) => a.x - b.x)
+    const data = downsamplePoints(
+      points
+        .map((point) => ({ x: new Date(point.timestamp).getTime(), y: Number(point.bandwidth ?? 0) }))
+        .filter((point) => !Number.isNaN(point.x))
+        .sort((a, b) => a.x - b.x),
+    )
     return { name: server.label, data }
   })
 }
@@ -1025,7 +1041,6 @@ const loadBandwidthServers = async () => {
     destroyBandwidthCharts()
     createBandwidthCharts()
     createCombinedChart()
-    void loadEdgeMetrics(list)
   } catch (error) {
     serversList.value = []
     bandwidthServers.value = []
@@ -1058,7 +1073,7 @@ const defaultLineOptions = (height = 280, colors = null) => {
       height,
       toolbar: { show: false },
       zoom: { enabled: false },
-      animations: { enabled: true, easing: 'easeinout', speed: 800 },
+      animations: { enabled: false },
     },
     ...strokeFill,
     colors: colors || linePalette(),
@@ -1226,11 +1241,11 @@ const loadBandwidthSeries = async () => {
     }
     const pad = (series) => padSeriesToTimeRange(series, startMs, endMs)
 
-    if (nicRxChartInstance) { nicRxChartInstance.updateSeries(pad(bandwidthNicRxSeries.value), true); nicRxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(nicRxChartInstance) }
-    if (nicTxChartInstance) { nicTxChartInstance.updateSeries(pad(bandwidthNicTxSeries.value), true); nicTxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(nicTxChartInstance) }
-    if (l7RxChartInstance) { l7RxChartInstance.updateSeries(pad(bandwidthL7RxSeries.value), true); l7RxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(l7RxChartInstance) }
-    if (l7TxChartInstance) { l7TxChartInstance.updateSeries(pad(bandwidthL7TxSeries.value), true); l7TxChartInstance.updateOptions(rangeOpts, false, true); applyHidden(l7TxChartInstance) }
-    if (combinedChartInstance) { combinedChartInstance.updateSeries(pad(combinedBandwidthSeries.value), true); combinedChartInstance.updateOptions(rangeOpts, false, true) }
+    if (nicRxChartInstance) { nicRxChartInstance.updateSeries(pad(bandwidthNicRxSeries.value), false); nicRxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(nicRxChartInstance) }
+    if (nicTxChartInstance) { nicTxChartInstance.updateSeries(pad(bandwidthNicTxSeries.value), false); nicTxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(nicTxChartInstance) }
+    if (l7RxChartInstance) { l7RxChartInstance.updateSeries(pad(bandwidthL7RxSeries.value), false); l7RxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7RxChartInstance) }
+    if (l7TxChartInstance) { l7TxChartInstance.updateSeries(pad(bandwidthL7TxSeries.value), false); l7TxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7TxChartInstance) }
+    if (combinedChartInstance) { combinedChartInstance.updateSeries(pad(combinedBandwidthSeries.value), false); combinedChartInstance.updateOptions(rangeOpts, false, false) }
   } catch (error) {
     console.error('Failed to load bandwidth series', error)
   }
@@ -1240,21 +1255,26 @@ const loadRequestResponseSeries = async () => {
   try {
     const payload = await fetchRequestResponseSeries(requestRange.value, selectedEdge.value, selectedSite.value)
     const points = Array.isArray(payload) ? payload : []
+    const mapped = downsamplePoints(
+      points
+        .map((p) => ({ x: new Date(p.timestamp).getTime(), request: Number(p.requestCount ?? 0), response: Number(p.responseCount ?? 0) }))
+        .filter((p) => !Number.isNaN(p.x)),
+    )
     requestResponseSeries.value = [
-      { name: 'Requests', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.requestCount ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
-      { name: 'Responses', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.responseCount ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
+      { name: 'Requests', data: mapped.map((p) => ({ x: p.x, y: p.request })) },
+      { name: 'Responses', data: mapped.map((p) => ({ x: p.x, y: p.response })) },
     ]
     if (requestResponseChartInstance) {
       const now = Date.now()
       const startMs = now - getBandwidthRangeMs(requestRange.value)
       requestResponseChartInstance.updateSeries(
         padSeriesToTimeRange(requestResponseSeries.value, startMs, now),
-        true,
+        false,
       )
       requestResponseChartInstance.updateOptions({
         xaxis: getApexDatetimeXaxis(startMs, now, { tickCount: 6, fontSize: '10px' }),
         annotations: getApexTimeRangeAnnotations(startMs, now),
-      }, false, true)
+      }, false, false)
     }
   } catch (error) {
     requestResponseSeries.value = [{ name: 'Requests', data: [] }, { name: 'Responses', data: [] }]
@@ -1265,23 +1285,34 @@ const loadStatusCodeSeries = async () => {
   try {
     const payload = await fetchStatusCodeSeries(statusRange.value, selectedEdge.value, selectedSite.value)
     const points = Array.isArray(payload) ? payload : []
+    const mapped = downsamplePoints(
+      points
+        .map((p) => ({
+          x: new Date(p.timestamp).getTime(),
+          success: Number(p.success ?? 0),
+          redirect: Number(p.redirect ?? 0),
+          client: Number(p.client ?? 0),
+          server: Number(p.server ?? 0),
+        }))
+        .filter((p) => !Number.isNaN(p.x)),
+    )
     statusCodeSeries.value = [
-      { name: '2xx', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.success ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
-      { name: '3xx', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.redirect ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
-      { name: '4xx', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.client ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
-      { name: '5xx', data: points.map((p) => ({ x: new Date(p.timestamp).getTime(), y: Number(p.server ?? 0) })).filter((p) => !Number.isNaN(p.x)) },
+      { name: '2xx', data: mapped.map((p) => ({ x: p.x, y: p.success })) },
+      { name: '3xx', data: mapped.map((p) => ({ x: p.x, y: p.redirect })) },
+      { name: '4xx', data: mapped.map((p) => ({ x: p.x, y: p.client })) },
+      { name: '5xx', data: mapped.map((p) => ({ x: p.x, y: p.server })) },
     ]
     if (statusCodeChartInstance) {
       const now = Date.now()
       const startMs = now - getBandwidthRangeMs(statusRange.value)
       statusCodeChartInstance.updateSeries(
         padSeriesToTimeRange(statusCodeSeries.value, startMs, now),
-        true,
+        false,
       )
       statusCodeChartInstance.updateOptions({
         xaxis: getApexDatetimeXaxis(startMs, now, { tickCount: 6, fontSize: '10px' }),
         annotations: getApexTimeRangeAnnotations(startMs, now),
-      }, false, true)
+      }, false, false)
     }
   } catch (error) {
     statusCodeSeries.value = [
@@ -1319,20 +1350,45 @@ const loadTopTrafficPanels = async () => {
   }
 }
 
-const refreshDashboard = async () => {
-  isRefreshing.value = true
+const loadChartSeries = async () => {
+  const generation = ++loadGeneration
   await Promise.all([
-    loadDashboardSummary(),
-    loadSecurityEvents(),
-    loadSites(),
     loadBandwidthSeries(),
     loadRequestResponseSeries(),
     loadStatusCodeSeries(),
-    loadEdgeMetrics(serversList.value),
     loadTopTrafficPanels(),
+    loadEdgeMetrics(serversList.value),
   ])
+  if (generation !== loadGeneration) return
   updatedAt.value = new Date()
-  isRefreshing.value = false
+}
+
+const refreshDashboard = async () => {
+  const generation = ++loadGeneration
+  isRefreshing.value = true
+  try {
+    // Phase 1: shell metrics + server list (paint hero quickly)
+    await Promise.all([
+      loadDashboardSummary(),
+      loadSecurityEvents(),
+      loadSites(),
+      loadBandwidthServers(),
+    ])
+    if (generation !== loadGeneration) return
+
+    // Phase 2: heavy series (once servers exist — avoids the old double-fetch)
+    await Promise.all([
+      loadBandwidthSeries(),
+      loadRequestResponseSeries(),
+      loadStatusCodeSeries(),
+      loadTopTrafficPanels(),
+      loadEdgeMetrics(serversList.value),
+    ])
+    if (generation !== loadGeneration) return
+    updatedAt.value = new Date()
+  } finally {
+    if (generation === loadGeneration) isRefreshing.value = false
+  }
 }
 
 const refreshChartTheme = () => {
@@ -1342,64 +1398,67 @@ const refreshChartTheme = () => {
   })
 }
 
+const scheduleFilterReload = () => {
+  if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
+  filterReloadTimer = window.setTimeout(() => {
+    filterReloadTimer = 0
+    void loadChartSeries()
+  }, 120)
+}
+
+const runIfVisible = (fn) => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  fn()
+}
+
+const resizeCharts = () => {
+  if (resizeRaf) cancelAnimationFrame(resizeRaf)
+  resizeRaf = requestAnimationFrame(() => {
+    resizeRaf = 0
+    ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, requestResponseChartInstance, statusCodeChartInstance].forEach((c) => c?.resize?.())
+  })
+}
+
 onMounted(() => {
   window.addEventListener('cdnproxy-theme-change', refreshChartTheme)
-  void refreshDashboard()
-  void loadBandwidthServers().then(() => {
-    if (bandwidthServers.value.length) {
-      loadBandwidthSeries()
-      bandwidthTimer = window.setInterval(loadBandwidthSeries, bandwidthRefreshMs)
-    }
-  })
   createRequestResponseChart()
   createStatusCodeChart()
+  void refreshDashboard()
+
+  bandwidthTimer = window.setInterval(() => {
+    runIfVisible(() => {
+      if (bandwidthServers.value.length) void loadBandwidthSeries()
+    })
+  }, bandwidthRefreshMs)
   trafficTimer = window.setInterval(() => {
-    loadRequestResponseSeries()
-    loadStatusCodeSeries()
+    runIfVisible(() => {
+      void loadRequestResponseSeries()
+      void loadStatusCodeSeries()
+    })
   }, trafficRefreshMs)
 
   if (typeof window !== 'undefined' && 'ResizeObserver' in window && dashboardRoot.value) {
-    layoutResizeObserver = new ResizeObserver(() => {
-      ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, requestResponseChartInstance, statusCodeChartInstance].forEach((c) => c?.resize?.())
-    })
+    layoutResizeObserver = new ResizeObserver(resizeCharts)
     layoutResizeObserver.observe(dashboardRoot.value)
   }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('cdnproxy-theme-change', refreshChartTheme)
+  loadGeneration += 1
   if (bandwidthTimer) window.clearInterval(bandwidthTimer)
   if (trafficTimer) window.clearInterval(trafficTimer)
+  if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
+  if (resizeRaf) cancelAnimationFrame(resizeRaf)
   destroyBandwidthCharts()
   if (requestResponseChartInstance) requestResponseChartInstance.destroy()
   if (statusCodeChartInstance) statusCodeChartInstance.destroy()
   if (layoutResizeObserver && dashboardRoot.value) layoutResizeObserver.disconnect()
 })
 
-watch(bandwidthRange, () => {
-  loadBandwidthSeries()
-  loadRequestResponseSeries()
-  loadStatusCodeSeries()
-  loadTopTrafficPanels()
-})
-
-watch(selectedEdge, () => {
-  loadBandwidthSeries()
-  loadRequestResponseSeries()
-  loadStatusCodeSeries()
-  loadTopTrafficPanels()
-})
-
-watch(selectedSite, () => {
-  loadBandwidthSeries()
-  loadRequestResponseSeries()
-  loadStatusCodeSeries()
-  loadTopTrafficPanels()
-})
-
-watch(combinedBandwidthSeries, (series) => {
-  if (combinedChartInstance) combinedChartInstance.updateSeries(series, true)
-}, { deep: true })
+watch(bandwidthRange, scheduleFilterReload)
+watch(selectedEdge, scheduleFilterReload)
+watch(selectedSite, scheduleFilterReload)
 </script>
 
 <style scoped>
