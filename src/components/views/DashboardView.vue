@@ -2,7 +2,8 @@
   <div class="dashboard-view" ref="dashboardRoot">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Fleet overview</h2>
+        <p class="dash-kicker">Edge network</p>
+        <h2>CDN Overview</h2>
         <p>{{ fleetSubtitle }}</p>
       </div>
       <div class="dash-topbar__right">
@@ -59,10 +60,54 @@
       </button>
     </div>
 
+    <section class="dash-hero" aria-label="Network health">
+      <div class="dash-hero__status">
+        <div class="dash-hero__ring" :class="fleetHealthTone" :style="{ '--health': `${edgeHealthPercent}%` }">
+          <span class="dash-hero__ring-value num">{{ edgeHealthPercent }}%</span>
+          <span class="dash-hero__ring-label">healthy</span>
+        </div>
+        <div class="dash-hero__copy">
+          <h3>{{ fleetHealthTitle }}</h3>
+          <p>{{ fleetHealthDetail }}</p>
+        </div>
+      </div>
+      <div class="dash-hero__stats">
+        <div class="dash-hero-stat">
+          <span class="dash-hero-stat__label">Edges online</span>
+          <span class="dash-hero-stat__value num">
+            {{ formatNumber(healthyEdges) }}
+            <small>/ {{ formatNumber(dashboardStats.totalServers) }}</small>
+          </span>
+        </div>
+        <div class="dash-hero-stat">
+          <span class="dash-hero-stat__label">Sites protected</span>
+          <span class="dash-hero-stat__value num">
+            {{ formatNumber(dashboardStats.activeSites) }}
+            <small>/ {{ formatNumber(dashboardStats.totalSites) }}</small>
+          </span>
+        </div>
+        <div class="dash-hero-stat">
+          <span class="dash-hero-stat__label">Live req/s</span>
+          <span class="dash-hero-stat__value num signal">{{ formatRate(latestRequestRate) }}</span>
+        </div>
+        <div class="dash-hero-stat">
+          <span class="dash-hero-stat__label">Threats blocked</span>
+          <span class="dash-hero-stat__value num warn">{{ formatNumber(threatsThisMonth) }}</span>
+          <span class="dash-hero-stat__hint">this month · L4 + L7</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="dash-section-kicker">Key metrics</p>
     <section class="dash-metrics">
-      <article v-for="metric in metricCards" :key="metric.label" class="dash-metric-card">
+      <article
+        v-for="metric in metricCards"
+        :key="metric.label"
+        class="dash-metric-card"
+        :class="`dash-metric-card--${metric.tone}`"
+      >
         <div class="dash-metric-label">
-          <span v-html="metric.icon"></span>
+          <span class="dash-metric-icon" aria-hidden="true" v-html="metric.icon"></span>
           {{ metric.label }}
         </div>
         <div class="dash-metric-value num">{{ metric.value }}</div>
@@ -70,8 +115,9 @@
       </article>
     </section>
 
+    <p class="dash-section-kicker">Live traffic</p>
     <section class="dash-grid12">
-      <div class="dash-panel c-7">
+      <div class="dash-panel c-7 dash-panel--hero-chart">
         <div class="dash-panel-head">
           <h3><span class="dash-live-dot" aria-hidden="true"></span> Real-time traffic</h3>
           <div class="dash-readouts">
@@ -92,8 +138,8 @@
 
       <div class="dash-panel c-5">
         <div class="dash-panel-head">
-          <h3>Event log</h3>
-          <span class="dash-count-tag">live</span>
+          <h3>Security event stream</h3>
+          <span class="dash-count-tag dash-count-tag--live">live</span>
         </div>
         <div class="dash-log">
           <div v-if="!securityEvents.length" class="dash-log-line">
@@ -110,6 +156,7 @@
       </div>
     </section>
 
+    <p class="dash-section-kicker">Delivery &amp; defense</p>
     <section class="dash-grid12">
       <div class="dash-panel c-4">
         <div class="dash-panel-head">
@@ -176,6 +223,7 @@
       </div>
     </section>
 
+    <p class="dash-section-kicker">Traffic sources</p>
     <section class="dash-grid12">
       <div class="dash-panel c-4">
         <div class="dash-panel-head">
@@ -229,6 +277,7 @@
       </div>
     </section>
 
+    <p class="dash-section-kicker">Bandwidth &amp; status</p>
     <section class="dash-grid12">
       <div class="dash-panel c-6">
         <div class="dash-panel-head">
@@ -264,6 +313,7 @@
       </div>
     </section>
 
+    <p class="dash-section-kicker">Edge fabric</p>
     <section class="dash-grid12">
       <div class="dash-panel c-5">
         <div class="dash-panel-head">
@@ -504,8 +554,50 @@ const updatedAtLabel = computed(() => {
 const fleetSubtitle = computed(() => {
   const total = dashboardStats.value.totalServers
   const active = dashboardStats.value.activeServers
-  return `${total} edge nodes · ${active} active · last updated ${updatedAtLabel.value}`
+  const sites = dashboardStats.value.totalSites
+  return `${total} edge nodes · ${active} online · ${sites} sites · updated ${updatedAtLabel.value}`
 })
+
+const healthyEdges = computed(() =>
+  serversList.value.filter((server) => edgeHealthClass(server) === 'ok').length,
+)
+
+const edgeHealthPercent = computed(() => {
+  const total = serversList.value.length || dashboardStats.value.totalServers || 0
+  if (!total) return 0
+  const healthy = serversList.value.length
+    ? healthyEdges.value
+    : dashboardStats.value.activeServers
+  return Math.min(100, Math.round((healthy / total) * 100))
+})
+
+const fleetHealthTone = computed(() => {
+  const pct = edgeHealthPercent.value
+  if (pct >= 80) return 'ok'
+  if (pct >= 50) return 'warn'
+  return 'danger'
+})
+
+const fleetHealthTitle = computed(() => {
+  const pct = edgeHealthPercent.value
+  if (!dashboardStats.value.totalServers) return 'No edges deployed'
+  if (pct >= 80) return 'Network operating normally'
+  if (pct >= 50) return 'Network needs attention'
+  return 'Network degraded'
+})
+
+const fleetHealthDetail = computed(() => {
+  if (!dashboardStats.value.totalServers) {
+    return 'Add edge nodes to start serving and protecting sites through Dorian.'
+  }
+  return `${formatNumber(healthyEdges.value)} of ${formatNumber(serversList.value.length || dashboardStats.value.totalServers)} edges are healthy. Live traffic and defense metrics below reflect the selected scope.`
+})
+
+const threatsThisMonth = computed(
+  () =>
+    (Number(dashboardStats.value.l4AttacksThisMonth) || 0) +
+    (Number(dashboardStats.value.l7ThreatsThisMonth) || 0),
+)
 
 const filterSummary = computed(() => {
   const edge = selectedEdge.value === 'all'
@@ -524,45 +616,51 @@ const metricIcon = (paths) =>
 
 const metricCards = computed(() => [
   {
-    label: 'Total users',
+    label: 'Operators',
     value: formatNumber(dashboardStats.value.totalUsers),
-    delta: 'Panel operators',
+    delta: 'Console accounts',
     deltaClass: 'flat',
+    tone: 'ops',
     icon: metricIcon('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'),
   },
   {
-    label: 'Total edges',
+    label: 'Edge nodes',
     value: formatNumber(dashboardStats.value.totalServers),
-    delta: `${formatNumber(dashboardStats.value.activeServers)} active`,
+    delta: `${formatNumber(dashboardStats.value.activeServers)} online`,
     deltaClass: 'up',
+    tone: 'edge',
     icon: metricIcon('<rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/>'),
   },
   {
-    label: 'Total sites',
+    label: 'Protected sites',
     value: formatNumber(dashboardStats.value.totalSites),
     delta: `${formatNumber(dashboardStats.value.activeSites)} active`,
     deltaClass: 'up',
+    tone: 'site',
     icon: metricIcon('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
   },
   {
     label: 'Blocked IPs',
     value: formatNumber(dashboardStats.value.blockedIps),
-    delta: 'active rules',
+    delta: 'Active deny rules',
     deltaClass: 'warn',
+    tone: 'block',
     icon: metricIcon('<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
   },
   {
     label: 'L4 attacks',
     value: formatNumber(dashboardStats.value.l4AttacksThisMonth),
-    delta: `prev ${formatNumber(dashboardStats.value.l4AttacksPreviousMonth)}`,
+    delta: `Prev month ${formatNumber(dashboardStats.value.l4AttacksPreviousMonth)}`,
     deltaClass: 'warn',
+    tone: 'l4',
     icon: metricIcon('<path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-4z"/>'),
   },
   {
     label: 'L7 threats',
     value: formatNumber(dashboardStats.value.l7ThreatsThisMonth),
-    delta: `prev ${formatNumber(dashboardStats.value.l7ThreatsPreviousMonth)}`,
+    delta: `Prev month ${formatNumber(dashboardStats.value.l7ThreatsPreviousMonth)}`,
     deltaClass: 'warn',
+    tone: 'l7',
     icon: metricIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
   },
 ])
@@ -1325,7 +1423,16 @@ watch(combinedBandwidthSeries, (series) => {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 0;
+}
+
+.dash-kicker {
+  margin: 0 0 4px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
 }
 
 .dash-topbar__left h2 {
@@ -1346,6 +1453,132 @@ watch(combinedBandwidthSeries, (series) => {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+}
+
+.dash-section-kicker {
+  margin: 8px 0 -4px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.dash-hero {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.1fr) minmax(0, 2fr);
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(46, 158, 108, 0.12) 0%, transparent 55%),
+    var(--app-surface);
+}
+
+.dash-hero__status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dash-hero__ring {
+  --health: 0%;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at center, var(--app-surface) 58%, transparent 59%),
+    conic-gradient(var(--ring-color, var(--dorian-viper-500, #2e9e6c)) var(--health), var(--app-border) 0);
+}
+
+.dash-hero__ring.ok { --ring-color: var(--dorian-viper-500, #2e9e6c); }
+.dash-hero__ring.warn { --ring-color: var(--dorian-warn, #e0a83f); }
+.dash-hero__ring.danger { --ring-color: var(--dorian-danger, #e15241); }
+
+.dash-hero__ring-value {
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1;
+}
+
+.dash-hero__ring-label {
+  margin-top: 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.dash-hero__copy h3 {
+  margin: 0 0 4px;
+  font-size: var(--type-section-title);
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.dash-hero__copy p {
+  margin: 0;
+  font-size: var(--type-caption);
+  line-height: 1.45;
+  color: var(--app-text-muted);
+}
+
+.dash-hero__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dash-hero-stat {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+  min-width: 0;
+}
+
+.dash-hero-stat__label {
+  display: block;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  margin-bottom: 6px;
+}
+
+.dash-hero-stat__value {
+  display: block;
+  font-size: 20px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.1;
+}
+
+.dash-hero-stat__value small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-muted);
+}
+
+.dash-hero-stat__value.signal { color: var(--dorian-viper-400, var(--app-accent)); }
+.dash-hero-stat__value.warn { color: var(--dorian-warn, #e0a83f); }
+
+.dash-hero-stat__hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--app-text-muted);
 }
 
 .dash-live-dot {
@@ -1467,17 +1700,49 @@ watch(combinedBandwidthSeries, (series) => {
   border: 0.5px solid var(--app-border);
   border-radius: 10px;
   padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
 }
+
+.dash-metric-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--metric-tone, var(--app-border-strong));
+}
+
+.dash-metric-card--ops { --metric-tone: var(--app-text-muted); }
+.dash-metric-card--edge { --metric-tone: var(--dorian-viper-500, #2e9e6c); }
+.dash-metric-card--site { --metric-tone: #6b9fd4; }
+.dash-metric-card--block { --metric-tone: var(--dorian-warn, #e0a83f); }
+.dash-metric-card--l4 { --metric-tone: #6b9fd4; }
+.dash-metric-card--l7 { --metric-tone: #8fa3b8; }
 
 .dash-metric-label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: var(--type-caption);
   color: var(--app-text-muted);
   margin-bottom: 8px;
 }
 
+.dash-metric-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--app-accent-soft);
+  color: var(--metric-tone, var(--app-accent));
+  flex-shrink: 0;
+}
+
+.dash-metric-icon :deep(svg),
 .dash-metric-label :deep(svg) {
   width: 13px;
   height: 13px;
@@ -1527,6 +1792,16 @@ watch(combinedBandwidthSeries, (series) => {
   min-width: 0;
 }
 
+.dash-panel--hero-chart {
+  background:
+    linear-gradient(180deg, rgba(46, 158, 108, 0.04) 0%, transparent 42%),
+    var(--app-surface);
+}
+
+.dash-count-tag--live {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
 .dash-panel-head {
   display: flex;
   justify-content: space-between;
@@ -1571,8 +1846,8 @@ watch(combinedBandwidthSeries, (series) => {
   margin-top: 2px;
 }
 
-.dash-readout-value.signal { color: var(--app-accent); }
-.dash-readout-value.l4 { color: #5b9df0; }
+.dash-readout-value.signal { color: var(--dorian-viper-400, var(--app-accent)); }
+.dash-readout-value.l4 { color: #6b9fd4; }
 
 .dash-chart-wrap {
   position: relative;
@@ -1632,16 +1907,16 @@ watch(combinedBandwidthSeries, (series) => {
 .dash-bar-fill {
   height: 100%;
   border-radius: 3px;
-  background: #5b9df0;
+  background: #6b9fd4;
 }
 
-.dash-bar-fill.ok { background: var(--app-accent); }
-.dash-bar-fill.info { background: #5b9df0; }
-.dash-bar-fill.warn2 { background: #f0ac3f; }
+.dash-bar-fill.ok { background: var(--dorian-viper-500, #2e9e6c); }
+.dash-bar-fill.info { background: #6b9fd4; }
+.dash-bar-fill.warn2 { background: #d4a24a; }
 .dash-bar-fill.danger2,
-.dash-bar-fill.danger { background: #f0555a; }
-.dash-bar-fill.l4 { background: #5b9df0; }
-.dash-bar-fill.l7 { background: #c084fc; }
+.dash-bar-fill.danger { background: #d95b4e; }
+.dash-bar-fill.l4 { background: #6b9fd4; }
+.dash-bar-fill.l7 { background: #8fa3b8; }
 
 .dash-stat-trio {
   display: grid;
@@ -1700,9 +1975,9 @@ watch(combinedBandwidthSeries, (series) => {
   font-weight: 600;
 }
 
-.dash-log-tag.l4 { color: #5b9df0; }
-.dash-log-tag.l7 { color: #c084fc; }
-.dash-log-tag.sys { color: var(--app-accent); }
+.dash-log-tag.l4 { color: #6b9fd4; }
+.dash-log-tag.l7 { color: #8fa3b8; }
+.dash-log-tag.sys { color: var(--dorian-viper-400, var(--app-accent)); }
 
 .dash-table-wrap {
   overflow-x: auto;
@@ -1754,9 +2029,9 @@ watch(combinedBandwidthSeries, (series) => {
   margin-right: 6px;
 }
 
-.node-dot.ok { background: #22c55e; }
-.node-dot.warn { background: #f0ac3f; }
-.node-dot.danger { background: #f0555a; }
+.node-dot.ok { background: var(--dorian-viper-500, #2e9e6c); }
+.node-dot.warn { background: var(--dorian-warn, #e0a83f); }
+.node-dot.danger { background: var(--dorian-danger, #e15241); }
 
 .dash-layer-cell {
   display: inline-flex;
@@ -1937,12 +2212,24 @@ watch(combinedBandwidthSeries, (series) => {
   .c-4, .c-5, .c-6, .c-7, .c-8, .c-12 {
     grid-column: span 12;
   }
+
+  .dash-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-hero__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
   .dash-filter-summary {
     margin-left: 0;
     width: 100%;
+  }
+
+  .dash-hero__stats {
+    grid-template-columns: 1fr;
   }
 
   .dash-mini-charts {

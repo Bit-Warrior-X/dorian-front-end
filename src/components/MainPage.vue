@@ -6,8 +6,11 @@
     <!-- Left Panel -->
     <aside :class="['left-panel', { 'panel-hidden': !isPanelOpen }]">
       <div class="panel-header">
-        <DorianBrandMark size="sm" wordmark wordmark-class="panel-header__wordmark" />
-        <button class="panel-toggle-btn" @click="togglePanel" title="Toggle Panel">
+        <div class="panel-brand">
+          <DorianBrandMark size="sm" wordmark wordmark-class="panel-header__wordmark" />
+          <span class="panel-brand__sub">Operator console</span>
+        </div>
+        <button class="panel-toggle-btn" type="button" @click="togglePanel" title="Collapse sidebar">
           <svg v-if="isPanelOpen" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
@@ -16,8 +19,9 @@
           </svg>
         </button>
       </div>
-      <nav class="panel-nav">
+      <nav class="panel-nav" aria-label="Primary">
         <ul class="nav-list">
+          <li class="nav-group-label" aria-hidden="true">Network</li>
           <li :class="['nav-item', isRouteActive('dashboard') ? 'active' : '']">
             <RouterLink to="/app/dashboard">
               <span class="nav-icon">
@@ -28,7 +32,7 @@
                   <rect width="7" height="5" x="3" y="16" rx="1"></rect>
                 </svg>
               </span>
-              <span>Dashboard</span>
+              <span>Overview</span>
             </RouterLink>
           </li>
           <li :class="['nav-item', 'nav-item-parent', isServersOpen ? 'open' : '', isServersRoute ? 'active' : '']">
@@ -51,12 +55,12 @@
             <ul v-show="isServersOpen" class="nav-submenu">
               <li :class="['nav-subitem', isRouteActive('server-list') ? 'active' : '']">
                 <RouterLink to="/app/servers/list">
-                  <span>Edge List</span>
+                  <span>All edges</span>
                 </RouterLink>
               </li>
               <li :class="['nav-subitem', isRouteActive('server-settings') ? 'active' : '']">
                 <RouterLink to="/app/servers/settings">
-                  <span>Edge Settings</span>
+                  <span>Configure</span>
                 </RouterLink>
               </li>
             </ul>
@@ -80,16 +84,18 @@
             <ul v-show="isSitesOpen" class="nav-submenu">
               <li :class="['nav-subitem', isRouteActive('site-list') ? 'active' : '']">
                 <RouterLink to="/app/sites/list">
-                  <span>Site List</span>
+                  <span>All sites</span>
                 </RouterLink>
               </li>
               <li :class="['nav-subitem', isRouteActive('site-settings') ? 'active' : '']">
                 <RouterLink to="/app/sites/settings">
-                  <span>Site Settings</span>
+                  <span>Configure</span>
                 </RouterLink>
               </li>
             </ul>
           </li>
+
+          <li class="nav-group-label" aria-hidden="true">Security</li>
           <li :class="['nav-item', isRouteActive('waf-rules') ? 'active' : '']">
             <RouterLink to="/app/waf">
               <span class="nav-icon">
@@ -98,7 +104,7 @@
                   <path d="m9 12 2 2 4-4"></path>
                 </svg>
               </span>
-              <span>WAF Rule Set</span>
+              <span>WAF rules</span>
             </RouterLink>
           </li>
           <li :class="['nav-item', isRouteActive('server-blacklist') ? 'active' : '']">
@@ -109,9 +115,11 @@
                   <path d="m4.9 4.9 14.2 14.2"></path>
                 </svg>
               </span>
-              <span>Blocked List</span>
+              <span>IP blocklist</span>
             </RouterLink>
           </li>
+
+          <li class="nav-group-label" aria-hidden="true">Insights</li>
           <li :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '', isAnalyticsRoute ? 'active' : '']">
             <a href="#" @click.prevent="toggleDataAnalytics">
               <span class="nav-icon">
@@ -122,7 +130,7 @@
                   <path d="M8 17v-3"></path>
                 </svg>
               </span>
-              <span>DataAnalytics</span>
+              <span>Analytics</span>
               <span class="nav-arrow">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="9 18 15 12 9 6"></polyline>
@@ -132,26 +140,28 @@
             <ul v-show="isDataAnalyticsOpen" class="nav-submenu">
               <li :class="['nav-subitem', isRouteActive('security-analytics') ? 'active' : '']">
                 <RouterLink to="/app/analytics/security-analytics">
-                  <span>Analytics</span>
+                  <span>Traffic</span>
                 </RouterLink>
               </li>
               <li :class="['nav-subitem', isRouteActive('access-log') ? 'active' : '']">
                 <RouterLink to="/app/analytics/access-log">
-                  <span>Access Log</span>
+                  <span>Access logs</span>
                 </RouterLink>
               </li>
               <li :class="['nav-subitem', isRouteActive('security-analytics-detail') ? 'active' : '']">
                 <RouterLink to="/app/analytics/security-analytics-detail">
-                  <span>Security Analytics</span>
+                  <span>Security</span>
                 </RouterLink>
               </li>
               <li :class="['nav-subitem', isRouteActive('layer4-attack-analytics') ? 'active' : '']">
                 <RouterLink to="/app/analytics/layer4-attack-analytics">
-                  <span>Layer 4 Attack Analytics</span>
+                  <span>L4 attacks</span>
                 </RouterLink>
               </li>
             </ul>
           </li>
+
+          <li class="nav-group-label" aria-hidden="true">Account</li>
           <li :class="['nav-item', isRouteActive('server-license') ? 'active' : '']">
             <RouterLink to="/app/license">
               <span class="nav-icon">
@@ -161,7 +171,7 @@
                   <path d="m9 15 2 2 4-4"></path>
                 </svg>
               </span>
-              <span>License</span>
+              <span>Licensing</span>
             </RouterLink>
           </li>
           <li
@@ -176,29 +186,33 @@
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
               </span>
-              <span>Users</span>
+              <span>Account</span>
               <span class="nav-arrow">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
+                  <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
               </span>
             </a>
             <ul v-show="isUsersOpen" class="nav-submenu">
               <li :class="['nav-subitem', isRouteActive('users-information') ? 'active' : '']">
-                <RouterLink to="/app/users/information">Information</RouterLink>
+                <RouterLink to="/app/users/information">Profile</RouterLink>
               </li>
               <li v-if="isAdmin" :class="['nav-subitem', isRouteActive('users') ? 'active' : '']">
-                <RouterLink to="/app/users/list">Users</RouterLink>
+                <RouterLink to="/app/users/list">Team</RouterLink>
               </li>
               <li v-if="isAdmin" :class="['nav-subitem', isRouteActive('users-history') ? 'active' : '']">
-                <RouterLink to="/app/users/history">History</RouterLink>
+                <RouterLink to="/app/users/history">Audit log</RouterLink>
               </li>
             </ul>
           </li>
         </ul>
       </nav>
       <div class="panel-footer">
-        <button @click="handleLogout" class="logout-button">
+        <div class="panel-status">
+          <span class="panel-status__dot" aria-hidden="true"></span>
+          <span>Edge network live</span>
+        </div>
+        <button type="button" @click="handleLogout" class="logout-button">
           <span class="nav-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -206,7 +220,7 @@
               <line x1="21" y1="12" x2="9" y2="12"></line>
             </svg>
           </span>
-          <span>Logout</span>
+          <span>Sign out</span>
         </button>
       </div>
     </aside>
@@ -258,7 +272,8 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { logout } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
 import AppTopbarActions from './AppTopbarActions.vue'
 import DorianBrandMark from './DorianBrandMark.vue'
@@ -266,6 +281,7 @@ import NotificationToastStack from './NotificationToastStack.vue'
 
 const auth = useAuth()
 const route = useRoute()
+const router = useRouter()
 
 const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
@@ -302,7 +318,7 @@ const hideShellTopbar = computed(
     ].includes(route.name)
 )
 
-const currentViewTitle = computed(() => route.meta?.title || 'Dashboard')
+const currentViewTitle = computed(() => route.meta?.title || 'Overview')
 const isAdmin = computed(
   () => String(auth.state.user?.role || '').toLowerCase() === 'admin'
 )
@@ -344,6 +360,12 @@ const toggleUsers = () => {
 
 const togglePanel = () => {
   isPanelOpen.value = !isPanelOpen.value
+}
+
+const handleLogout = async () => {
+  await logout('manual')
+  auth.clearSession()
+  await router.replace('/login')
 }
 </script>
 

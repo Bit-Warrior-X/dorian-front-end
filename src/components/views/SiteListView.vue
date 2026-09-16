@@ -169,15 +169,17 @@
   <div
     v-if="isNewSiteDialogOpen"
     class="dialog-backdrop"
-    @click="!isSaving && closeNewSiteDialog()"
   >
     <div
-      class="dialog-card dialog-card--site"
+      class="dialog-card dialog-card--site dialog-card--wizard"
       :class="{ 'dialog-card--busy': isSaving }"
       @click.stop
     >
       <div class="dialog-header">
-        <h3>New Site</h3>
+        <div class="dialog-header__copy">
+          <h3>New Site</h3>
+          <p>Step {{ newSiteStepIndex + 1 }} of {{ newSiteSteps.length }} — {{ currentNewSiteStep.label }}</p>
+        </div>
         <button
           class="dialog-close"
           type="button"
@@ -191,9 +193,40 @@
           </svg>
         </button>
       </div>
+
+      <nav class="site-wizard-steps" aria-label="New site steps">
+        <button
+          v-for="(step, index) in newSiteSteps"
+          :key="step.id"
+          type="button"
+          class="site-wizard-step"
+          :class="{
+            'is-active': index === newSiteStepIndex,
+            'is-complete': index < newSiteStepIndex,
+            'is-reachable': index <= newSiteStepIndex,
+          }"
+          :disabled="isSaving || index > newSiteStepIndex"
+          :aria-current="index === newSiteStepIndex ? 'step' : undefined"
+          @click="goToNewSiteStep(index)"
+        >
+          <span class="site-wizard-step__index">{{ index + 1 }}</span>
+          <span class="site-wizard-step__label">{{ step.label }}</span>
+        </button>
+      </nav>
+
+      <aside class="site-wizard-guide" :aria-label="`${currentNewSiteStep.label} guidance`">
+        <div class="site-wizard-guide__title">{{ currentNewSiteStep.title }}</div>
+        <p class="site-wizard-guide__lead">{{ currentNewSiteStep.description }}</p>
+        <ul class="site-wizard-guide__list">
+          <li v-for="tip in currentNewSiteStep.tips" :key="tip">{{ tip }}</li>
+        </ul>
+      </aside>
+
       <div class="dialog-body">
         <SiteFormSections
           :form="newSite"
+          :active-step="currentNewSiteStep.id"
+          field-prefix="new-site"
           :waf-rule-options="wafRuleOptions"
           :selected-server-ids="selectedServers"
           :server-options="serverOptions"
@@ -206,14 +239,39 @@
           @remove-server="removeServer"
         />
       </div>
-      <div class="dialog-footer">
-        <button class="secondary-btn" type="button" :disabled="isSaving" @click="closeNewSiteDialog">
-          Cancel
+      <div class="dialog-footer dialog-footer--wizard">
+        <button
+          class="secondary-btn"
+          type="button"
+          :disabled="isSaving"
+          @click="newSiteStepIndex === 0 ? closeNewSiteDialog() : goToPreviousNewSiteStep()"
+        >
+          {{ newSiteStepIndex === 0 ? 'Cancel' : 'Back' }}
         </button>
-        <button class="primary-btn" type="button" :disabled="isSaving" @click="submitNewSite">
-          <span v-if="isSaving" class="btn-spinner" aria-hidden="true"></span>
-          {{ isSaving ? 'Creating…' : 'Create Site' }}
-        </button>
+        <div class="dialog-footer__actions">
+          <span class="site-wizard-progress">
+            Step {{ newSiteStepIndex + 1 }} of {{ newSiteSteps.length }}
+          </span>
+          <button
+            v-if="!isLastNewSiteStep"
+            class="primary-btn"
+            type="button"
+            :disabled="isSaving"
+            @click="goToNextNewSiteStep"
+          >
+            Next
+          </button>
+          <button
+            v-else
+            class="primary-btn"
+            type="button"
+            :disabled="isSaving"
+            @click="submitNewSite"
+          >
+            <span v-if="isSaving" class="btn-spinner" aria-hidden="true"></span>
+            {{ isSaving ? 'Creating…' : 'Create Site' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -221,11 +279,13 @@
   <div
     v-if="isEditSiteDialogOpen"
     class="dialog-backdrop"
-    @click="closeEditSiteDialog"
   >
     <div class="dialog-card dialog-card--site" @click.stop>
       <div class="dialog-header">
-        <h3>Edit Site</h3>
+        <div class="dialog-header__copy">
+          <h3>Edit Site</h3>
+          <p>Update domain, SSL, origins, and edge assignment for this site.</p>
+        </div>
         <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeEditSiteDialog">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -336,6 +396,61 @@ const confirmAction = ref(null)
 const confirmTarget = ref(null)
 const deleteTarget = ref(null)
 const pendingSaveAction = ref(null)
+
+const newSiteSteps = [
+  {
+    id: 'basic',
+    label: 'Basics',
+    title: 'Identify your website',
+    description:
+      'Tell Dorian which domain to protect. This is the public hostname visitors use, such as example.com or www.example.com.',
+    tips: [
+      'Enter the domain exactly as it appears in DNS (no https:// or path).',
+      'Choose a WAF rule if you already have one; you can leave it as None and assign one later.',
+      'You can edit these settings any time after the site is created.',
+    ],
+  },
+  {
+    id: 'ssl',
+    label: 'SSL',
+    title: 'Secure traffic with HTTPS',
+    description:
+      'SSL certificates encrypt visitor traffic. Pick how certificates should be issued for this domain.',
+    tips: [
+      'Not Configured — skip HTTPS for now (you can add it later).',
+      'Automatic — Dorian requests a free certificate (Let’s Encrypt and others). DNS must point correctly first.',
+      'Manual — paste your own certificate and private key if you already manage SSL elsewhere.',
+    ],
+  },
+  {
+    id: 'origins',
+    label: 'Origins',
+    title: 'Connect your backend servers',
+    description:
+      'Origin servers are the real hosts that store your website. Dorian receives visitor requests on the edge, then forwards them here.',
+    tips: [
+      'Add at least one origin with a reachable IP (or hostname) and port.',
+      'Use HTTP or HTTPS for the origin connection, and set weight if you have more than one server.',
+      'Max fails and fail timeout control how quickly an unhealthy origin is taken out of rotation.',
+    ],
+  },
+  {
+    id: 'edges',
+    label: 'Edges',
+    title: 'Choose where the site is served',
+    description:
+      'Edges are Dorian nodes closest to your users. Assign one or more edges so traffic can be accepted and protected.',
+    tips: [
+      'Search and select the edge nodes that should handle this site.',
+      'You can assign multiple edges for redundancy across regions.',
+      'Leave Status On to start serving traffic after create; turn it Off to keep the site ready but inactive.',
+    ],
+  },
+]
+const newSiteStepIndex = ref(0)
+
+const currentNewSiteStep = computed(() => newSiteSteps[newSiteStepIndex.value] || newSiteSteps[0])
+const isLastNewSiteStep = computed(() => newSiteStepIndex.value >= newSiteSteps.length - 1)
 
 const customWafWarningMessage =
   'When you select a custom waf rule, if you change the rule in another site setting, the changed waf rule is applied to all sites. To avoid this, you can duplicate waf rule, rename it and apply the rule to the site.'
@@ -568,6 +683,51 @@ const resetNewSiteForm = () => {
   selectedServers.value = []
   serverSearch.value = ''
   isServerDropdownOpen.value = false
+  newSiteStepIndex.value = 0
+}
+
+const validateNewSiteStep = (stepId) => {
+  if (stepId === 'basic') {
+    if (!String(newSite.domain || '').trim()) {
+      return 'Domain is required.'
+    }
+    return ''
+  }
+
+  if (stepId === 'ssl') {
+    if (String(newSite.sslType || '').toLowerCase() === 'custom') {
+      if (!String(newSite.sslCert || '').trim() || !String(newSite.sslCertKey || '').trim()) {
+        return 'Manual SSL configuration requires both certificate and private key.'
+      }
+    }
+    return ''
+  }
+
+  if (stepId === 'origins') {
+    return validateOriginServers(newSite.originServers) || ''
+  }
+
+  return ''
+}
+
+const goToNewSiteStep = (index) => {
+  if (index < 0 || index > newSiteStepIndex.value) return
+  newSiteStepIndex.value = index
+}
+
+const goToPreviousNewSiteStep = () => {
+  if (newSiteStepIndex.value <= 0) return
+  newSiteStepIndex.value -= 1
+}
+
+const goToNextNewSiteStep = () => {
+  const stepError = validateNewSiteStep(currentNewSiteStep.value.id)
+  if (stepError) {
+    notifyError(SITES_TITLE, stepError)
+    return
+  }
+  if (newSiteStepIndex.value >= newSiteSteps.length - 1) return
+  newSiteStepIndex.value += 1
 }
 
 const loadOriginServersForEdit = async (siteId) => {
@@ -815,10 +975,13 @@ const performCreateSite = async () => {
 }
 
 const submitNewSite = async () => {
-  const validationError = validateSiteForm(newSite)
-  if (validationError) {
-    notifyError(SITES_TITLE, validationError)
-    return
+  for (let index = 0; index < newSiteSteps.length; index += 1) {
+    const stepError = validateNewSiteStep(newSiteSteps[index].id)
+    if (stepError) {
+      newSiteStepIndex.value = index
+      notifyError(SITES_TITLE, stepError)
+      return
+    }
   }
 
   if (shouldWarnCustomWaf(newSite)) {
@@ -1079,12 +1242,12 @@ onBeforeUnmount(() => {
 
 .site-server-pill {
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 8px;
   font-size: var(--type-caption);
   font-weight: 600;
-  color: var(--app-accent);
+  color: var(--dorian-viper-400, #3fbd85);
   background: var(--app-accent-soft);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  border: 1px solid rgba(46, 158, 108, 0.28);
 }
 
 .table-footer {
@@ -1232,18 +1395,22 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 520px;
   background: var(--app-surface-solid);
-  border-radius: 18px;
+  border-radius: 12px;
   box-shadow: 0 24px 48px var(--app-shadow);
   border: 1px solid var(--app-border);
   padding: 20px;
 }
 
 .dialog-card--site {
-  max-width: 720px;
-  max-height: min(88vh, 820px);
+  max-width: 760px;
+  max-height: min(88vh, 860px);
   display: flex;
   flex-direction: column;
   padding: 18px;
+}
+
+.dialog-card--wizard {
+  max-width: 720px;
 }
 
 .dialog-card--busy {
@@ -1252,10 +1419,15 @@ onBeforeUnmount(() => {
 
 .dialog-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 14px;
   flex-shrink: 0;
+}
+
+.dialog-header__copy {
+  min-width: 0;
 }
 
 .dialog-header h3 {
@@ -1265,19 +1437,140 @@ onBeforeUnmount(() => {
   color: var(--app-heading);
 }
 
+.dialog-header__copy p {
+  margin: 4px 0 0;
+  font-size: var(--type-caption);
+  line-height: 1.4;
+  color: var(--app-text-muted);
+}
+
+.site-wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.site-wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.site-wizard-step:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.site-wizard-step.is-reachable:not(:disabled):hover {
+  border-color: var(--dorian-viper-700, #1f6e4a);
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.site-wizard-step.is-complete {
+  border-color: rgba(46, 158, 108, 0.28);
+  color: var(--dorian-viper-400, #3fbd85);
+  background: var(--app-accent-soft);
+}
+
+.site-wizard-step.is-active {
+  border-color: var(--dorian-viper-500, #2e9e6c);
+  background: var(--app-accent-soft);
+  color: var(--app-heading);
+  opacity: 1;
+}
+
+.site-wizard-step__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid currentColor;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.site-wizard-step.is-active .site-wizard-step__index,
+.site-wizard-step.is-complete .site-wizard-step__index {
+  background: var(--dorian-viper-500, #2e9e6c);
+  border-color: var(--dorian-viper-500, #2e9e6c);
+  color: #08120e;
+}
+
+.site-wizard-step__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--type-caption);
+  font-weight: 650;
+}
+
+.site-wizard-guide {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-accent-soft);
+  flex-shrink: 0;
+}
+
+.site-wizard-guide__title {
+  margin: 0;
+  font-size: var(--type-base);
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.site-wizard-guide__lead {
+  margin: 6px 0 0;
+  font-size: var(--type-caption);
+  line-height: 1.5;
+  color: var(--app-text-secondary);
+}
+
+.site-wizard-guide__list {
+  margin: 10px 0 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.site-wizard-guide__list li {
+  font-size: var(--type-caption);
+  line-height: 1.45;
+  color: var(--app-text-muted);
+}
+
 .dialog-close {
   border: none;
   background: var(--app-surface-elevated);
   color: var(--app-text-muted);
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   border: 1px solid var(--app-border);
+  flex-shrink: 0;
 }
 
 .dialog-close:hover:not(:disabled) {
@@ -1305,6 +1598,23 @@ onBeforeUnmount(() => {
   gap: 10px;
   margin-top: 14px;
   flex-shrink: 0;
+}
+
+.dialog-footer--wizard {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dialog-footer__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.site-wizard-progress {
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .secondary-btn {
@@ -1335,8 +1645,8 @@ onBeforeUnmount(() => {
   width: 1em;
   height: 1em;
   flex-shrink: 0;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: white;
+  border: 2px solid rgba(8, 18, 14, 0.25);
+  border-top-color: #08120e;
   border-radius: 50%;
   animation: btn-spin 0.7s linear infinite;
   display: inline-block;
@@ -1363,6 +1673,19 @@ onBeforeUnmount(() => {
 
   .dialog-card {
     padding: 20px;
+  }
+
+  .site-wizard-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dialog-footer--wizard {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dialog-footer__actions {
+    justify-content: space-between;
   }
 }
 </style>

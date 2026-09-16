@@ -10,10 +10,10 @@ const DURATION_BY_TYPE = {
 const defaultDurationFor = (type) => DURATION_BY_TYPE[type] ?? DURATION_BY_TYPE.success
 
 const TITLE_BY_TYPE = {
-  success: 'Success',
-  error: 'Error',
-  warning: 'Warning',
-  info: 'Information',
+  success: 'Completed',
+  error: 'Action failed',
+  warning: 'Attention',
+  info: 'Notice',
 }
 
 const timeouts = new Map()

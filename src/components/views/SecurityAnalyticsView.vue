@@ -931,7 +931,7 @@ onBeforeUnmount(() => {
 }
 
 .url-bar-fill--l4 {
-  background: linear-gradient(90deg, #5b9df0 0%, #3f82d4 100%);
+  background: linear-gradient(90deg, #6b9fd4 0%, #4a86c7 100%);
 }
 
 .url-bar-fill--viper {
@@ -939,7 +939,7 @@ onBeforeUnmount(() => {
 }
 
 .url-bar-fill--l7 {
-  background: linear-gradient(90deg, #b08cf0 0%, #8b5cf6 100%);
+  background: linear-gradient(90deg, #8fa3b8 0%, #6b7c8f 100%);
 }
 
 .url-bar-value {

@@ -1,7 +1,13 @@
 <template>
-  <article class="toast" :class="note.type" role="status" aria-live="polite">
-    <div class="toast-body">
-      <div class="toast-icon" aria-hidden="true">
+  <article
+    class="toast"
+    :class="`toast--${note.type}`"
+    role="status"
+    aria-live="polite"
+  >
+    <div class="toast__accent" aria-hidden="true"></div>
+    <div class="toast__body">
+      <div class="toast__icon" aria-hidden="true">
         <svg
           v-if="note.type === 'success'"
           xmlns="http://www.w3.org/2000/svg"
@@ -59,26 +65,37 @@
         </svg>
       </div>
 
-      <div class="toast-content">
-        <div class="toast-header">
-          <h4 class="toast-title">{{ note.title }}</h4>
+      <div class="toast__content">
+        <div class="toast__meta">
+          <span class="toast__kind">{{ typeLabel }}</span>
           <button
             type="button"
-            class="toast-close"
+            class="toast__close"
             aria-label="Dismiss notification"
             @click="emit('dismiss')"
           >
-            ×
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
-        <p class="toast-message">{{ note.message }}</p>
+        <h4 class="toast__title">{{ note.title }}</h4>
+        <p class="toast__message">{{ note.message }}</p>
       </div>
     </div>
+    <div
+      class="toast__progress"
+      aria-hidden="true"
+      :style="{ animationDuration: `${note.duration || 4000}ms` }"
+    ></div>
   </article>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   note: {
     type: Object,
     required: true,
@@ -86,137 +103,177 @@ defineProps({
 })
 
 const emit = defineEmits(['dismiss'])
+
+const typeLabel = computed(() => {
+  const map = {
+    success: 'OK',
+    error: 'ERROR',
+    warning: 'WARN',
+    info: 'INFO',
+  }
+  return map[props.note.type] || 'NOTE'
+})
 </script>
 
 <style scoped>
 .toast {
+  --toast-accent: var(--dorian-viper-500, #2e9e6c);
+  --toast-accent-soft: var(--dorian-viper-dim, rgba(46, 158, 108, 0.16));
+  --toast-accent-fg: var(--dorian-viper-400, #3fbd85);
+
   pointer-events: auto;
-  min-width: 340px;
-  max-width: 460px;
-  min-height: 96px;
-  border-radius: 16px;
-  background: var(--app-surface-solid);
-  box-shadow: 0 16px 32px var(--app-shadow);
-  border: 1px solid var(--app-border);
+  position: relative;
+  overflow: hidden;
+  width: min(360px, calc(100vw - 32px));
+  border-radius: 8px;
+  background: var(--app-surface-elevated, var(--app-surface-solid));
+  border: 0.5px solid var(--app-border);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  color: var(--app-text);
 }
 
-.toast-body {
+.toast__accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--toast-accent);
+}
+
+.toast__body {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 20px;
+  gap: 12px;
+  padding: 12px 12px 14px 14px;
 }
 
-.toast-icon {
+.toast__icon {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.06);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 0.5px solid color-mix(in srgb, var(--toast-accent) 35%, transparent);
+  background: var(--toast-accent-soft);
+  color: var(--toast-accent-fg);
 }
 
-.toast-icon svg {
-  width: 22px;
-  height: 22px;
+.toast__icon svg {
+  width: 14px;
+  height: 14px;
 }
 
-.toast-content {
+.toast__content {
   flex: 1;
   min-width: 0;
-  padding-top: 2px;
 }
 
-.toast-header {
+.toast__meta {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
-.toast-title {
-  margin: 0;
-  font-size: var(--type-base);
-  font-weight: 700;
-  line-height: 1.35;
-  color: inherit;
+.toast__kind {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--toast-accent-fg);
 }
 
-.toast-message {
+.toast__title {
+  margin: 0 0 4px;
+  font-size: var(--type-base, 0.8125rem);
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--app-heading);
+}
+
+.toast__message {
   margin: 0;
-  font-size: var(--type-base);
+  font-size: var(--type-caption, 0.72rem);
   font-weight: 500;
-  line-height: 1.55;
-  color: inherit;
-  opacity: 0.9;
+  line-height: 1.45;
+  color: var(--app-text-muted);
   word-break: break-word;
 }
 
-.toast-close {
+.toast__close {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  margin: -4px -6px 0 0;
-  border: none;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid transparent;
+  border-radius: 6px;
   background: transparent;
-  color: inherit;
-  font-size: var(--type-metric-value);
-  line-height: 1;
+  color: var(--app-text-muted);
   cursor: pointer;
-  opacity: 0.65;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.toast-close:hover {
-  opacity: 1;
-  background: rgba(15, 23, 42, 0.08);
+.toast__close svg {
+  width: 12px;
+  height: 12px;
 }
 
-.toast.success {
-  border-color: rgba(16, 185, 129, 0.42);
-  background: rgba(236, 253, 245, 0.98);
-  color: #065f46;
+.toast__close:hover {
+  background: var(--app-surface-hover, rgba(255, 255, 255, 0.06));
+  border-color: var(--app-border);
+  color: var(--app-text);
 }
 
-.toast.success .toast-icon {
-  background: rgba(16, 185, 129, 0.14);
-  color: #059669;
+.toast__progress {
+  height: 2px;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--toast-accent);
+  opacity: 0.7;
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }
 
-.toast.error {
-  border-color: rgba(239, 68, 68, 0.42);
-  background: rgba(254, 242, 242, 0.98);
-  color: #b91c1c;
+.toast--success {
+  --toast-accent: var(--dorian-viper-500, #2e9e6c);
+  --toast-accent-soft: var(--dorian-viper-dim, rgba(46, 158, 108, 0.18));
+  --toast-accent-fg: var(--dorian-viper-400, #3fbd85);
 }
 
-.toast.error .toast-icon {
-  background: rgba(239, 68, 68, 0.14);
-  color: #dc2626;
+.toast--error {
+  --toast-accent: var(--dorian-danger, #e15241);
+  --toast-accent-soft: rgba(225, 82, 65, 0.14);
+  --toast-accent-fg: #e8796d;
 }
 
-.toast.warning {
-  border-color: rgba(245, 158, 11, 0.42);
-  background: rgba(255, 251, 235, 0.98);
-  color: #b45309;
+.toast--warning {
+  --toast-accent: var(--dorian-gold-500, #c9a24a);
+  --toast-accent-soft: var(--dorian-gold-dim, rgba(201, 162, 74, 0.16));
+  --toast-accent-fg: var(--dorian-warn, #e0a83f);
 }
 
-.toast.warning .toast-icon {
-  background: rgba(245, 158, 11, 0.16);
-  color: #d97706;
+.toast--info {
+  --toast-accent: #6b9fd4;
+  --toast-accent-soft: rgba(107, 159, 212, 0.14);
+  --toast-accent-fg: #8bb4df;
 }
 
-.toast.info {
-  border-color: rgba(59, 130, 246, 0.42);
-  background: rgba(239, 246, 255, 0.98);
-  color: #1d4ed8;
+@keyframes toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
-.toast.info .toast-icon {
-  background: rgba(59, 130, 246, 0.14);
-  color: #2563eb;
+@media (prefers-reduced-motion: reduce) {
+  .toast__progress {
+    animation: none;
+  }
 }
 </style>

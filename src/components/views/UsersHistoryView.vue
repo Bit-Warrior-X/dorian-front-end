@@ -20,7 +20,17 @@
             id="history-search"
             v-model="filters.search"
             type="search"
-            placeholder="User, email, IP, resource, details..."
+            placeholder="User, email, resource, details..."
+            @keyup.enter="loadHistory"
+          />
+        </div>
+        <div class="filter-field">
+          <label for="history-ip">IP</label>
+          <input
+            id="history-ip"
+            v-model="filters.ip"
+            type="search"
+            placeholder="e.g. 192.168.1.10"
             @keyup.enter="loadHistory"
           />
         </div>
@@ -61,7 +71,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in entries" :key="entry.id">
+            <tr v-for="entry in paginatedEntries" :key="entry.id">
               <td class="time-cell">{{ formatTime(entry.createdAt) }}</td>
               <td>
                 <div class="actor-cell">
@@ -96,12 +106,32 @@
           Loading audit history...
         </div>
       </div>
+
+      <div v-if="entries.length" class="table-footer">
+        <span class="pagination-info">
+          Showing {{ pageStart }}-{{ pageEnd }} of {{ entries.length }}
+        </span>
+        <div class="pagination-controls">
+          <button class="pagination-btn" type="button" :disabled="currentPage === 1" @click="prevPage">
+            Prev
+          </button>
+          <span class="pagination-page">Page {{ currentPage }} of {{ totalPages }}</span>
+          <button
+            class="pagination-btn"
+            type="button"
+            :disabled="currentPage === totalPages"
+            @click="nextPage"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { fetchAuditLogs } from '@/api/auditLogs'
 import { notifyError } from '@/utils/notify'
 
@@ -109,12 +139,46 @@ const HISTORY_TITLE = 'Audit History'
 
 const entries = ref([])
 const isLoading = ref(false)
+const pageSize = 10
+const currentPage = ref(1)
 
 const filters = reactive({
   search: '',
+  ip: '',
   category: '',
   action: '',
 })
+
+const totalPages = computed(() => Math.max(1, Math.ceil(entries.value.length / pageSize)))
+
+const pageStart = computed(() => {
+  if (!entries.value.length) return 0
+  return (currentPage.value - 1) * pageSize + 1
+})
+
+const pageEnd = computed(() => Math.min(currentPage.value * pageSize, entries.value.length))
+
+const paginatedEntries = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return entries.value.slice(start, start + pageSize)
+})
+
+const prevPage = () => {
+  if (currentPage.value > 1) currentPage.value -= 1
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) currentPage.value += 1
+}
+
+watch(
+  () => entries.value.length,
+  () => {
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value
+    }
+  },
+)
 
 const categoryOptions = [
   { value: 'auth', label: 'Authentication' },
@@ -210,10 +274,13 @@ const loadHistory = async () => {
       category: filters.category,
       action: filters.action,
       search: filters.search.trim(),
+      ip: filters.ip.trim(),
     })
     entries.value = Array.isArray(data) ? data : []
+    currentPage.value = 1
   } catch (error) {
     entries.value = []
+    currentPage.value = 1
     notifyError(HISTORY_TITLE, error?.message || 'Could not load audit history.')
   } finally {
     isLoading.value = false
@@ -268,7 +335,7 @@ onMounted(() => {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  grid-template-columns: minmax(180px, 1.6fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
   gap: 12px;
   align-items: end;
   margin-bottom: 16px;
@@ -417,6 +484,32 @@ tbody tr:hover {
   text-align: center;
   color: var(--app-text-muted);
   font-size: var(--type-base);
+}
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.pagination-info {
+  color: var(--app-text-muted);
+  font-size: var(--type-base);
+}
+
+.pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-page {
+  color: var(--app-text-muted);
+  font-size: var(--type-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 900px) {

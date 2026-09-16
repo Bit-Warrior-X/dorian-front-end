@@ -1,4 +1,4 @@
-/** ApexCharts theme helpers — sync with app dark mode (true black). */
+/** ApexCharts theme helpers — Dorian CDN operator console. */
 
 export function isDarkTheme() {
   if (typeof document === 'undefined') return false
@@ -12,54 +12,69 @@ export function getApexTooltipTheme() {
 export function getApexChartColors() {
   return isDarkTheme()
     ? {
-        grid: 'rgba(255, 255, 255, 0.08)',
-        label: '#a3a3a3',
-        chartBg: '#0a0a0a',
+        grid: 'rgba(232, 237, 233, 0.07)',
+        label: '#8B978F',
+        chartBg: 'transparent',
+        axis: 'rgba(232, 237, 233, 0.1)',
+        crosshair: 'rgba(63, 189, 133, 0.35)',
+        tooltipBg: '#171F1B',
+        tooltipBorder: '#232D28',
       }
     : {
-        grid: 'rgba(148, 163, 184, 0.28)',
+        grid: 'rgba(15, 23, 42, 0.07)',
         label: '#64748b',
-        chartBg: '#ffffff',
+        chartBg: 'transparent',
+        axis: 'rgba(15, 23, 42, 0.1)',
+        crosshair: 'rgba(46, 158, 108, 0.3)',
+        tooltipBg: '#ffffff',
+        tooltipBorder: '#e2e8f0',
       }
 }
 
 /**
- * Production series palette (Dorian brand).
- * Tuned for dark/light contrast — not neon SaaS purple.
+ * Production series palette — cool CDN tones anchored on Viper green.
+ * Avoids neon SaaS purple / electric cyan.
  */
 export function getApexSeriesColors() {
   if (isDarkTheme()) {
-    return {
+    const palette = {
       viper: '#3FBD85',
       viperDeep: '#2E9E6C',
-      l4: '#6BA8F5',
-      l7: '#B89AF5',
-      gold: '#D4B05C',
-      warn: '#E0A83F',
-      danger: '#E15241',
+      viperSoft: '#6BCFA0',
+      l4: '#6B9FD4',
+      l7: '#8FA3B8',
+      teal: '#4FA8A0',
+      sand: '#C4A574',
+      warn: '#D4A24A',
+      danger: '#D95B4E',
       success: '#4FBD7A',
-      muted: '#8B978F',
-      cyan: '#5BB8C9',
+      muted: '#6E7A73',
+      slate: '#7D8B96',
     }
+    // Legacy aliases used by Analytics / Security views
+    return { ...palette, gold: palette.sand, cyan: palette.teal }
   }
-  return {
+  const palette = {
     viper: '#2E9E6C',
     viperDeep: '#1F6E4A',
-    l4: '#3B82F6',
-    l7: '#8B6FCF',
-    gold: '#B8923E',
-    warn: '#C9922E',
-    danger: '#D14335',
+    viperSoft: '#3FBD85',
+    l4: '#4A86C7',
+    l7: '#6B7C8F',
+    teal: '#3D8F88',
+    sand: '#A8894E',
+    warn: '#B8862E',
+    danger: '#C94A3D',
     success: '#3FA86A',
     muted: '#6B756F',
-    cyan: '#3A9AAB',
+    slate: '#64748B',
   }
+  return { ...palette, gold: palette.sand, cyan: palette.teal }
 }
 
-/** Ordered multi-series line palette for production charts. */
+/** Ordered multi-series line palette — readable on dark panels, low clash. */
 export function getApexLinePalette() {
   const c = getApexSeriesColors()
-  return [c.viper, c.l4, c.l7, c.gold, c.cyan, c.warn, c.danger, c.success, c.muted]
+  return [c.viper, c.l4, c.teal, c.sand, c.l7, c.warn, c.danger, c.viperSoft, c.slate, c.muted]
 }
 
 export function getApexPiePalette() {
@@ -67,13 +82,13 @@ export function getApexPiePalette() {
   return [
     c.viper,
     c.l4,
-    c.gold,
-    c.danger,
+    c.teal,
+    c.sand,
     c.l7,
     c.warn,
-    c.success,
+    c.danger,
     c.viperDeep,
-    c.cyan,
+    c.slate,
     c.muted,
   ]
 }
@@ -106,7 +121,7 @@ export function getApexProductionStrokeFill(opts = {}) {
     return {
       stroke: {
         ...stroke,
-        width: opts.width ?? 2.5,
+        width: opts.width ?? 2,
       },
       fill: {
         type: 'solid',
@@ -115,26 +130,31 @@ export function getApexProductionStrokeFill(opts = {}) {
       markers: {
         size: 0,
         strokeWidth: 0,
-        hover: { size: 4 },
+        hover: { size: 3.5 },
       },
     }
   }
 
   return {
-    stroke,
+    stroke: {
+      ...stroke,
+      width: opts.width ?? 1.75,
+    },
     fill: {
       type: 'gradient',
       gradient: {
-        shadeIntensity: 0.4,
-        opacityFrom: opts.opacityFrom ?? 0.28,
-        opacityTo: opts.opacityTo ?? 0.04,
-        stops: [0, 90, 100],
+        shade: isDarkTheme() ? 'dark' : 'light',
+        type: 'vertical',
+        shadeIntensity: 0.2,
+        opacityFrom: opts.opacityFrom ?? 0.22,
+        opacityTo: opts.opacityTo ?? 0.02,
+        stops: [0, 85, 100],
       },
     },
     markers: {
       size: 0,
       strokeWidth: 0,
-      hover: { size: 4 },
+      hover: { size: 3.5 },
     },
   }
 }
@@ -145,8 +165,19 @@ export function getApexFontFamily() {
   return value || 'Inter, system-ui, sans-serif'
 }
 
+export function getApexMonoFontFamily() {
+  if (typeof document === 'undefined') return 'JetBrains Mono, ui-monospace, monospace'
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim()
+  return value || 'JetBrains Mono, ui-monospace, monospace'
+}
+
 export function getApexAxisLabelStyle(fontSize = '11px') {
-  return { colors: getApexChartColors().label, fontSize, fontFamily: getApexFontFamily() }
+  return {
+    colors: getApexChartColors().label,
+    fontSize,
+    fontFamily: getApexMonoFontFamily(),
+    fontWeight: 450,
+  }
 }
 
 /** Shared Apex options for chart background, grid, labels, tooltip. */
@@ -158,20 +189,47 @@ export function getApexBaseChartOptions() {
       background: colors.chartBg,
       foreColor: colors.label,
       fontFamily: getApexFontFamily(),
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 450,
+        animateGradually: { enabled: true, delay: 80 },
+        dynamicAnimation: { enabled: true, speed: 280 },
+      },
     },
     theme: {
       mode: dark ? 'dark' : 'light',
     },
     grid: {
       borderColor: colors.grid,
-      strokeDashArray: 4,
+      strokeDashArray: 0,
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
       padding: {
         left: 4,
         right: 12,
+        top: 8,
+        bottom: 0,
       },
     },
     tooltip: {
       theme: getApexTooltipTheme(),
+      style: {
+        fontSize: '12px',
+        fontFamily: getApexFontFamily(),
+      },
+    },
+    legend: {
+      labels: {
+        colors: colors.label,
+      },
+      fontFamily: getApexFontFamily(),
+      fontSize: '11px',
+      markers: {
+        width: 8,
+        height: 8,
+        radius: 2,
+      },
     },
   }
 }
@@ -187,9 +245,11 @@ export function getApexThemePatch() {
     colors: getApexLinePalette(),
     xaxis: {
       labels: { style: labelStyle },
+      axisBorder: { color: colors.axis },
+      axisTicks: { color: colors.axis },
     },
     yaxis: {
-      labels: { style: { colors: colors.label } },
+      labels: { style: { colors: colors.label, fontFamily: getApexMonoFontFamily() } },
     },
     // Keep theme patches aware of brand series for consumers that merge shallowly.
     __seriesColors: series,
@@ -270,12 +330,12 @@ export function getApexDatetimeXaxis(startMs, endMs, opts = {}) {
     decimalsInFloat: 0,
     axisBorder: {
       show: true,
-      color: colors.grid,
+      color: colors.axis,
       height: 1,
     },
     axisTicks: {
       show: true,
-      color: colors.grid,
+      color: colors.axis,
       height: 4,
     },
     labels: {
@@ -357,15 +417,15 @@ export function getApexTimeRangeAnnotations(startMs, endMs) {
     xaxis: [
       {
         x: start,
-        borderColor: colors.label,
+        borderColor: colors.axis,
         strokeDashArray: 3,
-        opacity: 0.45,
+        opacity: 0.55,
       },
       {
         x: end,
-        borderColor: colors.label,
+        borderColor: colors.axis,
         strokeDashArray: 3,
-        opacity: 0.45,
+        opacity: 0.55,
       },
     ],
   }

@@ -1,8 +1,20 @@
 <template>
-  <div class="site-form">
-    <section class="site-form__section">
+  <div class="site-form" :class="{ 'site-form--wizard': isWizard }">
+    <section v-show="isStepVisible('basic')" class="site-form__section">
       <div class="site-form__section-head">
-        <h4>Basic Setting</h4>
+        <div class="site-form__section-identity">
+          <span class="site-form__section-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </span>
+          <div class="site-form__section-copy">
+            <h4>Basic Setting</h4>
+            <p>Domain name and the WAF rule that protects this site.</p>
+          </div>
+        </div>
       </div>
 
       <div class="site-form__row">
@@ -70,10 +82,20 @@
       </div>
     </section>
 
-    <section class="site-form__section">
+    <section v-show="isStepVisible('ssl')" class="site-form__section">
       <div class="site-form__section-head">
-        <h4>SSL Setting</h4>
-        <span class="site-form__section-tag">Certificate Type</span>
+        <div class="site-form__section-identity">
+          <span class="site-form__section-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </span>
+          <div class="site-form__section-copy">
+            <h4>SSL Setting</h4>
+            <p>How HTTPS certificates are issued for this domain.</p>
+          </div>
+        </div>
       </div>
 
       <div class="type-grid" role="radiogroup" aria-label="Certificate type">
@@ -87,6 +109,21 @@
           :aria-checked="certificateMode === mode.value"
           @click="certificateMode = mode.value"
         >
+          <span class="type-card__icon" aria-hidden="true">
+            <svg v-if="mode.value === 'none'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+            </svg>
+            <svg v-else-if="mode.value === 'automatic'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+          </span>
           <span class="type-card__label">{{ mode.label }}</span>
           <span class="type-card__desc">{{ mode.description }}</span>
         </button>
@@ -94,7 +131,10 @@
 
       <div v-if="certificateMode === 'automatic'" class="site-form__subpanel">
         <div class="site-form__subpanel-label">Automatic Provider</div>
-        <p class="site-form__hint">Let's Encrypt uses DNS-01. Create a DNS-only (not proxied) CNAME <code>_acme-challenge.&lt;domain&gt;</code> → <code>acme-validation.dorian.center</code> before saving.</p>
+        <p class="site-form__hint">
+          Let's Encrypt uses DNS-01. Create a DNS-only (not proxied) CNAME
+          <code>_acme-challenge.&lt;domain&gt;</code> → <code>acme-validation.dorian.center</code> before saving.
+        </p>
         <div class="segmented" role="radiogroup" aria-label="Certificate provider">
           <button
             v-for="provider in automaticProviders"
@@ -133,19 +173,31 @@
       </div>
     </section>
 
-    <section class="site-form__section">
+    <section v-show="isStepVisible('origins')" class="site-form__section">
       <div class="site-form__section-head">
-        <div class="site-form__section-title-wrap">
-          <h4>Origin Servers</h4>
-          <span class="site-form__section-tag">{{ originServers.length }} configured</span>
+        <div class="site-form__section-identity">
+          <span class="site-form__section-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </span>
+          <div class="site-form__section-copy">
+            <h4>Origin Servers</h4>
+            <p>Backend hosts that receive traffic after it passes through Dorian.</p>
+          </div>
         </div>
-        <button class="primary-add-btn" type="button" @click="addOriginServer">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          Add Origin
-        </button>
+        <div class="site-form__section-actions">
+          <span class="site-form__section-tag">{{ originServers.length }} configured</span>
+          <button class="primary-add-btn" type="button" @click="addOriginServer">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Origin
+          </button>
+        </div>
       </div>
 
       <p class="origin-hint">
@@ -262,9 +314,24 @@
       </div>
     </section>
 
-    <section class="site-form__section">
+    <section v-show="isStepVisible('edges')" class="site-form__section">
       <div class="site-form__section-head">
-        <h4>Choose Edges</h4>
+        <div class="site-form__section-identity">
+          <span class="site-form__section-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+              <path d="M2 17l10 5 10-5"></path>
+              <path d="M2 12l10 5 10-5"></path>
+            </svg>
+          </span>
+          <div class="site-form__section-copy">
+            <h4>Choose Edges</h4>
+            <p>Pick the edge nodes that will serve and protect this site.</p>
+          </div>
+        </div>
+        <span v-if="selectedServerIds.length" class="site-form__section-tag">
+          {{ selectedServerIds.length }} selected
+        </span>
       </div>
 
       <div v-if="selectedServerIds.length" class="selected-servers">
@@ -273,14 +340,18 @@
           :key="serverId"
           type="button"
           class="server-chip"
+          :title="`Remove ${getServerLabelById(serverId)}`"
           @click="$emit('remove-server', serverId)"
         >
+          <span class="server-chip__dot" aria-hidden="true"></span>
           {{ getServerLabelById(serverId) }}
+          <span class="server-chip__remove" aria-hidden="true">×</span>
         </button>
       </div>
+      <p v-else class="origin-empty">No edges assigned yet. Search below to attach one or more.</p>
 
       <div class="site-form__field">
-        <label :for="`${fieldPrefix}-servers`">Edges</label>
+        <label :for="`${fieldPrefix}-servers`">Add edges</label>
         <div class="combobox" @click="$emit('toggle-server-dropdown')">
           <input
             :id="`${fieldPrefix}-servers`"
@@ -313,11 +384,21 @@
       </div>
     </section>
 
-    <section class="site-form__section">
+    <section v-show="isStepVisible('edges')" class="site-form__section site-form__section--status">
       <div class="site-form__toggle-row">
-        <div class="site-form__toggle-meta">
-          <span class="site-form__toggle-title">Status</span>
-          <span class="site-form__toggle-hint">{{ statusEnabled ? 'Enabled' : 'Disabled' }}</span>
+        <div class="site-form__section-identity">
+          <span class="site-form__section-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </span>
+          <div class="site-form__toggle-meta">
+            <span class="site-form__toggle-title">Status</span>
+            <span class="site-form__toggle-hint">
+              {{ statusEnabled ? 'Site is enabled and will receive traffic' : 'Site is disabled and will not serve traffic' }}
+            </span>
+          </div>
         </div>
         <button
           type="button"
@@ -395,6 +476,12 @@ const props = defineProps({
     type: String,
     default: 'site',
   },
+  /** When set, only that wizard step is shown. Empty string shows all sections (edit mode). */
+  activeStep: {
+    type: String,
+    default: '',
+    validator: (value) => !value || ['basic', 'ssl', 'origins', 'edges'].includes(value),
+  },
 })
 
 defineEmits([
@@ -404,6 +491,10 @@ defineEmits([
   'add-server',
   'remove-server',
 ])
+
+const isWizard = computed(() => Boolean(props.activeStep))
+
+const isStepVisible = (stepId) => !props.activeStep || props.activeStep === stepId
 
 const originProtocolOptions = ['HTTP', 'HTTPS']
 
@@ -528,31 +619,90 @@ const getServerLabelById = (serverId) => {
 .site-form {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.site-form--wizard {
   gap: 14px;
+  min-height: 280px;
+}
+
+.site-form--wizard .site-form__section {
+  padding: 16px;
 }
 
 .site-form__section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 14px;
   border: 1px solid var(--app-border);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--app-surface-muted);
+}
+
+.site-form__section--status {
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
 .site-form__section-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
 }
 
+.site-form__section-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.site-form__section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-accent-soft);
+  color: var(--app-accent);
+}
+
+.site-form__section-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.site-form__section-copy {
+  min-width: 0;
+}
+
+.site-form__section-copy h4,
 .site-form__section-head h4 {
   margin: 0;
   font-size: var(--type-base);
   font-weight: 650;
   color: var(--app-heading);
+}
+
+.site-form__section-copy p {
+  margin: 3px 0 0;
+  font-size: var(--type-caption);
+  line-height: 1.4;
+  color: var(--app-text-muted);
+}
+
+.site-form__section-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .site-form__section-tag {
@@ -585,7 +735,7 @@ const getServerLabelById = (serverId) => {
 .site-form__field select,
 .site-form__field textarea {
   border: 1px solid var(--app-input-border);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 8px 10px;
   font-size: var(--type-base);
   color: var(--app-text);
@@ -619,9 +769,10 @@ const getServerLabelById = (serverId) => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 10px;
-  border-radius: 12px;
+  gap: 6px;
+  min-height: 108px;
+  padding: 12px;
+  border-radius: 8px;
   border: 1px solid var(--app-border);
   background: var(--app-surface-solid);
   color: var(--app-text);
@@ -631,13 +782,34 @@ const getServerLabelById = (serverId) => {
 }
 
 .type-card:hover {
-  border-color: var(--app-accent);
+  border-color: var(--dorian-viper-700, #1f6e4a);
 }
 
 .type-card.active {
-  border-color: var(--app-accent);
+  border-color: var(--dorian-viper-500, #2e9e6c);
   background: var(--app-accent-soft);
-  box-shadow: inset 0 0 0 1px var(--app-accent);
+  box-shadow: none;
+}
+
+.type-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
+}
+
+.type-card.active .type-card__icon {
+  background: var(--dorian-viper-dim, #17352a);
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.type-card__icon svg {
+  width: 15px;
+  height: 15px;
 }
 
 .type-card__label {
@@ -654,7 +826,7 @@ const getServerLabelById = (serverId) => {
 
 .site-form__subpanel {
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px dashed var(--app-border);
   background: var(--app-surface-solid);
 }
@@ -695,7 +867,7 @@ const getServerLabelById = (serverId) => {
   flex: 1 1 auto;
   min-height: 34px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 8px;
   border: 1px solid var(--app-border);
   background: var(--app-surface-solid);
   color: var(--app-text);
@@ -706,14 +878,14 @@ const getServerLabelById = (serverId) => {
 }
 
 .segmented__btn:hover {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
+  border-color: var(--dorian-viper-700, #1f6e4a);
+  color: var(--app-heading);
 }
 
 .segmented__btn.active {
-  background: var(--app-accent);
-  border-color: var(--app-accent);
-  color: #fff;
+  background: var(--app-accent-soft);
+  border-color: var(--dorian-viper-500, #2e9e6c);
+  color: var(--dorian-viper-400, #3fbd85);
 }
 
 .site-form__toggle-list {
@@ -727,10 +899,10 @@ const getServerLabelById = (serverId) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
   border: 1px solid var(--app-border);
-  background: var(--app-surface-solid);
+  background: var(--app-surface-muted);
 }
 
 .site-form__toggle-row.is-locked {
@@ -758,13 +930,7 @@ const getServerLabelById = (serverId) => {
 .site-form__toggle-hint {
   font-size: var(--type-caption);
   color: var(--app-text-muted);
-}
-
-.site-form__section-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+  line-height: 1.35;
 }
 
 .ghost-add-btn,
@@ -773,7 +939,7 @@ const getServerLabelById = (serverId) => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 6px 12px;
   font-size: var(--type-caption);
   font-weight: 650;
@@ -783,23 +949,24 @@ const getServerLabelById = (serverId) => {
 .ghost-add-btn {
   border: 1px solid var(--app-border);
   background: var(--app-surface-solid);
-  color: var(--app-accent);
+  color: var(--dorian-viper-400, #3fbd85);
 }
 
 .ghost-add-btn:hover {
-  border-color: var(--app-accent);
+  border-color: var(--dorian-viper-700, #1f6e4a);
   background: var(--app-accent-soft);
 }
 
 .primary-add-btn {
-  border: 1px solid var(--app-accent);
-  background: var(--app-accent);
-  color: #fff;
+  border: 1px solid var(--dorian-viper-500, #2e9e6c);
+  background: var(--dorian-viper-500, #2e9e6c);
+  color: #08120e;
 }
 
 .primary-add-btn:hover {
-  background: var(--app-accent-hover);
-  border-color: var(--app-accent-hover);
+  background: var(--dorian-viper-700, #1f6e4a);
+  border-color: var(--dorian-viper-700, #1f6e4a);
+  color: #08120e;
 }
 
 .primary-add-btn svg,
@@ -813,14 +980,15 @@ const getServerLabelById = (serverId) => {
   width: 100%;
   justify-content: center;
   min-height: 40px;
-  border: 1px dashed var(--app-accent);
+  border: 1px dashed var(--dorian-viper-700, #1f6e4a);
   background: var(--app-accent-soft);
-  color: var(--app-accent);
+  color: var(--dorian-viper-400, #3fbd85);
 }
 
 .secondary-add-btn:hover {
   border-style: solid;
-  background: rgba(168, 85, 247, 0.18);
+  border-color: var(--dorian-viper-500, #2e9e6c);
+  background: var(--dorian-viper-dim, #17352a);
 }
 
 .origin-hint {
@@ -841,7 +1009,7 @@ const getServerLabelById = (serverId) => {
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid var(--app-border);
   background: var(--app-surface-solid);
 }
@@ -870,7 +1038,7 @@ const getServerLabelById = (serverId) => {
   font-weight: 600;
   cursor: pointer;
   padding: 5px 10px;
-  border-radius: 999px;
+  border-radius: 8px;
 }
 
 .origin-remove-btn:hover:not(:disabled) {
@@ -895,7 +1063,7 @@ const getServerLabelById = (serverId) => {
 .origin-empty {
   margin: 0;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px dashed var(--app-border);
   background: var(--app-surface-solid);
   color: var(--app-text-muted);
@@ -911,19 +1079,34 @@ const getServerLabelById = (serverId) => {
 .server-chip {
   display: inline-flex;
   align-items: center;
-  padding: 5px 10px;
-  border-radius: 999px;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
   background: var(--app-accent-soft);
-  color: var(--app-accent);
+  color: var(--dorian-viper-400, #3fbd85);
   font-size: var(--type-caption);
   font-weight: 600;
-  border: 1px solid rgba(168, 85, 247, 0.2);
+  border: 1px solid var(--app-border);
   cursor: pointer;
 }
 
+.server-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dorian-viper-500, #2e9e6c);
+  flex-shrink: 0;
+}
+
+.server-chip__remove {
+  opacity: 0.7;
+  font-size: 14px;
+  line-height: 1;
+}
+
 .server-chip:hover {
-  background: rgba(168, 85, 247, 0.25);
-  color: var(--app-accent-hover);
+  border-color: var(--dorian-viper-700, #1f6e4a);
+  color: var(--dorian-viper-400, #3fbd85);
 }
 
 .combobox {
@@ -956,7 +1139,7 @@ const getServerLabelById = (serverId) => {
   right: 0;
   background: var(--app-surface-solid);
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: 0 12px 28px var(--app-shadow);
   padding: 4px;
   max-height: 160px;
@@ -970,7 +1153,7 @@ const getServerLabelById = (serverId) => {
   align-items: center;
   padding: 8px 10px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: var(--app-text);
   font-size: var(--type-caption);
@@ -998,7 +1181,7 @@ const getServerLabelById = (serverId) => {
   min-height: 38px;
   padding: 8px 10px;
   border: 1px solid var(--app-input-border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--app-input-bg);
   color: var(--app-text);
   cursor: pointer;
@@ -1052,8 +1235,8 @@ const getServerLabelById = (serverId) => {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  border-radius: 999px;
-  padding: 3px 8px;
+  border-radius: 4px;
+  padding: 3px 7px;
   font-size: var(--type-small);
   font-weight: 600;
   line-height: 1.2;
@@ -1066,9 +1249,9 @@ const getServerLabelById = (serverId) => {
 }
 
 .role-pill--custom {
-  color: var(--app-accent-hover);
-  background: rgba(124, 58, 237, 0.14);
-  border: 1px solid rgba(124, 58, 237, 0.35);
+  color: var(--dorian-viper-700, #1f6e4a);
+  background: var(--app-accent-soft);
+  border: 1px solid rgba(46, 158, 108, 0.28);
 }
 
 :global([data-theme='dark']) .role-pill.role-pill--predefined {
@@ -1078,9 +1261,9 @@ const getServerLabelById = (serverId) => {
 }
 
 :global([data-theme='dark']) .role-pill.role-pill--custom {
-  color: #e879f9 !important;
-  background: rgba(217, 70, 239, 0.18) !important;
-  border-color: rgba(217, 70, 239, 0.42) !important;
+  color: var(--dorian-viper-400, #3fbd85) !important;
+  background: var(--dorian-viper-dim, #17352a) !important;
+  border-color: rgba(46, 158, 108, 0.35) !important;
 }
 
 @media (max-width: 640px) {
@@ -1088,6 +1271,15 @@ const getServerLabelById = (serverId) => {
   .type-grid,
   .origin-grid {
     grid-template-columns: 1fr;
+  }
+
+  .site-form__section-head {
+    flex-direction: column;
+  }
+
+  .site-form__section-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

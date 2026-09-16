@@ -6,6 +6,7 @@ export const fetchAuditLogs = async (params = {}) => {
   if (params.category) search.set('category', params.category)
   if (params.action) search.set('action', params.action)
   if (params.search) search.set('search', params.search)
+  if (params.ip) search.set('ip', params.ip)
   if (params.actorUserId) search.set('actorUserId', String(params.actorUserId))
 
   const query = search.toString()

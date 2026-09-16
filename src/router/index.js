@@ -34,7 +34,7 @@ const routes = [
         name: 'dashboard',
         component: () => import('@/components/views/DashboardView.vue'),
         meta: {
-          title: 'Dashboard'
+          title: 'Overview'
         }
       },
       {
@@ -42,7 +42,7 @@ const routes = [
         name: 'server-list',
         component: () => import('@/components/views/ServerListView.vue'),
         meta: {
-          title: 'Edge List',
+          title: 'All edges',
           section: 'servers'
         }
       },
@@ -51,7 +51,7 @@ const routes = [
         name: 'server-settings',
         component: () => import('@/components/views/ServerSettingsView.vue'),
         meta: {
-          title: 'Edge Settings',
+          title: 'Configure edges',
           section: 'servers'
         }
       },
@@ -60,7 +60,7 @@ const routes = [
         name: 'site-list',
         component: () => import('@/components/views/SiteListView.vue'),
         meta: {
-          title: 'Site List',
+          title: 'All sites',
           section: 'sites'
         }
       },
@@ -69,7 +69,7 @@ const routes = [
         name: 'site-settings',
         component: () => import('@/components/views/SiteSettingsView.vue'),
         meta: {
-          title: 'Site Settings',
+          title: 'Configure sites',
           section: 'sites'
         }
       },
@@ -78,7 +78,7 @@ const routes = [
         name: 'waf-rules',
         component: () => import('@/components/views/WafRulesView.vue'),
         meta: {
-          title: 'WAF Rule Set',
+          title: 'WAF rules',
           section: 'waf'
         }
       },
@@ -87,7 +87,7 @@ const routes = [
         name: 'server-license',
         component: () => import('@/components/views/ServerLicenseView.vue'),
         meta: {
-          title: 'License',
+          title: 'Licensing',
           section: 'license'
         }
       },
@@ -96,7 +96,7 @@ const routes = [
         name: 'server-blacklist',
         component: () => import('@/components/views/ServerBlacklistView.vue'),
         meta: {
-          title: 'Blocked List',
+          title: 'IP blocklist',
           section: 'blacklist'
         }
       },
@@ -109,7 +109,7 @@ const routes = [
         name: 'access-log',
         component: () => import('@/components/views/AccessLogView.vue'),
         meta: {
-          title: 'Access Log',
+          title: 'Access logs',
           section: 'analytics'
         }
       },
@@ -118,7 +118,7 @@ const routes = [
         name: 'log-export',
         component: () => import('@/components/views/LogExportView.vue'),
         meta: {
-          title: 'Log Export',
+          title: 'Log export',
           section: 'analytics'
         }
       },
@@ -127,7 +127,7 @@ const routes = [
         name: 'security-analytics',
         component: () => import('@/components/views/Analytics.vue'),
         meta: {
-          title: 'Analytics',
+          title: 'Traffic',
           section: 'analytics'
         }
       },
@@ -136,7 +136,7 @@ const routes = [
         name: 'security-analytics-detail',
         component: () => import('@/components/views/SecurityAnalyticsView.vue'),
         meta: {
-          title: 'Security Analytics',
+          title: 'Security',
           section: 'analytics'
         }
       },
@@ -145,7 +145,7 @@ const routes = [
         name: 'layer4-attack-analytics',
         component: () => import('@/components/views/Layer4AttackAnalyticsView.vue'),
         meta: {
-          title: 'Layer 4 Attack Analytics',
+          title: 'L4 attacks',
           section: 'analytics'
         }
       },
@@ -158,7 +158,7 @@ const routes = [
         name: 'users-information',
         component: () => import('@/components/views/UsersInformationView.vue'),
         meta: {
-          title: 'Information',
+          title: 'Profile',
           section: 'users'
         }
       },
@@ -167,7 +167,7 @@ const routes = [
         name: 'users',
         component: () => import('@/components/views/UsersView.vue'),
         meta: {
-          title: 'Users',
+          title: 'Team',
           section: 'users',
           requiresAdmin: true
         }
@@ -177,7 +177,7 @@ const routes = [
         name: 'users-history',
         component: () => import('@/components/views/UsersHistoryView.vue'),
         meta: {
-          title: 'History',
+          title: 'Audit log',
           section: 'users',
           requiresAdmin: true
         }

@@ -883,13 +883,13 @@ onBeforeUnmount(() => {
 }
 
 .attack-syn {
-  background: rgba(91, 157, 240, 0.16);
-  color: #5b9df0;
+  background: rgba(107, 159, 212, 0.16);
+  color: #6b9fd4;
 }
 
 .attack-udp {
-  background: rgba(224, 168, 63, 0.16);
-  color: #e0a83f;
+  background: rgba(212, 162, 74, 0.16);
+  color: #d4a24a;
 }
 
 .attack-icmp {
@@ -898,8 +898,8 @@ onBeforeUnmount(() => {
 }
 
 .attack-other {
-  background: rgba(176, 140, 240, 0.16);
-  color: #b08cf0;
+  background: rgba(143, 163, 184, 0.16);
+  color: #8fa3b8;
 }
 
 .action-btn {
