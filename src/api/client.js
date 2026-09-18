@@ -1,4 +1,6 @@
 import { getApiConfig } from './config'
+import router from '@/router'
+import { auth } from '@/stores/auth'
 import { readStoredAuth } from '@/stores/authStorage'
 import { touchSessionActivity } from '@/stores/sessionIdle'
 
@@ -6,14 +8,28 @@ const getStoredAuth = () => readStoredAuth()
 
 const getStoredToken = () => getStoredAuth()?.token || null
 
-const applyActorHeaders = (headers, skipActorHeaders) => {
-  if (skipActorHeaders) return
-  const user = getStoredAuth()?.user
-  if (!user) return
-  if (user.id != null) headers['X-Actor-Id'] = String(user.id)
-  if (user.name) headers['X-Actor-Name'] = user.name
-  if (user.email) headers['X-Actor-Email'] = user.email
-  if (user.role) headers['X-Actor-Role'] = user.role
+const isLoginRequestPath = (path) => {
+  const normalized = String(path || '').split('?')[0]
+  return (
+    normalized === '/auth/login' ||
+    normalized === '/api/v1/auth/login' ||
+    normalized.endsWith('/auth/login')
+  )
+}
+
+const handleUnauthorized = (path) => {
+  if (isLoginRequestPath(path)) return
+
+  auth.clearSession()
+
+  const current = router.currentRoute?.value
+  if (!current || current.name === 'login') return
+
+  const redirect = current.fullPath && current.fullPath !== '/login' ? current.fullPath : undefined
+  void router.replace({
+    name: 'login',
+    query: redirect ? { redirect } : {},
+  })
 }
 
 const parseJson = async (response) => {
@@ -132,7 +148,6 @@ export const apiRequest = async (path, options = {}) => {
     headers.Authorization = `Bearer ${token}`
     touchSessionActivity(false)
   }
-  applyActorHeaders(headers, Boolean(options.skipActorHeaders))
 
   const response = await fetch(url, {
     ...options,
@@ -142,6 +157,9 @@ export const apiRequest = async (path, options = {}) => {
   const payload = await parseJson(response)
 
   if (!response.ok) {
+    if (response.status === 401) {
+      handleUnauthorized(path)
+    }
     const message = extractApiErrorMessage(payload, response)
     const error = new Error(message)
     error.status = response.status

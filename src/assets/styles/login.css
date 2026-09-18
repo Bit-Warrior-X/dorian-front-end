@@ -1109,7 +1109,7 @@
 .login-sso {
   display: flex;
   gap: 10px;
-  margin-bottom: 26px;
+  margin-bottom: 8px;
 }
 
 .login-sso__btn {
@@ -1135,10 +1135,22 @@
   flex-shrink: 0;
 }
 
-.login-sso__btn:hover {
+.login-sso__btn:hover:not(:disabled) {
   border-color: var(--signin-hairline-strong);
   color: var(--signin-text);
   background: var(--signin-panel-raised);
+}
+
+.login-sso__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.login-sso-hint {
+  margin: 0 0 26px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--signin-text-dim);
 }
 
 .login-alert {

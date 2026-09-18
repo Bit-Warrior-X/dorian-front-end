@@ -224,14 +224,70 @@
       </form>
       </div>
     </div>
+
+    <div class="content-card api-tokens-card">
+      <div class="section-head">
+        <h3>API tokens</h3>
+        <p>Personal access tokens for automation. Secrets are shown only once at creation.</p>
+      </div>
+
+      <form class="api-token-create" @submit.prevent="createToken">
+        <div class="form-field form-field--grow">
+          <label for="api-token-name">Token name</label>
+          <input
+            id="api-token-name"
+            v-model="tokenForm.name"
+            type="text"
+            maxlength="80"
+            placeholder="e.g. CI deploy"
+            :disabled="tokenCreating"
+          />
+        </div>
+        <button class="primary-btn" type="submit" :disabled="!canCreateToken">
+          {{ tokenCreating ? 'Creating...' : 'Create token' }}
+        </button>
+      </form>
+
+      <div v-if="createdSecret" class="api-token-secret">
+        <p class="field-hint">Copy this token now. You will not be able to see it again.</p>
+        <code class="api-token-secret__value">{{ createdSecret }}</code>
+        <button class="ghost-btn" type="button" @click="copyCreatedSecret">
+          {{ secretCopied ? 'Copied' : 'Copy' }}
+        </button>
+      </div>
+
+      <p v-if="tokensError" class="helper-text error-text">{{ tokensError }}</p>
+      <p v-else-if="tokensLoading && !apiTokens.length" class="helper-text">Loading tokens...</p>
+      <p v-else-if="!apiTokens.length" class="helper-text">No API tokens yet.</p>
+
+      <ul v-else class="api-token-list">
+        <li v-for="item in apiTokens" :key="item.id" class="api-token-item">
+          <div class="api-token-item__main">
+            <strong>{{ item.name }}</strong>
+            <span class="api-token-item__prefix">{{ item.tokenPrefix }}…</span>
+            <span class="api-token-item__meta">Created {{ formatHistoryTime(item.createdAt) }}</span>
+            <span v-if="item.lastUsedAt" class="api-token-item__meta">Last used {{ formatHistoryTime(item.lastUsedAt) }}</span>
+          </div>
+          <button
+            class="ghost-btn"
+            type="button"
+            :disabled="tokenRevokingId === item.id"
+            @click="revokeToken(item)"
+          >
+            {{ tokenRevokingId === item.id ? 'Revoking...' : 'Revoke' }}
+          </button>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { createApiToken, listApiTokens, revokeApiToken } from '@/api/apiTokens'
 import { fetchAuditLogs } from '@/api/auditLogs'
-import { fetchUsers, updateUser } from '@/api/users'
+import { fetchUser, updateUser } from '@/api/users'
 import { useAuth } from '@/stores/auth'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { joinDisplayName, splitDisplayName } from '@/utils/userName'
@@ -250,6 +306,17 @@ const historyEntries = ref([])
 const isEditingEmail = ref(false)
 const emailSectionRef = ref(null)
 const securitySectionRef = ref(null)
+
+const apiTokens = ref([])
+const tokensLoading = ref(false)
+const tokensError = ref('')
+const tokenCreating = ref(false)
+const tokenRevokingId = ref(null)
+const createdSecret = ref('')
+const secretCopied = ref(false)
+const tokenForm = reactive({
+  name: '',
+})
 
 const profile = reactive({
   id: null,
@@ -452,9 +519,7 @@ const loadProfile = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    const data = await fetchUsers()
-    const list = Array.isArray(data) ? data : []
-    const match = list.find((item) => String(item.id) === String(sessionUser.id))
+    const match = await fetchUser(sessionUser.id)
     applyProfile(match || sessionUser)
   } catch (error) {
     applyProfile(sessionUser)
@@ -532,6 +597,70 @@ const saveProfile = async () => {
   }
 }
 
+const canCreateToken = computed(
+  () => Boolean(tokenForm.name.trim()) && !tokenCreating.value
+)
+
+const loadApiTokens = async () => {
+  tokensLoading.value = true
+  tokensError.value = ''
+  try {
+    const data = await listApiTokens()
+    apiTokens.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    tokensError.value = error?.message || 'Could not load API tokens.'
+    apiTokens.value = []
+  } finally {
+    tokensLoading.value = false
+  }
+}
+
+const createToken = async () => {
+  if (!canCreateToken.value) return
+  tokenCreating.value = true
+  tokensError.value = ''
+  secretCopied.value = false
+  try {
+    const result = await createApiToken({ name: tokenForm.name.trim(), scopes: ['*'] })
+    createdSecret.value = result?.secret || ''
+    tokenForm.name = ''
+    notifySuccess(INFO_TITLE, 'API token created.')
+    await loadApiTokens()
+  } catch (error) {
+    notifyError(INFO_TITLE, error?.message || 'Could not create API token.')
+  } finally {
+    tokenCreating.value = false
+  }
+}
+
+const revokeToken = async (item) => {
+  if (!item?.id || tokenRevokingId.value != null) return
+  tokenRevokingId.value = item.id
+  try {
+    await revokeApiToken(item.id)
+    if (createdSecret.value && String(createdSecret.value).startsWith(String(item.tokenPrefix || ''))) {
+      createdSecret.value = ''
+    }
+    notifySuccess(INFO_TITLE, 'API token revoked.')
+    await loadApiTokens()
+  } catch (error) {
+    notifyError(INFO_TITLE, error?.message || 'Could not revoke API token.')
+  } finally {
+    tokenRevokingId.value = null
+  }
+}
+
+const copyCreatedSecret = async () => {
+  if (!createdSecret.value) return
+  try {
+    await navigator.clipboard.writeText(createdSecret.value)
+    secretCopied.value = true
+    notifySuccess(INFO_TITLE, 'Token copied to clipboard.')
+  } catch {
+    notifyError(INFO_TITLE, 'Could not copy token. Select and copy it manually.')
+  }
+}
+
 const focusPasswordIfRequested = () => {
   if (String(route.query.focus || '').toLowerCase() !== 'password') return
   startPasswordChange()
@@ -546,6 +675,7 @@ watch(
 
 onMounted(async () => {
   await loadProfile()
+  void loadApiTokens()
   focusPasswordIfRequested()
 })
 </script>
@@ -559,7 +689,8 @@ onMounted(async () => {
 
 .account-overview,
 .info-card,
-.history-panel {
+.history-panel,
+.api-tokens-card {
   width: 100%;
 }
 
@@ -898,6 +1029,77 @@ onMounted(async () => {
   color: var(--dorian-danger);
 }
 
+.api-token-create {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-gap);
+  margin-bottom: var(--space-gap-lg);
+}
+
+.form-field--grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.api-token-secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--space-gap-lg);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+}
+
+.api-token-secret__value {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  word-break: break-all;
+  color: var(--app-heading);
+}
+
+.api-token-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.api-token-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-elevated);
+}
+
+.api-token-item__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.api-token-item__prefix {
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  color: var(--app-text-secondary);
+}
+
+.api-token-item__meta {
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+}
+
 @media (max-width: 960px) {
   .info-layout {
     grid-template-columns: 1fr;
@@ -921,6 +1123,16 @@ onMounted(async () => {
   .form-actions .ghost-btn,
   .form-actions .primary-btn {
     width: 100%;
+  }
+
+  .api-token-create {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .api-token-item {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

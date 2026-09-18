@@ -94,15 +94,33 @@
         <div class="login-divider" aria-hidden="true">OR CONTINUE WITH</div>
 
         <div class="login-sso">
-          <button type="button" class="login-sso__btn" @click.prevent>
+          <button
+            type="button"
+            class="login-sso__btn"
+            disabled
+            title="SSO coming soon"
+            aria-disabled="true"
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.4c-.24 1.4-1.7 4.1-5.4 4.1-3.25 0-5.9-2.7-5.9-6s2.65-6 5.9-6c1.85 0 3.1.79 3.8 1.47l2.6-2.5C16.94 3.6 14.7 2.6 12 2.6 6.9 2.6 2.7 6.8 2.7 12s4.2 9.4 9.3 9.4c5.37 0 8.93-3.77 8.93-9.08 0-.61-.07-1.08-.15-1.55H12z" /></svg>
             Google
           </button>
-          <button type="button" class="login-sso__btn" @click.prevent>
+          <button
+            type="button"
+            class="login-sso__btn"
+            disabled
+            title="SSO coming soon"
+            aria-disabled="true"
+          >
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-3.16 19.5c.5.1.68-.22.68-.48v-1.7c-2.8.6-3.4-1.35-3.4-1.35-.46-1.18-1.12-1.5-1.12-1.5-.9-.63.07-.62.07-.62 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.1 2.93.84.09-.65.35-1.1.63-1.35-2.23-.25-4.56-1.12-4.56-4.96 0-1.1.39-2 1.03-2.7-.1-.26-.45-1.3.1-2.7 0 0 .85-.27 2.77 1.03a9.6 9.6 0 0 1 5.04 0c1.92-1.3 2.77-1.03 2.77-1.03.55 1.4.2 2.44.1 2.7.64.7 1.03 1.6 1.03 2.7 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.85v2.75c0 .26.18.58.69.48A10 10 0 0 0 12 2z" /></svg>
             GitHub
           </button>
-          <button type="button" class="login-sso__btn" @click.prevent>
+          <button
+            type="button"
+            class="login-sso__btn"
+            disabled
+            title="SSO coming soon"
+            aria-disabled="true"
+          >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <rect x="3" y="11" width="18" height="10" rx="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -110,6 +128,7 @@
             SSO
           </button>
         </div>
+        <p class="login-sso-hint">SSO coming soon</p>
 
         <p class="login-help">
           New to Dorian?

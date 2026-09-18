@@ -41,7 +41,7 @@ const mockLogin = async ({ email, password }) => {
   }
 
   return {
-    token: 'mock-token',
+    token: `mock-jwt-${matchedUser.id}-${Date.now()}`,
     user: {
       id: matchedUser.id,
       email: matchedUser.email,
@@ -60,7 +60,6 @@ export const login = async ({ email, password }) => {
   return apiRequest('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
-    skipActorHeaders: true,
   })
 }
 

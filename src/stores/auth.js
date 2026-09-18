@@ -33,7 +33,7 @@ const setSession = ({ user, token, rememberMe = false }) => {
   state.token = token || null
   state.rememberMe = Boolean(rememberMe)
   persist()
-  syncSessionIdleForAuthChange(Boolean(state.user))
+  syncSessionIdleForAuthChange(Boolean(state.user && state.token))
   touchSessionActivity(true)
 }
 
@@ -46,7 +46,7 @@ const clearSession = () => {
   syncSessionIdleForAuthChange(false)
 }
 
-const isAuthenticated = computed(() => Boolean(state.user))
+const isAuthenticated = computed(() => Boolean(state.token && state.user))
 const email = computed(() => state.user?.email || '')
 const token = computed(() => state.token)
 

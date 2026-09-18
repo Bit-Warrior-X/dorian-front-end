@@ -2,6 +2,8 @@ import { apiRequest } from './client'
 
 export const fetchUsers = async () => apiRequest('/users')
 
+export const fetchUser = async (id) => apiRequest(`/users/${id}`)
+
 export const createUser = async (payload) =>
   apiRequest('/users', {
     method: 'POST',
