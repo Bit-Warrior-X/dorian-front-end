@@ -97,12 +97,13 @@
           <button
             type="button"
             class="login-sso__btn"
-            disabled
-            title="SSO coming soon"
-            aria-disabled="true"
+            :disabled="!providers.google || isLoading || googleLoading"
+            :title="providers.google ? 'Continue with Google' : 'Google sign-in is not configured'"
+            :aria-disabled="String(!providers.google || isLoading || googleLoading)"
+            @click="startGoogleSignIn"
           >
             <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#EA4335" d="M12 10.2v3.9h5.4c-.24 1.4-1.7 4.1-5.4 4.1-3.25 0-5.9-2.7-5.9-6s2.65-6 5.9-6c1.85 0 3.1.79 3.8 1.47l2.6-2.5C16.94 3.6 14.7 2.6 12 2.6 6.9 2.6 2.7 6.8 2.7 12s4.2 9.4 9.3 9.4c5.37 0 8.93-3.77 8.93-9.08 0-.61-.07-1.08-.15-1.55H12z" /></svg>
-            Google
+            {{ googleLoading ? 'Redirecting…' : 'Google' }}
           </button>
           <button
             type="button"
@@ -128,7 +129,7 @@
             SSO
           </button>
         </div>
-        <p class="login-sso-hint">SSO coming soon</p>
+        <p class="login-sso-hint">{{ ssoHint }}</p>
 
         <p class="login-help">
           New to Dorian?
@@ -364,9 +365,10 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { login } from '@/api/auth'
+import { buildGoogleOAuthStartURL, fetchOAuthProviders } from '@/api/oauth'
 import { useAuth } from '@/stores/auth'
 import DorianBrandMark from '@/components/DorianBrandMark.vue'
 
@@ -379,7 +381,18 @@ const password = ref('')
 const rememberMe = ref(false)
 const showPassword = ref(false)
 const isLoading = ref(false)
+const googleLoading = ref(false)
 const errorMessage = ref('')
+const providers = reactive({
+  google: false,
+  github: false,
+  sso: false,
+})
+
+const ssoHint = computed(() => {
+  if (providers.google) return 'GitHub and enterprise SSO coming soon'
+  return 'SSO coming soon'
+})
 
 const currentYear = new Date().getFullYear()
 
@@ -571,6 +584,16 @@ let stopScopeAnimation = null
 let stopDashAnimation = null
 
 onMounted(async () => {
+  if (route.query.oauth_error) {
+    errorMessage.value = String(route.query.oauth_error)
+  }
+
+  void fetchOAuthProviders().then((result) => {
+    providers.google = Boolean(result?.google)
+    providers.github = Boolean(result?.github)
+    providers.sso = Boolean(result?.sso)
+  })
+
   stopScopeAnimation = startScopeAnimation()
   await nextTick()
   stopDashAnimation = startDashAnimation()
@@ -615,6 +638,23 @@ onUnmounted(() => {
   if (wafInterval) clearInterval(wafInterval)
   if (threatInterval) clearInterval(threatInterval)
 })
+
+const startGoogleSignIn = async () => {
+  if (!providers.google || googleLoading.value || isLoading.value) return
+  errorMessage.value = ''
+  googleLoading.value = true
+  try {
+    const redirectTo = route.query.redirect ? String(route.query.redirect) : '/app'
+    const url = await buildGoogleOAuthStartURL({
+      redirect: redirectTo,
+      remember: rememberMe.value,
+    })
+    window.location.assign(url)
+  } catch (error) {
+    googleLoading.value = false
+    errorMessage.value = error?.message || 'Could not start Google sign-in.'
+  }
+}
 
 const handleLogin = async () => {
   errorMessage.value = ''

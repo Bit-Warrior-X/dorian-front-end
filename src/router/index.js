@@ -19,6 +19,15 @@ const routes = [
     }
   },
   {
+    path: '/login/oauth/callback',
+    name: 'oauth-callback',
+    component: () => import('@/components/OAuthCallbackPage.vue'),
+    meta: {
+      public: true,
+      title: 'Signing in'
+    }
+  },
+  {
     path: '/app',
     component: MainPage,
     meta: {
