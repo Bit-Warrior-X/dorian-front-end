@@ -13,14 +13,20 @@ export const fetchOAuthProviders = async () => {
   }
 }
 
-export const buildGoogleOAuthStartURL = async ({ redirect = '/app', remember = false } = {}) => {
+const buildOAuthStartURL = async (provider, { redirect = '/app', remember = false } = {}) => {
   const apiBaseUrl = await resolveApiBaseUrl()
   const params = new URLSearchParams()
   if (redirect) params.set('redirect', redirect)
   if (remember) params.set('remember', '1')
   const query = params.toString()
-  return `${apiBaseUrl}/api/v1/auth/oauth/google/start${query ? `?${query}` : ''}`
+  return `${apiBaseUrl}/api/v1/auth/oauth/${provider}/start${query ? `?${query}` : ''}`
 }
+
+export const buildGoogleOAuthStartURL = async (options = {}) => buildOAuthStartURL('google', options)
+
+export const buildGitHubOAuthStartURL = async (options = {}) => buildOAuthStartURL('github', options)
+
+export const buildSSOOAuthStartURL = async (options = {}) => buildOAuthStartURL('sso', options)
 
 export const completeOAuthSession = async (token) => {
   const { useMocks } = await getApiConfig()
@@ -39,7 +45,7 @@ export const completeOAuthSession = async (token) => {
   // Decode JWT payload for UI identity (signature already verified by API on next requests).
   const claims = decodeJwtPayload(token)
   if (!claims) {
-    throw new Error('Invalid sign-in token from Google.')
+    throw new Error('Invalid sign-in token from OAuth provider.')
   }
   return {
     token,
