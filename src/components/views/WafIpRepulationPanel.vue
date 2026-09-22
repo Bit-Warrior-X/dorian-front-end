@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>IP Repulation</h4>
-        <p class="waf-section-desc">
-          Use threat intelligence scores to block or challenge risky IPs.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>IP Repulation</span>
+          <InfoHint
+            text="Use threat intelligence scores to block or challenge risky IPs."
+            aria-label="IP Repulation help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -260,6 +263,7 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import InfoHint from "../InfoHint.vue";
 
 const ipRepRules = ref([
   {

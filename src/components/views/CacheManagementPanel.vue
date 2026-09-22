@@ -2,8 +2,13 @@
   <div class="cache-panel">
     <div class="waf-section-header">
       <div>
-        <h4>Cache Management</h4>
-        <p class="waf-section-desc">Configure L7 cache rules for static files and URL patterns on this edge.</p>
+        <h4 class="info-hint-heading">
+          <span>Cache Management</span>
+          <InfoHint
+            text="Configure L7 cache rules for static files and URL patterns on this edge."
+            aria-label="Cache Management help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button class="primary-btn" type="button" @click="openAddDialog">Add Rule</button>
@@ -497,6 +502,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import InfoHint from "../InfoHint.vue";
 import {
   fetchCacheRules,
   createCacheRule,

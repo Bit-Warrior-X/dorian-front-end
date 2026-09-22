@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>Second Freq Limit</h4>
-        <p class="waf-section-desc">
-          Calculate request rate per second and block requests exceeding the threshold.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Second Freq Limit</span>
+          <InfoHint
+            text="Calculate request rate per second and block requests exceeding the threshold."
+            aria-label="Second Freq Limit help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -271,6 +274,7 @@ import {
   deleteSecondRules
 } from "@/api/wafSecondFreqLimit";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_SECOND_FREQ_TITLE = "WAF Second Frequency";
 

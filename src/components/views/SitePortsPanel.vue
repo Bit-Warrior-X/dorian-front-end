@@ -2,10 +2,13 @@
   <div class="ports-panel">
     <div class="waf-section-header">
       <div>
-        <h4>Ports</h4>
-        <p class="waf-section-desc">
-          Choose which HTTP and HTTPS listening ports this site uses on each edge server.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Ports</span>
+          <InfoHint
+            text="Choose which HTTP and HTTPS listening ports this site uses on each edge server."
+            aria-label="Ports help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -194,6 +197,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { fetchSitePorts, updateSitePorts } from "@/api/sitePorts";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const PORTS_TITLE = "Ports";
 

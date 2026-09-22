@@ -170,6 +170,27 @@ function serviceLicenseLine(service, server) {
   return `Not included (${tier} license — ${layer.toUpperCase()} tier required)`
 }
 
+/** Short role blurb for Monitor card info icons. */
+export function serviceStatusRoleHint(service) {
+  return (SERVICE_META[service] || SERVICE_META.angelos).role
+}
+
+function serviceStatusReason(service, server, status) {
+  const normalized =
+    String(status ?? '').trim().toLowerCase() === 'na' ? 'na' : normalizeRuntimeStatus(status)
+  if (normalized === 'running' || normalized === 'na') return ''
+  if (service === 'angelos') {
+    return String(server?.serviceStatusReason ?? server?.service_status_reason ?? '').trim()
+  }
+  if (service === 'sparta') {
+    return String(server?.l4StatusReason ?? server?.l4_status_reason ?? '').trim()
+  }
+  if (service === 'athens') {
+    return String(server?.l7StatusReason ?? server?.l7_status_reason ?? '').trim()
+  }
+  return ''
+}
+
 /** Detail rows for Server Status service panels. */
 export function serviceStatusDetailRows(service, server, status, lastCheckedAt) {
   const meta = SERVICE_META[service] || SERVICE_META.angelos
@@ -178,10 +199,25 @@ export function serviceStatusDetailRows(service, server, status, lastCheckedAt) 
   const rows = [
     { label: 'Unit', value: meta.unit },
     { label: 'Layer', value: meta.layer },
-    { label: 'Role', value: meta.role },
     { label: 'Health', value: serviceHealthMessage(service, normalized) },
-    { label: 'License', value: serviceLicenseLine(service, server) },
   ]
+  const reason = serviceStatusReason(service, server, normalized)
+  if (reason) {
+    rows.push({ label: 'Reason', value: reason, tone: 'warning' })
+  } else if (normalized === 'stopped') {
+    rows.push({
+      label: 'Reason',
+      value: 'No failure detail reported — refresh status or check journalctl on the host',
+      tone: 'muted',
+    })
+  } else if (normalized === 'unknown') {
+    rows.push({
+      label: 'Reason',
+      value: 'Could not determine service state — refresh status or verify SSH access',
+      tone: 'muted',
+    })
+  }
+  rows.push({ label: 'License', value: serviceLicenseLine(service, server) })
   if (lastCheckedAt) {
     rows.push({ label: 'Last checked', value: formatStatusTimestamp(lastCheckedAt) })
   }

@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>User Agent</h4>
-        <p class="waf-section-desc">
-          Manage allow/deny rules based on user agent signatures.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>User Agent</span>
+          <InfoHint
+            text="Manage allow/deny rules based on user agent signatures."
+            aria-label="User Agent help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -288,6 +291,7 @@ import {
   deleteUserAgentRules
 } from "@/api/wafUserAgent";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_USER_AGENT_TITLE = "WAF User Agent";
 

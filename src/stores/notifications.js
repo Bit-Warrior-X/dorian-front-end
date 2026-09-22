@@ -29,6 +29,7 @@ const normalizeNotification = (input, type = 'success') => {
       title: String(input.title || TITLE_BY_TYPE[resolvedType] || 'Notification').trim(),
       message: String(input.message ?? input.content ?? '').trim(),
       type: resolvedType,
+      details: input.details && typeof input.details === 'object' ? input.details : null,
       duration: Number.isFinite(Number(input.duration))
         ? Number(input.duration)
         : defaultDurationFor(resolvedType),
@@ -40,6 +41,7 @@ const normalizeNotification = (input, type = 'success') => {
     title: TITLE_BY_TYPE[resolvedType] || 'Notification',
     message: String(input ?? '').trim(),
     type: resolvedType,
+    details: null,
     duration: defaultDurationFor(resolvedType),
   }
 }

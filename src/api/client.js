@@ -71,7 +71,7 @@ export const extractApiErrorMessage = (payload, response) => {
       /^error code:\s*504$/i.test(trimmed)
     ) {
       if (status === 502 || status === 504) {
-        return 'Could not reach the target host from the control plane (gateway timeout/error). Check SSH IP, port, and firewall rules, or try a different server.'
+        return 'Deploy timed out or the target host became unreachable from the control plane. Confirm SSH IP/port/firewall, then retry (large GeoIP sync no longer blocks create).'
       }
       return firstNonEmptyString(response?.statusText, statusHint)
     }
@@ -126,6 +126,26 @@ export const extractApiErrorMessage = (payload, response) => {
   return firstNonEmptyString(response?.statusText, statusHint)
 }
 
+/** Structured fields for expandable deploy/API error panels. */
+export const extractApiErrorDetails = (payload, response) => {
+  if (!payload || typeof payload !== 'object') {
+    return {
+      status: response?.status || undefined,
+    }
+  }
+  return {
+    status: response?.status || undefined,
+    req_id: firstNonEmptyString(payload.req_id, payload.reqId),
+    op: firstNonEmptyString(payload.op),
+    script_error: firstNonEmptyString(payload.script_error, payload.scriptError),
+    detail: firstNonEmptyString(payload.detail),
+    description: firstNonEmptyString(payload.description),
+    hint: firstNonEmptyString(payload.hint),
+    stderr: firstNonEmptyString(payload.stderr),
+    stdout: firstNonEmptyString(payload.stdout),
+  }
+}
+
 export const resolveApiBaseUrl = async () => {
   const { apiBaseUrl } = await getApiConfig()
   if (apiBaseUrl) return apiBaseUrl
@@ -138,9 +158,13 @@ export const resolveApiBaseUrl = async () => {
 export const apiRequest = async (path, options = {}) => {
   const apiBaseUrl = await resolveApiBaseUrl()
   const url = `${apiBaseUrl}${path}`
+  const reqId =
+    (typeof crypto !== 'undefined' && crypto.randomUUID && crypto.randomUUID()) ||
+    `${Date.now()}-${Math.random().toString(16).slice(2)}`
   const headers = {
     'Content-Type': 'application/json',
-    ...(options.headers || {})
+    'X-Request-Id': reqId,
+    ...(options.headers || {}),
   }
 
   const token = getStoredToken()
@@ -149,12 +173,15 @@ export const apiRequest = async (path, options = {}) => {
     touchSessionActivity(false)
   }
 
+  const t0 = performance.now?.() ?? Date.now()
   const response = await fetch(url, {
     ...options,
-    headers
+    headers,
   })
 
   const payload = await parseJson(response)
+  const durationMs = Math.round((performance.now?.() ?? Date.now()) - t0)
+  const responseReqId = response.headers.get('X-Request-Id') || reqId
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -163,7 +190,23 @@ export const apiRequest = async (path, options = {}) => {
     const message = extractApiErrorMessage(payload, response)
     const error = new Error(message)
     error.status = response.status
-    error.payload = payload
+    error.payload = payload && typeof payload === 'object' ? { ...payload, req_id: payload.req_id || responseReqId } : payload
+    error.reqId = responseReqId
+    // Structured browser console line for DevTools filtering.
+    console.error(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: 'error',
+        component: 'frontend',
+        event: 'api_request_failed',
+        req_id: responseReqId,
+        method: options.method || 'GET',
+        path,
+        status: response.status,
+        duration_ms: durationMs,
+        message,
+      })
+    )
     throw error
   }
 

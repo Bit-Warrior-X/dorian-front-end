@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>Anti CC</h4>
-        <p class="waf-section-desc">
-          Rate-limit abusive request bursts to protect upstream services from CC attacks.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Anti CC</span>
+          <InfoHint
+            text="Rate-limit abusive request bursts to protect upstream services from CC attacks."
+            aria-label="Anti CC help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -299,6 +302,7 @@ import {
   deleteAntiCcRules
 } from "@/api/wafAntiCc";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_ANTI_CC_TITLE = "WAF Anti CC";
 

@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>Response Freq</h4>
-        <p class="waf-section-desc">
-          Track response rates and block when response thresholds are exceeded.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Response Freq</span>
+          <InfoHint
+            text="Track response rates and block when response thresholds are exceeded."
+            aria-label="Response Freq help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -290,6 +293,7 @@ import {
   deleteResponseRules
 } from "@/api/wafResponseFreq";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_RESPONSE_FREQ_TITLE = "WAF Response Frequency";
 

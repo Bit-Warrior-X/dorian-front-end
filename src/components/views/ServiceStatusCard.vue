@@ -1,7 +1,10 @@
 <template>
   <section class="status-card">
     <header class="status-card-header">
-      <h4 class="status-card-title">{{ title }}</h4>
+      <h4 class="status-card-title info-hint-heading">
+        <span>{{ title }}</span>
+        <InfoHint v-if="roleHint" :text="roleHint" :aria-label="`${title} help`" />
+      </h4>
       <StatusCornerDot
         refreshable
         :status="status"
@@ -13,7 +16,15 @@
     </header>
     <div class="status-card-body">
       <div class="status-details">
-        <div v-for="row in detailRows" :key="row.label" class="status-detail-row">
+        <div
+          v-for="row in detailRows"
+          :key="row.label"
+          class="status-detail-row"
+          :class="{
+            'status-detail-row--warning': row.tone === 'warning',
+            'status-detail-row--muted': row.tone === 'muted',
+          }"
+        >
           <span class="status-detail-label">{{ row.label }}</span>
           <span class="status-detail-value">{{ row.value }}</span>
         </div>
@@ -42,7 +53,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import { serviceStatusDetailRows } from '@/utils/serverLayerStatus'
+import { serviceStatusDetailRows, serviceStatusRoleHint } from '@/utils/serverLayerStatus'
+import InfoHint from '../InfoHint.vue'
 import StatusCornerDot from '../StatusCornerDot.vue'
 
 const props = defineProps({
@@ -64,6 +76,8 @@ defineEmits(['start', 'stop', 'refresh'])
 const detailRows = computed(() =>
   serviceStatusDetailRows(props.service, props.server, props.status, props.lastCheckedAt)
 )
+
+const roleHint = computed(() => serviceStatusRoleHint(props.service))
 </script>
 
 <style scoped>
@@ -125,6 +139,16 @@ const detailRows = computed(() =>
   color: var(--app-text-secondary);
   line-height: 1.4;
   word-break: break-word;
+}
+
+.status-detail-row--warning .status-detail-value {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.status-detail-row--muted .status-detail-value {
+  color: var(--app-text-muted);
+  font-style: italic;
 }
 
 .status-card-actions--row {

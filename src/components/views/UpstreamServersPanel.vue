@@ -2,8 +2,13 @@
   <div class="upstream-panel" :class="{ 'upstream-panel--embedded': embedded }">
     <div class="waf-section-header">
       <div>
-        <h4 v-if="!embedded">Origin servers</h4>
-        <p v-if="!embedded" class="waf-section-desc">Backend hosts this site pulls origin content from.</p>
+        <h4 v-if="!embedded" class="info-hint-heading">
+          <span>Origin servers</span>
+          <InfoHint
+            text="Backend hosts this site pulls origin content from."
+            aria-label="Origin servers help"
+          />
+        </h4>
         <p v-else class="waf-section-desc embedded-desc">
           Add one or more backends. Traffic is load-balanced across healthy servers.
         </p>
@@ -171,6 +176,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import InfoHint from "../InfoHint.vue";
 import {
   fetchUpstreamServers,
   createUpstreamServer,

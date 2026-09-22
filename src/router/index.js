@@ -43,7 +43,8 @@ const routes = [
         name: 'dashboard',
         component: () => import('@/components/views/DashboardView.vue'),
         meta: {
-          title: 'Overview'
+          title: 'Overview',
+          description: 'Fleet health, traffic, and shortcuts across edges and sites.',
         }
       },
       {
@@ -52,7 +53,8 @@ const routes = [
         component: () => import('@/components/views/ServerListView.vue'),
         meta: {
           title: 'All edges',
-          section: 'servers'
+          section: 'servers',
+          description: 'Inventory of edge nodes with Angelos, L4 (Sparta), and L7 (Athens) runtime status.\nHover L4/L7 dots for layer details.',
         }
       },
       {
@@ -61,7 +63,8 @@ const routes = [
         component: () => import('@/components/views/ServerSettingsView.vue'),
         meta: {
           title: 'Configure edges',
-          section: 'servers'
+          section: 'servers',
+          description: 'Monitor services, listening ports, and L4 defense for a selected edge.',
         }
       },
       {
@@ -70,7 +73,8 @@ const routes = [
         component: () => import('@/components/views/SiteListView.vue'),
         meta: {
           title: 'All sites',
-          section: 'sites'
+          section: 'sites',
+          description: 'Domains protected by your edges, with SSL and WAF assignment.',
         }
       },
       {
@@ -79,7 +83,8 @@ const routes = [
         component: () => import('@/components/views/SiteSettingsView.vue'),
         meta: {
           title: 'Configure sites',
-          section: 'sites'
+          section: 'sites',
+          description: 'Origin, ports, cache, compression, and WAF controls for a selected site.',
         }
       },
       {
@@ -88,7 +93,8 @@ const routes = [
         component: () => import('@/components/views/WafRulesView.vue'),
         meta: {
           title: 'WAF rules',
-          section: 'waf'
+          section: 'waf',
+          description: 'Reusable Layer-7 rule sets applied to sites.',
         }
       },
       {
@@ -97,7 +103,8 @@ const routes = [
         component: () => import('@/components/views/ServerLicenseView.vue'),
         meta: {
           title: 'Licensing',
-          section: 'license'
+          section: 'license',
+          description: 'Review and upgrade edge license tiers (Trial, L4, L7, Unified).',
         }
       },
       {
@@ -106,7 +113,8 @@ const routes = [
         component: () => import('@/components/views/ServerBlacklistView.vue'),
         meta: {
           title: 'IP blocklist',
-          section: 'blacklist'
+          section: 'blacklist',
+          description: 'Global or edge-scoped blocked source addresses.',
         }
       },
       {
@@ -119,7 +127,8 @@ const routes = [
         component: () => import('@/components/views/AccessLogView.vue'),
         meta: {
           title: 'Access logs',
-          section: 'analytics'
+          section: 'analytics',
+          description: 'Recent HTTP access events across the fleet.',
         }
       },
       {
@@ -128,7 +137,8 @@ const routes = [
         component: () => import('@/components/views/LogExportView.vue'),
         meta: {
           title: 'Log export',
-          section: 'analytics'
+          section: 'analytics',
+          description: 'Export historical logs for offline analysis.',
         }
       },
       {
@@ -137,7 +147,8 @@ const routes = [
         component: () => import('@/components/views/Analytics.vue'),
         meta: {
           title: 'Traffic',
-          section: 'analytics'
+          section: 'analytics',
+          description: 'Bandwidth, requests, and protocol trends for selected edges.',
         }
       },
       {
@@ -146,7 +157,8 @@ const routes = [
         component: () => import('@/components/views/SecurityAnalyticsView.vue'),
         meta: {
           title: 'Security',
-          section: 'analytics'
+          section: 'analytics',
+          description: 'Blocked requests, geography, and top attack-related dimensions.',
         }
       },
       {
@@ -155,7 +167,8 @@ const routes = [
         component: () => import('@/components/views/Layer4AttackAnalyticsView.vue'),
         meta: {
           title: 'L4 attacks',
-          section: 'analytics'
+          section: 'analytics',
+          description: 'Layer-4 flood volume and protocol mix over the selected range.',
         }
       },
       {
@@ -168,7 +181,8 @@ const routes = [
         component: () => import('@/components/views/UsersInformationView.vue'),
         meta: {
           title: 'Profile',
-          section: 'users'
+          section: 'users',
+          description: 'Your account profile, email, password, and API tokens.',
         }
       },
       {
@@ -178,7 +192,8 @@ const routes = [
         meta: {
           title: 'Team',
           section: 'users',
-          requiresAdmin: true
+          requiresAdmin: true,
+          description: 'Manage operator accounts and roles for this console.',
         }
       },
       {
@@ -188,7 +203,8 @@ const routes = [
         meta: {
           title: 'Audit log',
           section: 'users',
-          requiresAdmin: true
+          requiresAdmin: true,
+          description: 'Administrative actions recorded for this account workspace.',
         }
       }
     ]

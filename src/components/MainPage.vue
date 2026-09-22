@@ -258,7 +258,14 @@
             </svg>
           </button>
           <div class="app-topbar__titles">
-            <h1>{{ currentViewTitle }}</h1>
+            <h1 class="info-hint-heading">
+              <span>{{ currentViewTitle }}</span>
+              <InfoHint
+                v-if="currentViewDescription"
+                :text="currentViewDescription"
+                :aria-label="`${currentViewTitle} help`"
+              />
+            </h1>
           </div>
         </div>
         <AppTopbarActions />
@@ -277,6 +284,7 @@ import { logout } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
 import AppTopbarActions from './AppTopbarActions.vue'
 import DorianBrandMark from './DorianBrandMark.vue'
+import InfoHint from './InfoHint.vue'
 import NotificationToastStack from './NotificationToastStack.vue'
 
 const auth = useAuth()
@@ -319,6 +327,7 @@ const hideShellTopbar = computed(
 )
 
 const currentViewTitle = computed(() => route.meta?.title || 'Overview')
+const currentViewDescription = computed(() => String(route.meta?.description || '').trim())
 const isAdmin = computed(
   () => String(auth.state.user?.role || '').toLowerCase() === 'admin'
 )

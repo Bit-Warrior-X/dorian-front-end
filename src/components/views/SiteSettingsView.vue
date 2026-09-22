@@ -3,8 +3,14 @@
     <header class="cfg-topbar">
       <div class="cfg-topbar__left">
         <p class="cfg-kicker">Delivery</p>
-        <h2>Configure site</h2>
-        <p>{{ configureSubtitle }}</p>
+        <h2 class="info-hint-heading">
+          <span>Configure site</span>
+          <InfoHint
+            text="Select a hostname to manage origins, SSL, WAF, and edge traffic."
+            aria-label="Configure site help"
+          />
+        </h2>
+        <p v-if="loadedSite">Configuring {{ loadedSite.domain }}</p>
       </div>
       <div class="cfg-topbar__right">
         <div class="cfg-site-picker">
@@ -24,8 +30,13 @@
     </header>
 
     <div v-if="!selectedSiteId" class="cfg-empty">
-      <h3>Choose a site to configure</h3>
-      <p>Pick a hostname above to manage SSL, origins, WAF protection, and edge traffic.</p>
+      <h3 class="info-hint-heading">
+        <span>Choose a site</span>
+        <InfoHint
+          text="Pick a hostname above to manage SSL, origins, WAF protection, and edge traffic."
+          aria-label="Choose a site help"
+        />
+      </h3>
     </div>
 
     <template v-else>
@@ -68,8 +79,10 @@
           :disabled="tab.id === 'waf' && !selectedSiteId"
           @click="onTabClick(tab.id)"
         >
-          <span class="cfg-tab__label">{{ tab.label }}</span>
-          <span class="cfg-tab__hint">{{ tab.hint }}</span>
+          <span class="cfg-tab__label info-hint-heading">
+            <span>{{ tab.label }}</span>
+            <InfoHint v-if="tab.hint" :text="tab.hint" :aria-label="`${tab.label} help`" />
+          </span>
         </button>
       </nav>
 
@@ -251,6 +264,7 @@ import { fetchSite, fetchSites, forkSiteWafRule, renewSiteCertificate } from '@/
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { certStatusClass, certStatusDetail, formatCertExpiry, formatCertStatus, isCertIssuing } from '@/utils/certificate'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import InfoHint from '../InfoHint.vue'
 import SiteOriginPanel from './SiteOriginPanel.vue'
 import WafPanel from './WafPanel.vue'
 import TrafficPanel from './TrafficPanel.vue'
@@ -298,13 +312,6 @@ const assignedServers = computed(() => {
     id,
     name: names[index] || `Edge ${index + 1}`,
   }))
-})
-
-const configureSubtitle = computed(() => {
-  if (!loadedSite.value) {
-    return 'Select a hostname to manage origins, SSL, WAF, and edge traffic.'
-  }
-  return `Configuring ${loadedSite.value.domain}`
 })
 
 const isSiteEnabled = (site) => String(site?.status || '').toUpperCase() === 'ENABLE'
@@ -966,8 +973,8 @@ onBeforeUnmount(() => {
 
 .cfg-tab {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   gap: 2px;
   padding: 12px 14px;
   border-radius: var(--cfg-radius);
@@ -1003,11 +1010,6 @@ onBeforeUnmount(() => {
 
 .cfg-tab.active .cfg-tab__label {
   color: var(--dorian-viper-400, var(--app-accent));
-}
-
-.cfg-tab__hint {
-  font-size: 11.5px;
-  color: var(--app-text-muted);
 }
 
 .cfg-panel {

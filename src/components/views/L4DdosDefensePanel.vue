@@ -4,8 +4,13 @@
       <header class="edge-subpanel__intro">
         <div>
           <p class="edge-subpanel__kicker">L4 defense</p>
-          <h4>XDP config</h4>
-          <p>Tune how Sparta attaches to the NIC and reacts to L4 floods.</p>
+          <h4 class="info-hint-heading">
+            <span>XDP config</span>
+            <InfoHint
+              text="Tune how Sparta attaches to the NIC and reacts to L4 floods."
+              aria-label="XDP config help"
+            />
+          </h4>
         </div>
       </header>
       <div class="l4-settings-body">
@@ -1160,6 +1165,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { fetchL4Config, fetchL4Options, updateL4Config } from "@/api/l4";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import InfoHint from "../InfoHint.vue";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
 const L4_DDOS_TITLE = "XDP Config";

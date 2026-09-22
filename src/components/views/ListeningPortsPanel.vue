@@ -3,8 +3,13 @@
     <header class="edge-subpanel__intro">
       <div>
         <p class="edge-subpanel__kicker">Traffic</p>
-        <h4>Listening ports</h4>
-        <p>Configure which ports accept client traffic on this edge.</p>
+        <h4 class="info-hint-heading">
+          <span>Listening ports</span>
+          <InfoHint
+            text="Configure which ports accept client traffic on this edge."
+            aria-label="Listening ports help"
+          />
+        </h4>
       </div>
       <div class="edge-subpanel__actions">
         <button class="primary-btn" type="button" @click="openAddDialog">Add Port</button>
@@ -167,6 +172,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import InfoHint from "../InfoHint.vue";
 import {
   fetchListeningPorts,
   fetchBoundListeningPorts,

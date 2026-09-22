@@ -11,8 +11,13 @@
             </svg>
           </span>
           <div class="site-form__section-copy">
-            <h4>Basic Setting</h4>
-            <p>Domain name and the WAF rule that protects this site.</p>
+            <h4 class="info-hint-heading">
+              <span>Basic Setting</span>
+              <InfoHint
+                text="Domain name and the WAF rule that protects this site."
+                aria-label="Basic Setting help"
+              />
+            </h4>
           </div>
         </div>
       </div>
@@ -92,8 +97,13 @@
             </svg>
           </span>
           <div class="site-form__section-copy">
-            <h4>SSL Setting</h4>
-            <p>How HTTPS certificates are issued for this domain.</p>
+            <h4 class="info-hint-heading">
+              <span>SSL Setting</span>
+              <InfoHint
+                text="How HTTPS certificates are issued for this domain."
+                aria-label="SSL Setting help"
+              />
+            </h4>
           </div>
         </div>
       </div>
@@ -184,8 +194,13 @@
             </svg>
           </span>
           <div class="site-form__section-copy">
-            <h4>Origin Servers</h4>
-            <p>Backend hosts that receive traffic after it passes through Dorian.</p>
+            <h4 class="info-hint-heading">
+              <span>Origin Servers</span>
+              <InfoHint
+                text="Backend hosts that receive traffic after it passes through Dorian."
+                aria-label="Origin Servers help"
+              />
+            </h4>
           </div>
         </div>
         <div class="site-form__section-actions">
@@ -325,8 +340,13 @@
             </svg>
           </span>
           <div class="site-form__section-copy">
-            <h4>Choose Edges</h4>
-            <p>Pick the edge nodes that will serve and protect this site.</p>
+            <h4 class="info-hint-heading">
+              <span>Choose Edges</span>
+              <InfoHint
+                text="Pick the edge nodes that will serve and protect this site."
+                aria-label="Choose Edges help"
+              />
+            </h4>
           </div>
         </div>
         <span v-if="selectedServerIds.length" class="site-form__section-tag">
@@ -421,6 +441,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import InfoHint from './InfoHint.vue'
 import { createEmptyOriginServer } from '@/utils/originServers'
 
 const automaticProviders = [

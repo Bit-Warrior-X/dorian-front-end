@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>GEO Locations</h4>
-        <p class="waf-section-desc">
-          Configure country-based access rules to allow or block traffic by location.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>GEO Locations</span>
+          <InfoHint
+            text="Configure country-based access rules to allow or block traffic by location."
+            aria-label="GEO Locations help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -316,6 +319,7 @@ import {
   deleteGeoRules
 } from "@/api/wafGeoLocation";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_GEO_TITLE = "WAF Geo Location";
 

@@ -2210,24 +2210,24 @@ onBeforeUnmount(() => {
 }
 
 .dialog-close {
-  border: none;
-  background: var(--app-surface-elevated);
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--app-text-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  border: 1px solid var(--app-border);
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
   flex-shrink: 0;
 }
 
 .dialog-close:hover:not(:disabled) {
-  background: var(--app-surface-hover);
-  color: var(--app-text);
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  border-color: color-mix(in srgb, var(--app-border) 80%, transparent);
+  color: var(--app-heading, var(--app-text));
 }
 
 .dialog-close:disabled {

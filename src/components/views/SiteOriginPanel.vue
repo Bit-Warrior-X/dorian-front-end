@@ -3,10 +3,13 @@
     <header class="origin-intro">
       <div class="origin-intro__copy">
         <p class="origin-kicker">Site origin</p>
-        <h4>Domain, SSL &amp; backends</h4>
-        <p class="panel-desc">
-          Point traffic at this site’s hostname, choose how HTTPS is terminated, then attach the origin servers that serve responses.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Domain, SSL &amp; backends</span>
+          <InfoHint
+            text="Point traffic at this site’s hostname, choose how HTTPS is terminated, then attach the origin servers that serve responses."
+            aria-label="Domain, SSL & backends help"
+          />
+        </h4>
       </div>
       <div v-if="siteId && !loading && !loadError" class="origin-summary">
         <div class="summary-chip">
@@ -229,6 +232,7 @@
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { fetchSite, updateSite } from '@/api/sites'
 import { notifyError, notifySuccess } from '@/utils/notify'
+import InfoHint from '../InfoHint.vue'
 import {
   certStatusClass,
   certStatusDetail,

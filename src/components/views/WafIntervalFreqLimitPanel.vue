@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>Interval Freq Limit</h4>
-        <p class="waf-section-desc">
-          Calculate request rate per minute and block requests exceeding the threshold.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Interval Freq Limit</span>
+          <InfoHint
+            text="Calculate request rate per minute and block requests exceeding the threshold."
+            aria-label="Interval Freq Limit help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -271,6 +274,7 @@ import {
   deleteIntervalRules
 } from "@/api/wafIntervalFreqLimit";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_INTERVAL_FREQ_TITLE = "WAF Interval Frequency";
 

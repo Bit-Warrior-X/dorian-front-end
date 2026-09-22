@@ -3,8 +3,13 @@
     <header class="edge-subpanel__intro">
       <div>
         <p class="edge-subpanel__kicker">L4 defense</p>
-        <h4>Block IP</h4>
-        <p>Blocked source IPs for this edge’s XDP path.</p>
+        <h4 class="info-hint-heading">
+          <span>Block IP</span>
+          <InfoHint
+            text="Blocked source IPs for this edge’s XDP path."
+            aria-label="Block IP help"
+          />
+        </h4>
       </div>
       <div class="edge-subpanel__actions">
         <button
@@ -124,6 +129,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import InfoHint from "../InfoHint.vue";
 import {
   fetchL4BlacklistEntries,
   createL4BlacklistEntry,

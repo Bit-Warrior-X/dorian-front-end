@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>Anti Header Setting</h4>
-        <p class="waf-section-desc">
-          Block or challenge requests based on suspicious header patterns.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Anti Header Setting</span>
+          <InfoHint
+            text="Block or challenge requests based on suspicious header patterns."
+            aria-label="Anti Header Setting help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -310,6 +313,7 @@ import {
   deleteAntiHeaderRules
 } from "@/api/wafAntiHeader";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_ANTI_HEADER_TITLE = "WAF Anti Header";
 

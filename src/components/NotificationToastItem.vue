@@ -82,6 +82,15 @@
         </div>
         <h4 class="toast__title">{{ note.title }}</h4>
         <p class="toast__message">{{ note.message }}</p>
+        <div v-if="hasDetails" class="toast__details-actions">
+          <button type="button" class="toast__details-btn" @click="detailsOpen = !detailsOpen">
+            {{ detailsOpen ? 'Hide details' : 'Show details' }}
+          </button>
+          <button type="button" class="toast__details-btn" @click="copyDetails">
+            {{ copied ? 'Copied' : 'Copy' }}
+          </button>
+        </div>
+        <pre v-if="detailsOpen && hasDetails" class="toast__details">{{ detailsText }}</pre>
       </div>
     </div>
     <div
@@ -93,7 +102,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   note: {
@@ -103,6 +112,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['dismiss'])
+const detailsOpen = ref(false)
+const copied = ref(false)
 
 const typeLabel = computed(() => {
   const map = {
@@ -113,6 +124,30 @@ const typeLabel = computed(() => {
   }
   return map[props.note.type] || 'NOTE'
 })
+
+const detailEntries = computed(() => {
+  const d = props.note.details && typeof props.note.details === 'object' ? props.note.details : {}
+  return Object.entries(d).filter(([, v]) => v != null && String(v).trim() !== '')
+})
+
+const hasDetails = computed(() => detailEntries.value.length > 0)
+
+const detailsText = computed(() =>
+  detailEntries.value.map(([k, v]) => `${k}:\n${v}`).join('\n\n')
+)
+
+const copyDetails = async () => {
+  const text = [props.note.title, props.note.message, detailsText.value].filter(Boolean).join('\n\n')
+  try {
+    await navigator.clipboard.writeText(text)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 1400)
+  } catch {
+    copied.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -206,6 +241,47 @@ const typeLabel = computed(() => {
   word-break: break-word;
   max-height: 12rem;
   overflow-y: auto;
+}
+
+.toast__details-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.toast__details-btn {
+  appearance: none;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-hover, rgba(255, 255, 255, 0.04));
+  color: var(--app-text-muted);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.toast__details-btn:hover {
+  color: var(--app-text);
+  border-color: color-mix(in srgb, var(--toast-accent) 40%, var(--app-border));
+}
+
+.toast__details {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  max-height: 9rem;
+  overflow: auto;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 0.5px solid var(--app-border);
+  color: var(--app-text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .toast__close {

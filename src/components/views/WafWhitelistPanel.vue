@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>Whitelist</h4>
-        <p class="waf-section-desc">
-          Allow trusted traffic to bypass WAF checks for known-safe endpoints and sources.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Whitelist</span>
+          <InfoHint
+            text="Allow trusted traffic to bypass WAF checks for known-safe endpoints and sources."
+            aria-label="Whitelist help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -227,6 +230,7 @@ import {
   deleteWhitelistRules
 } from "@/api/wafWhitelist";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_WHITELIST_TITLE = "WAF Whitelist";
 

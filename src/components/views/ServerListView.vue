@@ -98,8 +98,14 @@
             <tr
               v-for="server in paginatedServers"
               :key="server.id"
-              class="edges-row"
+              class="edges-row edges-row--clickable"
               :class="edgeRowClass(server)"
+              role="button"
+              tabindex="0"
+              :aria-label="`View details for ${server.name}`"
+              @click="openEdgeInfoDialog(server)"
+              @keydown.enter.prevent="openEdgeInfoDialog(server)"
+              @keydown.space.prevent="openEdgeInfoDialog(server)"
             >
               <td class="edges-col-layers">
                 <span class="layer-status-dots" :aria-busy="isRuntimeStatusRefreshing(server.id)">
@@ -177,13 +183,13 @@
               <td>
                 <span class="edges-meta">{{ server.created || '—' }}</span>
               </td>
-              <td class="edges-col-actions">
+              <td class="edges-col-actions" @click.stop>
                 <div class="menu-wrap">
                   <button
                     class="edges-icon-btn"
-                    title="Settings"
+                    title="Actions"
                     type="button"
-                    @click.stop="toggleRowMenu(server.id)"
+                    @click="toggleRowMenu(server.id)"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="5" r="1.5" />
@@ -192,8 +198,11 @@
                     </svg>
                   </button>
                   <div v-if="activeRowMenu === server.id" class="row-menu">
+                    <button class="row-menu-item" type="button" @click="openServerSettings(server)">
+                      Configure
+                    </button>
                     <button class="row-menu-item" type="button" @click="openEditServer(server)">
-                      Edit
+                      Edit details
                     </button>
                     <button class="row-menu-item" type="button" @click="openUpgradeDialog(server)">
                       Upgrade
@@ -235,6 +244,171 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <div
+    v-if="isEdgeInfoDialogOpen && edgeInfoServer"
+    class="dialog-backdrop"
+    @click="closeEdgeInfoDialog"
+  >
+    <div class="dialog-card dialog-card--form dialog-card--edge-info" @click.stop>
+      <div class="dialog-header">
+        <div class="dialog-header-text">
+          <p class="edge-wizard-kicker">Infrastructure</p>
+          <h3>Edge details</h3>
+        </div>
+        <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeEdgeInfoDialog">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="dialog-body edge-info-body">
+        <section class="edge-info-hero" aria-label="Edge overview">
+          <div class="edge-info-hero__top">
+            <div class="edge-info-hero__identity">
+              <strong class="edge-info-hero__name">{{ edgeInfoServer.name || 'Edge' }}</strong>
+              <span class="edge-info-hero__ip num">{{ edgeInfoServer.ip || '—' }}</span>
+            </div>
+            <span
+              class="edge-info-status-pill"
+              :class="`edge-info-status-pill--${angelosStatusClass(edgeInfoServer)}`"
+            >
+              <span class="edge-info-status-pill__dot" aria-hidden="true"></span>
+              {{ angelosStatusLabel(edgeInfoServer) }}
+            </span>
+          </div>
+          <div class="edge-info-hero__metrics">
+            <div class="edge-info-metric">
+              <span class="edge-info-metric__label">L4</span>
+              <div class="edge-info-metric__value">
+                <LayerStatusDot
+                  layer="l4"
+                  :status="resolveLayerStatus(edgeInfoServer, 'l4')"
+                  :description="runtimeStatusDotDescription(edgeInfoServer, 'l4')"
+                  :aria-label="runtimeStatusAriaLabel(edgeInfoServer, 'l4')"
+                />
+                <span>{{ layerStatusPlain(edgeInfoServer, 'l4') }}</span>
+              </div>
+            </div>
+            <div class="edge-info-metric">
+              <span class="edge-info-metric__label">L7</span>
+              <div class="edge-info-metric__value">
+                <LayerStatusDot
+                  layer="l7"
+                  :status="resolveLayerStatus(edgeInfoServer, 'l7')"
+                  :description="runtimeStatusDotDescription(edgeInfoServer, 'l7')"
+                  :aria-label="runtimeStatusAriaLabel(edgeInfoServer, 'l7')"
+                />
+                <span>{{ layerStatusPlain(edgeInfoServer, 'l7') }}</span>
+              </div>
+            </div>
+            <div
+              class="edge-info-metric"
+              :class="`edge-info-metric--${licenseExpiryTone(edgeInfoServer)}`"
+            >
+              <span class="edge-info-metric__label">License</span>
+              <strong class="edge-info-metric__value">{{ formatEdgeExpiryLabel(edgeInfoServer) }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="edge-info-panel">
+          <h4 class="edge-info-panel__title">Details</h4>
+          <dl class="edge-info-grid">
+            <div class="edge-info-cell">
+              <dt>Edge ID</dt>
+              <dd class="num">{{ edgeInfoServer.id ?? '—' }}</dd>
+            </div>
+            <div class="edge-info-cell">
+              <dt>Status</dt>
+              <dd>{{ edgeInfoServer.status || edgeInfoServer.statusLabel || '—' }}</dd>
+            </div>
+            <div class="edge-info-cell">
+              <dt>Version</dt>
+              <dd class="num">{{ displayServerVersion(edgeInfoServer.version) }}</dd>
+            </div>
+            <div class="edge-info-cell">
+              <dt>OS</dt>
+              <dd>{{ displayServerOs(edgeInfoServer.os) }}</dd>
+            </div>
+            <div class="edge-info-cell">
+              <dt>License</dt>
+              <dd>{{ edgeInfoServer.license || '—' }}</dd>
+            </div>
+            <div class="edge-info-cell">
+              <dt>Expires</dt>
+              <dd>
+                {{ formatEdgeExpiryLabel(edgeInfoServer) }}
+                <span v-if="edgeInfoServer.expiredDate" class="edge-info-sub"> · {{ edgeInfoServer.expiredDate }}</span>
+              </dd>
+            </div>
+            <div class="edge-info-cell">
+              <dt>Created</dt>
+              <dd>{{ edgeInfoServer.created || '—' }}</dd>
+            </div>
+            <div class="edge-info-cell">
+              <dt>SSH</dt>
+              <dd class="num">
+                {{ edgeInfoServer.sshUser || '—' }}:{{ edgeInfoServer.sshPort || '22' }}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="edge-info-panel">
+          <h4 class="edge-info-panel__title">
+            Management users
+            <span v-if="edgeInfoServer.managedUsers?.length" class="edge-info-panel__count">
+              {{ edgeInfoServer.managedUsers.length }}
+            </span>
+          </h4>
+          <ul v-if="edgeInfoServer.managedUsers?.length" class="edge-info-user-list">
+            <li
+              v-for="user in edgeInfoServer.managedUsers"
+              :key="user"
+              class="edge-info-user-item"
+              :title="user"
+            >
+              {{ user }}
+            </li>
+          </ul>
+          <p v-else class="edge-info-empty">No management users assigned.</p>
+        </section>
+      </div>
+
+      <div class="dialog-footer edge-info-footer">
+        <button class="secondary-btn" type="button" @click="closeEdgeInfoDialog">Close</button>
+        <div class="dialog-footer-actions">
+          <button
+            class="secondary-btn"
+            type="button"
+            title="Name, IP, SSH credentials, and management users"
+            @click="editFromEdgeInfo"
+          >
+            Edit details
+          </button>
+          <button
+            class="secondary-btn"
+            type="button"
+            title="Deploy a newer software build"
+            @click="upgradeFromEdgeInfo"
+          >
+            Upgrade
+          </button>
+          <button
+            class="primary-btn"
+            type="button"
+            title="Ports, L4 defense, allow/block lists, and monitoring"
+            @click="configureFromEdgeInfo"
+          >
+            Configure
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div
@@ -324,9 +498,11 @@
               />
             </div>
           </div>
-          <div v-if="createSubmitError && newServerStep === 1" class="upgrade-error" role="alert">
-            {{ createSubmitError }}
-          </div>
+          <DeployErrorPanel
+            v-if="createSubmitError && newServerStep === 1"
+            :message="createSubmitError"
+            :details="createSubmitErrorDetails"
+          />
         </div>
 
         <div class="new-server-basic-panel dialog-section">
@@ -453,9 +629,11 @@
         <div class="dialog-section dialog-section--license dialog-section--license-full edge-wizard-section">
           <p class="edge-panel-kicker">Entitlement</p>
           <h4>License</h4>
-          <div v-if="createSubmitError" class="upgrade-error" role="alert">
-            {{ createSubmitError }}
-          </div>
+          <DeployErrorPanel
+            v-if="createSubmitError"
+            :message="createSubmitError"
+            :details="createSubmitErrorDetails"
+          />
           <p class="license-tier-hint license-tier-hint--intro">
             Select a license tier for this deployment. Each plan lists pricing and included capabilities below.
           </p>
@@ -553,7 +731,7 @@
   >
     <div class="dialog-card" @click.stop>
       <div class="dialog-header">
-        <h3>Edit Edge</h3>
+        <h3>Edit edge details</h3>
         <button class="dialog-close" @click="closeEditServerDialog" aria-label="Close dialog">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -794,21 +972,30 @@
           <div v-else-if="isUpgradingServer" class="dialog-deploy-status" role="status">
             Upgrading remote edge (this may take several minutes)…
           </div>
-          <div v-else-if="upgradeVersionsError" class="upgrade-error" role="alert">
-            {{ upgradeVersionsError }}
-          </div>
-          <p v-else-if="!upgradeVersions.length" class="muted-text">
-            No versions available for {{ upgradeTargetOsLabel }}.
-          </p>
-          <div v-else class="upgrade-version-panels">
-            <VersionPanelSelector
-              v-model="selectedUpgradeVersionUuid"
-              :versions="upgradeVersions"
-              :current-version="upgradeTargetServer?.version"
-              :disabled="isUpgradingServer"
-              aria-label="Product version to install"
+          <template v-else>
+            <DeployErrorPanel
+              v-if="upgradeVersionsError"
+              :message="upgradeVersionsError"
+              :details="upgradeVersionsErrorDetails"
             />
-          </div>
+            <DeployErrorPanel
+              v-if="upgradeSubmitError"
+              :message="upgradeSubmitError"
+              :details="upgradeSubmitErrorDetails"
+            />
+            <p v-else-if="!upgradeVersions.length" class="muted-text">
+              No versions available for {{ upgradeTargetOsLabel }}.
+            </p>
+            <div v-else class="upgrade-version-panels">
+              <VersionPanelSelector
+                v-model="selectedUpgradeVersionUuid"
+                :versions="upgradeVersions"
+                :current-version="upgradeTargetServer?.version"
+                :disabled="isUpgradingServer"
+                aria-label="Product version to install"
+              />
+            </div>
+          </template>
         </section>
       </div>
 
@@ -892,7 +1079,9 @@
 
 <script setup>
 import { ref, computed, reactive, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import DeployErrorPanel from '../DeployErrorPanel.vue'
 import LayerStatusDot from '../LayerStatusDot.vue'
 import LicenseTierUpgradePanel from '../LicenseTierUpgradePanel.vue'
 import LicenseTierSelector from '../LicenseTierSelector.vue'
@@ -925,6 +1114,7 @@ import {
   updateServer,
   updateServerUsers,
 } from '@/api/servers'
+import { extractApiErrorDetails } from '@/api/client'
 import { fetchUsers } from '@/api/users'
 import { useAuth } from '@/stores/auth'
 import { BILLING_PERIODS } from '@/data/licensePlans'
@@ -933,6 +1123,7 @@ import { notifyError, notifySuccess } from '@/utils/notify'
 /** Synchronous guard: reactive isCreatingServer can still allow parallel createServer() in the same tick. */
 let createServerSyncLock = false
 
+const router = useRouter()
 const isNewServerDialogOpen = ref(false)
 const newServerStep = ref(1)
 const edgeWizardSteps = [
@@ -987,6 +1178,8 @@ const licenseInput = ref(null)
 const userSearch = ref('')
 const activeRowMenu = ref(null)
 const runtimeStatusRefreshingIds = ref(new Set())
+const isEdgeInfoDialogOpen = ref(false)
+const edgeInfoServer = ref(null)
 const isEditServerDialogOpen = ref(false)
 const editServerId = ref(null)
 const editServer = ref({
@@ -1006,12 +1199,16 @@ const isUpgradingServer = ref(false)
 const upgradeTargetServer = ref(null)
 const upgradeVersions = ref([])
 const upgradeVersionsError = ref('')
+const upgradeVersionsErrorDetails = ref(null)
+const upgradeSubmitError = ref('')
+const upgradeSubmitErrorDetails = ref(null)
 const selectedUpgradeVersionUuid = ref('')
 
 const createVersions = ref([])
 const isLoadingCreateVersions = ref(false)
 const createVersionsError = ref('')
 const createSubmitError = ref('')
+const createSubmitErrorDetails = ref(null)
 const selectedCreateVersionUuid = ref('')
 
 const canProceedBasicStep = computed(() => {
@@ -1111,7 +1308,7 @@ const newServer = ref({
   ip: '',
   username: '',
   password: '',
-  sshPort: ''
+  sshPort: '22'
 })
 
 const filteredServers = computed(() => {
@@ -1316,6 +1513,7 @@ const openNewServerDialog = () => {
   createVersions.value = []
   createVersionsError.value = ''
   createSubmitError.value = ''
+  createSubmitErrorDetails.value = null
   selectedCreateVersionUuid.value = ''
   detectedHostOs.value = ''
   newServerStep.value = 1
@@ -1324,7 +1522,7 @@ const openNewServerDialog = () => {
     ip: '',
     username: '',
     password: '',
-    sshPort: ''
+    sshPort: '22'
   }
   if (licenseInput.value) {
     licenseInput.value.value = ''
@@ -1354,10 +1552,57 @@ const openEditServer = (server) => {
   isUserDropdownOpen.value = false
   isEditServerDialogOpen.value = true
   activeRowMenu.value = null
+  isEdgeInfoDialogOpen.value = false
 }
 
 const closeEditServerDialog = () => {
   isEditServerDialogOpen.value = false
+}
+
+const openEdgeInfoDialog = (server) => {
+  if (!server) return
+  edgeInfoServer.value = server
+  isEdgeInfoDialogOpen.value = true
+  activeRowMenu.value = null
+}
+
+const closeEdgeInfoDialog = () => {
+  isEdgeInfoDialogOpen.value = false
+  edgeInfoServer.value = null
+}
+
+const editFromEdgeInfo = () => {
+  const server = edgeInfoServer.value
+  if (!server) return
+  closeEdgeInfoDialog()
+  openEditServer(server)
+}
+
+const configureFromEdgeInfo = () => {
+  const server = edgeInfoServer.value
+  if (!server) return
+  closeEdgeInfoDialog()
+  openServerSettings(server)
+}
+
+const openServerSettings = (server) => {
+  if (!server?.id) return
+  activeRowMenu.value = null
+  void router.push({ name: 'server-settings', query: { server: String(server.id) } })
+}
+
+const upgradeFromEdgeInfo = () => {
+  const server = edgeInfoServer.value
+  if (!server) return
+  closeEdgeInfoDialog()
+  void openUpgradeDialog(server)
+}
+
+const layerStatusPlain = (server, layer) => {
+  const status = resolveLayerStatus(server, layer)
+  if (status === 'running') return 'running'
+  if (status === 'stopped') return 'stopped'
+  return 'unknown'
 }
 
 const openUserDropdown = () => {
@@ -1497,8 +1742,8 @@ const onUseExistingLicenseChange = () => {
   }
 }
 
-const enqueueNotification = (message, type = 'success', title = 'Edge Management') => {
-  if (type === 'error') notifyError(title, message)
+const enqueueNotification = (message, type = 'success', title = 'Edge Management', details = null) => {
+  if (type === 'error') notifyError(title, message, undefined, details)
   else notifySuccess(title, message)
 }
 
@@ -1526,6 +1771,7 @@ const createServer = async () => {
   createServerSyncLock = true
   isCreatingServer.value = true
   createSubmitError.value = ''
+  createSubmitErrorDetails.value = null
   const idempotencyKey =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
@@ -1549,7 +1795,7 @@ const createServer = async () => {
     os: pickedVersion.os || '',
     sshUser: newServer.value.username?.trim() || '',
     sshPassword: newServer.value.password?.trim() || '',
-    sshPort: newServer.value.sshPort?.toString().trim() || '',
+    sshPort: newServer.value.sshPort?.toString().trim() || '22',
     userIds: [...selectedUsers.value],
   }
 
@@ -1566,7 +1812,8 @@ const createServer = async () => {
     // Clear busy state before closing so the dialog is not stuck behind pointer-events: none.
     isCreatingServer.value = false
     createSubmitError.value = ''
-    await nextTick()
+  createSubmitErrorDetails.value = null
+  await nextTick()
     isNewServerDialogOpen.value = false
     void loadServers()
   } catch (error) {
@@ -1587,7 +1834,10 @@ const createServer = async () => {
     } else {
       const msg = error?.message || 'The edge could not be created.'
       createSubmitError.value = msg
-      enqueueNotification(msg, 'error')
+      createSubmitErrorDetails.value = extractApiErrorDetails(error?.payload, {
+        status: error?.status,
+      })
+      enqueueNotification(msg, 'error', 'Edge Management', createSubmitErrorDetails.value)
       // Keep the wizard open so the customer can change host/credentials and retry.
       isCreatingServer.value = false
       newServerStep.value = 1
@@ -1609,6 +1859,9 @@ const closeUpgradeDialog = () => {
   upgradeTargetServer.value = null
   upgradeVersions.value = []
   upgradeVersionsError.value = ''
+  upgradeVersionsErrorDetails.value = null
+  upgradeSubmitError.value = ''
+  upgradeSubmitErrorDetails.value = null
   selectedUpgradeVersionUuid.value = ''
   isUpgradingServer.value = false
 }
@@ -1676,6 +1929,9 @@ const openUpgradeDialog = async (server) => {
   upgradeTargetServer.value = server
   upgradeVersions.value = []
   upgradeVersionsError.value = ''
+  upgradeVersionsErrorDetails.value = null
+  upgradeSubmitError.value = ''
+  upgradeSubmitErrorDetails.value = null
   selectedUpgradeVersionUuid.value = ''
   isUpgradeDialogOpen.value = true
   isLoadingUpgradeVersions.value = true
@@ -1693,6 +1949,9 @@ const openUpgradeDialog = async (server) => {
   } catch (error) {
     const msg = error?.message || 'The product versions could not be loaded.'
     upgradeVersionsError.value = msg
+    upgradeVersionsErrorDetails.value = extractApiErrorDetails(error?.payload, {
+      status: error?.status,
+    })
     enqueueNotification(msg, 'error')
   } finally {
     isLoadingUpgradeVersions.value = false
@@ -1712,6 +1971,8 @@ const submitUpgradeVersionChoice = async () => {
     return
   }
   isUpgradingServer.value = true
+  upgradeSubmitError.value = ''
+  upgradeSubmitErrorDetails.value = null
   try {
     await upgradeServer(server.id, { versionUuid: uuid })
     enqueueNotification(`The edge is successfully upgraded to version ${v.version}.`, 'success')
@@ -1719,7 +1980,12 @@ const submitUpgradeVersionChoice = async () => {
     void loadServers()
     void loadDeployVersionsCatalog()
   } catch (error) {
-    enqueueNotification(error?.message || 'The edge could not be upgraded.', 'error')
+    const msg = error?.message || 'The edge could not be upgraded.'
+    upgradeSubmitError.value = msg
+    upgradeSubmitErrorDetails.value = extractApiErrorDetails(error?.payload, {
+      status: error?.status,
+    })
+    enqueueNotification(msg, 'error', 'Edge Management', upgradeSubmitErrorDetails.value)
   } finally {
     isUpgradingServer.value = false
   }
@@ -2085,6 +2351,15 @@ const nextPage = () => {
 .edges-row {
   transition: background 0.12s ease;
   box-shadow: inset 3px 0 0 transparent;
+}
+
+.edges-row--clickable {
+  cursor: pointer;
+}
+
+.edges-row--clickable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 55%, transparent);
+  outline-offset: -2px;
 }
 
 .edges-row:hover {
@@ -3101,6 +3376,356 @@ const nextPage = () => {
   max-height: min(92vh, 860px);
 }
 
+.dialog-card--edge-info {
+  width: min(100%, 520px);
+  max-width: 520px;
+  max-height: min(88vh, 720px);
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 24px 48px color-mix(in srgb, var(--app-shadow) 85%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 14%, var(--app-border));
+}
+
+.dialog-card--edge-info .dialog-header {
+  padding: 14px 16px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 8%, transparent) 0%,
+      transparent 55%
+    ),
+    var(--app-surface-solid, var(--app-surface));
+}
+
+.dialog-card--edge-info .dialog-header h3 {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.edge-info-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.edge-info-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 20%, var(--app-border));
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 12%, transparent) 0%,
+      var(--app-surface-elevated, var(--app-surface)) 100%
+    );
+}
+
+.edge-info-hero__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.edge-info-hero__identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.edge-info-hero__name {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--app-heading);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edge-info-hero__ip {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--app-text-secondary, var(--app-text-muted));
+}
+
+.edge-info-status-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+}
+
+.edge-info-status-pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.edge-info-status-pill--running {
+  color: var(--dorian-viper-400, var(--app-accent));
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 40%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 14%, var(--app-surface));
+}
+
+.edge-info-status-pill--deployed {
+  color: #5b9df0;
+  border-color: color-mix(in srgb, #5b9df0 40%, var(--app-border));
+  background: color-mix(in srgb, #5b9df0 14%, var(--app-surface));
+}
+
+.edge-info-status-pill--stopped {
+  color: #e15241;
+  border-color: color-mix(in srgb, #e15241 40%, var(--app-border));
+  background: color-mix(in srgb, #e15241 14%, var(--app-surface));
+}
+
+.edge-info-hero__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.edge-info-metric {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-solid, var(--app-surface));
+}
+
+.edge-info-metric__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.edge-info-metric__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--app-heading);
+  text-transform: capitalize;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edge-info-metric--ok {
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 28%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 8%, var(--app-surface));
+}
+
+.edge-info-metric--expiring {
+  border-color: color-mix(in srgb, #d97706 35%, var(--app-border));
+  background: color-mix(in srgb, #d97706 10%, var(--app-surface));
+}
+
+.edge-info-metric--expiring .edge-info-metric__value {
+  color: #d97706;
+}
+
+.edge-info-metric--expired {
+  border-color: color-mix(in srgb, #e15241 35%, var(--app-border));
+  background: color-mix(in srgb, #e15241 10%, var(--app-surface));
+}
+
+.edge-info-metric--expired .edge-info-metric__value {
+  color: #e15241;
+}
+
+.edge-info-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-elevated, var(--app-surface));
+  overflow: hidden;
+}
+
+.edge-info-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  border-bottom: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface) 65%, transparent);
+}
+
+.edge-info-panel__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--dorian-viper-400, var(--app-accent));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 14%, transparent);
+}
+
+.edge-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.edge-info-cell {
+  min-width: 0;
+  padding: 10px 14px;
+  border-right: 1px solid color-mix(in srgb, var(--app-border) 75%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--app-border) 75%, transparent);
+}
+
+.edge-info-cell:nth-child(2n) {
+  border-right: none;
+}
+
+.edge-info-cell:nth-last-child(-n + 2) {
+  border-bottom: none;
+}
+
+.edge-info-cell dt {
+  margin: 0 0 3px;
+  font-size: 10.5px;
+  font-weight: 550;
+  color: var(--app-text-muted);
+}
+
+.edge-info-cell dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.edge-info-sub {
+  color: var(--app-text-muted);
+  font-weight: 500;
+}
+
+.edge-info-user-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.edge-info-user-item {
+  max-width: 100%;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 24%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 10%, transparent);
+  color: var(--dorian-viper-400, var(--app-accent));
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.edge-info-empty {
+  margin: 0;
+  padding: 12px 14px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.edge-info-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface-elevated) 55%, transparent);
+}
+
+.dialog-footer-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (max-width: 560px) {
+  .dialog-card--edge-info {
+    width: min(100%, 100%);
+    max-width: 100%;
+  }
+
+  .edge-info-hero__metrics,
+  .edge-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .edge-info-cell {
+    border-right: none;
+  }
+
+  .edge-info-cell:nth-last-child(-n + 2) {
+    border-bottom: 1px solid color-mix(in srgb, var(--app-border) 75%, transparent);
+  }
+
+  .edge-info-cell:last-child {
+    border-bottom: none;
+  }
+}
+
 .dialog-card--upgrade .dialog-footer {
   display: flex;
   align-items: center;
@@ -3412,23 +4037,27 @@ const nextPage = () => {
 }
 
 .dialog-close {
-  border: none;
-  background: var(--app-surface-elevated);
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--app-text-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  border: 1px solid var(--app-border);
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
 }
 
 .dialog-close:hover {
-  background: var(--app-surface-hover);
-  color: var(--app-text);
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  border-color: color-mix(in srgb, var(--app-border) 80%, transparent);
+  color: var(--app-heading, var(--app-text));
+}
+
+.dialog-close:active {
+  transform: scale(0.94);
 }
 
 .dialog-body {

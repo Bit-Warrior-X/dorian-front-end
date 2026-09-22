@@ -112,9 +112,7 @@ button.danger-btn {
 .icon-btn,
 .icon-action-btn,
 .icon-danger-btn,
-.action-btn,
-.dialog-close,
-.dialog-header .dialog-close {
+.action-btn {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -127,6 +125,29 @@ button.danger-btn {
   border-radius: var(--btn-radius) !important;
 }
 
+.dialog-close,
+.dialog-header .dialog-close,
+.confirm-close {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  min-width: 30px !important;
+  width: 30px !important;
+  min-height: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.12s ease,
+    box-shadow 0.16s ease !important;
+}
+
 .icon-btn svg,
 .icon-action-btn svg,
 .action-btn svg,
@@ -134,6 +155,16 @@ button.danger-btn {
   width: var(--btn-icon-svg) !important;
   height: var(--btn-icon-svg) !important;
   flex-shrink: 0;
+}
+
+.dialog-close svg,
+.confirm-close svg {
+  width: 15px !important;
+  height: 15px !important;
+  flex-shrink: 0;
+  stroke-width: 2.25 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
 }
 
 .primary-btn:disabled,
@@ -287,9 +318,7 @@ button.danger-btn.confirm-action {
 /* Icon buttons — neutral square */
 .icon-btn,
 .icon-action-btn,
-.action-btn,
-.dialog-close,
-.dialog-header .dialog-close {
+.action-btn {
   background: var(--app-btn-surface-bg) !important;
   border: 1px solid var(--app-btn-surface-border) !important;
   color: var(--app-btn-surface-fg) !important;
@@ -298,12 +327,42 @@ button.danger-btn.confirm-action {
 
 .icon-btn:hover:not(:disabled),
 .icon-action-btn:hover:not(:disabled),
-.action-btn:hover:not(:disabled),
-.dialog-close:hover:not(:disabled) {
+.action-btn:hover:not(:disabled) {
   background: var(--app-btn-surface-hover) !important;
   border-color: var(--app-btn-surface-border) !important;
   color: var(--app-btn-surface-fg-hover) !important;
   transform: none !important;
+}
+
+/* Dialog / confirm close — modern ghost circle */
+.dialog-close,
+.dialog-header .dialog-close,
+.confirm-close {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--app-text-muted) !important;
+  box-shadow: none !important;
+}
+
+.dialog-close:hover:not(:disabled),
+.confirm-close:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--app-text) 8%, transparent) !important;
+  border-color: color-mix(in srgb, var(--app-border) 80%, transparent) !important;
+  color: var(--app-heading, var(--app-text)) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.dialog-close:active:not(:disabled),
+.confirm-close:active:not(:disabled) {
+  background: color-mix(in srgb, var(--app-text) 12%, transparent) !important;
+  transform: scale(0.94) !important;
+}
+
+.dialog-close:focus-visible,
+.confirm-close:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--app-accent) 55%, transparent) !important;
+  outline-offset: 2px !important;
 }
 
 .icon-action-btn.danger,
@@ -544,14 +603,16 @@ button.danger-btn.confirm-action {
 
 [data-theme='dark'] .dialog-close,
 [data-theme='dark'] .confirm-close {
-  background: #111111 !important;
+  background: transparent !important;
   color: var(--app-text-muted) !important;
-  border-color: var(--app-border) !important;
+  border-color: transparent !important;
 }
 
-[data-theme='dark'] .dialog-close:hover {
-  background: #1a1a1a !important;
-  color: var(--app-text) !important;
+[data-theme='dark'] .dialog-close:hover:not(:disabled),
+[data-theme='dark'] .confirm-close:hover:not(:disabled) {
+  background: color-mix(in srgb, #ffffff 10%, transparent) !important;
+  border-color: color-mix(in srgb, #ffffff 12%, transparent) !important;
+  color: #f3f4f6 !important;
 }
 
 /* -------------------------------------------------------------------------- */

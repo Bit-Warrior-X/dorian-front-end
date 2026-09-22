@@ -1,0 +1,86 @@
+/* -------------------------------------------------------------------------- */
+/* Info hint (i) tooltips — same portal pattern as L4/L7 layer dots              */
+/* -------------------------------------------------------------------------- */
+
+.info-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  vertical-align: middle;
+  cursor: help;
+  outline: none;
+  color: var(--app-text-muted);
+  flex-shrink: 0;
+}
+
+.info-hint__icon {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+}
+
+.info-hint__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.info-hint:hover,
+.info-hint:focus-visible {
+  color: var(--app-accent, var(--dorian-viper-400, #3fbd85));
+}
+
+.info-hint:focus-visible {
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--app-surface-solid), 0 0 0 4px color-mix(in srgb, var(--app-accent) 45%, transparent);
+}
+
+.info-hint-tooltip {
+  position: fixed;
+  z-index: 10000;
+  min-width: 168px;
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--app-tooltip-bg);
+  color: var(--app-tooltip-text);
+  border: 1px solid var(--app-tooltip-border);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  white-space: pre-line;
+  pointer-events: none;
+  box-shadow: var(--app-tooltip-shadow);
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+.info-hint-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--app-tooltip-bg);
+}
+
+.info-hint-heading {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  min-width: 0;
+}
+
+.info-hint-heading > :first-child {
+  margin: 0;
+}
+
+.app-topbar__titles .info-hint-heading {
+  display: inline-flex;
+  align-items: center;
+}

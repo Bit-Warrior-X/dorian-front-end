@@ -2,10 +2,13 @@
   <div class="waf-section-card">
     <div class="waf-section-header">
       <div>
-        <h4>Blacklist</h4>
-        <p class="waf-section-desc">
-          Block abusive sources and URLs before they reach your applications.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Blacklist</span>
+          <InfoHint
+            text="Block abusive sources and URLs before they reach your applications."
+            aria-label="Blacklist help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -261,6 +264,7 @@ import {
   deleteBlacklistRules
 } from "@/api/wafBlacklist";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const WAF_BLACKLIST_TITLE = "WAF Blacklist";
 

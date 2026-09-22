@@ -3,8 +3,13 @@
     <header class="edge-subpanel__intro">
       <div>
         <p class="edge-subpanel__kicker">L4 defense</p>
-        <h4>Allow IP</h4>
-        <p>Trusted source IPs that bypass L4 blocking on this edge.</p>
+        <h4 class="info-hint-heading">
+          <span>Allow IP</span>
+          <InfoHint
+            text="Trusted source IPs that bypass L4 blocking on this edge."
+            aria-label="Allow IP help"
+          />
+        </h4>
       </div>
       <div class="edge-subpanel__actions">
         <button
@@ -117,6 +122,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import InfoHint from "../InfoHint.vue";
 import {
   fetchL4WhitelistEntries,
   createL4WhitelistEntry,

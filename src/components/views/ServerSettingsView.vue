@@ -3,8 +3,13 @@
     <header class="edge-cfg__topbar">
       <div class="edge-cfg__topbar-left">
         <p class="edge-cfg__kicker">Infrastructure</p>
-        <h2>Configure edge</h2>
-        <p>{{ configureSubtitle }}</p>
+        <h2 class="info-hint-heading">
+          <span>Configure edge</span>
+          <InfoHint
+            text="Monitor runtime health, listening ports, and L4 defense for the selected edge."
+            aria-label="Configure edge help"
+          />
+        </h2>
       </div>
       <div class="edge-cfg__picker">
         <label for="server-settings-target">Edge</label>
@@ -21,8 +26,13 @@
     </header>
 
     <div v-if="!selectedServerData" class="edge-cfg__empty">
-      <h3>Choose an edge to configure</h3>
-      <p>Pick a node above to monitor runtime health, listening ports, and L4 protection.</p>
+      <h3 class="info-hint-heading">
+        <span>Choose an edge</span>
+        <InfoHint
+          text="Pick a node above to monitor runtime health, listening ports, and L4 protection."
+          aria-label="Choose an edge help"
+        />
+      </h3>
     </div>
 
     <template v-else>
@@ -69,8 +79,10 @@
           :class="{ active: activeTab === tab.id }"
           @click="selectTab(tab.id)"
         >
-          <span class="edge-cfg__tab-label">{{ tab.label }}</span>
-          <span class="edge-cfg__tab-hint">{{ tab.hint }}</span>
+          <span class="edge-cfg__tab-label info-hint-heading">
+            <span>{{ tab.label }}</span>
+            <InfoHint v-if="tab.hint" :text="tab.hint" :aria-label="`${tab.label} help`" />
+          </span>
         </button>
       </nav>
 
@@ -140,6 +152,7 @@ import L4DdosDefensePanel from './L4DdosDefensePanel.vue'
 import L4BlacklistPanel from './L4BlacklistPanel.vue'
 import L4WhitelistPanel from './L4WhitelistPanel.vue'
 import LayerStatusDot from '../LayerStatusDot.vue'
+import InfoHint from '../InfoHint.vue'
 import ListeningPortsPanel from './ListeningPortsPanel.vue'
 import ServerStatusPanel from './ServerStatusPanel.vue'
 import {
@@ -158,14 +171,6 @@ const tabsBodyEl = ref(null)
 const selectedServerData = computed(() =>
   serverOptions.value.find((server) => server.id === selectedServer.value),
 )
-
-const configureSubtitle = computed(() => {
-  if (!selectedServerData.value) {
-    return 'Select an edge to manage runtime health, ports, and L4 protection.'
-  }
-  const name = selectedServerData.value.name || selectedServerData.value.ip || `Edge #${selectedServerData.value.id}`
-  return `Configuring ${name}`
-})
 
 const statusSummary = computed(() => {
   const server = selectedServerData.value
@@ -190,11 +195,11 @@ const loadServers = async () => {
 }
 
 const tabs = [
-  { id: 'server-status', label: 'Monitor', hint: 'Runtime & health', rows: [] },
-  { id: 'listening-ports', label: 'Ports', hint: 'Client listeners', rows: [] },
-  { id: 'l4-config', label: 'XDP', hint: 'L4 defense', rows: [] },
-  { id: 'l4-blacklist', label: 'Block IP', hint: 'Deny lists', rows: [] },
-  { id: 'l4-whitelist', label: 'Allow IP', hint: 'Trust lists', rows: [] },
+  { id: 'server-status', label: 'Monitor', hint: 'Host metrics and Angelos / Sparta / Athens service health.' },
+  { id: 'listening-ports', label: 'Ports', hint: 'Ports that accept client traffic on this edge.' },
+  { id: 'l4-config', label: 'XDP', hint: 'How Sparta attaches to the NIC and reacts to L4 floods.' },
+  { id: 'l4-blacklist', label: 'Block IP', hint: 'Blocked source IPs for this edge’s XDP path.' },
+  { id: 'l4-whitelist', label: 'Allow IP', hint: 'Trusted source IPs that bypass L4 blocking.' },
 ]
 
 const activeTab = ref(tabs[0].id)

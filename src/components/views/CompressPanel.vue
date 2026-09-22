@@ -2,11 +2,13 @@
   <div class="compress-panel">
     <div class="waf-section-header">
       <div>
-        <h4>Compress</h4>
-        <p class="waf-section-desc">
-          Gzip compress settings. Compress the resource based on its MIME Type using Gzip
-          before responding to the user, saving client-side bandwidth.
-        </p>
+        <h4 class="info-hint-heading">
+          <span>Compress</span>
+          <InfoHint
+            text="Gzip compress settings. Compress the resource based on its MIME Type using Gzip before responding to the user, saving client-side bandwidth."
+            aria-label="Compress help"
+          />
+        </h4>
       </div>
       <div class="header-actions">
         <button
@@ -82,6 +84,7 @@
 import { reactive, ref, watch, onMounted } from "vue";
 import { fetchCompressSettings, updateCompressSettings } from "@/api/compress";
 import { notifyError, notifySuccess } from "@/utils/notify";
+import InfoHint from "../InfoHint.vue";
 
 const COMPRESS_TITLE = "Compress";
 

@@ -125,22 +125,27 @@ const handleConfirm = () => {
 }
 
 .confirm-close {
-  border: none;
-  background: rgba(148, 163, 184, 0.15);
-  color: #475569;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--app-text-muted, #64748b);
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
 }
 
 .confirm-close:hover {
-  background: rgba(148, 163, 184, 0.25);
-  color: #1f2937;
+  background: color-mix(in srgb, var(--app-text, #0f172a) 8%, transparent);
+  border-color: color-mix(in srgb, var(--app-border, #cbd5e1) 80%, transparent);
+  color: var(--app-heading, #0f172a);
+}
+
+.confirm-close:active {
+  transform: scale(0.94);
 }
 
 .confirm-message {
