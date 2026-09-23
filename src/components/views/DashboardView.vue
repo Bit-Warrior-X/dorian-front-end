@@ -70,8 +70,9 @@
       </button>
     </div>
 
-    <section class="dash-hero" aria-label="Network health">
-      <div class="dash-hero__status">
+    <!-- Fleet command strip: health + delivery KPIs in one glance -->
+    <section class="dash-command" aria-label="Network health">
+      <div class="dash-command__health">
         <div class="dash-hero__ring" :class="fleetHealthTone" :style="{ '--health': `${edgeHealthPercent}%` }">
           <span class="dash-hero__ring-value num">{{ edgeHealthPercent }}%</span>
           <span class="dash-hero__ring-label">healthy</span>
@@ -81,46 +82,79 @@
           <p>{{ fleetHealthDetail }}</p>
         </div>
       </div>
-      <div class="dash-hero__stats">
-        <div class="dash-hero-stat">
-          <span class="dash-hero-stat__label">Live egress</span>
-          <span class="dash-hero-stat__value num signal">{{ formatBandwidthValue(liveEgressKbps) }}</span>
-          <span class="dash-hero-stat__hint">sum of site L7 TX</span>
+      <div class="dash-kpi-strip" role="list">
+        <div class="dash-kpi" role="listitem">
+          <span class="dash-kpi__label">Live egress</span>
+          <span class="dash-kpi__value num signal">{{ formatBandwidthValue(liveEgressKbps) }}</span>
+          <span class="dash-kpi__hint">site L7 TX</span>
         </div>
-        <div class="dash-hero-stat">
-          <span class="dash-hero-stat__label">Cache hit</span>
-          <span class="dash-hero-stat__value num">{{ formatCacheRatio(fleetCacheHitRatio) }}</span>
-          <span class="dash-hero-stat__hint">{{ fleetCacheHitHint }}</span>
+        <div class="dash-kpi" role="listitem">
+          <span class="dash-kpi__label">Cache hit</span>
+          <span class="dash-kpi__value num">{{ formatCacheRatio(fleetCacheHitRatio) }}</span>
+          <span class="dash-kpi__hint">{{ fleetCacheHitHint }}</span>
         </div>
-        <div class="dash-hero-stat">
-          <span class="dash-hero-stat__label">Edges online</span>
-          <span class="dash-hero-stat__value num">
+        <div class="dash-kpi" role="listitem">
+          <span class="dash-kpi__label">Edges online</span>
+          <span class="dash-kpi__value num">
             {{ formatNumber(healthyEdges) }}
             <small>/ {{ formatNumber(dashboardStats.totalServers) }}</small>
           </span>
         </div>
-        <div class="dash-hero-stat">
-          <span class="dash-hero-stat__label">Sites protected</span>
-          <span class="dash-hero-stat__value num">
+        <div class="dash-kpi" role="listitem">
+          <span class="dash-kpi__label">Sites protected</span>
+          <span class="dash-kpi__value num">
             {{ formatNumber(dashboardStats.activeSites) }}
             <small>/ {{ formatNumber(dashboardStats.totalSites) }}</small>
           </span>
         </div>
-        <div class="dash-hero-stat">
-          <span class="dash-hero-stat__label">Live req/s</span>
-          <span class="dash-hero-stat__value num signal">{{ formatRate(latestRequestRate) }}</span>
+        <div class="dash-kpi" role="listitem">
+          <span class="dash-kpi__label">Live req/s</span>
+          <span class="dash-kpi__value num signal">{{ formatRate(latestRequestRate) }}</span>
+          <span class="dash-kpi__hint">{{ formatRate(latestResponseRate) }} resp/s</span>
         </div>
-        <div class="dash-hero-stat">
-          <span class="dash-hero-stat__label">Threats blocked</span>
-          <span class="dash-hero-stat__value num warn">{{ formatNumber(threatsThisMonth) }}</span>
-          <span class="dash-hero-stat__hint">this month · L4 + L7</span>
+        <div class="dash-kpi" role="listitem">
+          <span class="dash-kpi__label">Threats blocked</span>
+          <span class="dash-kpi__value num warn">{{ formatNumber(threatsThisMonth) }}</span>
+          <span class="dash-kpi__hint">this month · L4 + L7</span>
         </div>
       </div>
     </section>
 
-    <p class="dash-section-kicker">Live traffic</p>
-    <section class="dash-grid12">
-      <div class="dash-panel c-7 dash-panel--hero-chart">
+    <!-- Threat summary as metric panels (not charts) -->
+    <section class="dash-threat-row" aria-label="Threat summary">
+      <div class="dash-threat-row__head">
+        <h3>Threat summary</h3>
+        <div class="dash-threat-row__actions">
+          <span class="dash-count-tag">monthly</span>
+          <RouterLink class="dash-panel-link" :to="{ name: 'layer4-attack-analytics' }">L4 attacks →</RouterLink>
+          <RouterLink class="dash-panel-link" :to="{ name: 'security-analytics-detail' }">Security →</RouterLink>
+        </div>
+      </div>
+      <div class="dash-threat-grid">
+        <RouterLink
+          v-for="panel in threatPanels"
+          :key="panel.id"
+          class="dash-threat-tile dash-threat-tile--link"
+          :class="`tone-${panel.tone}`"
+          :to="panel.to"
+        >
+          <span class="dash-threat-tile__label">{{ panel.label }}</span>
+          <span class="dash-threat-tile__value num">{{ formatNumber(panel.value) }}</span>
+          <div class="dash-threat-tile__meta">
+            <span class="dash-threat-tile__hint">{{ panel.hint }}</span>
+            <span
+              v-if="panel.delta"
+              class="dash-threat-tile__delta"
+              :class="panel.delta.tone"
+            >{{ panel.delta.label }}</span>
+          </div>
+        </RouterLink>
+      </div>
+    </section>
+
+    <!-- Live traffic + events + edge health: primary operational glance -->
+    <section class="dash-grid12 dash-ops">
+      <div class="dash-panel c-6 dash-panel--hero-chart">
         <div class="dash-panel-head">
           <h3><span class="dash-live-dot" aria-hidden="true"></span> Real-time traffic</h3>
           <div class="dash-panel-head__actions">
@@ -139,44 +173,83 @@
             </RouterLink>
           </div>
         </div>
-        <div class="dash-chart-wrap dash-chart-wrap--tall">
+        <div class="dash-chart-wrap dash-chart-wrap--ops">
           <div ref="requestResponseChart"></div>
         </div>
       </div>
 
-      <div class="dash-panel c-5">
+      <div class="dash-panel c-3">
         <div class="dash-panel-head">
-          <h3>Security event stream</h3>
-          <div class="dash-panel-head__actions">
-            <span class="dash-count-tag dash-count-tag--live">live</span>
-            <RouterLink class="dash-panel-link" :to="{ name: 'security-analytics-detail' }">
-              Security →
-            </RouterLink>
-          </div>
+          <h3>Security events</h3>
+          <span class="dash-count-tag dash-count-tag--live">live</span>
         </div>
-        <div class="dash-log">
+        <div class="dash-log dash-log--compact">
           <div v-if="!securityEvents.length" class="dash-log-line">
             <span class="dash-log-time">—</span>
             <span class="dash-log-tag sys">SYS</span>
-            <span class="dash-log-msg">No security events recorded yet.</span>
+            <span class="dash-log-msg">No events yet.</span>
           </div>
-          <div v-for="event in securityEvents" :key="event.id" class="dash-log-line">
+          <div v-for="event in securityEvents.slice(0, 8)" :key="event.id" class="dash-log-line">
             <span class="dash-log-time">{{ formatLogTime(event.createdAt) }}</span>
             <span class="dash-log-tag" :class="eventLogTagClass(event)">{{ eventLogTag(event) }}</span>
-            <span class="dash-log-msg">{{ event.title }} — {{ event.description }}</span>
+            <span class="dash-log-msg" :title="`${event.title} — ${event.description}`">{{ event.title }}</span>
           </div>
+        </div>
+      </div>
+
+      <div class="dash-panel c-3">
+        <div class="dash-panel-head">
+          <h3>Edge health</h3>
+          <div class="dash-panel-head__actions">
+            <span class="dash-count-tag">{{ serversList.length }}</span>
+            <RouterLink class="dash-panel-link" :to="{ name: 'server-list' }">All →</RouterLink>
+          </div>
+        </div>
+        <div class="dash-table-wrap">
+          <table class="dash-table dash-table--compact">
+            <thead>
+              <tr>
+                <th>Node</th>
+                <th class="mono">CPU</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="server in serversList.slice(0, 6)"
+                :key="server.id"
+                class="dash-table-row--link"
+                @click="goToEdgeSettings(server)"
+              >
+                <td>
+                  <span class="node-dot" :class="edgeDotClass(server)"></span>
+                  <span class="ip-mono">{{ server.name || `Edge ${server.id}` }}</span>
+                </td>
+                <td>
+                  <span class="dash-cpu-value num" :class="cpuLevelClass(server)">{{ formatCpuDisplay(server) }}</span>
+                </td>
+                <td>
+                  <span class="dash-health-pill" :class="edgeHealthClass(server)">{{ edgeHealthLabel(server) }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="!serversList.length" class="dash-empty">
+            No edges yet.
+            <RouterLink class="dash-inline-link" :to="{ name: 'server-list' }">Add an edge</RouterLink>
+          </p>
         </div>
       </div>
     </section>
 
-    <p class="dash-section-kicker">Delivery &amp; defense</p>
+    <!-- Delivery snapshot: status + top sites + sources -->
     <section class="dash-grid12">
-      <div class="dash-panel c-6">
+      <div class="dash-panel c-3">
         <div class="dash-panel-head">
-          <h3>Response code breakdown</h3>
+          <h3>Response codes</h3>
           <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
         </div>
-        <div v-for="row in statusBreakdown" :key="row.label" class="dash-bar-row">
+        <div v-for="row in statusBreakdown" :key="row.label" class="dash-bar-row dash-bar-row--tight">
           <div class="dash-bar-top">
             <span>{{ row.label }}</span>
             <span class="num pct">{{ row.percent }}%</span>
@@ -187,90 +260,19 @@
         </div>
       </div>
 
-      <div class="dash-panel c-6">
-        <div class="dash-panel-head">
-          <h3>Threat summary</h3>
-          <div class="dash-panel-head__actions">
-            <span class="dash-count-tag">monthly</span>
-            <RouterLink class="dash-panel-link" :to="{ name: 'layer4-attack-analytics' }">
-              L4 attacks →
-            </RouterLink>
-          </div>
-        </div>
-        <div class="dash-bar-row">
-          <div class="dash-bar-top"><span>L4 attacks (this month)</span><span class="count num">{{ formatNumber(dashboardStats.l4AttacksThisMonth) }}</span></div>
-          <div class="dash-bar-track"><div class="dash-bar-fill l4" :style="{ width: l4BarWidth }"></div></div>
-        </div>
-        <div class="dash-bar-row">
-          <div class="dash-bar-top"><span>L4 attacks (prev month)</span><span class="count num">{{ formatNumber(dashboardStats.l4AttacksPreviousMonth) }}</span></div>
-          <div class="dash-bar-track"><div class="dash-bar-fill l4" :style="{ width: l4PrevBarWidth }"></div></div>
-        </div>
-        <div class="dash-bar-row">
-          <div class="dash-bar-top"><span>L7 threats (this month)</span><span class="count num">{{ formatNumber(dashboardStats.l7ThreatsThisMonth) }}</span></div>
-          <div class="dash-bar-track"><div class="dash-bar-fill l7" :style="{ width: l7BarWidth }"></div></div>
-        </div>
-        <div class="dash-bar-row">
-          <div class="dash-bar-top"><span>L7 threats (prev month)</span><span class="count num">{{ formatNumber(dashboardStats.l7ThreatsPreviousMonth) }}</span></div>
-          <div class="dash-bar-track"><div class="dash-bar-fill l7" :style="{ width: l7PrevBarWidth }"></div></div>
-        </div>
-        <div class="dash-bar-row">
-          <div class="dash-bar-top"><span>Blocked IPs</span><span class="count num">{{ formatNumber(dashboardStats.blockedIps) }}</span></div>
-          <div class="dash-bar-track"><div class="dash-bar-fill danger" :style="{ width: blockedBarWidth }"></div></div>
-        </div>
-      </div>
-    </section>
-
-    <p class="dash-section-kicker">Traffic sources</p>
-    <section class="dash-grid12">
-      <div class="dash-panel c-4">
-        <div class="dash-panel-head">
-          <h3>Top user agents</h3>
-          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-        </div>
-        <p v-if="!topUserAgentRows.length" class="dash-empty">No user agent data yet.</p>
-        <div v-for="row in topUserAgentRows" :key="`ua-${row.label}`" class="dash-bar-row">
-          <div class="dash-bar-top">
-            <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
-            <span class="num pct">{{ row.percent }}%</span>
-          </div>
-          <div class="dash-bar-track">
-            <div class="dash-bar-fill l4" :style="{ width: `${row.percent}%` }"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dash-panel c-4">
-        <div class="dash-panel-head">
-          <h3>Top referrers</h3>
-          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-        </div>
-        <p v-if="!topRefererRows.length" class="dash-empty">No referrer data yet.</p>
-        <div v-for="row in topRefererRows" :key="`ref-${row.label}`" class="dash-bar-row">
-          <div class="dash-bar-top">
-            <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
-            <span class="num pct">{{ row.percent }}%</span>
-          </div>
-          <div class="dash-bar-track">
-            <div class="dash-bar-fill l7" :style="{ width: `${row.percent}%` }"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dash-panel c-4">
+      <div class="dash-panel c-3">
         <div class="dash-panel-head">
           <h3>Top sites</h3>
           <div class="dash-panel-head__actions">
             <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-            <RouterLink class="dash-panel-link" :to="{ name: 'site-list' }">
-              All sites →
-            </RouterLink>
+            <RouterLink class="dash-panel-link" :to="{ name: 'site-list' }">All →</RouterLink>
           </div>
         </div>
-        <p v-if="!topSiteRows.length" class="dash-empty">No site traffic recorded yet.</p>
+        <p v-if="!topSiteRows.length" class="dash-empty">No site traffic yet.</p>
         <RouterLink
-          v-for="row in topSiteRows"
+          v-for="row in topSiteRows.slice(0, 5)"
           :key="`site-${row.label}`"
-          class="dash-bar-row dash-bar-row--link"
+          class="dash-bar-row dash-bar-row--link dash-bar-row--tight"
           :to="row.siteId ? { name: 'site-settings', query: { siteId: String(row.siteId) } } : { name: 'site-list' }"
         >
           <div class="dash-bar-top">
@@ -285,9 +287,43 @@
           </div>
         </RouterLink>
       </div>
+
+      <div class="dash-panel c-3">
+        <div class="dash-panel-head">
+          <h3>Top user agents</h3>
+          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
+        </div>
+        <p v-if="!topUserAgentRows.length" class="dash-empty">No user agent data yet.</p>
+        <div v-for="row in topUserAgentRows.slice(0, 5)" :key="`ua-${row.label}`" class="dash-bar-row dash-bar-row--tight">
+          <div class="dash-bar-top">
+            <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
+            <span class="num pct">{{ row.percent }}%</span>
+          </div>
+          <div class="dash-bar-track">
+            <div class="dash-bar-fill l4" :style="{ width: `${row.percent}%` }"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-panel c-3">
+        <div class="dash-panel-head">
+          <h3>Top referrers</h3>
+          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
+        </div>
+        <p v-if="!topRefererRows.length" class="dash-empty">No referrer data yet.</p>
+        <div v-for="row in topRefererRows.slice(0, 5)" :key="`ref-${row.label}`" class="dash-bar-row dash-bar-row--tight">
+          <div class="dash-bar-top">
+            <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
+            <span class="num pct">{{ row.percent }}%</span>
+          </div>
+          <div class="dash-bar-track">
+            <div class="dash-bar-fill l7" :style="{ width: `${row.percent}%` }"></div>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <p class="dash-section-kicker">Bandwidth &amp; status</p>
+    <!-- Deeper charts below the fold -->
     <section class="dash-grid12">
       <div class="dash-panel c-6">
         <div class="dash-panel-head">
@@ -323,106 +359,33 @@
       </div>
     </section>
 
-    <p class="dash-section-kicker">Edge fabric</p>
     <section class="dash-grid12">
-      <div class="dash-panel c-5">
+      <div class="dash-panel c-12 dash-panel--throughput">
         <div class="dash-panel-head">
-          <h3>Edge node health</h3>
+          <h3>NIC throughput by edge</h3>
           <div class="dash-panel-head__actions">
-            <span class="dash-count-tag">{{ serversList.length }} nodes</span>
+            <span class="dash-count-tag">live · Kbps</span>
             <RouterLink class="dash-panel-link" :to="{ name: 'server-list' }">
-              All edges →
+              Edge nodes →
             </RouterLink>
           </div>
         </div>
-        <div class="dash-table-wrap">
-          <table class="dash-table">
-            <thead>
-              <tr>
-                <th>Node</th>
-                <th>IP</th>
-                <th class="mono">CPU</th>
-                <th class="mono">L4</th>
-                <th class="mono">L7</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="server in serversList.slice(0, 8)"
-                :key="server.id"
-                class="dash-table-row--link"
-                @click="goToEdgeSettings(server)"
-              >
-                <td>
-                  <span class="node-dot" :class="edgeDotClass(server)"></span>
-                  <span class="ip-mono">{{ server.name || `Edge ${server.id}` }}</span>
-                </td>
-                <td class="mono">{{ server.ip || '—' }}</td>
-                <td>
-                  <div class="dash-cpu-cell">
-                    <span class="dash-cpu-value num" :class="cpuLevelClass(server)">{{ formatCpuDisplay(server) }}</span>
-                    <div v-if="hasCpuMetric(server)" class="dash-cpu-bar" aria-hidden="true">
-                      <div
-                        class="dash-cpu-bar-fill"
-                        :class="cpuLevelClass(server)"
-                        :style="{ width: cpuBarWidth(server) }"
-                      ></div>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <span
-                    class="dash-layer-cell"
-                    :title="layerDotDescription(server, 'l4')"
-                    :aria-label="layerDotDescription(server, 'l4')"
-                  >
-                    <span :class="layerDotClass(server, 'l4')"></span>
-                  </span>
-                </td>
-                <td>
-                  <span
-                    class="dash-layer-cell"
-                    :title="layerDotDescription(server, 'l7')"
-                    :aria-label="layerDotDescription(server, 'l7')"
-                  >
-                    <span :class="layerDotClass(server, 'l7')"></span>
-                  </span>
-                </td>
-                <td>
-                  <span class="dash-health-pill" :class="edgeHealthClass(server)">{{ edgeHealthLabel(server) }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p v-if="!serversList.length" class="dash-empty">
-            No edges configured yet.
-            <RouterLink class="dash-inline-link" :to="{ name: 'server-list' }">Add an edge</RouterLink>
-          </p>
-        </div>
-      </div>
-
-      <div class="dash-panel c-7 dash-panel--throughput">
-        <div class="dash-panel-head">
-          <h3>NIC throughput by edge</h3>
-          <span class="dash-count-tag">live · Kbps</span>
-        </div>
-        <div class="dash-mini-charts dash-mini-charts--large">
+        <div class="dash-mini-charts dash-mini-charts--row">
           <div class="dash-mini-chart">
             <h4>NIC RX</h4>
-            <div class="dash-chart-wrap dash-chart-wrap--md"><div ref="bandwidthNicRxChart"></div></div>
+            <div class="dash-chart-wrap dash-chart-wrap--sm"><div ref="bandwidthNicRxChart"></div></div>
           </div>
           <div class="dash-mini-chart">
             <h4>NIC TX</h4>
-            <div class="dash-chart-wrap dash-chart-wrap--md"><div ref="bandwidthNicTxChart"></div></div>
+            <div class="dash-chart-wrap dash-chart-wrap--sm"><div ref="bandwidthNicTxChart"></div></div>
           </div>
           <div class="dash-mini-chart">
             <h4>L7 RX</h4>
-            <div class="dash-chart-wrap dash-chart-wrap--md"><div ref="bandwidthL7RxChart"></div></div>
+            <div class="dash-chart-wrap dash-chart-wrap--sm"><div ref="bandwidthL7RxChart"></div></div>
           </div>
           <div class="dash-mini-chart">
             <h4>L7 TX</h4>
-            <div class="dash-chart-wrap dash-chart-wrap--md"><div ref="bandwidthL7TxChart"></div></div>
+            <div class="dash-chart-wrap dash-chart-wrap--sm"><div ref="bandwidthL7TxChart"></div></div>
           </div>
         </div>
       </div>
@@ -462,8 +425,6 @@ import {
   padSeriesToTimeRange,
 } from '@/utils/chartTheme'
 import {
-  layerDotClass,
-  layerDotDescription,
   resolveAngelosRuntimeStatus,
 } from '@/utils/serverLayerStatus'
 
@@ -559,13 +520,23 @@ const serverOptions = computed(() => [
   ...bandwidthServers.value.map((server) => ({ label: server.label, value: String(server.id) })),
 ])
 
-const siteOptions = computed(() => [
-  { label: 'All sites', value: 'all' },
-  ...sitesList.value.map((site) => ({
-    label: site.domain || `Site ${site.id}`,
-    value: String(site.id),
-  })),
-])
+const siteOptions = computed(() => {
+  let list = sitesList.value
+  if (selectedEdge.value !== 'all') {
+    const edgeId = Number(selectedEdge.value)
+    list = list.filter(
+      (site) =>
+        Array.isArray(site.serverIds) && site.serverIds.some((id) => Number(id) === edgeId),
+    )
+  }
+  return [
+    { label: 'All sites', value: 'all' },
+    ...list.map((site) => ({
+      label: site.domain || `Site ${site.id}`,
+      value: String(site.id),
+    })),
+  ]
+})
 
 const selectedSiteRecord = computed(() => {
   if (selectedSite.value === 'all') return null
@@ -638,6 +609,72 @@ const threatsThisMonth = computed(
     (Number(dashboardStats.value.l7ThreatsThisMonth) || 0),
 )
 
+const threatDelta = (current, previous) => {
+  const c = Number(current) || 0
+  const p = Number(previous) || 0
+  if (p <= 0) {
+    if (c <= 0) return { label: 'vs last mo', tone: 'flat' }
+    return { label: 'new', tone: 'up' }
+  }
+  const pct = Math.round(((c - p) / p) * 100)
+  if (pct === 0) return { label: '0% MoM', tone: 'flat' }
+  return {
+    label: `${pct > 0 ? '+' : ''}${pct}% MoM`,
+    tone: pct > 0 ? 'up' : 'down',
+  }
+}
+
+const threatPanels = computed(() => {
+  const stats = dashboardStats.value
+  return [
+    {
+      id: 'l4-now',
+      label: 'L4 attacks',
+      value: stats.l4AttacksThisMonth,
+      hint: 'this month',
+      tone: 'l4',
+      delta: threatDelta(stats.l4AttacksThisMonth, stats.l4AttacksPreviousMonth),
+      to: { name: 'layer4-attack-analytics' },
+    },
+    {
+      id: 'l4-prev',
+      label: 'L4 previous',
+      value: stats.l4AttacksPreviousMonth,
+      hint: 'last month',
+      tone: 'l4',
+      delta: null,
+      to: { name: 'layer4-attack-analytics' },
+    },
+    {
+      id: 'l7-now',
+      label: 'L7 threats',
+      value: stats.l7ThreatsThisMonth,
+      hint: 'this month',
+      tone: 'l7',
+      delta: threatDelta(stats.l7ThreatsThisMonth, stats.l7ThreatsPreviousMonth),
+      to: { name: 'security-analytics-detail' },
+    },
+    {
+      id: 'l7-prev',
+      label: 'L7 previous',
+      value: stats.l7ThreatsPreviousMonth,
+      hint: 'last month',
+      tone: 'l7',
+      delta: null,
+      to: { name: 'security-analytics-detail' },
+    },
+    {
+      id: 'blocked',
+      label: 'Blocked IPs',
+      value: stats.blockedIps,
+      hint: 'active blocks',
+      tone: 'danger',
+      delta: null,
+      to: { name: 'server-blacklist' },
+    },
+  ]
+})
+
 const liveEgressKbps = computed(() =>
   sitesList.value.reduce((sum, site) => sum + (Number(site.currentBandwidth) || 0), 0),
 )
@@ -682,26 +719,6 @@ const filterSummary = computed(() => {
     || bandwidthRange.value
   return `${edge} · ${site} · last ${range}`
 })
-
-const barPercent = (value, max) => {
-  const v = Number(value) || 0
-  const m = Math.max(Number(max) || 0, v, 1)
-  return `${Math.min(100, Math.round((v / m) * 100))}%`
-}
-
-const l4BarWidth = computed(() =>
-  barPercent(dashboardStats.value.l4AttacksThisMonth, Math.max(dashboardStats.value.l4AttacksThisMonth, dashboardStats.value.l4AttacksPreviousMonth)),
-)
-const l4PrevBarWidth = computed(() =>
-  barPercent(dashboardStats.value.l4AttacksPreviousMonth, Math.max(dashboardStats.value.l4AttacksThisMonth, dashboardStats.value.l4AttacksPreviousMonth)),
-)
-const l7BarWidth = computed(() =>
-  barPercent(dashboardStats.value.l7ThreatsThisMonth, Math.max(dashboardStats.value.l7ThreatsThisMonth, dashboardStats.value.l7ThreatsPreviousMonth)),
-)
-const l7PrevBarWidth = computed(() =>
-  barPercent(dashboardStats.value.l7ThreatsPreviousMonth, Math.max(dashboardStats.value.l7ThreatsThisMonth, dashboardStats.value.l7ThreatsPreviousMonth)),
-)
-const blockedBarWidth = computed(() => barPercent(dashboardStats.value.blockedIps, Math.max(dashboardStats.value.blockedIps, 1000)))
 
 const bandwidthNicRxSeries = ref([])
 const bandwidthNicTxSeries = ref([])
@@ -1498,7 +1515,13 @@ onBeforeUnmount(() => {
 })
 
 watch(bandwidthRange, scheduleFilterReload)
-watch(selectedEdge, scheduleFilterReload)
+watch(selectedEdge, () => {
+  if (selectedSite.value !== 'all') {
+    const stillValid = siteOptions.value.some((option) => option.value === selectedSite.value)
+    if (!stillValid) selectedSite.value = 'all'
+  }
+  scheduleFilterReload()
+})
 watch(selectedSite, scheduleFilterReload)
 </script>
 
@@ -1506,7 +1529,7 @@ watch(selectedSite, scheduleFilterReload)
 .dashboard-view {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   max-width: 1680px;
   margin: 0 auto;
   font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
@@ -1585,21 +1608,12 @@ watch(selectedSite, scheduleFilterReload)
   background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 10%, var(--app-surface));
 }
 
-.dash-section-kicker {
-  margin: 8px 0 -4px;
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-}
-
-.dash-hero {
+.dash-command {
   display: grid;
-  grid-template-columns: minmax(240px, 1.1fr) minmax(0, 2fr);
-  gap: 18px;
-  align-items: center;
-  padding: 18px 20px;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 2.2fr);
+  gap: 14px;
+  align-items: stretch;
+  padding: 14px 16px;
   border-radius: 12px;
   border: 0.5px solid var(--app-border);
   background:
@@ -1607,17 +1621,17 @@ watch(selectedSite, scheduleFilterReload)
     var(--app-surface);
 }
 
-.dash-hero__status {
+.dash-command__health {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
 }
 
 .dash-hero__ring {
   --health: 0%;
-  width: 84px;
-  height: 84px;
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
   flex-shrink: 0;
   display: flex;
@@ -1634,7 +1648,7 @@ watch(selectedSite, scheduleFilterReload)
 .dash-hero__ring.danger { --ring-color: var(--dorian-danger, #e15241); }
 
 .dash-hero__ring-value {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 650;
   color: var(--app-heading);
   line-height: 1;
@@ -1658,58 +1672,173 @@ watch(selectedSite, scheduleFilterReload)
 
 .dash-hero__copy p {
   margin: 0;
-  font-size: var(--type-caption);
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.4;
   color: var(--app-text-muted);
 }
 
-.dash-hero__stats {
+.dash-kpi-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
-
-.dash-hero-stat {
-  padding: 12px 14px;
+.dash-kpi {
+  padding: 10px 12px;
   border-radius: 8px;
   border: 0.5px solid var(--app-border);
   background: var(--app-surface-muted);
   min-width: 0;
 }
 
-.dash-hero-stat__label {
+.dash-kpi__label {
   display: block;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--app-text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
-.dash-hero-stat__value {
+.dash-kpi__value {
   display: block;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 650;
   color: var(--app-heading);
   line-height: 1.1;
 }
 
-.dash-hero-stat__value small {
-  font-size: 12px;
+.dash-kpi__value small {
+  font-size: 11px;
   font-weight: 500;
   color: var(--app-text-muted);
 }
 
-.dash-hero-stat__value.signal { color: var(--dorian-viper-400, var(--app-accent)); }
-.dash-hero-stat__value.warn { color: var(--dorian-warn, #e0a83f); }
+.dash-kpi__value.signal { color: var(--dorian-viper-400, var(--app-accent)); }
+.dash-kpi__value.warn { color: var(--dorian-warn, #e0a83f); }
 
-.dash-hero-stat__hint {
+.dash-kpi__hint {
   display: block;
-  margin-top: 4px;
+  margin-top: 3px;
   font-size: 11px;
   color: var(--app-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-threat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-threat-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dash-threat-row__head h3 {
+  margin: 0;
+  font-size: var(--type-caption);
+  font-weight: 500;
+  color: var(--app-text-muted);
+}
+
+.dash-threat-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dash-threat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dash-threat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 14px 12px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dash-threat-tile--link:hover {
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 35%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 6%, var(--app-surface));
+}
+
+.dash-threat-tile.tone-l4 { border-top: 2px solid #6b9fd4; }
+.dash-threat-tile.tone-l7 { border-top: 2px solid #8fa3b8; }
+.dash-threat-tile.tone-danger { border-top: 2px solid #d95b4e; }
+
+.dash-threat-tile__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.dash-threat-tile__value {
+  font-size: 24px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1;
+}
+
+.dash-threat-tile__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.dash-threat-tile__hint {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.dash-threat-tile__delta {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.dash-threat-tile__delta.up { color: var(--dorian-danger, #e15241); }
+.dash-threat-tile__delta.down { color: var(--dorian-viper-400, var(--app-accent)); }
+.dash-threat-tile__delta.flat { color: var(--app-text-muted); }
+
+.dash-chart-wrap--ops {
+  min-height: 210px;
+}
+
+.dash-log--compact {
+  max-height: 230px;
+}
+
+.dash-bar-row--tight {
+  margin-bottom: 8px;
+}
+
+.dash-mini-charts--row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .dash-live-dot {
@@ -1828,6 +1957,7 @@ watch(selectedSite, scheduleFilterReload)
   align-items: stretch;
 }
 
+.c-3 { grid-column: span 3; }
 .c-4 { grid-column: span 4; }
 .c-5 { grid-column: span 5; }
 .c-6 { grid-column: span 6; }
@@ -2293,18 +2423,25 @@ a.dash-bar-row--link:hover {
 }
 
 @media (max-width: 1300px) {
-  .c-4, .c-5, .c-6, .c-7, .c-8, .c-12 {
+  .c-3, .c-4, .c-5, .c-6, .c-7, .c-8, .c-12 {
     grid-column: span 12;
   }
 
-  .dash-hero {
+  .dash-command {
     grid-template-columns: 1fr;
   }
 
-  .dash-hero__stats {
+  .dash-kpi-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dash-threat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash-mini-charts--row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -2313,11 +2450,10 @@ a.dash-bar-row--link:hover {
     width: 100%;
   }
 
-  .dash-hero__stats {
-    grid-template-columns: 1fr;
-  }
-
-  .dash-mini-charts {
+  .dash-kpi-strip,
+  .dash-threat-grid,
+  .dash-mini-charts,
+  .dash-mini-charts--row {
     grid-template-columns: 1fr;
   }
 }

@@ -208,6 +208,7 @@ import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { resolveApiBaseUrl } from '@/api/client'
+import { auth } from '@/stores/auth'
 import { notifyError } from '@/utils/notify'
 
 const ACCESS_LOG_TITLE = 'Access Log'
@@ -261,13 +262,41 @@ const serverOptions = computed(() => {
   ]
 })
 
-const siteOptions = computed(() => [
-  { label: 'All Sites', value: 'all' },
-  ...sites.value.map((site) => ({
-    label: site.domain || `Site ${site.id}`,
-    value: String(site.id),
-  })),
-])
+const siteOptions = computed(() => {
+  let list = sites.value
+  if (selectedServer.value) {
+    const serverId = Number(selectedServer.value)
+    list = list.filter(
+      (site) =>
+        Array.isArray(site.serverIds) && site.serverIds.some((id) => Number(id) === serverId),
+    )
+  }
+  return [
+    { label: 'All Sites', value: 'all' },
+    ...list.map((site) => ({
+      label: site.domain || `Site ${site.id}`,
+      value: String(site.id),
+    })),
+  ]
+})
+
+const selectedSiteRecord = computed(() => {
+  if (selectedSite.value === 'all') return null
+  return sites.value.find((site) => String(site.id) === selectedSite.value) || null
+})
+
+const normalizeHost = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, '')
+
+const isIpLike = (value) => {
+  const text = String(value || '').trim()
+  if (!text) return false
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(text)) return true
+  return text.includes(':')
+}
 
 const statusClass = computed(() => {
   const statusLower = status.value.toLowerCase()
@@ -358,6 +387,14 @@ const connectStream = async () => {
     const baseUrl = await getWsBaseUrl()
     const wsUrl = new URL(`${baseUrl}/servers/${serverId}/access-log/stream`)
     wsUrl.searchParams.set('lines', linesLimit.value)
+    // Browser WebSocket cannot send Authorization headers; pass JWT as query param.
+    const accessToken = auth.state.token || null
+    if (!accessToken) {
+      status.value = 'Error'
+      notifyError(ACCESS_LOG_TITLE, 'Sign in again to stream access logs.')
+      return
+    }
+    wsUrl.searchParams.set('access_token', accessToken)
     const socket = new WebSocket(wsUrl.toString())
     const token = wsToken.value + 1
     wsToken.value = token
@@ -378,7 +415,8 @@ const connectStream = async () => {
       }
       const err = payload?.Error ?? payload?.error
       const msg = payload?.Message ?? payload?.message
-      if (err || msg) {
+      // Backend error payloads use { error, message }; log frames use { line }.
+      if ((err || msg) && payload?.line == null && payload?.Line == null) {
         status.value = 'Error'
         notifyError(ACCESS_LOG_TITLE, msg || err || 'The access log stream could not be started.')
         if (wsRef.value) {
@@ -388,8 +426,9 @@ const connectStream = async () => {
         return
       }
       if (isPaused.value) return
-      if (payload?.line) {
-        appendLogLine(payload.line)
+      const line = payload?.line ?? payload?.Line
+      if (line) {
+        appendLogLine(line)
       }
     }
 
@@ -399,9 +438,17 @@ const connectStream = async () => {
       notifyError(ACCESS_LOG_TITLE, 'The access log stream could not be connected.')
     }
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (wsToken.value !== token) return
-      if (status.value !== 'Paused') {
+      if (status.value === 'Paused') return
+      if (event.code === 1000) {
+        status.value = 'Disconnected'
+        return
+      }
+      // 1006 / abnormal close often means auth or proxy rejected the upgrade (e.g. 401).
+      if (status.value === 'Connecting' || status.value === 'Error') {
+        status.value = 'Error'
+      } else {
         status.value = 'Disconnected'
       }
     }
@@ -435,6 +482,7 @@ const parseLogLine = (line) => {
       method: '-',
       methodClass: '',
       url: line,
+      host: '',
       status: '-',
       statusClass: '',
       responseTime: '-',
@@ -452,6 +500,7 @@ const parseLogLine = (line) => {
     method: parsed.method || '-',
     methodClass: parsed.method ? `method-${parsed.method.toLowerCase()}` : '',
     url: parsed.url || '-',
+    host: parsed.host || '',
     status: statusValue,
     statusClass: parsed.status ? statusBadgeClass(parsed.status) : '',
     responseTime: responseTimeLabel,
@@ -469,23 +518,70 @@ const statusBadgeClass = (code) => {
 }
 
 const parseNginxLine = (line) => {
-  const combined = /^(\S+) \S+ \S+ \[([^\]]+)\] "((?:\\.|[^"\\])*)" (\d{3})(?: \S+)?/
-  const match = line.match(combined)
-  if (!match) return null
+  const raw = String(line ?? '')
+  // Optional leading $host before the usual combined format:
+  // example.com 1.2.3.4 - - [time] "GET /path HTTP/1.1" 200 ...
+  const withHost = raw.match(
+    /^(\S+)\s+(\S+) \S+ \S+ \[([^\]]+)\] "((?:\\.|[^"\\])*)" (\d{3})(?: \S+)?/,
+  )
+  const combined = raw.match(/^(\S+) \S+ \S+ \[([^\]]+)\] "((?:\\.|[^"\\])*)" (\d{3})(?: \S+)?/)
 
-  const [, ipAddress, timeLocal, request, statusCode] = match
+  let ipAddress = ''
+  let timeLocal = ''
+  let request = ''
+  let statusCode = ''
+  let host = ''
+
+  if (withHost && !isIpLike(withHost[1]) && isIpLike(withHost[2])) {
+    ;[, host, ipAddress, timeLocal, request, statusCode] = withHost
+  } else if (combined) {
+    ;[, ipAddress, timeLocal, request, statusCode] = combined
+  } else {
+    return null
+  }
+
   const timestamp = parseNginxTime(timeLocal)
   const { method, url } = parseNginxRequest(request)
+  if (!host) {
+    host = hostFromUrl(url)
+  }
 
   return {
     ipAddress,
     method,
     url,
+    host: normalizeHost(host),
     status: statusCode,
     responseTime: null,
     timestamp,
     timestampLabel: timestamp ? timestamp.toLocaleString() : timeLocal,
   }
+}
+
+const hostFromUrl = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw || raw === '-') return ''
+  try {
+    if (raw.includes('://')) {
+      return normalizeHost(new URL(raw).hostname)
+    }
+  } catch {
+    /* ignore */
+  }
+  return ''
+}
+
+const entryMatchesSelectedSite = (entry) => {
+  const site = selectedSiteRecord.value
+  if (!site) return true
+  const domain = normalizeHost(site.domain)
+  if (!domain) return false
+
+  const host = normalizeHost(entry.host)
+  if (host && (host === domain || host.endsWith(`.${domain}`))) return true
+
+  const haystack = `${entry.url || ''} ${entry.rawLine || ''}`.toLowerCase()
+  return haystack.includes(domain)
 }
 
 const parseNginxRequest = (request) => {
@@ -551,6 +647,7 @@ const filteredLogs = computed(() => {
       entry.ipAddress.toLowerCase().includes(query) ||
       entry.url.toLowerCase().includes(query) ||
       entry.method.toLowerCase().includes(query) ||
+      (entry.host || '').toLowerCase().includes(query) ||
       entry.rawLine?.toLowerCase().includes(query)
 
     let matchesStatus = true
@@ -574,7 +671,7 @@ const filteredLogs = computed(() => {
       matchesTime = entryTime ? entryTime >= now - rangeMs : false
     }
 
-    return matchesQuery && matchesStatus && matchesTime
+    return matchesQuery && matchesStatus && matchesTime && entryMatchesSelectedSite(entry)
   })
 })
 
@@ -683,11 +780,19 @@ const loadSites = async () => {
 }
 
 watch(selectedServer, () => {
+  if (selectedSite.value !== 'all') {
+    const stillValid = siteOptions.value.some((option) => option.value === selectedSite.value)
+    if (!stillValid) selectedSite.value = 'all'
+  }
   connectStream()
 })
 
 watch(selectedSite, () => {
-  if (!selectedServer.value) return
+  if (!selectedServer.value) {
+    const firstServer = serverOptions.value.find((option) => option.value !== '')
+    if (firstServer) selectedServer.value = firstServer.value
+    return
+  }
   const stillValid = serverOptions.value.some((option) => option.value === selectedServer.value)
   if (!stillValid) {
     selectedServer.value =
