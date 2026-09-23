@@ -118,8 +118,20 @@
       </div>
     </div>
 
+    <section class="dash-kpi-strip" aria-label="Access log summary">
+      <article
+        v-for="metric in metricCards"
+        :key="metric.label"
+        class="dash-kpi"
+        :class="`dash-kpi--${metric.tone}`"
+      >
+        <span class="dash-kpi__label">{{ metric.label }}</span>
+        <span class="dash-kpi__value num">{{ metric.value }}</span>
+      </article>
+    </section>
+
     <section class="dash-grid12 access-log-grid">
-      <div class="dash-panel c-12 log-panel">
+      <div class="dash-panel c-12 log-panel dash-chart-panel dash-chart-panel--info">
         <div class="dash-panel-head">
           <div>
             <h3>Live stream</h3>
@@ -158,18 +170,6 @@
           </table>
         </div>
       </div>
-    </section>
-
-    <section class="access-stats">
-      <article
-        v-for="metric in metricCards"
-        :key="metric.label"
-        class="access-stat-card"
-        :class="`access-stat-card--${metric.tone}`"
-      >
-        <div class="access-stat-label">{{ metric.label }}</div>
-        <div class="access-stat-value num">{{ metric.value }}</div>
-      </article>
     </section>
 
     <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
@@ -839,7 +839,7 @@ onBeforeUnmount(() => {
 .access-log-view :deep(.dash-filterbar),
 .access-log-view > .dash-topbar,
 .access-log-view > .dash-filterbar,
-.access-log-view > .access-stats {
+.access-log-view > .dash-kpi-strip {
   flex-shrink: 0;
 }
 
@@ -859,83 +859,6 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-.access-stats {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.access-stat-card {
-  border-radius: 10px;
-  padding: 10px 14px;
-  border: 1.5px solid var(--app-border);
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-height: 0;
-}
-
-.access-stat-label {
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: var(--type-label);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-}
-
-.access-stat-value {
-  font-size: var(--type-metric-value, 1.5rem);
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--app-heading);
-}
-
-.access-stat-card--total {
-  border-color: #3fbd85;
-}
-
-.access-stat-card--total .access-stat-label,
-.access-stat-card--total .access-stat-value {
-  color: #3fbd85;
-}
-
-.access-stat-card--ok {
-  border-color: #4fbd7a;
-}
-
-.access-stat-card--ok .access-stat-label,
-.access-stat-card--ok .access-stat-value {
-  color: #4fbd7a;
-}
-
-.access-stat-card--info {
-  border-color: #5b9df0;
-}
-
-.access-stat-card--info .access-stat-label,
-.access-stat-card--info .access-stat-value {
-  color: #5b9df0;
-}
-
-.access-stat-card--warn {
-  border-color: #e0a83f;
-}
-
-.access-stat-card--warn .access-stat-label,
-.access-stat-card--warn .access-stat-value {
-  color: #e0a83f;
-}
-
-.access-stat-card--danger {
-  border-color: #e15241;
-}
-
-.access-stat-card--danger .access-stat-label,
-.access-stat-card--danger .access-stat-value {
-  color: #e15241;
-}
 
 .dash-filter-field--grow {
   flex: 1 1 180px;
@@ -1282,13 +1205,13 @@ onBeforeUnmount(() => {
     max-width: 220px;
   }
 
-  .access-stats {
+  .dash-kpi-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 520px) {
-  .access-stats {
+  .dash-kpi-strip {
     grid-template-columns: 1fr;
   }
 }

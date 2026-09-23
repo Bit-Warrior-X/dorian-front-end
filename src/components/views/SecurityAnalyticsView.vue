@@ -88,21 +88,42 @@
     </nav>
 
     <div v-show="activeTab === 'overview'" class="analytics-tab-panel">
-      <section class="dash-metrics">
-        <article v-for="metric in metricCards" :key="metric.label" class="dash-metric-card">
-          <div class="dash-metric-label">{{ metric.label }}</div>
-          <div class="dash-metric-value num">{{ metric.value }}</div>
+      <section class="dash-kpi-strip">
+        <article
+          v-for="metric in metricCards"
+          :key="metric.label"
+          class="dash-kpi"
+          :class="`dash-kpi--${metric.tone}`"
+        >
+          <span class="dash-kpi__label">{{ metric.label }}</span>
+          <span class="dash-kpi__value num">{{ metric.value }}</span>
+          <span v-if="metric.hint" class="dash-kpi__hint">{{ metric.hint }}</span>
         </article>
       </section>
       <section class="dash-grid12">
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 dash-chart-panel dash-chart-panel--danger">
           <div class="dash-panel-head">
             <div>
               <h3>Block count by time</h3>
-              <p class="dash-panel-desc">Blocked requests over the selected range</p>
+              <p class="dash-panel-desc">Blocked requests over {{ selectedRangeLabel }}</p>
+            </div>
+            <div class="dash-chart-readouts">
+              <div class="dash-chart-readout">
+                <span class="dash-chart-readout__swatch dash-chart-readout__swatch--danger"></span>
+                <div>
+                  <div class="dash-chart-readout__label">Latest blocks</div>
+                  <div class="dash-chart-readout__value num danger">{{ latestBlockCountLabel }}</div>
+                </div>
+              </div>
+              <div class="dash-chart-readout">
+                <div>
+                  <div class="dash-chart-readout__label">Block rate</div>
+                  <div class="dash-chart-readout__value num warn">{{ blockRateLabel }}</div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="dash-chart-wrap dash-chart-wrap--tall">
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="blockCountChart"></div>
           </div>
         </div>
@@ -131,7 +152,10 @@
         </div>
         <div class="dash-panel c-6">
           <div class="dash-panel-head">
-            <h3>Requests Top 30</h3>
+            <div>
+              <h3>Requests Top 30</h3>
+              <p class="dash-panel-desc">Highest request volume by area</p>
+            </div>
           </div>
           <div class="table-wrap">
             <table class="ip-table">
@@ -155,7 +179,10 @@
         </div>
         <div class="dash-panel c-6">
           <div class="dash-panel-head">
-            <h3>Block counts Top 30</h3>
+            <div>
+              <h3>Block counts Top 30</h3>
+              <p class="dash-panel-desc">Highest blocked volume by area</p>
+            </div>
           </div>
           <div class="table-wrap">
             <table class="ip-table">
@@ -312,31 +339,18 @@ import {
 } from '@/api/securityAnalytics'
 import {
   formatApexTimeTick,
+  getApexChartColors,
   getApexDatetimeXaxis,
-  getApexProductionStrokeFill,
+  getApexFontFamily,
   getApexSeriesColors,
   getApexTimeRangeAnnotations,
   padSeriesToTimeRange,
 } from '@/utils/chartTheme'
 
 const chartColors = () => getApexSeriesColors()
-const productionStrokeFill = (opts) => getApexProductionStrokeFill(opts)
-
-const chartGridColor = () => {
-  if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
-  return (
-    getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() ||
-    'rgba(148, 163, 184, 0.2)'
-  )
-}
-
-const chartLabelColor = () => {
-  if (typeof document === 'undefined') return '#64748b'
-  return (
-    getComputedStyle(document.documentElement).getPropertyValue('--chart-label').trim() ||
-    '#64748b'
-  )
-}
+const themeChartColors = () => getApexChartColors()
+const chartGridColor = () => themeChartColors().grid
+const chartLabelColor = () => themeChartColors().label
 
 const chartTooltipTheme = () =>
   typeof document !== 'undefined' &&
@@ -415,12 +429,55 @@ const formatDateInput = (value) => {
   return parsed.toISOString()
 }
 
-const metricCards = computed(() => [
-  { label: 'Total request counts', value: formatNumber(securityStats.value.totalRequestCounts) },
-  { label: 'Block request counts', value: formatNumber(securityStats.value.blockRequestCounts) },
-  { label: 'Total IPs', value: formatNumber(securityStats.value.totalIps) },
-  { label: 'Blacklisted IPs', value: formatNumber(securityStats.value.blacklistedIps) },
-])
+const metricCards = computed(() => {
+  const total = Number(securityStats.value.totalRequestCounts) || 0
+  const blocked = Number(securityStats.value.blockRequestCounts) || 0
+  const rate = total > 0 ? (blocked / total) * 100 : 0
+  return [
+    {
+      label: 'Total requests',
+      value: formatNumber(total),
+      hint: selectedRangeLabel.value,
+      tone: 'total',
+    },
+    {
+      label: 'Block requests',
+      value: formatNumber(blocked),
+      hint: rate > 0 ? `${rate.toFixed(rate >= 10 ? 0 : 1)}% of traffic` : 'blocked in range',
+      tone: 'danger',
+    },
+    {
+      label: 'Total IPs',
+      value: formatNumber(securityStats.value.totalIps),
+      hint: 'unique sources',
+      tone: 'info',
+    },
+    {
+      label: 'Blacklisted IPs',
+      value: formatNumber(securityStats.value.blacklistedIps),
+      hint: 'on deny list',
+      tone: 'warn',
+    },
+  ]
+})
+
+const latestBlockPoint = computed(() => {
+  const points = mapBlockPoints(blockSeries.value)
+  if (!points.length) return null
+  return points[points.length - 1]
+})
+
+const latestBlockCountLabel = computed(() =>
+  formatNumber(latestBlockPoint.value?.y ?? securityStats.value.blockRequestCounts),
+)
+
+const blockRateLabel = computed(() => {
+  const total = Number(securityStats.value.totalRequestCounts) || 0
+  const blocked = Number(securityStats.value.blockRequestCounts) || 0
+  if (total <= 0) return '0%'
+  const rate = (blocked / total) * 100
+  return `${rate.toFixed(rate >= 10 ? 0 : 1)}%`
+})
 
 const countryRequestMap = computed(() =>
   countryRequests.value.reduce((acc, item) => {
@@ -563,6 +620,7 @@ const renderBlockCountChart = () => {
   const { start, end } = resolveRangeWindow(appliedFilters.value)
   const startMs = start.getTime()
   const endMs = end.getTime()
+  const colors = chartColors()
   const series = padSeriesToTimeRange(
     [{ name: 'Blocked', data: mapBlockPoints(blockSeries.value) }],
     startMs,
@@ -571,25 +629,76 @@ const renderBlockCountChart = () => {
   const options = {
     chart: {
       type: 'area',
-      height: 360,
+      height: 400,
       toolbar: { show: false },
-      animations: { enabled: true },
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 550,
+        animateGradually: { enabled: true, delay: 80 },
+      },
       background: 'transparent',
       foreColor: chartLabelColor(),
+      fontFamily: getApexFontFamily(),
       zoom: { enabled: false },
+      selection: { enabled: false },
+      pan: { enabled: false },
+      dropShadow: {
+        enabled: true,
+        top: 6,
+        left: 0,
+        blur: 8,
+        opacity: 0.12,
+        color: colors.danger,
+      },
     },
     dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'area' }),
-    colors: [chartColors().danger],
-    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
+    stroke: {
+      curve: 'smooth',
+      width: 2.5,
+      lineCap: 'round',
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 0.35,
+        opacityFrom: 0.42,
+        opacityTo: 0.04,
+        stops: [0, 70, 100],
+      },
+    },
+    colors: [colors.danger],
+    xaxis: {
+      ...getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      crosshairs: {
+        show: true,
+        stroke: {
+          color: themeChartColors().crosshair,
+          width: 1,
+          dashArray: 4,
+        },
+      },
+      tooltip: { enabled: false },
+    },
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
       labels: {
-        style: { colors: chartLabelColor() },
+        style: { colors: chartLabelColor(), fontSize: '11px' },
         formatter: (val) => `${Math.round(val)}`,
       },
+      min: 0,
+      forceNiceScale: true,
     },
-    grid: { borderColor: chartGridColor(), padding: { left: 4, right: 12 } },
+    grid: {
+      borderColor: chartGridColor(),
+      strokeDashArray: 3,
+      padding: { left: 8, right: 16, top: 0, bottom: 0 },
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+    },
+    legend: { show: false },
     tooltip: {
       theme: chartTooltipTheme(),
       x: { formatter: (val) => formatApexTimeTick(val, startMs, endMs) },
@@ -801,10 +910,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.dash-chart-wrap--tall {
-  min-height: 360px;
 }
 
 .world-map {

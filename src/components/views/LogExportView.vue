@@ -1,173 +1,248 @@
 <template>
-  <div class="log-export-view">
-    <div class="view-card">
-      <h2>Log Export</h2>
-      
-      <div class="export-form">
-        <div class="form-section">
-          <h3>Export Configuration</h3>
-          <div class="form-group">
-            <label>Date Range</label>
-            <div class="date-inputs">
-              <input type="date" v-model="startDate" />
-              <span>to</span>
-              <input type="date" v-model="endDate" />
+  <div class="dashboard-view log-export-view">
+    <header class="dash-topbar">
+      <div class="dash-topbar__left">
+        <h2>Log export</h2>
+        <p>Download edge access, error, and security logs for offline analysis.</p>
+      </div>
+      <div class="dash-topbar__right">
+        <AppTopbarActions />
+      </div>
+    </header>
+
+    <section class="dash-grid12">
+      <div class="dash-panel c-8 dash-chart-panel dash-chart-panel--info">
+        <div class="dash-panel-head">
+          <div>
+            <h3>Export configuration</h3>
+            <p class="dash-panel-desc">Choose a date range, log type, and download format</p>
+          </div>
+        </div>
+
+        <form class="export-form" @submit.prevent="handleExport">
+          <div class="export-field">
+            <label for="export-start">Date range</label>
+            <div class="export-date-row">
+              <input id="export-start" v-model="startDate" type="date" class="dash-input" />
+              <span class="export-date-sep">to</span>
+              <input id="export-end" v-model="endDate" type="date" class="dash-input" />
             </div>
           </div>
-          
-          <div class="form-group">
-            <label>Log Type</label>
-            <select v-model="logType" class="form-select">
-              <option value="access">Access Logs</option>
-              <option value="error">Error Logs</option>
-              <option value="security">Security Logs</option>
-              <option value="all">All Logs</option>
+
+          <div class="export-field">
+            <label for="export-type">Log type</label>
+            <select id="export-type" v-model="logType" class="dash-select">
+              <option value="access">Access logs</option>
+              <option value="error">Error logs</option>
+              <option value="security">Security logs</option>
+              <option value="all">All logs</option>
             </select>
           </div>
-          
-          <div class="form-group">
-            <label>Export Format</label>
-            <div class="radio-group">
-              <label class="radio-label">
-                <input type="radio" v-model="format" value="csv" />
-                <span>CSV</span>
-              </label>
-              <label class="radio-label">
-                <input type="radio" v-model="format" value="json" />
-                <span>JSON</span>
-              </label>
-              <label class="radio-label">
-                <input type="radio" v-model="format" value="txt" />
-                <span>TXT</span>
+
+          <div class="export-field">
+            <span class="export-field__label">Export format</span>
+            <div class="export-format-row" role="radiogroup" aria-label="Export format">
+              <label
+                v-for="option in formatOptions"
+                :key="option.value"
+                class="export-format"
+                :class="{ active: format === option.value }"
+              >
+                <input v-model="format" type="radio" :value="option.value" />
+                <span>{{ option.label }}</span>
               </label>
             </div>
           </div>
-          
-          <button class="export-button" @click="handleExport">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            Export Logs
-          </button>
+
+          <div class="export-actions">
+            <button type="submit" class="dash-filter-apply" :disabled="!canExport">
+              Export logs
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="dash-panel c-4">
+        <div class="dash-panel-head">
+          <div>
+            <h3>Summary</h3>
+            <p class="dash-panel-desc">Current selection</p>
+          </div>
+        </div>
+        <div class="dash-kpi-strip export-summary">
+          <article class="dash-kpi dash-kpi--info">
+            <span class="dash-kpi__label">Log type</span>
+            <span class="dash-kpi__value">{{ logTypeLabel }}</span>
+          </article>
+          <article class="dash-kpi dash-kpi--total">
+            <span class="dash-kpi__label">Format</span>
+            <span class="dash-kpi__value">{{ format.toUpperCase() }}</span>
+          </article>
+          <article class="dash-kpi dash-kpi--ok">
+            <span class="dash-kpi__label">Range</span>
+            <span class="dash-kpi__value export-summary__range">{{ rangeLabel }}</span>
+            <span class="dash-kpi__hint">{{ rangeHint }}</span>
+          </article>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import { notifyError, notifySuccess } from '@/utils/notify'
+
+const EXPORT_TITLE = 'Log Export'
 
 const startDate = ref('')
 const endDate = ref('')
 const logType = ref('access')
 const format = ref('csv')
 
+const formatOptions = [
+  { label: 'CSV', value: 'csv' },
+  { label: 'JSON', value: 'json' },
+  { label: 'TXT', value: 'txt' },
+]
+
+const logTypeLabel = computed(() => {
+  const map = {
+    access: 'Access',
+    error: 'Error',
+    security: 'Security',
+    all: 'All',
+  }
+  return map[logType.value] || logType.value
+})
+
+const canExport = computed(() => Boolean(startDate.value && endDate.value))
+
+const rangeLabel = computed(() => {
+  if (!startDate.value && !endDate.value) return '—'
+  if (!startDate.value || !endDate.value) return 'Incomplete'
+  return `${startDate.value} → ${endDate.value}`
+})
+
+const rangeHint = computed(() =>
+  canExport.value ? 'Ready to export' : 'Select start and end dates',
+)
+
 const handleExport = () => {
-  alert(`Exporting ${logType.value} logs from ${startDate.value} to ${endDate.value} as ${format.value.toUpperCase()}`)
+  if (!canExport.value) {
+    notifyError(EXPORT_TITLE, 'Select both a start and end date.')
+    return
+  }
+  notifySuccess(
+    EXPORT_TITLE,
+    `Export queued for ${logTypeLabel.value.toLowerCase()} logs (${format.value.toUpperCase()}).`,
+  )
 }
 </script>
 
 <style scoped>
 .log-export-view {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.view-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: var(--space-card, 14px 16px);
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.view-card h2 {
-  font-size: var(--type-page-title);
-  font-weight: 700;
-  color: var(--app-heading);
-  margin: 0 0 28px 0;
-  letter-spacing: -0.5px;
+  max-width: 1680px;
+  margin: 0 auto;
 }
 
 .export-form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
 }
 
-.form-section h3 {
-  font-size: var(--type-section-title);
-  font-weight: 600;
-  color: var(--app-heading);
-  margin: 0 0 20px 0;
-}
-
-.form-group {
+.export-field {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 8px;
 }
 
-.form-group label {
-  font-size: var(--type-base);
-  font-weight: 500;
-  color: var(--app-text-secondary);
+.export-field > label,
+.export-field__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
 }
 
-.date-inputs {
+.export-date-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.date-inputs input {
-  flex: 1;
-  padding: 12px 16px;
-  border: 1px solid var(--app-input-border);
-  border-radius: 8px;
-  font-size: var(--type-base);
+.export-date-row .dash-input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.export-date-sep {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.dash-input {
   background: var(--app-input-bg);
+  border: 0.5px solid var(--app-border-strong);
   color: var(--app-text);
+  font-size: var(--type-caption);
+  padding: 8px 10px;
+  border-radius: 6px;
 }
 
-.form-select {
-  padding: 12px 16px;
-  border: 1px solid var(--app-input-border);
-  border-radius: 8px;
-  font-size: var(--type-base);
-  background: var(--app-input-bg);
-  color: var(--app-text);
-  cursor: pointer;
-}
-
-.radio-group {
+.export-format-row {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.radio-label {
-  display: flex;
+.export-format {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted, var(--app-surface));
+  color: var(--app-text-muted);
   cursor: pointer;
-  font-size: var(--type-base);
-  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 550;
 }
 
-.radio-label input[type="radio"] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
+.export-format input {
+  accent-color: var(--dorian-viper-500, var(--app-accent));
 }
 
-.export-button {
-  align-self: flex-start;
+.export-format.active {
+  color: var(--dorian-viper-400, var(--app-accent));
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 40%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 10%, var(--app-surface));
+}
+
+.export-actions {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 4px;
+}
+
+.export-summary {
+  grid-template-columns: 1fr;
+}
+
+.export-summary__range {
+  font-size: 14px !important;
+  word-break: break-word;
+}
+
+@media (max-width: 1100px) {
+  .c-4,
+  .c-8 {
+    grid-column: span 12;
+  }
 }
 </style>
-

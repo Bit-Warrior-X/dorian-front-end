@@ -88,41 +88,60 @@
     </nav>
 
     <div v-show="activeTab === 'bandwidth'" class="analytics-tab-panel">
-      <section class="dash-metrics">
-        <article v-for="metric in bandwidthMetricCards" :key="metric.label" class="dash-metric-card">
-          <div class="dash-metric-label">{{ metric.label }}</div>
-          <div class="dash-metric-value num">{{ metric.value }}</div>
-          <div v-if="metric.sub" class="dash-metric-delta">{{ metric.sub }}</div>
+      <section class="dash-kpi-strip" aria-label="Bandwidth summary">
+        <article
+          v-for="metric in bandwidthMetricCards"
+          :key="metric.label"
+          class="dash-kpi"
+          :class="`dash-kpi--${metric.tone}`"
+        >
+          <span class="dash-kpi__label">{{ metric.label }}</span>
+          <span class="dash-kpi__value num">{{ metric.value }}</span>
+          <span v-if="metric.hint" class="dash-kpi__hint">{{ metric.hint }}</span>
         </article>
       </section>
       <section class="dash-grid12">
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 dash-chart-panel">
           <div class="dash-panel-head">
             <div>
               <h3>Bandwidth by Time</h3>
-              <p class="dash-panel-desc">RX bandwidth trend based on selected range for NIC / L7</p>
+              <p class="dash-panel-desc">RX / TX bandwidth trend for NIC / L7</p>
+            </div>
+            <div class="dash-series-legend" aria-hidden="true">
+              <span v-for="item in nicL7Legend" :key="item.name" class="dash-series-legend__item">
+                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
+                {{ item.name }}
+              </span>
             </div>
           </div>
-          <div class="dash-chart-wrap">
+          <p class="dash-panel-desc">RX bandwidth</p>
+          <div class="dash-chart-wrap dash-chart-wrap--tall">
             <div ref="rxBandwidthChart"></div>
           </div>
-          <p class="dash-panel-desc">TX bandwidth trend based on selected range for NIC / L7</p>
-          <div class="dash-chart-wrap">
+          <p class="dash-panel-desc">TX bandwidth</p>
+          <div class="dash-chart-wrap dash-chart-wrap--tall">
             <div ref="txBandwidthChart"></div>
           </div>
         </div>
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 dash-chart-panel dash-chart-panel--info">
           <div class="dash-panel-head">
             <div>
               <h3>Traffic by Time</h3>
-              <p class="dash-panel-desc">NIC / L7 RX traffic trend based on selected range</p>
+              <p class="dash-panel-desc">NIC / L7 RX / TX traffic over selected range</p>
+            </div>
+            <div class="dash-series-legend" aria-hidden="true">
+              <span v-for="item in trafficLegend" :key="item.name" class="dash-series-legend__item">
+                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
+                {{ item.name }}
+              </span>
             </div>
           </div>
-          <div class="dash-chart-wrap">
+          <p class="dash-panel-desc">RX traffic</p>
+          <div class="dash-chart-wrap dash-chart-wrap--tall">
             <div ref="rxTrafficChart"></div>
           </div>
-          <p class="dash-panel-desc">NIC / L7 TX traffic trend based on selected range</p>
-          <div class="dash-chart-wrap">
+          <p class="dash-panel-desc">TX traffic</p>
+          <div class="dash-chart-wrap dash-chart-wrap--tall">
             <div ref="txTrafficChart"></div>
           </div>
         </div>
@@ -130,32 +149,50 @@
     </div>
 
     <div v-show="activeTab === 'requests'" class="analytics-tab-panel">
-      <section class="dash-metrics">
-        <article v-for="metric in requestsMetricCards" :key="metric.label" class="dash-metric-card">
-          <div class="dash-metric-label">{{ metric.label }}</div>
-          <div class="dash-metric-value num">{{ metric.value }}</div>
+      <section class="dash-kpi-strip" aria-label="Request summary">
+        <article
+          v-for="metric in requestsMetricCards"
+          :key="metric.label"
+          class="dash-kpi"
+          :class="`dash-kpi--${metric.tone}`"
+        >
+          <span class="dash-kpi__label">{{ metric.label }}</span>
+          <span class="dash-kpi__value num">{{ metric.value }}</span>
+          <span v-if="metric.hint" class="dash-kpi__hint">{{ metric.hint }}</span>
         </article>
       </section>
       <section class="dash-grid12">
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 dash-chart-panel">
           <div class="dash-panel-head">
             <div>
               <h3>Request / Response by Time</h3>
               <p class="dash-panel-desc">Request and response trend based on selected range</p>
             </div>
+            <div class="dash-series-legend" aria-hidden="true">
+              <span v-for="item in requestResponseLegend" :key="item.name" class="dash-series-legend__item">
+                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
+                {{ item.name }}
+              </span>
+            </div>
           </div>
-          <div class="dash-chart-wrap">
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="requestResponseChart"></div>
           </div>
         </div>
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 dash-chart-panel dash-chart-panel--info">
           <div class="dash-panel-head">
             <div>
               <h3>Status Code by Time</h3>
               <p class="dash-panel-desc">Status code trend based on selected range</p>
             </div>
+            <div class="dash-series-legend" aria-hidden="true">
+              <span v-for="item in statusCodeLegend" :key="item.name" class="dash-series-legend__item">
+                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
+                {{ item.name }}
+              </span>
+            </div>
           </div>
-          <div class="dash-chart-wrap">
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="statusCodeChart"></div>
           </div>
         </div>
@@ -200,21 +237,27 @@
     </div>
 
     <div v-show="activeTab === 'audience'" class="analytics-tab-panel">
-      <section class="dash-metrics">
-        <article v-for="metric in audienceMetricCards" :key="metric.label" class="dash-metric-card">
-          <div class="dash-metric-label">{{ metric.label }}</div>
-          <div class="dash-metric-value num">{{ metric.value }}</div>
+      <section class="dash-kpi-strip" aria-label="Audience summary">
+        <article
+          v-for="metric in audienceMetricCards"
+          :key="metric.label"
+          class="dash-kpi"
+          :class="`dash-kpi--${metric.tone}`"
+        >
+          <span class="dash-kpi__label">{{ metric.label }}</span>
+          <span class="dash-kpi__value num">{{ metric.value }}</span>
+          <span v-if="metric.hint" class="dash-kpi__hint">{{ metric.hint }}</span>
         </article>
       </section>
       <section class="dash-grid12">
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 dash-chart-panel">
           <div class="dash-panel-head">
             <div>
               <h3>IP Count by Time</h3>
               <p class="dash-panel-desc">Unique IP count trend based on selected range</p>
             </div>
           </div>
-          <div class="dash-chart-wrap">
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="ipCountChart"></div>
           </div>
         </div>
@@ -351,6 +394,18 @@
     </div>
 
     <div v-show="activeTab === 'http'" class="analytics-tab-panel">
+      <section class="dash-kpi-strip" aria-label="HTTP summary">
+        <article
+          v-for="metric in httpMetricCards"
+          :key="metric.label"
+          class="dash-kpi"
+          :class="`dash-kpi--${metric.tone}`"
+        >
+          <span class="dash-kpi__label">{{ metric.label }}</span>
+          <span class="dash-kpi__value num">{{ metric.value }}</span>
+          <span v-if="metric.hint" class="dash-kpi__hint">{{ metric.hint }}</span>
+        </article>
+      </section>
       <section class="dash-grid12">
         <div class="dash-panel c-12">
           <div class="dash-panel-head">
@@ -389,14 +444,20 @@
             </div>
           </div>
         </div>
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 dash-chart-panel">
           <div class="dash-panel-head">
             <div>
               <h3>HTTP Method by Time</h3>
               <p class="dash-panel-desc">Method trend based on selected range</p>
             </div>
+            <div class="dash-series-legend" aria-hidden="true">
+              <span v-for="item in methodLegend" :key="item.name" class="dash-series-legend__item">
+                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
+                {{ item.name }}
+              </span>
+            </div>
           </div>
-          <div class="dash-chart-wrap">
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="methodChart"></div>
           </div>
         </div>
@@ -437,14 +498,20 @@
             </div>
           </div>
         </div>
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 dash-chart-panel dash-chart-panel--info">
           <div class="dash-panel-head">
             <div>
               <h3>HTTP Protocol by Time</h3>
               <p class="dash-panel-desc">Protocol trend based on selected range</p>
             </div>
+            <div class="dash-series-legend" aria-hidden="true">
+              <span v-for="item in protocolLegend" :key="item.name" class="dash-series-legend__item">
+                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
+                {{ item.name }}
+              </span>
+            </div>
           </div>
-          <div class="dash-chart-wrap">
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="protocolChart"></div>
           </div>
         </div>
@@ -503,7 +570,9 @@ import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup
 import { notifyError } from '@/utils/notify'
 import {
   formatApexTimeTick,
+  getApexChartColors,
   getApexDatetimeXaxis,
+  getApexFontFamily,
   getApexLinePalette,
   getApexPiePalette,
   getApexProductionStrokeFill,
@@ -530,32 +599,91 @@ const timeSeriesAxis = (start, end) => {
 }
 
 const chartColors = () => getApexSeriesColors()
+const themeChartColors = () => getApexChartColors()
 const PIE_PALETTE = () => getApexPiePalette()
 const LINE_SERIES_PALETTE = () => getApexLinePalette()
 const STATUS_SERIES_COLORS = () => getApexStatusPalette()
 const productionStrokeFill = (opts) => getApexProductionStrokeFill(opts)
 
-const chartGridColor = () => {
-  if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
-  return (
-    getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() ||
-    'rgba(148, 163, 184, 0.2)'
-  )
-}
-
-const chartLabelColor = () => {
-  if (typeof document === 'undefined') return '#64748b'
-  return (
-    getComputedStyle(document.documentElement).getPropertyValue('--chart-label').trim() ||
-    '#64748b'
-  )
-}
+const chartGridColor = () => themeChartColors().grid
+const chartLabelColor = () => themeChartColors().label
 
 const chartTooltipTheme = () =>
   typeof document !== 'undefined' &&
   document.documentElement.getAttribute('data-theme') === 'dark'
     ? 'dark'
     : 'light'
+
+/** Shared Apex chrome for modern CDN time-series charts. */
+const timeSeriesChartBase = ({
+  type = 'area',
+  height = 320,
+  rangeAxis,
+  yLabelFormatter,
+  tooltipFormatter,
+}) => {
+  const isArea = type === 'area'
+  return {
+    chart: {
+      foreColor: chartLabelColor(),
+      fontFamily: getApexFontFamily(),
+      background: 'transparent',
+      type,
+      height,
+      toolbar: { show: false },
+      animations: { enabled: true, easing: 'easeinout', speed: 500 },
+      zoom: { enabled: false },
+      selection: { enabled: false },
+    },
+    dataLabels: { enabled: false },
+    ...productionStrokeFill(
+      isArea
+        ? { variant: 'area', opacityFrom: 0.35, opacityTo: 0.04, width: 2 }
+        : { variant: 'line', width: 2 },
+    ),
+    markers: {
+      size: 0,
+      hover: { size: isArea ? 5 : 4 },
+    },
+    xaxis: {
+      ...rangeAxis.xaxis,
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      crosshairs: {
+        show: true,
+        stroke: {
+          color: themeChartColors().crosshair,
+          width: 1,
+          dashArray: 4,
+        },
+      },
+      tooltip: { enabled: false },
+    },
+    annotations: rangeAxis.annotations,
+    yaxis: {
+      labels: {
+        formatter: yLabelFormatter,
+      },
+    },
+    grid: {
+      borderColor: chartGridColor(),
+      strokeDashArray: 3,
+      padding: { left: 8, right: 16, top: 0, bottom: 0 },
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+    },
+    legend: { show: false },
+    tooltip: {
+      theme: chartTooltipTheme(),
+      shared: true,
+      intersect: false,
+      x: rangeAxis.tooltipX,
+      y: {
+        formatter: tooltipFormatter || yLabelFormatter,
+      },
+    },
+  }
+}
 
 const isDarkTheme = () =>
   typeof document !== 'undefined' &&
@@ -1115,30 +1243,75 @@ const statsDisplay = computed(() => ({
 const bandwidthMetricCards = computed(() => {
   const s = statsDisplay.value
   return [
-    { label: 'RX Bandwidth of NIC (Last)', value: s.nicRxBandwidthLast, sub: s.nicRxBandwidthLastTime },
-    { label: 'RX Bandwidth of L7 (Last)', value: s.l7RxBandwidthLast, sub: s.l7RxBandwidthLastTime },
-    { label: 'TX Bandwidth of NIC (Last)', value: s.nicTxBandwidthLast, sub: s.nicTxBandwidthLastTime },
-    { label: 'TX Bandwidth of L7 (Last)', value: s.l7TxBandwidthLast, sub: s.l7TxBandwidthLastTime },
-    { label: 'RX Traffic of NIC / L7', value: `${s.totalNicRxTraffic} / ${s.totalL7RxTraffic}` },
-    { label: 'TX Traffic of NIC / L7', value: `${s.totalNicTxTraffic} / ${s.totalL7TxTraffic}` },
+    { label: 'RX Bandwidth of NIC (Last)', value: s.nicRxBandwidthLast, hint: s.nicRxBandwidthLastTime, tone: 'info' },
+    { label: 'RX Bandwidth of L7 (Last)', value: s.l7RxBandwidthLast, hint: s.l7RxBandwidthLastTime, tone: 'ok' },
+    { label: 'TX Bandwidth of NIC (Last)', value: s.nicTxBandwidthLast, hint: s.nicTxBandwidthLastTime, tone: 'info' },
+    { label: 'TX Bandwidth of L7 (Last)', value: s.l7TxBandwidthLast, hint: s.l7TxBandwidthLastTime, tone: 'ok' },
+    { label: 'RX Traffic of NIC / L7', value: `${s.totalNicRxTraffic} / ${s.totalL7RxTraffic}`, hint: 'total volume', tone: 'info' },
+    { label: 'TX Traffic of NIC / L7', value: `${s.totalNicTxTraffic} / ${s.totalL7TxTraffic}`, hint: 'total volume', tone: 'warn' },
   ]
 })
 
 const requestsMetricCards = computed(() => {
   const s = statsDisplay.value
   return [
-    { label: 'Total Request', value: s.totalRequest },
-    { label: 'Total Response', value: s.totalResponse },
+    { label: 'Total Request', value: s.totalRequest, hint: 'over selected range', tone: 'ok' },
+    { label: 'Total Response', value: s.totalResponse, hint: 'over selected range', tone: 'info' },
   ]
 })
 
 const audienceMetricCards = computed(() => {
   const s = statsDisplay.value
   return [
-    { label: 'IP Count', value: s.ipCount },
-    { label: 'Referer', value: s.referer },
-    { label: 'ISP Count', value: s.ispCount },
+    { label: 'IP Count', value: s.ipCount, hint: 'unique clients', tone: 'ok' },
+    { label: 'Referer', value: s.referer, hint: 'distinct referers', tone: 'info' },
+    { label: 'ISP Count', value: s.ispCount, hint: 'distinct ISPs', tone: 'warn' },
   ]
+})
+
+const httpMetricCards = computed(() => {
+  const methodTotal = methodTableRows.value.reduce((sum, row) => sum + Number(row.value ?? 0), 0)
+  const protocolTotal = protocolTableRows.value.reduce((sum, row) => sum + Number(row.value ?? 0), 0)
+  const topMethod = methodTableRows.value[0]
+  const topProtocol = protocolTableRows.value[0]
+  return [
+    { label: 'Method requests', value: formatNumber(methodTotal), hint: 'all methods', tone: 'info' },
+    { label: 'Top method', value: topMethod?.method || '—', hint: topMethod?.rate || '', tone: 'ok' },
+    { label: 'Protocol requests', value: formatNumber(protocolTotal), hint: 'all protocols', tone: 'info' },
+    { label: 'Top protocol', value: topProtocol?.protocol || '—', hint: topProtocol?.rate || '', tone: 'warn' },
+  ]
+})
+
+const nicL7Legend = computed(() => {
+  const c = chartColors()
+  return [
+    { name: 'NIC', color: c.l4 },
+    { name: 'L7', color: c.l7 },
+  ]
+})
+
+const trafficLegend = computed(() => {
+  const c = chartColors()
+  return [
+    { name: 'NIC', color: c.viper },
+    { name: 'L7', color: c.gold },
+  ]
+})
+
+const requestResponseLegend = computed(() => {
+  const c = chartColors()
+  return [
+    { name: 'Requests', color: c.viper },
+    { name: 'Responses', color: c.l4 },
+  ]
+})
+
+const statusCodeLegend = computed(() => {
+  const colors = STATUS_SERIES_COLORS()
+  return ['2xx', '3xx', '4xx', '5xx'].map((name, index) => ({
+    name,
+    color: colors[index % colors.length],
+  }))
 })
 
 const selectedRangeLabel = computed(() => {
@@ -1241,6 +1414,22 @@ const protocolKeys = [
   { label: 'HTTP/2', field: 'http2' },
   { label: 'HTTP/3', field: 'http3' },
 ]
+
+const methodLegend = computed(() => {
+  const colors = LINE_SERIES_PALETTE()
+  return methodKeys.map((method, index) => ({
+    name: method.label,
+    color: colors[index % colors.length],
+  }))
+})
+
+const protocolLegend = computed(() => {
+  const colors = LINE_SERIES_PALETTE()
+  return protocolKeys.map((protocol, index) => ({
+    name: protocol.label,
+    color: colors[index % colors.length],
+  }))
+})
 
 const loadServers = async () => {
   try {
@@ -1511,42 +1700,13 @@ const renderRxBandwidthChart = () => {
     ...(l7RxBandwidthSeries.value.length ? [{ name: 'L7 RX Bandwidth', data: l7RxBandwidthSeries.value[0].data }] : []),
   ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'area',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'area' }),
+      height: 320,
+      rangeAxis,
+      yLabelFormatter: (val) => formatKiloBps(val),
+    }),
     colors: [chartColors().l4, chartColors().l7],
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => formatKiloBps(val),
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    legend: {
-      show: true,
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '11px',
-      itemMargin: { horizontal: 8, vertical: 4 },
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => formatKiloBps(val),
-      },
-    },
     series,
   }
 
@@ -1568,42 +1728,13 @@ const renderTxBandwidthChart = () => {
     ...(l7TxBandwidthSeries.value.length ? [{ name: 'L7 TX Bandwidth', data: l7TxBandwidthSeries.value[0].data }] : []),
   ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'area',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'area' }),
+      height: 320,
+      rangeAxis,
+      yLabelFormatter: (val) => formatKiloBps(val),
+    }),
     colors: [chartColors().l4, chartColors().l7],
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => formatKiloBps(val),
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => formatKiloBps(val),
-      },
-    },
-    legend: {
-      show: true,
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '11px',
-      itemMargin: { horizontal: 8, vertical: 4 },
-    },
     series,
   }
 
@@ -1624,42 +1755,13 @@ const renderRxTrafficChart = () => {
     ...(l7RxTrafficSeries.value.length ? [{ name: 'L7 RX Traffic', data: l7RxTrafficSeries.value[0].data }] : []),
   ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'area',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'area' }),
+      height: 320,
+      rangeAxis,
+      yLabelFormatter: (val) => formatKiloBytes(val),
+    }),
     colors: [chartColors().viper, chartColors().gold],
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => formatKiloBytes(val),
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => formatKiloBytes(val),
-      },
-    },
-    legend: {
-      show: true,
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '11px',
-      itemMargin: { horizontal: 8, vertical: 4 },
-    },
     series,
   }
 
@@ -1681,42 +1783,13 @@ const renderTxTrafficChart = () => {
     ...(l7TxTrafficSeries.value.length ? [{ name: 'L7 TX Traffic', data: l7TxTrafficSeries.value[0].data }] : []),
   ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'area',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'area' }),
+      height: 320,
+      rangeAxis,
+      yLabelFormatter: (val) => formatKiloBytes(val),
+    }),
     colors: [chartColors().viper, chartColors().gold],
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => formatKiloBytes(val),
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => formatKiloBytes(val),
-      },
-    },
-    legend: {
-      show: true,
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '11px',
-      itemMargin: { horizontal: 8, vertical: 4 },
-    },
     series,
   }
 
@@ -1734,35 +1807,13 @@ const renderRequestResponseChart = () => {
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(requestResponseSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'line',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'line' }),
+      height: 380,
+      rangeAxis,
+      yLabelFormatter: (val) => `${Math.round(val)}`,
+    }),
     colors: [chartColors().viper, chartColors().l4],
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
     series,
   }
 
@@ -1780,41 +1831,13 @@ const renderStatusCodeChart = () => {
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(statusCodeSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'line',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'line' }),
+      height: 380,
+      rangeAxis,
+      yLabelFormatter: (val) => `${Math.round(val)}`,
+    }),
     colors: STATUS_SERIES_COLORS(),
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '10px',
-      itemMargin: { horizontal: 6, vertical: 2 },
-    },
     series,
   }
 
@@ -1832,35 +1855,14 @@ const renderIpCountChart = () => {
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(ipCountSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'area',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'area' }),
+      height: 380,
+      rangeAxis,
+      yLabelFormatter: (val) => `${Math.round(val)}`,
+      tooltipFormatter: (val) => `${Math.round(val)} IPs`,
+    }),
     colors: [chartColors().viper],
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => `${Math.round(val)} IPs`,
-      },
-    },
     series,
   }
 
@@ -1878,41 +1880,13 @@ const renderMethodChart = () => {
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(methodSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'line',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'line' }),
+      height: 400,
+      rangeAxis,
+      yLabelFormatter: (val) => `${Math.round(val)}`,
+    }),
     colors: LINE_SERIES_PALETTE(),
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '10px',
-      itemMargin: { horizontal: 6, vertical: 2 },
-    },
     series,
   }
 
@@ -1943,41 +1917,13 @@ const renderProtocolChart = () => {
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(protocolSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
-    chart: {
-      foreColor: chartLabelColor(),
+    ...timeSeriesChartBase({
       type: 'line',
-      height: 280,
-      toolbar: { show: false },
-      animations: { enabled: true },
-      zoom: { enabled: false },
-      selection: { enabled: false },
-    },
-    dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'line' }),
+      height: 400,
+      rangeAxis,
+      yLabelFormatter: (val) => `${Math.round(val)}`,
+    }),
     colors: LINE_SERIES_PALETTE(),
-    xaxis: rangeAxis.xaxis,
-    annotations: rangeAxis.annotations,
-    yaxis: {
-      labels: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-    grid: {
-      borderColor: chartGridColor(),
-    },
-    tooltip: {
-      theme: chartTooltipTheme(),
-      x: rangeAxis.tooltipX,
-      y: {
-        formatter: (val) => `${Math.round(val)}`,
-      },
-    },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '10px',
-      itemMargin: { horizontal: 6, vertical: 2 },
-    },
     series,
   }
 
