@@ -88,21 +88,50 @@
     </nav>
 
     <div v-show="activeTab === 'overview'" class="analytics-tab-panel">
-      <section class="dash-metrics">
-        <article v-for="metric in metricCards" :key="metric.label" class="dash-metric-card">
-          <div class="dash-metric-label">{{ metric.label }}</div>
-          <div class="dash-metric-value num">{{ metric.value }}</div>
+      <section class="l4-kpi-strip" aria-label="L4 traffic summary">
+        <article
+          v-for="metric in metricCards"
+          :key="metric.label"
+          class="l4-kpi"
+          :class="`l4-kpi--${metric.tone}`"
+        >
+          <span class="l4-kpi__label">{{ metric.label }}</span>
+          <span class="l4-kpi__value num">{{ metric.value }}</span>
+          <span v-if="metric.hint" class="l4-kpi__hint">{{ metric.hint }}</span>
         </article>
       </section>
+
       <section class="dash-grid12">
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 l4-chart-panel">
           <div class="dash-panel-head">
             <div>
               <h3>Allowed vs blocked traffic</h3>
-              <p class="dash-panel-desc">Traffic volume over the selected range</p>
+              <p class="dash-panel-desc">Edge L4 volume over {{ selectedRangeLabel }}</p>
+            </div>
+            <div class="l4-chart-readouts">
+              <div class="l4-chart-readout">
+                <span class="l4-chart-readout__swatch l4-chart-readout__swatch--allowed"></span>
+                <div>
+                  <div class="l4-chart-readout__label">Allowed</div>
+                  <div class="l4-chart-readout__value num signal">{{ latestAllowedLabel }}</div>
+                </div>
+              </div>
+              <div class="l4-chart-readout">
+                <span class="l4-chart-readout__swatch l4-chart-readout__swatch--blocked"></span>
+                <div>
+                  <div class="l4-chart-readout__label">Blocked</div>
+                  <div class="l4-chart-readout__value num danger">{{ latestBlockedLabel }}</div>
+                </div>
+              </div>
+              <div class="l4-chart-readout">
+                <div>
+                  <div class="l4-chart-readout__label">Block rate</div>
+                  <div class="l4-chart-readout__value num warn">{{ blockRateLabel }}</div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="dash-chart-wrap dash-chart-wrap--tall">
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="trafficChart"></div>
           </div>
         </div>
@@ -111,14 +140,20 @@
 
     <div v-show="activeTab === 'protocols'" class="analytics-tab-panel">
       <section class="dash-grid12">
-        <div class="dash-panel c-12">
+        <div class="dash-panel c-12 l4-chart-panel l4-chart-panel--protocols">
           <div class="dash-panel-head">
             <div>
               <h3>IP protocols by time</h3>
               <p class="dash-panel-desc">TCP, UDP, ICMP, GRE, and other protocol volume</p>
             </div>
+            <div class="l4-proto-legend" aria-hidden="true">
+              <span v-for="item in protocolLegend" :key="item.name" class="l4-proto-legend__item">
+                <span class="l4-proto-legend__swatch" :style="{ background: item.color }"></span>
+                {{ item.name }}
+              </span>
+            </div>
           </div>
-          <div class="dash-chart-wrap dash-chart-wrap--tall">
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="protocolChart"></div>
           </div>
         </div>
@@ -293,9 +328,10 @@ import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics
 import { notifyError, notifySuccess } from '@/utils/notify'
 import {
   formatApexTimeTick,
+  getApexChartColors,
   getApexDatetimeXaxis,
+  getApexFontFamily,
   getApexLinePalette,
-  getApexProductionStrokeFill,
   getApexSeriesColors,
   getApexTimeRangeAnnotations,
   padSeriesToTimeRange,
@@ -304,24 +340,10 @@ import {
 const L4_DDOS_TITLE = 'L4 DDoS Defense'
 
 const chartColors = () => getApexSeriesColors()
-const productionStrokeFill = (opts) => getApexProductionStrokeFill(opts)
+const themeChartColors = () => getApexChartColors()
 
-const chartGridColor = () => {
-  if (typeof document === 'undefined') return 'rgba(148, 163, 184, 0.2)'
-  return (
-    getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() ||
-    'rgba(148, 163, 184, 0.2)'
-  )
-}
-
-const chartLabelColor = () => {
-  if (typeof document === 'undefined') return '#64748b'
-  return (
-    getComputedStyle(document.documentElement).getPropertyValue('--chart-label').trim() ||
-    '#64748b'
-  )
-}
-
+const chartGridColor = () => themeChartColors().grid
+const chartLabelColor = () => themeChartColors().label
 const chartTooltipTheme = () =>
   typeof document !== 'undefined' &&
   document.documentElement.getAttribute('data-theme') === 'dark'
@@ -484,11 +506,68 @@ const visibleSeenIps = computed(() => {
   return seenIpRows.value.slice(0, limit)
 })
 
-const metricCards = computed(() => [
-  { label: 'Total traffic', value: formatThroughput(l4Summary.value.totalTraffic) },
-  { label: 'Allowed traffic', value: formatThroughput(l4Summary.value.allowedTraffic) },
-  { label: 'Blocked traffic', value: formatThroughput(l4Summary.value.blockedTraffic) },
-])
+const metricCards = computed(() => {
+  const total = Number(l4Summary.value.totalTraffic) || 0
+  const allowed = Number(l4Summary.value.allowedTraffic) || 0
+  const blocked = Number(l4Summary.value.blockedTraffic) || 0
+  const rate = total > 0 ? (blocked / total) * 100 : 0
+  return [
+    {
+      label: 'Total traffic',
+      value: formatThroughput(total),
+      hint: selectedRangeLabel.value,
+      tone: 'total',
+    },
+    {
+      label: 'Allowed',
+      value: formatThroughput(allowed),
+      hint: 'passed L4 filters',
+      tone: 'ok',
+    },
+    {
+      label: 'Blocked',
+      value: formatThroughput(blocked),
+      hint: 'dropped as attack',
+      tone: 'danger',
+    },
+    {
+      label: 'Block rate',
+      value: `${rate.toFixed(rate >= 10 ? 0 : 1)}%`,
+      hint: 'blocked ÷ total',
+      tone: 'warn',
+    },
+  ]
+})
+
+const latestTrafficPoint = computed(() => {
+  const points = trafficPoints.value
+  if (!Array.isArray(points) || !points.length) return null
+  return points[points.length - 1]
+})
+
+const latestAllowedLabel = computed(() =>
+  formatThroughput(latestTrafficPoint.value?.allowedTraffic ?? l4Summary.value.allowedTraffic),
+)
+
+const latestBlockedLabel = computed(() =>
+  formatThroughput(latestTrafficPoint.value?.blockedTraffic ?? l4Summary.value.blockedTraffic),
+)
+
+const blockRateLabel = computed(() => {
+  const total = Number(l4Summary.value.totalTraffic) || 0
+  const blocked = Number(l4Summary.value.blockedTraffic) || 0
+  if (total <= 0) return '0%'
+  const rate = (blocked / total) * 100
+  return `${rate.toFixed(rate >= 10 ? 0 : 1)}%`
+})
+
+const protocolLegend = computed(() => {
+  const colors = getApexLinePalette()
+  return ['TCP', 'UDP', 'ICMP', 'GRE', 'OTHER'].map((name, index) => ({
+    name,
+    color: colors[index % colors.length],
+  }))
+})
 
 const openBlacklistDialog = (ip) => {
   blacklistForm.value = {
@@ -649,6 +728,7 @@ const renderTrafficChart = () => {
   const { start, end } = resolveRangeWindow(appliedFilters.value)
   const startMs = start.getTime()
   const endMs = end.getTime()
+  const colors = chartColors()
   const series = padSeriesToTimeRange(
     [
       { name: 'Allowed', data: mapSeriesPoints(trafficPoints.value, 'allowedTraffic') },
@@ -661,37 +741,90 @@ const renderTrafficChart = () => {
   const options = {
     chart: {
       type: 'area',
-      height: 360,
+      height: 400,
+      stacked: false,
       toolbar: { show: false },
-      animations: { enabled: true },
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 550,
+        animateGradually: { enabled: true, delay: 80 },
+      },
       background: 'transparent',
       foreColor: chartLabelColor(),
+      fontFamily: getApexFontFamily(),
       zoom: { enabled: false },
       selection: { enabled: false },
       pan: { enabled: false },
+      dropShadow: {
+        enabled: true,
+        top: 6,
+        left: 0,
+        blur: 8,
+        opacity: 0.12,
+        color: colors.danger,
+      },
     },
     dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'area' }),
-    colors: [chartColors().viper, chartColors().danger],
-    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
+    stroke: {
+      curve: 'smooth',
+      width: [2.25, 2.5],
+      lineCap: 'round',
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 0.35,
+        opacityFrom: 0.38,
+        opacityTo: 0.04,
+        stops: [0, 70, 100],
+      },
+    },
+    colors: [colors.viper, colors.danger],
+    xaxis: {
+      ...getApexDatetimeXaxis(startMs, endMs, { tickCount: 8 }),
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      crosshairs: {
+        show: true,
+        stroke: {
+          color: themeChartColors().crosshair,
+          width: 1,
+          dashArray: 4,
+        },
+      },
+      tooltip: { enabled: false },
+    },
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
       labels: {
-        style: { colors: chartLabelColor() },
+        style: { colors: chartLabelColor(), fontSize: '11px' },
         formatter: (val) => formatThroughput(val),
       },
+      min: 0,
+      forceNiceScale: true,
     },
-    grid: { borderColor: chartGridColor(), padding: { left: 4, right: 12 } },
+    grid: {
+      borderColor: chartGridColor(),
+      strokeDashArray: 3,
+      padding: { left: 8, right: 16, top: 0, bottom: 0 },
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true } },
+    },
     tooltip: {
       theme: chartTooltipTheme(),
+      shared: true,
+      intersect: false,
       x: { formatter: (val) => formatApexTimeTick(val, startMs, endMs) },
       y: { formatter: (val) => formatThroughput(val) },
+      style: { fontSize: '12px' },
     },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '12px',
-      labels: { colors: chartLabelColor() },
+    legend: { show: false },
+    markers: {
+      size: 0,
+      hover: { size: 5, sizeOffset: 2 },
+      strokeWidth: 2,
+      strokeColors: 'var(--app-surface, #0f1714)',
     },
     series,
   }
@@ -710,6 +843,7 @@ const renderProtocolChart = () => {
   const { start, end } = resolveRangeWindow(appliedFilters.value)
   const startMs = start.getTime()
   const endMs = end.getTime()
+  const palette = getApexLinePalette()
   const series = padSeriesToTimeRange(
     [
       { name: 'TCP', data: mapSeriesPoints(protocolPoints.value, 'tcp') },
@@ -724,38 +858,74 @@ const renderProtocolChart = () => {
 
   const options = {
     chart: {
-      type: 'line',
-      height: 360,
+      type: 'area',
+      height: 400,
+      stacked: true,
+      stackType: 'normal',
       toolbar: { show: false },
-      animations: { enabled: true },
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 500,
+      },
       background: 'transparent',
       foreColor: chartLabelColor(),
+      fontFamily: getApexFontFamily(),
       zoom: { enabled: false },
       selection: { enabled: false },
       pan: { enabled: false },
     },
     dataLabels: { enabled: false },
-    ...productionStrokeFill({ variant: 'line' }),
-    colors: getApexLinePalette(),
-    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 7 }),
+    stroke: {
+      curve: 'smooth',
+      width: 1.75,
+      lineCap: 'round',
+    },
+    fill: {
+      type: 'solid',
+      opacity: 0.55,
+    },
+    colors: palette.slice(0, 5),
+    xaxis: {
+      ...getApexDatetimeXaxis(startMs, endMs, { tickCount: 8 }),
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      crosshairs: {
+        show: true,
+        stroke: {
+          color: themeChartColors().crosshair,
+          width: 1,
+          dashArray: 4,
+        },
+      },
+      tooltip: { enabled: false },
+    },
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     yaxis: {
       labels: {
-        style: { colors: chartLabelColor() },
+        style: { colors: chartLabelColor(), fontSize: '11px' },
         formatter: (val) => formatThroughput(val),
       },
+      min: 0,
+      forceNiceScale: true,
     },
-    grid: { borderColor: chartGridColor(), padding: { left: 4, right: 12 } },
+    grid: {
+      borderColor: chartGridColor(),
+      strokeDashArray: 3,
+      padding: { left: 8, right: 16, top: 0, bottom: 0 },
+      xaxis: { lines: { show: false } },
+    },
     tooltip: {
       theme: chartTooltipTheme(),
+      shared: true,
+      intersect: false,
       x: { formatter: (val) => formatApexTimeTick(val, startMs, endMs) },
       y: { formatter: (val) => formatThroughput(val) },
     },
-    legend: {
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '12px',
-      labels: { colors: chartLabelColor() },
+    legend: { show: false },
+    markers: {
+      size: 0,
+      hover: { size: 4 },
     },
     series,
   }
@@ -807,16 +977,154 @@ onBeforeUnmount(() => {
 .layer4-attack-view {
   max-width: 1680px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .analytics-tab-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-.dash-chart-wrap--tall {
-  min-height: 360px;
+.l4-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.l4-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+  min-width: 0;
+}
+
+.l4-kpi--ok { border-top: 2px solid var(--dorian-viper-500, #2e9e6c); }
+.l4-kpi--danger { border-top: 2px solid var(--dorian-danger, #e15241); }
+.l4-kpi--warn { border-top: 2px solid var(--dorian-warn, #e0a83f); }
+.l4-kpi--total { border-top: 2px solid #6b9fd4; }
+
+.l4-kpi__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.l4-kpi__value {
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.1;
+}
+
+.l4-kpi--ok .l4-kpi__value { color: var(--dorian-viper-400, var(--app-accent)); }
+.l4-kpi--danger .l4-kpi__value { color: var(--dorian-danger, #e15241); }
+.l4-kpi--warn .l4-kpi__value { color: var(--dorian-warn, #e0a83f); }
+
+.l4-kpi__hint {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.l4-chart-panel {
+  background:
+    linear-gradient(180deg, rgba(217, 91, 78, 0.05) 0%, transparent 42%),
+    var(--app-surface);
+}
+
+.l4-chart-panel--protocols {
+  background:
+    linear-gradient(180deg, rgba(46, 158, 108, 0.05) 0%, transparent 42%),
+    var(--app-surface);
+}
+
+.l4-chart-readouts {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.l4-chart-readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.l4-chart-readout__swatch {
+  width: 8px;
+  height: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.l4-chart-readout__swatch--allowed {
+  background: var(--dorian-viper-500, #2e9e6c);
+}
+
+.l4-chart-readout__swatch--blocked {
+  background: var(--dorian-danger, #e15241);
+}
+
+.l4-chart-readout__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.l4-chart-readout__value {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+.l4-chart-readout__value.signal { color: var(--dorian-viper-400, var(--app-accent)); }
+.l4-chart-readout__value.danger { color: var(--dorian-danger, #e15241); }
+.l4-chart-readout__value.warn { color: var(--dorian-warn, #e0a83f); }
+
+.l4-proto-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  justify-content: flex-end;
+}
+
+.l4-proto-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.l4-proto-legend__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.dash-chart-wrap--hero {
+  min-height: 400px;
+}
+
+.dash-chart-wrap--hero :deep(.apexcharts-canvas),
+.dash-chart-wrap--hero :deep(.apexcharts-svg) {
+  background: transparent !important;
 }
 
 .dash-select--sm {
@@ -918,6 +1226,28 @@ onBeforeUnmount(() => {
 
 .action-btn--danger:hover {
   background: rgba(225, 82, 65, 0.22);
+}
+
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .l4-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .l4-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .l4-chart-readouts,
+  .l4-proto-legend {
+    justify-content: flex-start;
+  }
 }
 
 .dialog-overlay {
