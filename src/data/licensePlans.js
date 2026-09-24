@@ -1,4 +1,7 @@
-/** License tier catalog — pricing and copy for UI selectors. */
+/** License tier catalog — marketing copy for UI selectors.
+ *  Prices (monthlyPrice / annualPrice) are loaded from GET /api/v1/license-plans
+ *  (cdnproxy.license_plans). Values here are offline fallbacks only.
+ */
 
 export const BILLING_PERIODS = Object.freeze({
   MONTHLY: 'monthly',
@@ -29,8 +32,8 @@ export const licensePlans = [
     tagline: 'Network protection',
     badge: null,
     accent: 'l4',
-    monthlyPrice: 199,
-    annualPrice: 1990,
+    monthlyPrice: 25,
+    annualPrice: 240,
     features: [
       'One host',
       'Layer 4 DDoS & network protection scope',
@@ -47,8 +50,8 @@ export const licensePlans = [
     tagline: 'Application security',
     badge: null,
     accent: 'l7',
-    monthlyPrice: 299,
-    annualPrice: 2990,
+    monthlyPrice: 250,
+    annualPrice: 2400,
     features: [
       'One host',
       'WAF, HTTP controls & application security',
@@ -65,8 +68,8 @@ export const licensePlans = [
     tagline: 'Complete stack',
     badge: 'Best value',
     accent: 'unified',
-    monthlyPrice: 449,
-    annualPrice: 4490,
+    monthlyPrice: 349,
+    annualPrice: 3348,
     features: [
       'One host',
       'L4 + L7 combined — full stack on one license',
@@ -78,6 +81,31 @@ export const licensePlans = [
     ],
   },
 ]
+
+/** Merge DB prices onto static catalog rows (features stay in the frontend). */
+export function mergeLicensePlanPrices(catalog = licensePlans, pricedRows = []) {
+  const byId = new Map()
+  for (const row of pricedRows || []) {
+    const id = String(row?.id || '').trim()
+    if (!id) continue
+    byId.set(id.toLowerCase(), row)
+  }
+
+  return catalog.map((plan) => {
+    const row = byId.get(String(plan.id).toLowerCase())
+    if (!row) return { ...plan }
+    return {
+      ...plan,
+      title: row.title || plan.title,
+      tagline: row.tagline != null && row.tagline !== '' ? row.tagline : plan.tagline,
+      badge: row.badge !== undefined ? row.badge : plan.badge,
+      accent: row.accent || plan.accent,
+      monthlyPrice: Number(row.monthlyPrice) || 0,
+      annualPrice: Number(row.annualPrice) || 0,
+    }
+  })
+}
+
 
 export function normalizeLicenseTier(raw) {
   const t = String(raw || 'Trial').trim().toLowerCase()
@@ -155,6 +183,7 @@ export function annualSavingsPercent(monthlyPrice, annualPrice) {
 export function maxAnnualSavingsPercent(plans = licensePlans) {
   let max = 0
   for (const plan of plans) {
+    if (plan.id === 'Trial') continue
     const pct = annualSavingsPercent(plan.monthlyPrice, plan.annualPrice)
     if (pct > max) max = pct
   }

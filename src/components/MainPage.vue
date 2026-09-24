@@ -162,6 +162,18 @@
           </li>
 
           <li class="nav-group-label" aria-hidden="true">Account</li>
+          <li :class="['nav-item', isDocsRoute ? 'active' : '']">
+            <RouterLink to="/app/docs">
+              <span class="nav-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"></path>
+                  <path d="M8 7h6"></path>
+                  <path d="M8 11h8"></path>
+                </svg>
+              </span>
+              <span>Docs</span>
+            </RouterLink>
+          </li>
           <li :class="['nav-item', isRouteActive('server-license') ? 'active' : '']">
             <RouterLink to="/app/license">
               <span class="nav-icon">
@@ -311,6 +323,9 @@ const isAnalyticsRoute = computed(
     route.meta?.section === 'analytics' ||
     route.path.startsWith('/app/analytics')
 )
+const isDocsRoute = computed(
+  () => route.meta?.section === 'docs' || route.path.startsWith('/app/docs')
+)
 
 const isRouteActive = (name) => route.name === name
 /** Pages that render theme/user controls in their own dash-topbar. */
@@ -323,7 +338,8 @@ const hideShellTopbar = computed(
       'security-analytics',
       'security-analytics-detail',
       'layer4-attack-analytics',
-    ].includes(route.name)
+    ].includes(route.name) ||
+    isDocsRoute.value
 )
 
 const currentViewTitle = computed(() => route.meta?.title || 'Overview')

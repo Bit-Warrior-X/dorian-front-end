@@ -3,132 +3,174 @@
     class="license-selector"
     :class="{ 'license-selector--compact': compact }"
   >
-    <div
-      class="billing-toggle"
-      role="radiogroup"
-      aria-label="Billing period"
+    <!-- Trial is billing-independent — not shown under Monthly/Annual -->
+    <button
+      type="button"
+      class="trial-banner"
+      :class="{ selected: modelValue === 'Trial', disabled }"
+      :disabled="disabled"
+      :aria-pressed="modelValue === 'Trial'"
+      @click="select('Trial')"
     >
-      <button
-        type="button"
-        class="billing-option"
-        :class="{ active: billingPeriod === 'monthly' }"
-        role="radio"
-        :aria-checked="billingPeriod === 'monthly'"
-        :disabled="disabled"
-        @click="setBillingPeriod('monthly')"
-      >
-        Monthly
-      </button>
-      <button
-        type="button"
-        class="billing-option"
-        :class="{ active: billingPeriod === 'annual' }"
-        role="radio"
-        :aria-checked="billingPeriod === 'annual'"
-        :disabled="disabled"
-        @click="setBillingPeriod('annual')"
-      >
-        Annual
-        <span v-if="annualDiscountPercent > 0" class="billing-save">
-          Save {{ annualDiscountPercent }}%
+      <div class="trial-banner__main">
+        <span class="trial-banner__badge">Free evaluation</span>
+        <div class="trial-banner__copy">
+          <strong>Trial</strong>
+          <span>3 days · full L4 + L7 preview · no credit card</span>
+        </div>
+      </div>
+      <div class="trial-banner__meta">
+        <span class="trial-banner__price num">{{ formatPlanPrice(trialPlan.monthlyPrice) }}</span>
+        <span class="trial-banner__radio" :class="{ checked: modelValue === 'Trial' }" aria-hidden="true">
+          <svg v-if="modelValue === 'Trial'" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M3.5 8.5L6.5 11.5L12.5 4.5"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
         </span>
-      </button>
-    </div>
+      </div>
+    </button>
 
-    <div
-      class="tier-grid"
-      role="radiogroup"
-      :aria-label="ariaLabel"
-    >
-      <button
-        v-for="plan in licensePlans"
-        :key="plan.id"
-        type="button"
-        class="tier-card"
-        :class="[
-          `tier-card--${plan.accent}`,
-          { selected: modelValue === plan.id, disabled },
-        ]"
-        :disabled="disabled"
-        :aria-pressed="modelValue === plan.id"
-        @click="select(plan.id)"
+    <div class="paid-section">
+      <div class="paid-section__head">
+        <div>
+          <h3 class="paid-section__title">Paid plans</h3>
+          <p class="paid-section__desc">Billed per edge · license bound to one host</p>
+        </div>
+        <div
+          class="billing-toggle"
+          role="radiogroup"
+          aria-label="Billing period"
+        >
+          <button
+            type="button"
+            class="billing-option"
+            :class="{ active: billingPeriod === 'monthly' }"
+            role="radio"
+            :aria-checked="billingPeriod === 'monthly'"
+            :disabled="disabled"
+            @click="setBillingPeriod('monthly')"
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            class="billing-option"
+            :class="{ active: billingPeriod === 'annual' }"
+            role="radio"
+            :aria-checked="billingPeriod === 'annual'"
+            :disabled="disabled"
+            @click="setBillingPeriod('annual')"
+          >
+            Annual
+            <span v-if="annualDiscountPercent > 0" class="billing-save">
+              Save {{ annualDiscountPercent }}%
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="tier-grid"
+        role="radiogroup"
+        :aria-label="ariaLabel"
       >
-        <div class="tier-card-accent" aria-hidden="true"></div>
+        <button
+          v-for="plan in paidPlans"
+          :key="plan.id"
+          type="button"
+          class="tier-card"
+          :class="[
+            `tier-card--${plan.accent}`,
+            { selected: modelValue === plan.id, disabled },
+          ]"
+          :disabled="disabled"
+          :aria-pressed="modelValue === plan.id"
+          @click="select(plan.id)"
+        >
+          <div class="tier-card-accent" aria-hidden="true"></div>
 
-        <header class="tier-header">
-          <div class="tier-header-text">
-            <span v-if="plan.badge" class="tier-badge">{{ plan.badge }}</span>
-            <span class="tier-title">{{ plan.title }}</span>
-            <span class="tier-tagline">{{ plan.tagline }}</span>
-          </div>
-          <span class="tier-radio" :class="{ checked: modelValue === plan.id }" aria-hidden="true">
-            <svg v-if="modelValue === plan.id" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M3.5 8.5L6.5 11.5L12.5 4.5"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </span>
-        </header>
-
-        <section class="plan-section plan-section--pricing">
-          <div class="price-block">
-            <div class="price-main">
-              <span class="price-amount num">{{ displayPrice(plan) }}</span>
-              <span v-if="showPriceUnit(plan)" class="pricing-unit">
-                {{ billingPeriod === 'monthly' ? '/ mo' : '/ yr' }}
-              </span>
+          <header class="tier-header">
+            <div class="tier-header-text">
+              <span v-if="plan.badge" class="tier-badge">{{ plan.badge }}</span>
+              <span class="tier-title">{{ plan.title }}</span>
+              <span class="tier-tagline">{{ plan.tagline }}</span>
             </div>
-            <p v-if="priceSubline(plan)" class="price-subline">
-              {{ priceSubline(plan) }}
-            </p>
-            <div
-              v-if="
-                billingPeriod === 'annual' &&
-                annualSavingsPercent(plan.monthlyPrice, plan.annualPrice) > 0
-              "
-              class="pricing-savings"
-            >
-              <span class="savings-pill">
-                Save {{ annualSavingsPercent(plan.monthlyPrice, plan.annualPrice) }}%
-              </span>
-              <span class="savings-detail">
-                {{ formatPlanPrice(annualSavingsAmount(plan.monthlyPrice, plan.annualPrice)) }}
-                vs monthly billing
-              </span>
-            </div>
-          </div>
-        </section>
-
-        <section v-if="!compact" class="plan-section plan-section--features">
-          <h4 class="plan-section-label">Includes</h4>
-          <ul class="feature-list">
-            <li v-for="(feature, idx) in featuresForPlan(plan)" :key="idx">
-              <svg class="feature-check" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <span class="tier-radio" :class="{ checked: modelValue === plan.id }" aria-hidden="true">
+              <svg v-if="modelValue === plan.id" viewBox="0 0 16 16" fill="none">
                 <path
                   d="M3.5 8.5L6.5 11.5L12.5 4.5"
                   stroke="currentColor"
-                  stroke-width="1.8"
+                  stroke-width="2"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 />
               </svg>
-              {{ feature }}
-            </li>
-          </ul>
-        </section>
-      </button>
+            </span>
+          </header>
+
+          <section class="plan-section plan-section--pricing">
+            <div class="price-block">
+              <div class="price-main">
+                <span class="price-amount num">{{ displayPrice(plan) }}</span>
+                <span class="pricing-unit">
+                  {{ billingPeriod === 'monthly' ? '/ mo' : '/ yr' }}
+                </span>
+              </div>
+              <p v-if="priceSubline(plan)" class="price-subline">
+                {{ priceSubline(plan) }}
+              </p>
+              <div
+                v-if="
+                  billingPeriod === 'annual' &&
+                  annualSavingsPercent(plan.monthlyPrice, plan.annualPrice) > 0
+                "
+                class="pricing-savings"
+              >
+                <span class="savings-pill">
+                  Save {{ annualSavingsPercent(plan.monthlyPrice, plan.annualPrice) }}%
+                </span>
+                <span class="savings-detail">
+                  {{ formatPlanPrice(annualSavingsAmount(plan.monthlyPrice, plan.annualPrice)) }}
+                  vs monthly billing
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section v-if="!compact" class="plan-section plan-section--features">
+            <h4 class="plan-section-label">Includes</h4>
+            <ul class="feature-list">
+              <li v-for="(feature, idx) in featuresForPlan(plan)" :key="idx">
+                <svg class="feature-check" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M3.5 8.5L6.5 11.5L12.5 4.5"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                {{ feature }}
+              </li>
+            </ul>
+          </section>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { fetchLicensePlans } from '@/api/licensePlans'
 import {
-  licensePlans,
+  licensePlans as catalogPlans,
+  mergeLicensePlanPrices,
   formatPlanPrice,
   planPriceForPeriod,
   annualPerMonthRate,
@@ -165,8 +207,27 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'update:billingPeriod'])
 
+const plans = ref(catalogPlans.map((plan) => ({ ...plan })))
+
 const billingPeriod = computed(() => normalizeBillingPeriod(props.billingPeriod))
-const annualDiscountPercent = computed(() => maxAnnualSavingsPercent(licensePlans))
+const paidPlans = computed(() => plans.value.filter((plan) => plan.id !== 'Trial'))
+const annualDiscountPercent = computed(() => maxAnnualSavingsPercent(paidPlans.value))
+const trialPlan = computed(() => plans.value.find((plan) => plan.id === 'Trial') || catalogPlans[0])
+
+const loadPrices = async () => {
+  try {
+    const rows = await fetchLicensePlans()
+    if (Array.isArray(rows) && rows.length) {
+      plans.value = mergeLicensePlanPrices(catalogPlans, rows)
+    }
+  } catch {
+    // Keep catalog fallback prices when the API is unavailable.
+  }
+}
+
+onMounted(() => {
+  void loadPrices()
+})
 
 const select = (id) => {
   emit('update:modelValue', id)
@@ -179,23 +240,21 @@ const setBillingPeriod = (period) => {
 
 const displayPrice = (plan) => formatPlanPrice(planPriceForPeriod(plan, billingPeriod.value))
 
-const showPriceUnit = (plan) => planPriceForPeriod(plan, billingPeriod.value) > 0
-
 const priceSubline = (plan) => {
-  if (plan.id === 'Trial') return 'No credit card required'
   if (billingPeriod.value === 'annual' && plan.annualPrice > 0) {
     const perMo = annualPerMonthRate(plan.annualPrice)
-    return `${formatPlanPrice(perMo)}/mo billed annually`
+    return `${formatPlanPrice(perMo)}/mo billed annually · ${licenseDurationLabel(plan.id, 'annual')}`
   }
-  if (billingPeriod.value === 'monthly' && plan.annualPrice > 0) {
+  if (billingPeriod.value === 'monthly' && plan.monthlyPrice > 0) {
     const pct = annualSavingsPercent(plan.monthlyPrice, plan.annualPrice)
-    if (pct > 0) return `or ${formatPlanPrice(plan.annualPrice)}/yr (save ${pct}%)`
+    const base = `${licenseDurationLabel(plan.id, 'monthly')} · one host`
+    if (pct > 0) return `${base} · or ${formatPlanPrice(plan.annualPrice)}/yr (save ${pct}%)`
+    return base
   }
   return ''
 }
 
 const featuresForPlan = (plan) => {
-  if (plan.id === 'Trial') return plan.features
   const duration = `${licenseDurationLabel(plan.id, billingPeriod.value)} · one host`
   return [duration, ...plan.features.filter((f) => f !== 'One host')]
 }
@@ -206,13 +265,145 @@ const featuresForPlan = (plan) => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 
-/* Billing period — segmented control (brand radius, not capsule SaaS) */
+.trial-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border-strong);
+  background:
+    linear-gradient(90deg, rgba(107, 159, 212, 0.08) 0%, transparent 55%),
+    var(--app-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.trial-banner:hover:not(.disabled):not(.selected) {
+  border-color: #6b9fd4;
+}
+
+.trial-banner.selected {
+  border-color: #6b9fd4;
+  box-shadow: 0 0 0 1px #6b9fd4;
+}
+
+.trial-banner.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.trial-banner__main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.trial-banner__badge {
+  flex-shrink: 0;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b9fd4;
+  background: rgba(107, 159, 212, 0.14);
+  border: 0.5px solid rgba(107, 159, 212, 0.35);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.trial-banner__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trial-banner__copy strong {
+  font-size: var(--type-section-title);
+  color: var(--app-heading);
+}
+
+.trial-banner__copy span {
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+}
+
+.trial-banner__meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.trial-banner__price {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.trial-banner__radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--app-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-surface-elevated);
+}
+
+.trial-banner__radio.checked {
+  border-color: #6b9fd4;
+  background: #6b9fd4;
+  color: #0b0f0d;
+}
+
+.trial-banner__radio svg {
+  width: 11px;
+  height: 11px;
+}
+
+.paid-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.paid-section__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.paid-section__title {
+  margin: 0 0 2px;
+  font-size: var(--type-caption);
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.paid-section__desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
 .billing-toggle {
   display: inline-flex;
-  align-self: center;
   padding: 3px;
   border-radius: var(--btn-radius, 8px);
   background: var(--app-surface-muted);
@@ -233,9 +424,7 @@ const featuresForPlan = (plan) => {
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
-  transition:
-    background 0.18s ease,
-    color 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 
 .billing-option:hover:not(:disabled):not(.active) {
@@ -272,7 +461,7 @@ const featuresForPlan = (plan) => {
 
 .tier-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -318,10 +507,6 @@ const featuresForPlan = (plan) => {
   height: 3px;
   width: 100%;
   flex-shrink: 0;
-  background: var(--dorian-text-faint, #5b6560);
-}
-
-.tier-card--trial .tier-card-accent {
   background: var(--dorian-text-faint, #5b6560);
 }
 
@@ -568,7 +753,7 @@ const featuresForPlan = (plan) => {
   .tier-grid {
     overflow-x: auto;
     padding-bottom: 8px;
-    grid-template-columns: repeat(4, minmax(240px, 1fr));
+    grid-template-columns: repeat(3, minmax(240px, 1fr));
     scroll-snap-type: x proximity;
   }
 
@@ -580,11 +765,35 @@ const featuresForPlan = (plan) => {
   .license-selector--compact .tier-card {
     min-height: 0;
   }
+
+  .trial-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
-/* Compact layout for dialogs (e.g. New Edge) */
+.license-selector--compact {
+  gap: 12px;
+}
+
+.license-selector--compact .trial-banner {
+  padding: 10px 12px;
+}
+
+.license-selector--compact .trial-banner__copy span {
+  display: none;
+}
+
+.license-selector--compact .trial-banner__price {
+  font-size: 16px;
+}
+
+.license-selector--compact .paid-section__desc {
+  display: none;
+}
+
 .license-selector--compact .tier-grid {
-  grid-template-columns: repeat(4, minmax(132px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -593,7 +802,7 @@ const featuresForPlan = (plan) => {
 }
 
 .license-selector--compact .billing-toggle {
-  align-self: stretch;
+  width: 100%;
   justify-content: center;
 }
 
@@ -649,5 +858,10 @@ const featuresForPlan = (plan) => {
 
 .license-selector--compact .savings-detail {
   display: none;
+}
+
+.license-selector--compact .paid-section__head {
+  flex-direction: column;
+  align-items: stretch;
 }
 </style>

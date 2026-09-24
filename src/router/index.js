@@ -108,6 +108,151 @@ const routes = [
         }
       },
       {
+        path: 'docs',
+        component: () => import('@/components/views/docs/DocsLayout.vue'),
+        meta: {
+          title: 'Docs',
+          section: 'docs',
+          hideShellTopbar: true,
+          description: 'Operator handbook for the Dorian CDN console.',
+        },
+        children: [
+          { path: '', redirect: { name: 'docs-get-started' } },
+          {
+            path: 'get-started',
+            name: 'docs-get-started',
+            component: () => import('@/components/views/docs/DocsGetStartedPage.vue'),
+            meta: {
+              title: 'Get started',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'From an empty console to a protected domain.',
+            },
+          },
+          {
+            path: 'architecture',
+            name: 'docs-architecture',
+            component: () => import('@/components/views/docs/DocsArchitecturePage.vue'),
+            meta: {
+              title: 'Architecture',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Control plane, Angelos, Athens, and Sparta.',
+            },
+          },
+          {
+            path: 'edges',
+            name: 'docs-edges',
+            component: () => import('@/components/views/docs/DocsEdgesPage.vue'),
+            meta: {
+              title: 'Edges',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Deploy, monitor, and configure protection nodes.',
+            },
+          },
+          {
+            path: 'sites',
+            name: 'docs-sites',
+            component: () => import('@/components/views/docs/DocsSitesPage.vue'),
+            meta: {
+              title: 'Sites',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Domains, SSL, origins, cache, and DNS.',
+            },
+          },
+          {
+            path: 'security',
+            name: 'docs-security',
+            component: () => import('@/components/views/docs/DocsSecurityPage.vue'),
+            meta: {
+              title: 'Security',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'WAF packs, blocklists, and L4 mitigation.',
+            },
+          },
+          {
+            path: 'insights',
+            name: 'docs-insights',
+            component: () => import('@/components/views/docs/DocsInsightsPage.vue'),
+            meta: {
+              title: 'Insights',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Traffic, security, logs, and L4 attacks.',
+            },
+          },
+          {
+            path: 'licensing',
+            name: 'docs-licensing',
+            component: () => import('@/components/views/docs/DocsLicensingPage.vue'),
+            meta: {
+              title: 'Licensing',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Trial, L4, L7, Unified, and billing periods.',
+            },
+          },
+          {
+            path: 'account',
+            name: 'docs-account',
+            component: () => import('@/components/views/docs/DocsAccountPage.vue'),
+            meta: {
+              title: 'Account & team',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Profile, API tokens, admins, and audit log.',
+            },
+          },
+          {
+            path: 'troubleshooting',
+            name: 'docs-troubleshooting',
+            component: () => import('@/components/views/docs/DocsTroubleshootingPage.vue'),
+            meta: {
+              title: 'Troubleshooting',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Fix common first-week issues.',
+            },
+          },
+          {
+            path: 'faq',
+            name: 'docs-faq',
+            component: () => import('@/components/views/docs/DocsFaqPage.vue'),
+            meta: {
+              title: 'FAQ',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Quick answers to common questions.',
+            },
+          },
+          {
+            path: 'glossary',
+            name: 'docs-glossary',
+            component: () => import('@/components/views/docs/DocsGlossaryPage.vue'),
+            meta: {
+              title: 'Glossary',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Terms used across the console.',
+            },
+          },
+          {
+            path: 'cheat-sheet',
+            name: 'docs-cheat-sheet',
+            component: () => import('@/components/views/docs/DocsCheatSheetPage.vue'),
+            meta: {
+              title: 'Route cheat sheet',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Jump to any console path.',
+            },
+          },
+        ],
+      },
+      {
         path: 'blacklist',
         name: 'server-blacklist',
         component: () => import('@/components/views/ServerBlacklistView.vue'),

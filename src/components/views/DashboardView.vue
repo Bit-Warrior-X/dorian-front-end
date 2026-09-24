@@ -434,6 +434,7 @@ const productionStrokeFill = () => getApexProductionStrokeFill({ variant: 'line'
 const router = useRouter()
 
 const quickLinks = [
+  { label: 'Docs', to: { name: 'docs-get-started' } },
   { label: 'Sites', to: { name: 'site-list' } },
   { label: 'Edges', to: { name: 'server-list' } },
   { label: 'Analytics', to: { name: 'security-analytics' } },

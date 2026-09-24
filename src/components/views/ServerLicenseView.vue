@@ -1,11 +1,21 @@
 <template>
-  <div class="servers-view">
-    <div class="content-card filter-card">
-      <div class="filter-row">
-        <label class="filter-label" for="server-license-target">Target edge</label>
+  <div class="dashboard-view license-view">
+    <header class="dash-topbar">
+      <div class="dash-topbar__left">
+        <h2>License</h2>
+        <p>Choose Trial for evaluation, or a paid Monthly / Annual plan for production edges.</p>
+      </div>
+      <div class="dash-topbar__right">
+        <AppTopbarActions />
+      </div>
+    </header>
+
+    <div class="dash-filterbar">
+      <div class="dash-filter-field">
+        <label for="server-license-target">Target edge</label>
         <select
           id="server-license-target"
-          class="filter-select"
+          class="dash-select"
           v-model.number="selectedServer"
         >
           <option disabled value="">Select an edge</option>
@@ -13,199 +23,158 @@
             {{ server.name || server.ip || `Edge #${server.id}` }}
           </option>
         </select>
-        <div v-if="selectedServerData" class="filter-meta">
-          <span class="layer-status-dots layer-status-dots--meta">
-            <LayerStatusDot
-              layer="l4"
-              :status="resolveLayerStatus(selectedServerData, 'l4')"
-              :description="layerDotDescription(selectedServerData, 'l4')"
-              :aria-label="layerDotTitle(selectedServerData, 'l4')"
-            />
-            <LayerStatusDot
-              layer="l7"
-              :status="resolveLayerStatus(selectedServerData, 'l7')"
-              :description="layerDotDescription(selectedServerData, 'l7')"
-              :aria-label="layerDotTitle(selectedServerData, 'l7')"
-            />
-          </span>
-          <span class="meta-pill status server-status-pill" :class="angelosStatusClass(selectedServerData)">
-            Angelos: {{ angelosStatusLabel(selectedServerData) }}
-          </span>
-          <span class="meta-pill license">License: {{ selectedServerData.license }}</span>
-        </div>
+      </div>
+      <div v-if="selectedServerData" class="license-meta">
+        <span class="layer-status-dots layer-status-dots--meta">
+          <LayerStatusDot
+            layer="l4"
+            :status="resolveLayerStatus(selectedServerData, 'l4')"
+            :description="layerDotDescription(selectedServerData, 'l4')"
+            :aria-label="layerDotTitle(selectedServerData, 'l4')"
+          />
+          <LayerStatusDot
+            layer="l7"
+            :status="resolveLayerStatus(selectedServerData, 'l7')"
+            :description="layerDotDescription(selectedServerData, 'l7')"
+            :aria-label="layerDotTitle(selectedServerData, 'l7')"
+          />
+        </span>
+        <span class="meta-pill status server-status-pill" :class="angelosStatusClass(selectedServerData)">
+          Angelos: {{ angelosStatusLabel(selectedServerData) }}
+        </span>
+        <span class="meta-pill license">License: {{ selectedServerData.license }}</span>
       </div>
     </div>
 
-    <div v-if="selectedServerData" class="content-card settings-card">
-      <div class="license-tab-body">
-        <p class="license-tab-lead">
-          Choose a new plan for <strong>{{ selectedServerData.name || selectedServerData.ip }}</strong>.
-          Current tier: <strong>{{ selectedServerData.license || '—' }}</strong>.
-          Applying generates a new license on the deploy service and runs a license-only remote deploy.
-        </p>
-        <LicenseTierUpgradePanel
-          :server="selectedServerData"
-          :show-cancel="false"
-          ok-label="OK"
-          @success="onLicenseTierSuccess"
-        />
+    <section v-if="selectedServerData" class="dash-panel dash-chart-panel">
+      <div class="dash-panel-head">
+        <div>
+          <h3>Upgrade plan</h3>
+          <p class="dash-panel-desc">
+            Current tier: <strong>{{ selectedServerData.license || '—' }}</strong>
+            · applying generates a new license and runs a license-only deploy
+          </p>
+        </div>
       </div>
-    </div>
+      <LicenseTierUpgradePanel
+        :server="selectedServerData"
+        :show-cancel="false"
+        ok-label="Apply license"
+        @success="onLicenseTierSuccess"
+      />
+    </section>
+
+    <section v-else class="dash-panel">
+      <p class="dash-panel-desc">Select an edge to review pricing and change its license tier.</p>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
-import { fetchServers } from "@/api/servers";
-import { notifySuccess } from "@/utils/notify";
-import LicenseTierUpgradePanel from "../LicenseTierUpgradePanel.vue";
-import LayerStatusDot from "../LayerStatusDot.vue";
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { fetchServers } from '@/api/servers'
+import { notifySuccess } from '@/utils/notify'
+import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import LicenseTierUpgradePanel from '../LicenseTierUpgradePanel.vue'
+import LayerStatusDot from '../LayerStatusDot.vue'
 import {
   angelosStatusClass,
   angelosStatusLabel,
   layerDotDescription,
   layerDotTitle,
   resolveLayerStatus,
-} from "@/utils/serverLayerStatus";
+} from '@/utils/serverLayerStatus'
 
-const route = useRoute();
-const serverOptions = ref([]);
-const selectedServer = ref("");
+const route = useRoute()
+const serverOptions = ref([])
+const selectedServer = ref('')
 
 const selectedServerData = computed(() =>
-  serverOptions.value.find((server) => server.id === selectedServer.value)
-);
+  serverOptions.value.find((server) => server.id === selectedServer.value),
+)
 
 const loadServers = async () => {
   try {
-    const data = await fetchServers();
-    serverOptions.value = Array.isArray(data) ? data : [];
+    const data = await fetchServers()
+    serverOptions.value = Array.isArray(data) ? data : []
   } catch {
-    serverOptions.value = [];
+    serverOptions.value = []
   }
 
   if (!selectedServer.value && serverOptions.value.length) {
-    selectedServer.value = serverOptions.value[0].id;
+    selectedServer.value = serverOptions.value[0].id
   }
-};
+}
 
 const applyRouteQuery = () => {
-  const raw = route.query.server;
-  if (raw != null && String(raw).trim() !== "") {
-    const id = Number(raw);
+  const raw = route.query.server
+  if (raw != null && String(raw).trim() !== '') {
+    const id = Number(raw)
     if (!Number.isNaN(id)) {
-      selectedServer.value = id;
+      selectedServer.value = id
     }
   }
-};
+}
 
 const onLicenseTierSuccess = async (updated) => {
-  await loadServers();
-  notifySuccess("License Management", `The license is successfully updated to ${updated?.license || "new tier"}.`);
-};
+  await loadServers()
+  notifySuccess(
+    'License Management',
+    `The license is successfully updated to ${updated?.license || 'new tier'}.`,
+  )
+}
 
 watch(
   () => route.fullPath,
   () => {
-    applyRouteQuery();
-  }
-);
+    applyRouteQuery()
+  },
+)
 
 onMounted(() => {
   void loadServers().then(() => {
-    applyRouteQuery();
-  });
-});
+    applyRouteQuery()
+  })
+})
 </script>
 
 <style scoped>
-.servers-view {
+.license-view {
+  max-width: 1680px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
 }
 
-.content-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.filter-card {
-  padding-bottom: 20px;
-}
-
-.filter-row {
+.license-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  margin: 0;
+  gap: 8px;
+  margin-left: auto;
 }
 
-.filter-label {
-  font-size: var(--type-base);
-  font-weight: 600;
-  color: var(--app-text-secondary);
-}
-
-.filter-select {
-  min-width: 220px;
-  border-radius: 12px;
-  border: 1px solid var(--app-input-border);
-  padding: 8px 12px;
-  font-size: var(--type-base);
-  color: var(--app-text);
-  background: var(--app-input-bg);
-  box-shadow: 0 1px 6px var(--app-shadow);
-}
-
-.filter-select:focus {
-  outline: 2px solid var(--app-accent-soft);
-  outline-offset: 2px;
-  border-color: var(--app-accent);
-}
-
-.filter-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.layer-status-dots--meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.meta-pill {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 0.5px solid var(--app-border);
+  color: var(--app-text-muted);
+  background: var(--app-surface-muted, var(--app-surface));
 }
 
 .meta-pill.license {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 4px;
-  padding: 5px 11px;
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: var(--type-caption);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  background: var(--dorian-viper-dim, rgba(23, 53, 42, 0.14));
   color: var(--dorian-viper-400, var(--app-accent));
-  border: 0.5px solid rgba(46, 158, 108, 0.35);
+  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 35%, var(--app-border));
 }
 
-.license-tab-body {
-  padding: 4px 0 0;
-  max-width: 1180px;
-}
-
-.license-tab-lead {
-  margin: 0 0 22px;
-  font-size: var(--type-base);
-  color: var(--app-text-secondary);
-  line-height: 1.55;
+@media (max-width: 900px) {
+  .license-meta {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 </style>

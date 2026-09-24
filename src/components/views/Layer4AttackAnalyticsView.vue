@@ -223,7 +223,7 @@
                   <td>
                     <button
                       type="button"
-                      class="action-btn action-btn--danger"
+                      class="ip-blacklist-btn"
                       @click="openBlacklistDialog(row.ip)"
                     >
                       Blacklist
@@ -1210,22 +1210,31 @@ onBeforeUnmount(() => {
   color: #8fa3b8;
 }
 
-.action-btn {
-  border: none;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: var(--type-caption);
+.ip-blacklist-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  min-height: var(--btn-height-sm, 32px);
+  height: var(--btn-height-sm, 32px);
+  padding: 0 12px;
+  border-radius: var(--btn-radius, 8px);
+  border: 1px solid color-mix(in srgb, var(--app-btn-danger-bg, #e15241) 35%, transparent);
+  background: rgba(225, 82, 65, 0.12);
+  color: var(--app-btn-danger-bg, #e15241);
+  font-size: var(--btn-font-size-sm, var(--type-caption));
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
+  line-height: 1;
 }
 
-.action-btn--danger {
-  background: rgba(225, 82, 65, 0.14);
-  color: #e15241;
-}
-
-.action-btn--danger:hover {
-  background: rgba(225, 82, 65, 0.22);
+.ip-blacklist-btn:hover {
+  background: rgba(225, 82, 65, 0.2);
+  border-color: var(--app-btn-danger-bg, #e15241);
+  color: var(--app-btn-danger-hover, #e15241);
 }
 
 .num {
