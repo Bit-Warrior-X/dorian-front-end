@@ -979,7 +979,7 @@ onBeforeUnmount(() => {
 
 .cfg-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -987,13 +987,15 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 2px;
-  padding: 12px 14px;
+  min-width: 0;
+  padding: 12px 10px;
   border-radius: var(--cfg-radius);
   border: 1px solid var(--app-border);
   background: var(--app-surface);
   color: var(--app-text);
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
@@ -1018,6 +1020,8 @@ onBeforeUnmount(() => {
   font-size: 13.5px;
   font-weight: 650;
   color: var(--app-heading);
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .cfg-tab.active .cfg-tab__label {
@@ -1307,18 +1311,28 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1100px) {
-  .cfg-tabs,
   .cfg-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 760px) {
-  .cfg-tabs,
   .cfg-metrics,
   .cfg-sections,
   .cfg-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cfg-tabs {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .cfg-tab {
+    padding: 10px 6px;
+  }
+
+  .cfg-tab__label {
+    font-size: 12px;
   }
 
   .cfg-section--wide {
