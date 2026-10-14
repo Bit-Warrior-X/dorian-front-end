@@ -5,7 +5,8 @@
         <div>
           <h2>Audit History</h2>
           <p class="card-subtitle">
-            Sensitive panel activity including authentication, users, edges, sites, WAF rules, and blocked lists.
+            Who did what, to which resource, and from where — sign-ins, users, 2FA and API tokens, edges,
+            sites, WAF rules, and blocked lists. Changes show the old and new values; secrets are never recorded.
           </p>
         </div>
         <button class="ghost-btn" type="button" :disabled="isLoading" @click="loadHistory">
@@ -52,6 +53,14 @@
             </option>
           </select>
         </div>
+        <div class="filter-field">
+          <label for="history-result">Result</label>
+          <select id="history-result" v-model="filters.result">
+            <option value="">All results</option>
+            <option value="success">Success</option>
+            <option value="failed">Failed / denied</option>
+          </select>
+        </div>
         <button class="primary-btn filter-btn" type="button" :disabled="isLoading" @click="loadHistory">
           Apply
         </button>
@@ -63,40 +72,81 @@
             <tr>
               <th>Time</th>
               <th>Actor</th>
-              <th>Action</th>
-              <th>Category</th>
-              <th>Resource</th>
-              <th>IP</th>
-              <th>Details</th>
+              <th>Activity</th>
+              <th>Target</th>
+              <th>Source</th>
+              <th>Result</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in paginatedEntries" :key="entry.id">
-              <td class="time-cell">{{ formatTime(entry.createdAt) }}</td>
-              <td>
-                <div class="actor-cell">
-                  <strong>{{ entry.actorName || 'System' }}</strong>
-                  <span v-if="entry.actorEmail" class="actor-email">{{ entry.actorEmail }}</span>
-                  <span v-if="entry.actorRole" class="actor-role">{{ entry.actorRole }}</span>
-                </div>
-              </td>
-              <td>
-                <span class="badge action" :class="actionClass(entry.action)">
-                  {{ formatAction(entry.action) }}
-                </span>
-              </td>
-              <td>
-                <span class="badge category">{{ formatCategory(entry.category) }}</span>
-              </td>
-              <td>
-                <div class="resource-cell">
-                  <strong>{{ entry.resourceName || '—' }}</strong>
-                  <span v-if="entry.resourceId" class="resource-id">#{{ entry.resourceId }}</span>
-                </div>
-              </td>
-              <td>{{ entry.ipAddress || '—' }}</td>
-              <td class="details-cell">{{ entry.details || '—' }}</td>
-            </tr>
+            <template v-for="entry in paginatedEntries" :key="entry.id">
+              <tr
+                class="entry-row"
+                :class="{ 'is-expanded': expandedId === entry.id, 'is-failed': !auditSucceeded(entry) }"
+                @click="toggleExpanded(entry.id)"
+              >
+                <td class="time-cell">{{ formatTime(entry.createdAt) }}</td>
+                <td>
+                  <div class="actor-cell">
+                    <strong>{{ actorLabel(entry) }}</strong>
+                    <span v-if="entry.actorName && entry.actorEmail" class="actor-email">{{ entry.actorEmail }}</span>
+                    <span v-if="entry.actorRole" class="actor-role">{{ entry.actorRole }}</span>
+                  </div>
+                </td>
+                <td class="activity-cell">
+                  <span class="badge action" :class="auditActionClass(entry.action)">
+                    {{ formatAuditAction(entry.action) }}
+                  </span>
+                  <p class="activity-summary">{{ detailsOf(entry).summary || '—' }}</p>
+                  <ul v-if="detailsOf(entry).changes.length" class="activity-changes">
+                    <li v-for="(change, index) in detailsOf(entry).changes" :key="index">{{ change }}</li>
+                  </ul>
+                </td>
+                <td>
+                  <div class="resource-cell">
+                    <strong>{{ entry.resourceName || '—' }}</strong>
+                    <span class="badge category">{{ formatAuditCategory(entry.category) }}</span>
+                  </div>
+                </td>
+                <td>
+                  <div class="source-cell">
+                    <strong>{{ entry.ipAddress || '—' }}</strong>
+                    <span v-if="entry.userAgent" class="source-agent">{{ describeUserAgent(entry.userAgent) }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge result" :class="auditSucceeded(entry) ? 'is-success' : 'is-failure'">
+                    {{ auditResultLabel(entry) }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="expandedId === entry.id" class="entry-detail-row">
+                <td colspan="6">
+                  <dl class="entry-detail">
+                    <div>
+                      <dt>Request</dt>
+                      <dd><code>{{ entry.httpMethod || '—' }} {{ entry.path || '' }}</code></dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>{{ entry.statusCode || '—' }}</dd>
+                    </div>
+                    <div v-if="entry.resourceType || entry.resourceId">
+                      <dt>Resource</dt>
+                      <dd>{{ entry.resourceType || '—' }}<template v-if="entry.resourceId"> #{{ entry.resourceId }}</template></dd>
+                    </div>
+                    <div v-if="entry.actorUserId">
+                      <dt>Actor ID</dt>
+                      <dd>#{{ entry.actorUserId }}</dd>
+                    </div>
+                    <div class="entry-detail__wide">
+                      <dt>User agent</dt>
+                      <dd>{{ entry.userAgent || '—' }}</dd>
+                    </div>
+                  </dl>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
         <div v-if="!isLoading && !entries.length" class="empty-state">
@@ -134,20 +184,55 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { fetchAuditLogs } from '@/api/auditLogs'
 import { notifyError } from '@/utils/notify'
+import {
+  AUDIT_ACTIONS,
+  AUDIT_CATEGORIES,
+  auditActionClass,
+  auditResultLabel,
+  auditSucceeded,
+  describeUserAgent,
+  formatAuditAction,
+  formatAuditCategory,
+  splitAuditDetails,
+} from '@/utils/auditFormat'
 
 const HISTORY_TITLE = 'Audit History'
 
-const entries = ref([])
+const allEntries = ref([])
 const isLoading = ref(false)
 const pageSize = 10
 const currentPage = ref(1)
+const expandedId = ref(null)
 
 const filters = reactive({
   search: '',
   ip: '',
   category: '',
   action: '',
+  result: '',
 })
+
+const entries = computed(() => {
+  if (filters.result === 'success') return allEntries.value.filter(auditSucceeded)
+  if (filters.result === 'failed') return allEntries.value.filter((entry) => !auditSucceeded(entry))
+  return allEntries.value
+})
+
+const detailsCache = new WeakMap()
+const detailsOf = (entry) => {
+  if (!detailsCache.has(entry)) detailsCache.set(entry, splitAuditDetails(entry.details))
+  return detailsCache.get(entry)
+}
+
+const actorLabel = (entry) => {
+  if (entry.actorName) return entry.actorName
+  if (entry.actorEmail) return entry.actorEmail
+  return entry.action === 'login_failed' ? 'Unknown user' : 'System'
+}
+
+const toggleExpanded = (id) => {
+  expandedId.value = expandedId.value === id ? null : id
+}
 
 const totalPages = computed(() => Math.max(1, Math.ceil(entries.value.length / pageSize)))
 
@@ -180,33 +265,15 @@ watch(
   },
 )
 
-const categoryOptions = [
-  { value: 'auth', label: 'Authentication' },
-  { value: 'user', label: 'Users' },
-  { value: 'edge', label: 'Edges' },
-  { value: 'listening_port', label: 'Listening ports' },
-  { value: 'l4', label: 'L4' },
-  { value: 'site', label: 'Sites' },
-  { value: 'origin', label: 'Origins' },
-  { value: 'cache', label: 'Cache' },
-  { value: 'compress', label: 'Compress' },
-  { value: 'ports', label: 'Ports' },
-  { value: 'waf', label: 'WAF' },
-  { value: 'waf_rule', label: 'WAF rules' },
-  { value: 'blacklist', label: 'Blocked list' },
-]
+watch(
+  () => filters.result,
+  () => {
+    currentPage.value = 1
+  },
+)
 
-const actionOptions = [
-  { value: 'login', label: 'Login' },
-  { value: 'login_failed', label: 'Login failed' },
-  { value: 'logout', label: 'Logout' },
-  { value: 'create', label: 'Create' },
-  { value: 'update', label: 'Update' },
-  { value: 'delete', label: 'Delete' },
-  { value: 'batch_delete', label: 'Batch delete' },
-  { value: 'duplicate', label: 'Duplicate' },
-  { value: 'fork', label: 'Fork' },
-]
+const categoryOptions = AUDIT_CATEGORIES
+const actionOptions = AUDIT_ACTIONS
 
 const formatTime = (value) => {
   if (!value) return '—'
@@ -222,50 +289,6 @@ const formatTime = (value) => {
   })
 }
 
-const formatAction = (value) => {
-  const map = {
-    login: 'Login',
-    login_failed: 'Login failed',
-    logout: 'Logout',
-    create: 'Create',
-    update: 'Update',
-    delete: 'Delete',
-    batch_delete: 'Batch delete',
-    duplicate: 'Duplicate',
-    fork: 'Fork',
-  }
-  return map[String(value || '').toLowerCase()] || value || '—'
-}
-
-const formatCategory = (value) => {
-  const map = {
-    auth: 'Authentication',
-    user: 'Users',
-    edge: 'Edges',
-    listening_port: 'Listening ports',
-    l4: 'L4',
-    site: 'Sites',
-    origin: 'Origins',
-    cache: 'Cache',
-    compress: 'Compress',
-    ports: 'Ports',
-    waf: 'WAF',
-    waf_rule: 'WAF rules',
-    blacklist: 'Blocked list',
-  }
-  return map[String(value || '').toLowerCase()] || value || '—'
-}
-
-const actionClass = (value) => {
-  const normalized = String(value || '').toLowerCase()
-  if (normalized === 'login') return 'is-login'
-  if (normalized === 'logout') return 'is-logout'
-  if (normalized === 'login_failed') return 'is-failed'
-  if (normalized === 'delete' || normalized === 'batch_delete') return 'is-delete'
-  if (normalized === 'create') return 'is-create'
-  return 'is-update'
-}
-
 const loadHistory = async () => {
   isLoading.value = true
   try {
@@ -276,10 +299,11 @@ const loadHistory = async () => {
       search: filters.search.trim(),
       ip: filters.ip.trim(),
     })
-    entries.value = Array.isArray(data) ? data : []
+    allEntries.value = Array.isArray(data) ? data : []
     currentPage.value = 1
+    expandedId.value = null
   } catch (error) {
-    entries.value = []
+    allEntries.value = []
     currentPage.value = 1
     notifyError(HISTORY_TITLE, error?.message || 'Could not load audit history.')
   } finally {
@@ -335,7 +359,7 @@ onMounted(() => {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(180px, 1.6fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
+  grid-template-columns: minmax(180px, 1.6fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(120px, 0.8fr) auto;
   gap: 12px;
   align-items: end;
   margin-bottom: 16px;
@@ -408,31 +432,96 @@ tbody tr:hover {
   font-size: var(--type-base);
 }
 
+.entry-row {
+  cursor: pointer;
+}
+
+.entry-row.is-failed td:first-child {
+  box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.entry-row.is-expanded,
+.entry-row.is-expanded + .entry-detail-row {
+  background: var(--app-surface-hover);
+}
+
 .actor-cell,
-.resource-cell {
+.resource-cell,
+.source-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .actor-cell strong,
-.resource-cell strong {
+.resource-cell strong,
+.source-cell strong {
   font-size: var(--type-base);
   color: var(--app-heading);
+  word-break: break-word;
 }
 
 .actor-email,
 .actor-role,
-.resource-id {
+.source-agent {
   font-size: var(--type-caption);
   color: var(--app-text-muted);
 }
 
-.details-cell {
-  max-width: 280px;
+.activity-cell {
+  min-width: 300px;
+  max-width: 460px;
+}
+
+.activity-summary {
+  margin: 6px 0 0;
   font-size: var(--type-base);
   line-height: 1.4;
+  color: var(--app-heading);
+  word-break: break-word;
+}
+
+.activity-changes {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: var(--type-caption);
+  line-height: 1.5;
   color: var(--app-text-secondary);
+  word-break: break-word;
+}
+
+.entry-detail-row td {
+  padding-top: 0;
+}
+
+.entry-detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 20px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--app-surface-muted);
+}
+
+.entry-detail__wide {
+  grid-column: 1 / -1;
+}
+
+.entry-detail dt {
+  font-size: var(--type-caption);
+  font-weight: 600;
+  color: var(--app-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.entry-detail dd {
+  margin: 2px 0 0;
+  font-size: var(--type-base);
+  color: var(--app-text);
+  word-break: break-all;
 }
 
 .badge {
@@ -474,9 +563,30 @@ tbody tr:hover {
   color: #b91c1c;
 }
 
+.badge.action.is-operate {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+}
+
+.badge.action.is-security {
+  background: rgba(219, 39, 119, 0.12);
+  color: #be185d;
+}
+
 .badge.category {
   background: var(--app-surface-muted);
   color: var(--app-text-secondary);
+  font-weight: 600;
+}
+
+.badge.result.is-success {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.badge.result.is-failure {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
 }
 
 .empty-state {

@@ -8,11 +8,59 @@
         </div>
 
         <header class="login-panel__header">
-          <h1>Sign in to your console</h1>
-          <p>Manage domains, edge fleet, and security rules.</p>
+          <template v-if="mfaToken">
+            <h1>Two-factor verification</h1>
+            <p v-if="useRecoveryCode">Enter one of your unused recovery codes.</p>
+            <p v-else>Enter the 6-digit code from your authenticator app.</p>
+          </template>
+          <template v-else>
+            <h1>Sign in to your console</h1>
+            <p>Manage domains, edge fleet, and security rules.</p>
+          </template>
         </header>
 
-        <form class="login-form" @submit.prevent="handleLogin">
+        <form v-if="mfaToken" class="login-form" @submit.prevent="handleMFA">
+          <div class="form-field">
+            <label for="mfa-code">{{ useRecoveryCode ? 'Recovery code' : 'Authentication code' }}</label>
+            <div class="input-wrap">
+              <svg class="input-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              <input
+                id="mfa-code"
+                ref="mfaInput"
+                v-model="mfaCode"
+                type="text"
+                :inputmode="useRecoveryCode ? 'text' : 'numeric'"
+                :autocomplete="useRecoveryCode ? 'off' : 'one-time-code'"
+                :placeholder="useRecoveryCode ? 'xxxxx-xxxxx' : '123456'"
+                :maxlength="useRecoveryCode ? 16 : 6"
+                required
+                class="form-input"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="login-button"
+            :class="{ 'login-button--loading': isLoading }"
+            :disabled="isLoading"
+          >
+            <span class="login-button__spinner" aria-hidden="true" />
+            <span class="login-button__label">{{ isLoading ? 'Verifying…' : 'Verify' }}</span>
+          </button>
+
+          <p class="login-help">
+            <a href="#" class="forgot-link" @click.prevent="toggleRecoveryCode">
+              {{ useRecoveryCode ? 'Use authenticator app instead' : 'Use a recovery code' }}
+            </a>
+            ·
+            <a href="#" class="forgot-link" @click.prevent="cancelMFA">Back to sign in</a>
+          </p>
+        </form>
+
+        <form v-else class="login-form" @submit.prevent="handleLogin">
           <div class="form-field">
             <label for="email">Email address</label>
             <div class="input-wrap">
@@ -91,9 +139,9 @@
           {{ errorMessage }}
         </p>
 
-        <div class="login-divider" aria-hidden="true">OR CONTINUE WITH</div>
+        <div v-if="!mfaToken" class="login-divider" aria-hidden="true">OR CONTINUE WITH</div>
 
-        <div class="login-sso">
+        <div v-if="!mfaToken" class="login-sso">
           <button
             type="button"
             class="login-sso__btn"
@@ -131,7 +179,7 @@
             {{ ssoLoading ? 'Redirecting…' : 'SSO' }}
           </button>
         </div>
-        <p v-if="ssoHint" class="login-sso-hint">{{ ssoHint }}</p>
+        <p v-if="ssoHint && !mfaToken" class="login-sso-hint">{{ ssoHint }}</p>
 
         <p class="login-help">
           New to Dorian?
@@ -369,9 +417,10 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { login } from '@/api/auth'
+import { login, loginWithMFA } from '@/api/auth'
 import { buildGitHubOAuthStartURL, buildGoogleOAuthStartURL, buildSSOOAuthStartURL, fetchOAuthProviders } from '@/api/oauth'
 import { useAuth } from '@/stores/auth'
+import { takeMFAHandoff } from '@/stores/mfaHandoff'
 import DorianBrandMark from '@/components/DorianBrandMark.vue'
 
 const router = useRouter()
@@ -387,6 +436,11 @@ const googleLoading = ref(false)
 const githubLoading = ref(false)
 const ssoLoading = ref(false)
 const errorMessage = ref('')
+const mfaToken = ref('')
+const mfaCode = ref('')
+const mfaInput = ref(null)
+const useRecoveryCode = ref(false)
+const mfaRedirect = ref('')
 const providers = reactive({
   google: false,
   github: false,
@@ -597,6 +651,13 @@ onMounted(async () => {
     errorMessage.value = String(route.query.oauth_error)
   }
 
+  const handoff = takeMFAHandoff()
+  if (handoff) {
+    rememberMe.value = handoff.remember
+    mfaRedirect.value = handoff.redirect || ''
+    void beginMFA(handoff.mfaToken)
+  }
+
   void fetchOAuthProviders().then((result) => {
     providers.google = Boolean(result?.google)
     providers.github = Boolean(result?.github)
@@ -714,21 +775,82 @@ const handleLogin = async () => {
       rememberMe: rememberMe.value,
     })
 
+    password.value = ''
+    if (result?.mfaRequired) {
+      await beginMFA(result.mfaToken)
+      return
+    }
+
     const user = result?.user || {
       name: email.value.split('@')[0],
       email: result?.email || email.value,
     }
-
-    auth.setSession({ user, token: result?.token || null, rememberMe: rememberMe.value })
-
-    const redirectTo = route.query.redirect ? String(route.query.redirect) : '/app'
-    await router.replace(redirectTo)
-
-    email.value = ''
-    password.value = ''
-    rememberMe.value = false
+    await completeSignIn(user, result?.token || null)
   } catch (error) {
     errorMessage.value = error?.message || 'Sign in failed. Check your credentials and try again.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const completeSignIn = async (user, token) => {
+  auth.setSession({ user, token, rememberMe: rememberMe.value })
+
+  const fallback = mfaRedirect.value && mfaRedirect.value.startsWith('/') ? mfaRedirect.value : '/app'
+  const redirectTo = route.query.redirect ? String(route.query.redirect) : fallback
+  await router.replace(redirectTo)
+
+  email.value = ''
+  password.value = ''
+  rememberMe.value = false
+  resetMFA()
+}
+
+const beginMFA = async (token) => {
+  mfaToken.value = token
+  mfaCode.value = ''
+  useRecoveryCode.value = false
+  errorMessage.value = ''
+  await nextTick()
+  mfaInput.value?.focus()
+}
+
+const resetMFA = () => {
+  mfaToken.value = ''
+  mfaCode.value = ''
+  useRecoveryCode.value = false
+  mfaRedirect.value = ''
+}
+
+const cancelMFA = () => {
+  resetMFA()
+  errorMessage.value = ''
+}
+
+const toggleRecoveryCode = async () => {
+  useRecoveryCode.value = !useRecoveryCode.value
+  mfaCode.value = ''
+  await nextTick()
+  mfaInput.value?.focus()
+}
+
+const handleMFA = async () => {
+  errorMessage.value = ''
+  const code = mfaCode.value.trim()
+  if (!code) {
+    errorMessage.value = useRecoveryCode.value ? 'Enter a recovery code.' : 'Enter the 6-digit code.'
+    return
+  }
+  isLoading.value = true
+  try {
+    const result = await loginWithMFA({ mfaToken: mfaToken.value, code })
+    await completeSignIn(result.user, result.token)
+  } catch (error) {
+    mfaCode.value = ''
+    if (error?.payload?.error === 'mfa_challenge_expired') {
+      resetMFA()
+    }
+    errorMessage.value = error?.message || 'Verification failed. Please try again.'
   } finally {
     isLoading.value = false
   }

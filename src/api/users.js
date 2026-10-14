@@ -20,3 +20,8 @@ export const deleteUser = async (id) =>
   apiRequest(`/users/${id}`, {
     method: 'DELETE',
   })
+
+export const resetUserMFA = async (id) =>
+  apiRequest(`/users/${id}/mfa`, {
+    method: 'DELETE',
+  })

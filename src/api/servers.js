@@ -185,7 +185,7 @@ export const deleteServer = async (serverId) =>
     method: 'DELETE',
   })
 
-/** SSH probe for remote host CPU, memory, and disk usage (GET /servers/:id/host-metrics). */
+/** SSH probe for remote host CPU, memory, disk, network, and thermal state (GET /servers/:id/host-metrics). */
 export const fetchServerHostMetrics = async (serverId) => {
   const opts = {}
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
@@ -200,6 +200,21 @@ export const fetchServerHostMetrics = async (serverId) => {
       memoryTotalBytes: 17_179_869_184,
       diskUsedBytes: 128_849_018_880,
       diskTotalBytes: 536_870_912_000,
+      swapUsedBytes: 268_435_456,
+      swapTotalBytes: 8_589_934_592,
+      load1: 0.84,
+      load5: 0.62,
+      load15: 0.41,
+      uptimeSeconds: 1_234_567,
+      cpuCores: 8,
+      temperatureC: 46.5,
+      temperatureLabel: 'Package id 0',
+      netRxBytesPerSec: 15_728_640,
+      netTxBytesPerSec: 2_097_152,
+      netLinkMbps: 10000,
+      netInterface: 'eth0',
+      hostname: 'edge-01',
+      kernel: '6.8.0-45-generic',
     }
   }
   return apiRequest(`/servers/${serverId}/host-metrics`, opts)

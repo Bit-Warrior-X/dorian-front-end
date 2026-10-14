@@ -26,7 +26,7 @@
           }"
         >
           <span class="status-detail-label">{{ row.label }}</span>
-          <span class="status-detail-value">{{ row.value }}</span>
+          <span class="status-detail-value" :title="row.title || undefined">{{ row.value }}</span>
         </div>
       </div>
     </div>
@@ -34,7 +34,8 @@
       <button
         type="button"
         class="service-action-btn service-action-btn--start"
-        :disabled="busy || status === 'running'"
+        :disabled="busy || status === 'running' || status === 'na'"
+        :title="status === 'na' ? 'This feature is disabled because the license does not include it' : undefined"
         @click="$emit('start')"
       >
         Start
@@ -42,7 +43,8 @@
       <button
         type="button"
         class="service-action-btn service-action-btn--stop"
-        :disabled="busy || status === 'stopped'"
+        :disabled="busy || status === 'stopped' || status === 'na'"
+        :title="status === 'na' ? 'This feature is disabled because the license does not include it' : undefined"
         @click="$emit('stop')"
       >
         Stop
@@ -52,7 +54,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { serviceStatusDetailRows, serviceStatusRoleHint } from '@/utils/serverLayerStatus'
 import InfoHint from '../InfoHint.vue'
 import StatusCornerDot from '../StatusCornerDot.vue'
@@ -73,8 +75,21 @@ const props = defineProps({
 
 defineEmits(['start', 'stop', 'refresh'])
 
+const now = ref(Date.now())
+let clockTimer
+
+onMounted(() => {
+  clockTimer = window.setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  window.clearInterval(clockTimer)
+})
+
 const detailRows = computed(() =>
-  serviceStatusDetailRows(props.service, props.server, props.status, props.lastCheckedAt)
+  serviceStatusDetailRows(props.service, props.server, props.status, props.lastCheckedAt, now.value)
 )
 
 const roleHint = computed(() => serviceStatusRoleHint(props.service))
@@ -84,7 +99,7 @@ const roleHint = computed(() => serviceStatusRoleHint(props.service))
 .status-card {
   display: flex;
   flex-direction: column;
-  min-height: 320px;
+  min-height: 0;
   border: 1px solid var(--app-border-strong);
   border-radius: 14px;
   background: var(--app-surface-solid);

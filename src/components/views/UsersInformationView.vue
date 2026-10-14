@@ -45,7 +45,7 @@
         <div class="history-panel__head">
           <div class="section-head section-head--compact">
             <h3>Activity history</h3>
-            <p>Login, logout, and license events for your account.</p>
+            <p>Sign-ins, password, 2FA, API token, and license events for your account.</p>
           </div>
           <button
             class="ghost-btn history-panel__refresh"
@@ -59,12 +59,12 @@
 
         <p v-if="historyError" class="helper-text error-text">{{ historyError }}</p>
         <p v-else-if="historyLoading && !historyEntries.length" class="helper-text">Loading activity...</p>
-        <p v-else-if="!historyEntries.length" class="helper-text">No login, logout, or license activity recorded yet.</p>
+        <p v-else-if="!historyEntries.length" class="helper-text">No sign-in, security, or license activity recorded yet.</p>
 
         <ul v-else class="history-list">
           <li v-for="entry in historyEntries" :key="entry.id" class="history-item">
             <div class="history-item__head">
-              <span class="badge action" :class="actionClass(entry.action)">{{ formatAction(entry.action) }}</span>
+              <span class="badge action" :class="auditActionClass(entry.action)">{{ formatAuditAction(entry.action) }}</span>
               <span
                 class="history-item__kind"
                 :class="isLicenseHistoryEntry(entry) && !isAuthHistoryEntry(entry) ? 'history-item__kind--license' : 'history-item__kind--auth'"
@@ -74,9 +74,12 @@
               <time class="history-item__time">{{ formatHistoryTime(entry.createdAt) }}</time>
             </div>
             <p class="history-item__summary">{{ historySummary(entry) }}</p>
-            <div v-if="entry.resourceName || entry.ipAddress" class="history-item__meta">
-              <span v-if="entry.resourceName">{{ entry.resourceName }}</span>
+            <ul v-if="splitAuditDetails(entry.details).changes.length" class="history-item__changes">
+              <li v-for="(change, index) in splitAuditDetails(entry.details).changes" :key="index">{{ change }}</li>
+            </ul>
+            <div v-if="entry.ipAddress || entry.userAgent" class="history-item__meta">
               <span v-if="entry.ipAddress">{{ entry.ipAddress }}</span>
+              <span v-if="entry.userAgent">{{ describeUserAgent(entry.userAgent) }}</span>
             </div>
           </li>
         </ul>
@@ -170,10 +173,13 @@
         <section ref="securitySectionRef" class="info-section">
           <div class="section-head section-head--compact">
             <h3>Security</h3>
-            <p>Enter your current password before setting a new one.</p>
+            <p v-if="profile.hasPassword">Enter your current password before setting a new one.</p>
+            <p v-else>
+              You signed up with Google, GitHub, or SSO. Set a password to also sign in with your email address.
+            </p>
           </div>
           <div class="form-grid">
-            <div class="form-field form-field--full">
+            <div v-if="profile.hasPassword" class="form-field form-field--full">
               <label for="info-current-password">Current password</label>
               <input
                 id="info-current-password"
@@ -193,7 +199,7 @@
                 v-model="form.password"
                 type="password"
                 autocomplete="new-password"
-                placeholder="Leave blank to keep current"
+                :placeholder="profile.hasPassword ? 'Leave blank to keep current' : 'Choose a password'"
                 :disabled="saving"
               />
             </div>
@@ -222,6 +228,92 @@
           </button>
         </div>
       </form>
+      </div>
+    </div>
+
+    <div class="content-card mfa-card">
+      <div class="section-head">
+        <h3>Two-factor authentication</h3>
+        <p>Require a code from an authenticator app (Google Authenticator, 1Password, Authy…) when you sign in.</p>
+      </div>
+
+      <p v-if="mfaError" class="helper-text error-text">{{ mfaError }}</p>
+      <p v-else-if="mfaLoading" class="helper-text">Loading two-factor status...</p>
+
+      <template v-else-if="recoveryCodes.length">
+        <p class="field-hint">
+          Save these recovery codes somewhere safe. Each one works once if you lose your authenticator. They will not be shown again.
+        </p>
+        <ul class="mfa-recovery-codes">
+          <li v-for="code in recoveryCodes" :key="code"><code>{{ code }}</code></li>
+        </ul>
+        <div class="mfa-actions">
+          <button class="ghost-btn" type="button" @click="copyRecoveryCodes">
+            {{ recoveryCopied ? 'Copied' : 'Copy codes' }}
+          </button>
+          <button class="primary-btn" type="button" @click="recoveryCodes = []">I saved them</button>
+        </div>
+      </template>
+
+      <template v-else-if="mfaStatus.enabled">
+        <p class="helper-text">
+          <span class="mfa-badge">Enabled</span>
+          {{ mfaStatus.recoveryCodesRemaining }} unused recovery code(s) left.
+        </p>
+        <form class="api-token-create" @submit.prevent>
+          <div class="form-field form-field--grow">
+            <label for="mfa-action-code">Authenticator or recovery code</label>
+            <input
+              id="mfa-action-code"
+              v-model="mfaActionCode"
+              type="text"
+              autocomplete="one-time-code"
+              placeholder="Required to disable or regenerate codes"
+              :disabled="mfaBusy"
+            />
+          </div>
+          <button class="ghost-btn" type="button" :disabled="mfaBusy || !mfaActionCode.trim()" @click="regenerateCodes">
+            New recovery codes
+          </button>
+          <button class="ghost-btn" type="button" :disabled="mfaBusy || !mfaActionCode.trim()" @click="turnOffMFA">
+            Disable
+          </button>
+        </form>
+      </template>
+
+      <template v-else-if="mfaSetup">
+        <div class="mfa-setup">
+          <img v-if="mfaSetup.qrDataUrl" :src="mfaSetup.qrDataUrl" alt="Authenticator QR code" class="mfa-qr" width="180" height="180" />
+          <div class="mfa-setup__steps">
+            <p class="field-hint">1. Scan the QR code with your authenticator app, or enter this key manually:</p>
+            <code class="api-token-secret__value">{{ mfaSetup.secret }}</code>
+            <form class="api-token-create" @submit.prevent="confirmMFASetup">
+              <div class="form-field form-field--grow">
+                <label for="mfa-setup-code">2. Enter the 6-digit code it shows</label>
+                <input
+                  id="mfa-setup-code"
+                  v-model="mfaSetupCode"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  maxlength="6"
+                  placeholder="123456"
+                  :disabled="mfaBusy"
+                />
+              </div>
+              <button class="primary-btn" type="submit" :disabled="mfaBusy || mfaSetupCode.trim().length !== 6">
+                {{ mfaBusy ? 'Verifying...' : 'Turn on' }}
+              </button>
+              <button class="ghost-btn" type="button" :disabled="mfaBusy" @click="mfaSetup = null">Cancel</button>
+            </form>
+          </div>
+        </div>
+      </template>
+
+      <div v-else class="mfa-actions">
+        <button class="primary-btn" type="button" :disabled="mfaBusy" @click="beginMFASetup">
+          {{ mfaBusy ? 'Starting...' : 'Set up two-factor authentication' }}
+        </button>
       </div>
     </div>
 
@@ -287,7 +379,10 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { createApiToken, listApiTokens, revokeApiToken } from '@/api/apiTokens'
 import { fetchAuditLogs } from '@/api/auditLogs'
+import { auditActionClass, describeUserAgent, formatAuditAction, splitAuditDetails } from '@/utils/auditFormat'
 import { fetchUser, updateUser } from '@/api/users'
+import { disableMFA, enableMFA, fetchMFAStatus, regenerateRecoveryCodes, startMFASetup } from '@/api/mfa'
+import QRCode from 'qrcode'
 import { useAuth } from '@/stores/auth'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { joinDisplayName, splitDisplayName } from '@/utils/userName'
@@ -322,11 +417,107 @@ const profile = reactive({
   id: null,
   name: '',
   email: '',
-  password: '',
+  hasPassword: true,
   role: '',
   status: '',
   serverIds: [],
 })
+
+const currentPasswordRejected = ref(false)
+
+const MFA_TITLE = 'Two-factor authentication'
+const mfaLoading = ref(false)
+const mfaBusy = ref(false)
+const mfaError = ref('')
+const mfaStatus = reactive({ enabled: false, recoveryCodesRemaining: 0 })
+const mfaSetup = ref(null)
+const mfaSetupCode = ref('')
+const mfaActionCode = ref('')
+const recoveryCodes = ref([])
+const recoveryCopied = ref(false)
+
+const loadMFAStatus = async () => {
+  mfaLoading.value = true
+  mfaError.value = ''
+  try {
+    const status = await fetchMFAStatus()
+    mfaStatus.enabled = Boolean(status?.enabled)
+    mfaStatus.recoveryCodesRemaining = Number(status?.recoveryCodesRemaining) || 0
+  } catch (error) {
+    mfaError.value = error?.message || 'Could not load two-factor status.'
+  } finally {
+    mfaLoading.value = false
+  }
+}
+
+const beginMFASetup = async () => {
+  mfaBusy.value = true
+  try {
+    const result = await startMFASetup()
+    const qrDataUrl = await QRCode.toDataURL(result.otpauthUrl, { margin: 1, width: 180 })
+    mfaSetup.value = { secret: result.secret, qrDataUrl }
+    mfaSetupCode.value = ''
+  } catch (error) {
+    notifyError(MFA_TITLE, error?.message || 'Could not start two-factor setup.')
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const confirmMFASetup = async () => {
+  mfaBusy.value = true
+  try {
+    const result = await enableMFA(mfaSetupCode.value.trim())
+    recoveryCodes.value = Array.isArray(result?.recoveryCodes) ? result.recoveryCodes : []
+    recoveryCopied.value = false
+    mfaSetup.value = null
+    mfaSetupCode.value = ''
+    await loadMFAStatus()
+    notifySuccess(MFA_TITLE, 'Two-factor authentication is on.')
+  } catch (error) {
+    notifyError(MFA_TITLE, error?.message || 'Could not verify that code.')
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const turnOffMFA = async () => {
+  mfaBusy.value = true
+  try {
+    await disableMFA(mfaActionCode.value.trim())
+    mfaActionCode.value = ''
+    await loadMFAStatus()
+    notifySuccess(MFA_TITLE, 'Two-factor authentication is off.')
+  } catch (error) {
+    notifyError(MFA_TITLE, error?.message || 'Could not disable two-factor authentication.')
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const regenerateCodes = async () => {
+  mfaBusy.value = true
+  try {
+    const result = await regenerateRecoveryCodes(mfaActionCode.value.trim())
+    recoveryCodes.value = Array.isArray(result?.recoveryCodes) ? result.recoveryCodes : []
+    recoveryCopied.value = false
+    mfaActionCode.value = ''
+    await loadMFAStatus()
+  } catch (error) {
+    notifyError(MFA_TITLE, error?.message || 'Could not regenerate recovery codes.')
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const copyRecoveryCodes = async () => {
+  try {
+    await navigator.clipboard.writeText(recoveryCodes.value.join('\n'))
+    recoveryCopied.value = true
+  } catch {
+    notifyError(MFA_TITLE, 'Copy failed. Please copy the codes manually.')
+  }
+}
 
 const form = reactive({
   firstName: '',
@@ -356,15 +547,19 @@ const showPasswordMismatch = computed(
 )
 
 const showCurrentPasswordError = computed(
-  () =>
-    isChangingPassword.value &&
-    form.currentPassword.trim() !== '' &&
-    form.currentPassword !== profile.password
+  () => isChangingPassword.value && currentPasswordRejected.value
+)
+
+watch(
+  () => form.currentPassword,
+  () => {
+    currentPasswordRejected.value = false
+  }
 )
 
 const passwordsValid = computed(() => {
   if (!isChangingPassword.value) return true
-  if (!form.currentPassword.trim() || form.currentPassword !== profile.password) return false
+  if (profile.hasPassword && (!form.currentPassword.trim() || currentPasswordRejected.value)) return false
   if (!form.password.trim() || !form.confirmPassword.trim()) return false
   return form.password === form.confirmPassword
 })
@@ -382,10 +577,23 @@ const isDirty = computed(() => {
 
 const canSave = computed(() => isDirty.value && passwordsValid.value && !saving.value)
 
-const AUTH_ACTIONS = new Set(['login', 'logout', 'login_failed'])
+const AUTH_ACTIONS = new Set([
+  'login',
+  'logout',
+  'login_failed',
+  'password_change',
+  'mfa_enable',
+  'mfa_disable',
+  'mfa_reset',
+  'recovery_codes',
+  'token_create',
+  'token_revoke',
+])
 
 const isAuthHistoryEntry = (entry) =>
-  entry?.category === 'auth' || AUTH_ACTIONS.has(String(entry?.action || '').toLowerCase())
+  entry?.category === 'auth' ||
+  entry?.category === 'api_token' ||
+  AUTH_ACTIONS.has(String(entry?.action || '').toLowerCase())
 
 const isLicenseHistoryEntry = (entry) => {
   const path = String(entry?.path || '').toLowerCase()
@@ -411,35 +619,19 @@ const formatHistoryTime = (value) => {
   })
 }
 
-const formatAction = (value) => {
-  const map = {
-    login: 'Login',
-    login_failed: 'Login failed',
-    logout: 'Logout',
-    create: 'Create',
-    update: 'Update',
-    delete: 'Delete',
-  }
-  return map[String(value || '').toLowerCase()] || value || 'Event'
+const historyKindLabel = (entry) => {
+  if (isLicenseHistoryEntry(entry) && !isAuthHistoryEntry(entry)) return 'License'
+  const action = String(entry?.action || '').toLowerCase()
+  if (action === 'login' || action === 'logout' || action === 'login_failed') return 'Authentication'
+  return 'Security'
 }
 
-const historyKindLabel = (entry) => (isLicenseHistoryEntry(entry) && !isAuthHistoryEntry(entry) ? 'License' : 'Authentication')
-
 const historySummary = (entry) => {
-  if (entry?.details) return entry.details
+  const { summary } = splitAuditDetails(entry?.details)
+  if (summary) return summary
   if (entry?.resourceName) return entry.resourceName
   if (entry?.path) return entry.path
   return 'Account activity'
-}
-
-const actionClass = (value) => {
-  const normalized = String(value || '').toLowerCase()
-  if (normalized === 'login') return 'is-login'
-  if (normalized === 'logout') return 'is-logout'
-  if (normalized === 'login_failed') return 'is-failed'
-  if (normalized === 'create') return 'is-create'
-  if (normalized === 'update') return 'is-update'
-  return 'is-update'
 }
 
 const loadUserHistory = async () => {
@@ -469,7 +661,7 @@ const applyProfile = (user) => {
   profile.id = user?.id ?? null
   profile.name = user?.name || ''
   profile.email = user?.email || ''
-  profile.password = user?.password || ''
+  profile.hasPassword = user?.hasPassword !== false
   profile.role = user?.role || ''
   profile.status = user?.status || ''
   profile.serverIds = Array.isArray(user?.serverIds) ? [...user.serverIds] : []
@@ -484,6 +676,7 @@ const resetForm = () => {
   form.currentPassword = ''
   form.password = ''
   form.confirmPassword = ''
+  currentPasswordRejected.value = false
   isEditingEmail.value = false
 }
 
@@ -549,8 +742,8 @@ const saveProfile = async () => {
 
   const newPassword = form.password.trim()
   if (isChangingPassword.value) {
-    if (form.currentPassword !== profile.password) {
-      notifyError(INFO_TITLE, 'Current password is incorrect.')
+    if (profile.hasPassword && !form.currentPassword.trim()) {
+      notifyError(INFO_TITLE, 'Enter your current password to change it.')
       return
     }
     if (!newPassword) {
@@ -563,20 +756,24 @@ const saveProfile = async () => {
     }
   }
 
-  const nextPassword = newPassword || profile.password || ''
   const payload = {
     name,
     email,
-    password: nextPassword,
     role: profile.role || 'User',
     status: profile.status || 'Active',
     serverIds: profile.role === 'User' ? [...profile.serverIds] : [],
+  }
+  if (isChangingPassword.value) {
+    payload.password = newPassword
+    if (profile.hasPassword) {
+      payload.currentPassword = form.currentPassword
+    }
   }
 
   saving.value = true
   try {
     const updated = await updateUser(profile.id, payload)
-    applyProfile(updated || { ...profile, ...payload, password: nextPassword })
+    applyProfile(updated || { ...profile, ...payload })
     auth.setSession({
       user: {
         ...(auth.state.user || {}),
@@ -591,6 +788,9 @@ const saveProfile = async () => {
     notifySuccess(INFO_TITLE, 'Your information was updated.')
     void loadUserHistory()
   } catch (error) {
+    if (error?.payload?.error === 'invalid_current_password') {
+      currentPasswordRejected.value = true
+    }
     notifyError(INFO_TITLE, error?.message || 'Could not update your information.')
   } finally {
     saving.value = false
@@ -676,11 +876,58 @@ watch(
 onMounted(async () => {
   await loadProfile()
   void loadApiTokens()
+  void loadMFAStatus()
   focusPasswordIfRequested()
 })
 </script>
 
 <style scoped>
+.mfa-setup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-gap-lg);
+  align-items: flex-start;
+}
+
+.mfa-setup__steps {
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mfa-qr {
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px;
+}
+
+.mfa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mfa-recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono);
+}
+
+.mfa-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 2px 8px;
+  border-radius: var(--badge-radius, 4px);
+  font-size: var(--type-caption);
+  background: var(--dorian-viper-dim);
+  color: var(--dorian-viper-400);
+}
+
 .users-information-view {
   display: flex;
   flex-direction: column;
@@ -774,6 +1021,15 @@ onMounted(async () => {
   line-height: 1.45;
 }
 
+.history-item__changes {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  font-size: var(--type-caption);
+  line-height: 1.5;
+  color: var(--app-text-secondary);
+  word-break: break-word;
+}
+
 .history-item__meta {
   display: flex;
   flex-wrap: wrap;
@@ -800,9 +1056,20 @@ onMounted(async () => {
   color: var(--dorian-l4);
 }
 
-.badge.action.is-failed {
+.badge.action.is-failed,
+.badge.action.is-delete {
   background: rgba(225, 82, 65, 0.14);
   color: var(--dorian-danger);
+}
+
+.badge.action.is-operate {
+  background: rgba(91, 157, 240, 0.14);
+  color: var(--dorian-l4);
+}
+
+.badge.action.is-security {
+  background: rgba(219, 39, 119, 0.12);
+  color: #be185d;
 }
 
 .badge.action.is-create {

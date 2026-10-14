@@ -13,7 +13,8 @@ const isLoginRequestPath = (path) => {
   return (
     normalized === '/auth/login' ||
     normalized === '/api/v1/auth/login' ||
-    normalized.endsWith('/auth/login')
+    normalized.endsWith('/auth/login') ||
+    normalized.endsWith('/auth/login/mfa')
   )
 }
 

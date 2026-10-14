@@ -12,9 +12,9 @@
               <th>First Name</th>
               <th>Second Name</th>
               <th>Email</th>
-              <th>Password</th>
               <th>Role</th>
               <th>Status</th>
+              <th>2FA</th>
               <th>Edges</th>
               <th>Actions</th>
             </tr>
@@ -24,7 +24,6 @@
               <td>{{ splitDisplayName(user.name).firstName || '—' }}</td>
               <td>{{ splitDisplayName(user.name).secondName || '—' }}</td>
               <td>{{ user.email }}</td>
-              <td>{{ maskPassword(user.password) }}</td>
               <td>
                 <span class="badge" :class="user.role === 'Admin' ? 'admin' : 'user'">{{ user.role }}</span>
               </td>
@@ -35,6 +34,10 @@
                 >
                   {{ user.status }}
                 </span>
+              </td>
+              <td>
+                <span v-if="user.mfaEnabled" class="badge active">On</span>
+                <span v-else class="muted-text">Off</span>
               </td>
               <td>
                 <div v-if="user.role === 'User' && user.servers?.length" class="server-list">
@@ -48,6 +51,19 @@
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path d="M12 20h9"></path>
                       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+                    </svg>
+                  </button>
+                  <button
+                    v-if="user.mfaEnabled"
+                    class="action-btn action-btn--edit"
+                    type="button"
+                    aria-label="Reset 2FA"
+                    title="Reset two-factor authentication"
+                    @click="confirmResetMFA(user)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                      <path d="M9 12h6"></path>
                     </svg>
                   </button>
                   <button class="action-btn action-btn--block" type="button" aria-label="Block" @click="confirmBlockUser(user)">
@@ -98,7 +114,13 @@
           </div>
           <div class="dialog-field">
             <label for="add-user-password">Password</label>
-            <input id="add-user-password" v-model="newUser.password" type="password" placeholder="Enter a password" />
+            <input
+              id="add-user-password"
+              v-model="newUser.password"
+              type="password"
+              autocomplete="new-password"
+              :placeholder="isEditMode ? 'Leave blank to keep current password' : 'Enter a password'"
+            />
           </div>
           <div class="dialog-field">
             <label for="add-user-role">Role</label>
@@ -156,7 +178,7 @@
 
 <script setup>
 import { onMounted, reactive, ref, watch } from 'vue'
-import { createUser, deleteUser, fetchUsers, updateUser } from '@/api/users'
+import { createUser, deleteUser, fetchUsers, resetUserMFA, updateUser } from '@/api/users'
 import { fetchServers } from '@/api/servers'
 import { joinDisplayName, splitDisplayName } from '@/utils/userName'
 
@@ -195,7 +217,7 @@ const openEditDialog = (user) => {
   newUser.firstName = names.firstName
   newUser.secondName = names.secondName
   newUser.email = user.email
-  newUser.password = user.password || ''
+  newUser.password = ''
   newUser.role = user.role
   newUser.status = user.status
   newUser.serverIds = user.serverIds ? [...user.serverIds] : []
@@ -306,6 +328,21 @@ const confirmDeleteUser = (user) => {
   )
 }
 
+const confirmResetMFA = (user) => {
+  openConfirmDialog(
+    'Reset Two-Factor Authentication',
+    `Turn off two-factor authentication for ${displayUserName(user)}? They can sign in with just their password and set it up again.`,
+    async () => {
+      try {
+        await resetUserMFA(user.id)
+        await loadUsers()
+      } catch {
+        return
+      }
+    },
+  )
+}
+
 const confirmBlockUser = (user) => {
   const nextStatus = user.status === 'Block' ? 'Active' : 'Block'
   const actionLabel = nextStatus === 'Block' ? 'block' : 'unblock'
@@ -316,7 +353,6 @@ const confirmBlockUser = (user) => {
       const payload = {
         name: user.name,
         email: user.email,
-        password: user.password || '',
         role: user.role,
         status: nextStatus,
         serverIds: user.role === 'User' ? [...(user.serverIds || [])] : [],
@@ -329,11 +365,6 @@ const confirmBlockUser = (user) => {
       }
     },
   )
-}
-
-const maskPassword = (value) => {
-  if (!value) return 'N/A'
-  return '******'
 }
 
 const loadServers = async () => {

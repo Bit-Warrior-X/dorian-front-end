@@ -177,7 +177,7 @@
             :id="`${fieldPrefix}-ssl-key`"
             v-model="form.sslCertKey"
             rows="3"
-            placeholder="-----BEGIN PRIVATE KEY-----"
+            :placeholder="form.hasSslCertKey ? 'Stored securely. Leave blank to keep the current private key.' : '-----BEGIN PRIVATE KEY-----'"
           ></textarea>
         </div>
       </div>

@@ -53,7 +53,7 @@ export const docsNav = [
         slug: 'insights',
         name: 'docs-insights',
         title: 'Insights',
-        description: 'Traffic, security, logs, and L4 attacks',
+        description: 'Detection, traffic, and access logs',
         keywords: 'analytics traffic access log export bandwidth',
       },
       {

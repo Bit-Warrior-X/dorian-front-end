@@ -1,6 +1,6 @@
 <template>
-  <div class="cfg-subpanel">
-    <header class="cfg-subpanel__intro">
+  <div class="cfg-subpanel" :class="{ 'cfg-subpanel--embedded': embedded }">
+    <header v-if="!embedded" class="cfg-subpanel__intro">
       <div>
         <p class="cfg-subpanel__kicker">Security</p>
         <h4>WAF protection</h4>
@@ -21,7 +21,7 @@
             @click="activeWafItem = item.id"
           >
             <span class="cfg-subnav__item-label">{{ item.label }}</span>
-            <span class="cfg-subnav__item-hint">{{ item.hint }}</span>
+            <span v-if="!embedded" class="cfg-subnav__item-hint">{{ item.hint }}</span>
           </button>
         </div>
       </nav>
@@ -67,6 +67,10 @@ defineProps({
   wafRuleId: {
     type: [Number, String],
     default: null,
+  },
+  embedded: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -257,6 +261,44 @@ const activeWafLabel = computed(() => {
   font-size: 13px;
 }
 
+.cfg-subpanel--embedded {
+  min-height: 0;
+  height: 100%;
+}
+
+.cfg-subpanel--embedded .cfg-subpanel__body {
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: 196px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.cfg-subpanel--embedded .cfg-subnav {
+  max-height: none;
+  gap: 10px;
+  overflow: auto;
+}
+
+.cfg-subpanel--embedded .cfg-subnav__item {
+  padding: 6px 8px;
+}
+
+.cfg-subpanel--embedded .cfg-subpanel__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cfg-subpanel--embedded .cfg-subpanel__content > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.cfg-subpanel--embedded :deep(.waf-table-wrapper) {
+  max-height: none;
+}
+
 @media (max-width: 900px) {
   .cfg-subpanel__body {
     grid-template-columns: 1fr;
@@ -274,6 +316,22 @@ const activeWafLabel = computed(() => {
 
   .cfg-subnav__group {
     flex: 1 1 180px;
+  }
+
+  .cfg-subpanel--embedded .cfg-subpanel__body {
+    grid-template-columns: 168px minmax(0, 1fr);
+  }
+
+  .cfg-subpanel--embedded .cfg-subnav {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    border-right: 1px solid var(--app-border);
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .cfg-subpanel--embedded .cfg-subnav__group {
+    flex: none;
   }
 }
 </style>

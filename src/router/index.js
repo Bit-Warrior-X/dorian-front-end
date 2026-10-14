@@ -267,6 +267,16 @@ const routes = [
         redirect: { name: 'server-blacklist' }
       },
       {
+        path: 'analytics/detection',
+        name: 'attack-detection',
+        component: () => import('@/components/views/DetectionAnalyticsView.vue'),
+        meta: {
+          title: 'Detection',
+          section: 'analytics',
+          description: 'L4 floods and L7 blocks for the selected window.',
+        }
+      },
+      {
         path: 'analytics/access-log',
         name: 'access-log',
         component: () => import('@/components/views/AccessLogView.vue'),
@@ -301,9 +311,9 @@ const routes = [
         name: 'security-analytics-detail',
         component: () => import('@/components/views/SecurityAnalyticsView.vue'),
         meta: {
-          title: 'Security',
+          title: 'L7 attacks',
           section: 'analytics',
-          description: 'Blocked requests, geography, and top attack-related dimensions.',
+          description: 'Layer-7 blocks, geography, and top attack sources.',
         }
       },
       {

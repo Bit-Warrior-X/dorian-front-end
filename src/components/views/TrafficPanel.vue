@@ -3,13 +3,13 @@
     <header class="cfg-subpanel__intro">
       <div>
         <p class="cfg-subpanel__kicker">Delivery</p>
-        <h4>Traffic &amp; edges</h4>
+        <h4>Cache, compression, and ports</h4>
         <p>Tune cache behavior, compression, and listening ports for this hostname.</p>
       </div>
     </header>
 
     <div class="cfg-subpanel__body">
-      <nav class="cfg-subnav" aria-label="Traffic sections">
+      <nav class="cfg-subnav" aria-label="Delivery sections">
         <div class="cfg-subnav__group">
           <p class="cfg-subnav__group-label">Sections</p>
           <button

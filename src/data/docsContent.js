@@ -80,6 +80,21 @@ export const concepts = [
 
 export const insightRows = [
   {
+    title: 'Detection',
+    body: 'L4 floods and L7 blocks together for the selected window',
+    to: { name: 'attack-detection' },
+  },
+  {
+    title: 'L4 attacks',
+    body: 'Allowed vs blocked volume, protocol mix, recent attempts, top attacking IPs',
+    to: { name: 'layer4-attack-analytics' },
+  },
+  {
+    title: 'L7 attacks',
+    body: 'Block counts, geography, top URLs / referers / user agents',
+    to: { name: 'security-analytics-detail' },
+  },
+  {
     title: 'Traffic',
     body: 'Bandwidth & traffic, requests & status, audience, HTTP methods/protocols',
     to: { name: 'security-analytics' },
@@ -88,16 +103,6 @@ export const insightRows = [
     title: 'Access logs',
     body: 'Live HTTP stream, status KPIs, filters, CSV export',
     to: { name: 'access-log' },
-  },
-  {
-    title: 'Security',
-    body: 'Block counts, geography, top URLs / referers / user agents',
-    to: { name: 'security-analytics-detail' },
-  },
-  {
-    title: 'L4 attacks',
-    body: 'Allowed vs blocked volume, protocol mix, recent attempts, top attacking IPs',
-    to: { name: 'layer4-attack-analytics' },
   },
   {
     title: 'Log export',
@@ -214,21 +219,26 @@ export const cheatSheet = [
   { label: 'WAF rules', path: '/app/waf', to: { name: 'waf-rules' } },
   { label: 'IP blocklist', path: '/app/blacklist', to: { name: 'server-blacklist' } },
   {
-    label: 'Traffic',
-    path: '/app/analytics/security-analytics',
-    to: { name: 'security-analytics' },
-  },
-  { label: 'Access logs', path: '/app/analytics/access-log', to: { name: 'access-log' } },
-  {
-    label: 'Security',
-    path: '/app/analytics/security-analytics-detail',
-    to: { name: 'security-analytics-detail' },
+    label: 'Detection',
+    path: '/app/analytics/detection',
+    to: { name: 'attack-detection' },
   },
   {
     label: 'L4 attacks',
     path: '/app/analytics/layer4-attack-analytics',
     to: { name: 'layer4-attack-analytics' },
   },
+  {
+    label: 'L7 attacks',
+    path: '/app/analytics/security-analytics-detail',
+    to: { name: 'security-analytics-detail' },
+  },
+  {
+    label: 'Traffic',
+    path: '/app/analytics/security-analytics',
+    to: { name: 'security-analytics' },
+  },
+  { label: 'Access logs', path: '/app/analytics/access-log', to: { name: 'access-log' } },
   { label: 'Log export', path: '/app/analytics/log-export', to: { name: 'log-export' } },
   { label: 'Licensing', path: '/app/license', to: { name: 'server-license' } },
   { label: 'Profile', path: '/app/users/information', to: { name: 'users-information' } },

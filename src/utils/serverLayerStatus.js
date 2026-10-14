@@ -10,6 +10,32 @@ export function isLayerLicensed(license, layer) {
   return false
 }
 
+function isLicenseExpired(server) {
+  const raw = server?.expiredDate ?? server?.expired_date
+  if (!raw || raw === '—') return false
+  const time = new Date(raw).getTime()
+  if (Number.isNaN(time)) return false
+  return time < Date.now()
+}
+
+/** L4 controls require a current license that includes Sparta. */
+export function isL4LicenseValid(server) {
+  const license = String(server?.license || '').trim()
+  if (!license || !isLayerLicensed(license, 'l4')) return false
+  return !isLicenseExpired(server)
+}
+
+/** Warning copy when XDP, Block IP, or Allow IP is opened without a valid L4 license. */
+export function l4LicenseBlockMessage(server) {
+  const license = String(server?.license || '').trim()
+  if (!license) return 'The L4 license is not valid. No license is assigned to this edge.'
+  if (!isLayerLicensed(license, 'l4')) {
+    return `The L4 license is not valid. ${licenseAllowsPhrase(license)}`
+  }
+  if (isLicenseExpired(server)) return 'The L4 license is not valid. This license has expired.'
+  return 'The L4 license is not valid.'
+}
+
 /** Normalize deploy/runtime status tokens from API or systemd probes. */
 export function normalizeRuntimeStatus(value) {
   const status = String(value ?? '').trim().toLowerCase()
@@ -31,6 +57,7 @@ const RUNTIME_LABELS = {
 }
 
 export function runtimeStatusLabel(status) {
+  if (String(status ?? '').trim().toLowerCase() === 'na') return RUNTIME_LABELS.na
   return RUNTIME_LABELS[normalizeRuntimeStatus(status)] || 'Unknown'
 }
 
@@ -62,6 +89,10 @@ export function angelosStatusClass(server) {
 
 /** Resolve L4/L7 runtime status for indicator dots (running | stopped | deployed | unknown | na). */
 export function resolveLayerStatus(server, layer) {
+  const license = String(server?.license || '').trim()
+  if (license && !isLayerLicensed(license, layer)) {
+    return 'na'
+  }
   const raw =
     layer === 'l4'
       ? server?.l4Status ?? server?.l4_status
@@ -102,13 +133,31 @@ const STATUS_COPY = {
   stopped: 'is stopped',
   deployed: 'is deployed (artifacts present; service may be idle)',
   unknown: 'status is unknown — use Refresh status or redeploy to update',
-  na: 'is not included in this server’s license tier',
+  na: 'is disabled because this license does not include it',
+}
+
+function licenseAllowsPhrase(license) {
+  const lic = String(license || '').trim().toLowerCase()
+  if (lic === 'l7') return 'The current license allows L7 only.'
+  if (lic === 'l4') return 'The current license allows L4 only.'
+  if (lic === 'trial') return 'The trial license includes L4 and L7.'
+  if (lic === 'unified') return 'The current license includes L4 and L7.'
+  if (!lic) return 'No license is assigned to this edge.'
+  return `The current license is ${String(license).trim()}.`
+}
+
+function unlicensedFeatureMessage(service, server) {
+  const layer = service === 'sparta' ? 'L4' : 'L7'
+  return `This feature is disabled because there is no ${layer} license. ${licenseAllowsPhrase(server?.license)}`
 }
 
 /** One-line label for native title / aria (accessibility). */
 export function layerDotTitle(server, layer) {
   const meta = LAYER_META[layer] || LAYER_META.l4
   const status = resolveLayerStatus(server, layer)
+  if (status === 'na') {
+    return `${meta.short} (${meta.service}): ${unlicensedFeatureMessage(meta.service.toLowerCase(), server)}`
+  }
   return `${meta.short} (${meta.service}): ${STATUS_COPY[status] || status}`
 }
 
@@ -116,8 +165,10 @@ export function layerDotTitle(server, layer) {
 export function layerDotDescription(server, layer) {
   const meta = LAYER_META[layer] || LAYER_META.l4
   const status = resolveLayerStatus(server, layer)
-  const statusLine = STATUS_COPY[status] || status
-  return `${meta.short} · ${meta.service}\n${meta.role}\n${statusLine.charAt(0).toUpperCase()}${statusLine.slice(1)}.`
+  const statusLine = status === 'na'
+    ? unlicensedFeatureMessage(meta.service.toLowerCase(), server)
+    : `${(STATUS_COPY[status] || status).charAt(0).toUpperCase()}${(STATUS_COPY[status] || status).slice(1)}.`
+  return `${meta.short} · ${meta.service}\n${meta.role}\n${statusLine}`
 }
 
 const SERVICE_META = {
@@ -145,12 +196,12 @@ const ANGELOS_STATUS_COPY = {
   unknown: 'Status is unknown — refresh or redeploy to update',
 }
 
-function serviceHealthMessage(service, status) {
+function serviceHealthMessage(service, status, server) {
   if (service === 'angelos') {
     return ANGELOS_STATUS_COPY[status] || ANGELOS_STATUS_COPY.unknown
   }
   if (status === 'na') {
-    return 'Not included in this server’s license tier'
+    return unlicensedFeatureMessage(service, server)
   }
   const line = STATUS_COPY[status] || status
   const name = service === 'sparta' ? 'Sparta' : 'Athens'
@@ -167,7 +218,10 @@ function serviceLicenseLine(service, server) {
   if (licensed) {
     return `Included (${tier} license)`
   }
-  return `Not included (${tier} license — ${layer.toUpperCase()} tier required)`
+  const lic = tier.toLowerCase()
+  if (lic === 'l7') return 'Not included — license allows L7 only'
+  if (lic === 'l4') return 'Not included — license allows L4 only'
+  return `Not included. ${licenseAllowsPhrase(server?.license)}`
 }
 
 /** Short role blurb for Monitor card info icons. */
@@ -192,14 +246,14 @@ function serviceStatusReason(service, server, status) {
 }
 
 /** Detail rows for Server Status service panels. */
-export function serviceStatusDetailRows(service, server, status, lastCheckedAt) {
+export function serviceStatusDetailRows(service, server, status, lastCheckedAt, now = Date.now()) {
   const meta = SERVICE_META[service] || SERVICE_META.angelos
   const normalized =
     String(status ?? '').trim().toLowerCase() === 'na' ? 'na' : normalizeRuntimeStatus(status)
   const rows = [
     { label: 'Unit', value: meta.unit },
     { label: 'Layer', value: meta.layer },
-    { label: 'Health', value: serviceHealthMessage(service, normalized) },
+    { label: 'Health', value: serviceHealthMessage(service, normalized, server) },
   ]
   const reason = serviceStatusReason(service, server, normalized)
   if (reason) {
@@ -218,10 +272,34 @@ export function serviceStatusDetailRows(service, server, status, lastCheckedAt) 
     })
   }
   rows.push({ label: 'License', value: serviceLicenseLine(service, server) })
-  if (lastCheckedAt) {
-    rows.push({ label: 'Last checked', value: formatStatusTimestamp(lastCheckedAt) })
-  }
+  rows.push(lastCheckedRow(lastCheckedAt, now))
   return rows
+}
+
+function lastCheckedRow(value, now) {
+  if (!value) {
+    return { label: 'Last checked', value: 'Not checked yet' }
+  }
+  return {
+    label: 'Last checked',
+    value: formatRelativeChecked(value, now),
+    title: formatStatusTimestamp(value),
+  }
+}
+
+export function formatRelativeChecked(value, now = Date.now()) {
+  const date = value instanceof Date ? value : new Date(value)
+  const checkedAt = date.getTime()
+  if (Number.isNaN(checkedAt)) return '—'
+  const seconds = Math.max(0, Math.round((Number(now) - checkedAt) / 1000))
+  if (seconds < 5) return 'just now'
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
 }
 
 function formatStatusTimestamp(value) {

@@ -16,22 +16,9 @@
       </div>
     </header>
 
-    <section class="waf-metrics" aria-label="WAF rule metrics">
-      <article
-        v-for="metric in wafMetricCards"
-        :key="metric.label"
-        class="waf-metric"
-        :class="`waf-metric--${metric.tone}`"
-      >
-        <span class="waf-metric__label">{{ metric.label }}</span>
-        <strong class="waf-metric__value num">{{ metric.value }}</strong>
-        <span class="waf-metric__hint">{{ metric.hint }}</span>
-      </article>
-    </section>
-
     <div class="waf-filterbar">
       <div class="waf-filter-field waf-filter-field--grow">
-        <label for="waf-rule-name-filter">Name</label>
+        <label class="list-filter-label" for="waf-rule-name-filter">Name</label>
         <input
           id="waf-rule-name-filter"
           v-model="filters.name"
@@ -39,33 +26,47 @@
           placeholder="Search rule sets…"
         />
       </div>
-      <div class="waf-filter-field">
-        <label for="waf-rule-role-filter">Role</label>
-        <select id="waf-rule-role-filter" v-model="filters.role">
-          <option value="">All</option>
-          <option value="predefined">Predefined</option>
-          <option value="custom">Custom</option>
-        </select>
+      <div class="list-status-pills" role="group" aria-label="Role">
+        <button type="button" :class="{ 'is-active': filters.role === '' }" @click="filters.role = ''">All</button>
+        <button type="button" :class="{ 'is-active': filters.role === 'predefined' }" @click="filters.role = 'predefined'">Predefined</button>
+        <button type="button" :class="{ 'is-active': filters.role === 'custom' }" @click="filters.role = 'custom'">Custom</button>
       </div>
-      <div class="waf-filter-field">
-        <label for="waf-rule-count-filter">Rules</label>
-        <select id="waf-rule-count-filter" v-model="filters.ruleCount">
-          <option value="">All</option>
-          <option value="5">&gt;= 5</option>
-          <option value="10">&gt;= 10</option>
-          <option value="20">&gt;= 20</option>
-          <option value="30">&gt;= 30</option>
-        </select>
-      </div>
-      <div class="waf-filter-field">
-        <label for="waf-site-count-filter">Sites</label>
-        <select id="waf-site-count-filter" v-model="filters.siteCount">
-          <option value="">All</option>
-          <option value="1">&gt;= 1</option>
-          <option value="2">&gt;= 2</option>
-          <option value="5">&gt;= 5</option>
-          <option value="10">&gt;= 10</option>
-        </select>
+      <div ref="wafFilterMenu" class="list-filter">
+        <button
+          type="button"
+          class="list-filter__toggle"
+          :class="{ 'is-active': wafFiltersOpen || wafExtraFilterCount }"
+          :aria-expanded="wafFiltersOpen"
+          @click="wafFiltersOpen = !wafFiltersOpen"
+        >
+          Filters
+          <span v-if="wafExtraFilterCount" class="list-filter__count">{{ wafExtraFilterCount }}</span>
+        </button>
+        <div v-if="wafFiltersOpen" class="list-filter__panel">
+          <div class="waf-filter-field">
+            <label for="waf-rule-count-filter">Rules</label>
+            <select id="waf-rule-count-filter" v-model="filters.ruleCount">
+              <option value="">All</option>
+              <option value="5">5 or more</option>
+              <option value="10">10 or more</option>
+              <option value="20">20 or more</option>
+              <option value="30">30 or more</option>
+            </select>
+          </div>
+          <div class="waf-filter-field">
+            <label for="waf-site-count-filter">Sites using the set</label>
+            <select id="waf-site-count-filter" v-model="filters.siteCount">
+              <option value="">All</option>
+              <option value="1">1 or more</option>
+              <option value="2">2 or more</option>
+              <option value="5">5 or more</option>
+              <option value="10">10 or more</option>
+            </select>
+          </div>
+          <button v-if="wafExtraFilterCount" class="list-filter__clear" type="button" @click="clearWafExtraFilters">
+            Clear filters
+          </button>
+        </div>
       </div>
       <div class="waf-filter-summary">
         <span class="waf-live-dot" aria-hidden="true"></span>
@@ -253,9 +254,12 @@
       class="dialog-backdrop dialog-backdrop--configure"
       @click="closeConfigureDialog"
     >
-      <div class="dialog-card dialog-card--wide" @click.stop>
+      <div class="dialog-card dialog-card--workspace" @click.stop>
         <div class="dialog-header">
-          <h3>Configure WAF Rule Set</h3>
+          <div>
+            <p class="dialog-kicker">Security</p>
+            <h3>Configure WAF rule set</h3>
+          </div>
           <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeConfigureDialog">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -264,33 +268,16 @@
           </button>
         </div>
 
-        <div class="rule-dialog-tabs">
-          <div class="tabs-header">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="tab-btn"
-              :class="{ active: activeTab === tab.id }"
-              type="button"
-              @click="activeTab = tab.id"
-            >
-              {{ tab.label }}
-            </button>
-          </div>
-          <div class="tabs-body" :class="{ 'no-outline': activeTab === 'waf' }">
-            <form v-if="activeTab === 'general'" class="settings-form" @submit.prevent="saveRule">
-              <div class="form-field">
-                <label for="waf-rule-name">Rule name</label>
-                <input id="waf-rule-name" v-model="form.name" type="text" required placeholder="e.g. OWASP Core" />
-              </div>
-              <div class="form-actions">
-                <button class="primary-btn" type="submit" :disabled="isSaving">
-                  {{ isSaving ? 'Saving…' : 'Save' }}
-                </button>
-              </div>
-            </form>
-            <WafPanel v-else-if="activeTab === 'waf'" :key="loadedRule.id" :waf-rule-id="loadedRule.id" />
-          </div>
+        <form class="workspace-name" @submit.prevent="saveRule">
+          <label for="waf-rule-name">Rule name</label>
+          <input id="waf-rule-name" v-model="form.name" type="text" required placeholder="e.g. OWASP Core" />
+          <button class="primary-btn" type="submit" :disabled="isSaving || !form.name.trim()">
+            {{ isSaving ? 'Saving…' : 'Save name' }}
+          </button>
+        </form>
+
+        <div class="workspace-body">
+          <WafPanel :key="loadedRule.id" embedded :waf-rule-id="loadedRule.id" />
         </div>
 
         <div class="dialog-actions">
@@ -358,7 +345,7 @@
     <div v-if="isCreateDialogOpen" class="dialog-backdrop">
       <div
         class="dialog-card"
-        :class="{ 'dialog-card--wide': createStep === 2 }"
+        :class="{ 'dialog-card--workspace': createStep === 2 }"
         @click.stop
       >
         <div class="dialog-header">
@@ -393,9 +380,8 @@
           </div>
         </div>
 
-        <div v-else-if="createStep === 2" class="dialog-body dialog-body-waf">
-          <p class="wizard-step-desc">Configure WAF rules for this rule set.</p>
-          <WafPanel v-if="createDraftId" :key="createDraftId" :waf-rule-id="createDraftId" />
+        <div v-else-if="createStep === 2" class="workspace-body">
+          <WafPanel v-if="createDraftId" :key="createDraftId" embedded :waf-rule-id="createDraftId" />
         </div>
 
         <div v-else class="dialog-body">
@@ -507,8 +493,6 @@ const isDuplicating = ref(false)
 const isDeleteConfirmOpen = ref(false)
 const deleteTarget = ref(null)
 const deletingId = ref(null)
-const activeTab = ref('general')
-
 const pageSize = ref(10)
 const currentPage = ref(1)
 
@@ -526,27 +510,6 @@ const wafSubtitle = computed(() => {
   const assigned = rules.value.reduce((sum, rule) => sum + Number(rule.siteCount || 0), 0)
   return `${total} rule set${total === 1 ? '' : 's'} · ${custom} custom · ${assigned} site assignment${assigned === 1 ? '' : 's'}`
 })
-
-const wafMetricCards = computed(() => {
-  const list = rules.value
-  const total = list.length
-  const predefined = list.filter((rule) => String(rule.role || '').toLowerCase() === 'predefined').length
-  const custom = list.filter((rule) => String(rule.role || '').toLowerCase() !== 'predefined').length
-  const withSites = list.filter((rule) => Number(rule.siteCount || 0) > 0).length
-  const totalRules = list.reduce((sum, rule) => sum + Number(rule.ruleCount || 0), 0)
-  return [
-    { label: 'Rule sets', value: String(total), hint: 'Total catalogs', tone: 'viper' },
-    { label: 'Predefined', value: String(predefined), hint: 'Shared templates', tone: 'l4' },
-    { label: 'Custom', value: String(custom), hint: 'Site-specific sets', tone: 'signal' },
-    { label: 'In use', value: String(withSites), hint: 'Assigned to sites', tone: 'ok' },
-    { label: 'Rules', value: String(totalRules), hint: 'Across all sets', tone: 'warn' },
-  ]
-})
-
-const tabs = [
-  { id: 'general', label: 'General' },
-  { id: 'waf', label: 'WAF Rules' },
-]
 
 const form = reactive({ name: '' })
 const createForm = reactive({ name: '', role: 'predefined' })
@@ -706,9 +669,8 @@ const openRuleDialog = async (rule) => {
   await loadSelectedRule()
 }
 
-const openConfigureDialog = async (rule, tab = 'waf') => {
+const openConfigureDialog = async (rule) => {
   selectedRuleId.value = String(rule.id)
-  activeTab.value = tab
   isConfigureDialogOpen.value = true
   isRuleDialogOpen.value = false
   await syncRouteQuery()
@@ -1017,7 +979,23 @@ watch(
   },
 )
 
+const wafFiltersOpen = ref(false)
+const wafFilterMenu = ref(null)
+const wafExtraFilterCount = computed(() =>
+  [filters.ruleCount, filters.siteCount].filter(Boolean).length,
+)
+const clearWafExtraFilters = () => {
+  filters.ruleCount = ''
+  filters.siteCount = ''
+}
+const onWafFilterOutside = (event) => {
+  if (wafFilterMenu.value && !wafFilterMenu.value.contains(event.target)) {
+    wafFiltersOpen.value = false
+  }
+}
+
 onMounted(async () => {
+  document.addEventListener('click', onWafFilterOutside)
   window.addEventListener('cdnproxy-sites-changed', loadRules)
   if (route.query.wafRuleId) {
     selectedRuleId.value = String(route.query.wafRuleId)
@@ -1027,6 +1005,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', onWafFilterOutside)
   window.removeEventListener('cdnproxy-sites-changed', loadRules)
 })
 </script>
@@ -1164,7 +1143,7 @@ onBeforeUnmount(() => {
 .waf-filterbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
   padding: 12px 14px;
   border-radius: var(--waf-radius);
@@ -1886,44 +1865,6 @@ onBeforeUnmount(() => {
 }
 
 
-.rule-dialog-tabs {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 8px;
-}
-
-.tabs-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid var(--app-border-strong);
-}
-
-.tab-btn {
-  border: none;
-  background: transparent;
-  color: var(--app-text-muted);
-  font-size: var(--type-base);
-  font-weight: 600;
-  padding: 12px 16px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-
-.tab-btn.active {
-  color: var(--app-accent);
-  border-bottom-color: var(--app-accent);
-}
-
-.tabs-body {
-  padding-top: 20px;
-}
-
-.tabs-body.no-outline {
-  padding-top: 0;
-}
-
 .settings-form {
   display: flex;
   flex-direction: column;
@@ -1988,8 +1929,75 @@ onBeforeUnmount(() => {
   width: min(1180px, 96vw);
 }
 
-.rule-dialog-tabs .tabs-body.no-outline :deep(.waf-panel) {
-  min-height: 380px;
+.dialog-card.dialog-card--workspace {
+  width: min(1080px, calc(100vw - 40px));
+  height: min(760px, calc(100vh - 40px));
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.dialog-card--workspace .dialog-header {
+  margin: 0;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.dialog-kicker {
+  margin: 0 0 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.workspace-name {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.workspace-name label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--app-text-muted);
+}
+
+.workspace-name input {
+  width: 100%;
+  border: 1px solid var(--app-input-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+}
+
+.workspace-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px 16px 0;
+}
+
+.workspace-body :deep(.cfg-subpanel) {
+  height: 100%;
+}
+
+.dialog-card--workspace .dialog-actions {
+  margin: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--app-border);
+}
+
+.dialog-card--workspace .wizard-steps {
+  margin: 16px 18px 0;
 }
 
 .dialog-header {

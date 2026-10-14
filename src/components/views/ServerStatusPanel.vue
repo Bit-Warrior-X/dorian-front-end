@@ -1,8 +1,55 @@
 <template>
-  <div class="server-status-panel">
-    <div class="status-grid">
-      <section class="status-card">
-        <header class="status-card-header">
+  <div v-if="variant === 'snapshot'" class="host-snapshot">
+    <div class="host-snapshot__status">
+      <span class="host-snapshot__dot" :class="`host-snapshot__dot--${hostAliveStatus}`" />
+      <span>{{ reachabilityLabel }}</span>
+      <button
+        type="button"
+        class="host-snapshot__refresh"
+        :disabled="metricsLoading || hostActionBusy"
+        @click="refreshMetrics"
+      >
+        {{ metricsLoading ? 'Refreshing…' : 'Refresh readings' }}
+      </button>
+    </div>
+
+    <div class="host-snapshot__vitals">
+      <article v-for="vital in snapshotVitals" :key="vital.key" class="host-snapshot__vital">
+        <span class="host-snapshot__vital-label">{{ vital.label }}</span>
+        <strong :class="vital.tone">{{ vital.value }}</strong>
+        <span class="host-snapshot__vital-detail">{{ vital.detail || '—' }}</span>
+        <span class="host-snapshot__meter" :class="{ 'is-idle': vital.percent == null }">
+          <span
+            v-if="vital.percent != null"
+            :class="vital.tone"
+            :style="{ width: `${vital.percent}%` }"
+          />
+        </span>
+      </article>
+    </div>
+
+    <div class="host-snapshot__sheet">
+      <dl>
+        <div v-for="row in snapshotConnection" :key="row.label">
+          <dt>{{ row.label }}</dt>
+          <dd>{{ row.value }}</dd>
+        </div>
+      </dl>
+      <dl>
+        <div v-for="row in snapshotHost" :key="row.label">
+          <dt>{{ row.label }}</dt>
+          <dd :class="row.tone">{{ row.value }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <p v-if="metricsError" class="status-error">{{ metricsError }}</p>
+  </div>
+
+  <div v-else class="server-status-panel" :class="{ 'server-status-panel--embedded': embedded }">
+    <section class="status-card server-card">
+      <header class="status-card-header">
+        <div class="status-card-heading">
           <h4 class="status-card-title">Server</h4>
           <StatusCornerDot
             refreshable
@@ -13,8 +60,28 @@
             :refresh-title="metricsLoading ? 'Refreshing…' : 'Refresh server status'"
             @refresh="refreshMetrics"
           />
-        </header>
-        <div class="status-card-body">
+        </div>
+        <div class="status-card-actions status-card-actions--inline">
+          <button
+            type="button"
+            class="host-action-btn host-action-btn--restart"
+            :disabled="hostActionBusy"
+            @click="confirmHostAction('restart')"
+          >
+            Restart
+          </button>
+          <button
+            type="button"
+            class="host-action-btn host-action-btn--poweroff"
+            :disabled="hostActionBusy"
+            @click="confirmHostAction('poweroff')"
+          >
+            Power off
+          </button>
+        </div>
+      </header>
+      <div class="status-card-body">
+        <div class="server-facts">
           <div class="metric-row">
             <span class="metric-label">Edge name</span>
             <span class="metric-value">{{ serverName }}</span>
@@ -40,11 +107,36 @@
             <span class="metric-label">Operating system</span>
             <span class="metric-value">{{ serverOs }}</span>
           </div>
-          <div class="metric-divider" aria-hidden="true"></div>
+          <div class="metric-row">
+            <span class="metric-label">Kernel</span>
+            <span class="metric-value">{{ kernelDisplay }}</span>
+          </div>
+          <div v-if="showHostname" class="metric-row">
+            <span class="metric-label">Hostname</span>
+            <span class="metric-value">{{ hostnameDisplay }}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Uptime</span>
+            <span class="metric-value">{{ uptimeDisplay }}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Load</span>
+            <span class="metric-value" :class="loadClass">{{ loadDisplay }}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Temperature</span>
+            <span class="metric-value" :class="temperatureClass">
+              {{ temperatureDisplay }}
+              <span v-if="temperatureLabel" class="metric-sub">{{ temperatureLabel }}</span>
+            </span>
+          </div>
+        </div>
+        <div class="server-usage">
           <UsageMetricBar
             label="CPU"
             :percent="cpuUsagePercent"
             :display-value="cpuUsageDisplay"
+            :detail="cpuUsageDetail"
             :loading="metricsLoading && !metrics"
           />
           <UsageMetricBar
@@ -61,28 +153,29 @@
             :detail="diskUsageDetail"
             :loading="metricsLoading && !metrics"
           />
-          <p v-if="metricsError" class="status-error">{{ metricsError }}</p>
+          <UsageMetricBar
+            v-if="showSwap"
+            label="Swap"
+            :percent="swapUsagePercent"
+            :display-value="swapUsageDisplay"
+            :detail="swapUsageDetail"
+            :loading="metricsLoading && !metrics"
+          />
+          <UsageMetricBar
+            label="Network"
+            :percent="networkUsagePercent"
+            :display-value="networkUsageDisplay"
+            :detail="networkUsageDetail"
+            :loading="metricsLoading && !metrics"
+          />
         </div>
-        <footer class="status-card-actions status-card-actions--row">
-          <button
-            type="button"
-            class="host-action-btn host-action-btn--restart"
-            :disabled="hostActionBusy"
-            @click="confirmHostAction('restart')"
-          >
-            Restart
-          </button>
-          <button
-            type="button"
-            class="host-action-btn host-action-btn--poweroff"
-            :disabled="hostActionBusy"
-            @click="confirmHostAction('poweroff')"
-          >
-            Power off
-          </button>
-        </footer>
-      </section>
+        <p v-if="metricsError" class="status-error">{{ metricsError }}</p>
+      </div>
+    </section>
 
+    <EdgeNicCharts v-if="serverId" :server-id="serverId" />
+
+    <div v-if="showServices" class="service-grid">
       <ServiceStatusCard
         title="Angelos"
         service="angelos"
@@ -152,6 +245,7 @@ import {
 } from '@/utils/serverLayerStatus'
 import { formatVersionOs } from '@/utils/deployVersions'
 import ConfirmDialog from '../ConfirmDialog.vue'
+import EdgeNicCharts from './EdgeNicCharts.vue'
 import ServiceStatusCard from './ServiceStatusCard.vue'
 import StatusCornerDot from '../StatusCornerDot.vue'
 import UsageMetricBar from '../UsageMetricBar.vue'
@@ -171,11 +265,23 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  showServices: {
+    type: Boolean,
+    default: true,
+  },
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+  variant: {
+    type: String,
+    default: 'console',
+  },
 })
 
 const emit = defineEmits(['updated'])
 
-const MONITOR_TITLE = 'Monitor Status'
+const statusTitle = computed(() => (props.variant === 'snapshot' ? 'Edge details' : 'Monitor Status'))
 const metrics = ref(null)
 const metricsLoading = ref(false)
 const metricsError = ref('')
@@ -248,6 +354,97 @@ const sshInfo = computed(() => {
 })
 
 const serverOs = computed(() => formatVersionOs(localServer.value?.os) || '—')
+
+const metricsPending = computed(() => metricsLoading.value && !metrics.value)
+
+const kernelDisplay = computed(() => {
+  if (metricsPending.value) return 'Loading…'
+  const kernel = String(metrics.value?.kernel || '').trim()
+  return kernel || '—'
+})
+
+const hostnameDisplay = computed(() => {
+  if (metricsPending.value) return 'Loading…'
+  const hostname = String(metrics.value?.hostname || '').trim()
+  return hostname || '—'
+})
+
+const showHostname = computed(() => {
+  const hostname = String(metrics.value?.hostname || '').trim()
+  if (!hostname) return false
+  const name = String(localServer.value?.name || '').trim()
+  return hostname.toLowerCase() !== name.toLowerCase()
+})
+
+const formatUptime = (seconds) => {
+  const total = Math.floor(Number(seconds))
+  if (!Number.isFinite(total) || total < 0) return '—'
+  const days = Math.floor(total / 86400)
+  const hours = Math.floor((total % 86400) / 3600)
+  const mins = Math.floor((total % 3600) / 60)
+  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`
+  if (hours > 0) return `${hours}h ${mins}m`
+  if (mins > 0) return `${mins}m`
+  return `${total}s`
+}
+
+const uptimeDisplay = computed(() => {
+  if (metricsPending.value) return 'Loading…'
+  if (!metrics.value || metrics.value.uptimeSeconds == null) return '—'
+  return formatUptime(metrics.value.uptimeSeconds)
+})
+
+const formatLoadNumber = (value) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '—'
+  return num.toFixed(2)
+}
+
+const loadDisplay = computed(() => {
+  if (metricsPending.value) return 'Loading…'
+  if (!metrics.value) return '—'
+  const load = `${formatLoadNumber(metrics.value.load1)} / ${formatLoadNumber(metrics.value.load5)} / ${formatLoadNumber(metrics.value.load15)}`
+  const cores = Number(metrics.value.cpuCores)
+  if (Number.isFinite(cores) && cores > 0) return `${load} · ${cores} cores`
+  return load
+})
+
+const loadClass = computed(() => {
+  const cores = Number(metrics.value?.cpuCores)
+  const load1 = Number(metrics.value?.load1)
+  if (!Number.isFinite(cores) || cores <= 0 || !Number.isFinite(load1)) return ''
+  if (load1 >= cores) return 'metric-value--hot'
+  if (load1 >= cores * 0.75) return 'metric-value--warm'
+  return ''
+})
+
+const temperatureDisplay = computed(() => {
+  if (metricsPending.value) return 'Loading…'
+  const temp = Number(metrics.value?.temperatureC)
+  if (!metrics.value || !Number.isFinite(temp)) return '—'
+  return `${temp.toFixed(1)} °C`
+})
+
+const temperatureLabel = computed(() => {
+  if (metricsPending.value) return ''
+  const temp = Number(metrics.value?.temperatureC)
+  if (!Number.isFinite(temp)) return ''
+  return String(metrics.value?.temperatureLabel || '').trim()
+})
+
+const temperatureClass = computed(() => {
+  const temp = Number(metrics.value?.temperatureC)
+  if (!Number.isFinite(temp)) return ''
+  if (temp >= 85) return 'metric-value--hot'
+  if (temp >= 70) return 'metric-value--warm'
+  return ''
+})
+
+const cpuUsageDetail = computed(() => {
+  const cores = Number(metrics.value?.cpuCores)
+  if (!Number.isFinite(cores) || cores <= 0) return ''
+  return `${cores} core${cores === 1 ? '' : 's'}`
+})
 
 const confirmTitle = computed(() => {
   const pending = pendingConfirmAction.value
@@ -373,6 +570,167 @@ const diskUsageDetail = computed(() => {
   return detail === '—' ? '' : detail
 })
 
+const showSwap = computed(() => Number(metrics.value?.swapTotalBytes) > 0)
+
+const swapUsagePercent = computed(() => {
+  if (!metrics.value) return null
+  return usagePercentFromBytes(metrics.value.swapUsedBytes, metrics.value.swapTotalBytes)
+})
+
+const swapUsageDisplay = computed(() => {
+  if (metricsPending.value) return 'Loading…'
+  if (swapUsagePercent.value == null) return '—'
+  return formatPercent(swapUsagePercent.value)
+})
+
+const swapUsageDetail = computed(() => {
+  if (!metrics.value) return ''
+  const detail = formatBytesPair(metrics.value.swapUsedBytes, metrics.value.swapTotalBytes, false)
+  return detail === '—' ? '' : detail
+})
+
+const formatBitRate = (bytesPerSec) => {
+  const bytes = Number(bytesPerSec)
+  if (!Number.isFinite(bytes) || bytes < 0) return '—'
+  const bits = bytes * 8
+  if (bits >= 1_000_000_000) return `${(bits / 1_000_000_000).toFixed(2)} Gbps`
+  if (bits >= 1_000_000) return `${(bits / 1_000_000).toFixed(1)} Mbps`
+  if (bits >= 1_000) return `${(bits / 1_000).toFixed(1)} Kbps`
+  return `${Math.round(bits)} bps`
+}
+
+const formatLinkMbps = (mbps) => {
+  const speed = Number(mbps)
+  if (!Number.isFinite(speed) || speed <= 0) return ''
+  if (speed >= 1000) {
+    const gigabits = speed / 1000
+    const text = Number.isInteger(gigabits) ? String(gigabits) : gigabits.toFixed(1)
+    return `${text} Gbps`
+  }
+  return `${Math.round(speed)} Mbps`
+}
+
+const networkUsagePercent = computed(() => {
+  const mbps = Number(metrics.value?.netLinkMbps)
+  if (!metrics.value || !Number.isFinite(mbps) || mbps <= 0) return null
+  const linkBytesPerSec = (mbps * 1_000_000) / 8
+  const rx = Number(metrics.value.netRxBytesPerSec) || 0
+  const tx = Number(metrics.value.netTxBytesPerSec) || 0
+  return clampPercent((Math.max(rx, tx) / linkBytesPerSec) * 100)
+})
+
+const networkRateText = computed(() => {
+  if (!metrics.value) return ''
+  const iface = String(metrics.value.netInterface || '').trim()
+  const rx = Number(metrics.value.netRxBytesPerSec) || 0
+  const tx = Number(metrics.value.netTxBytesPerSec) || 0
+  if (!iface && rx === 0 && tx === 0) return ''
+  return `↓ ${formatBitRate(rx)} · ↑ ${formatBitRate(tx)}`
+})
+
+const networkUsageDisplay = computed(() => {
+  if (metricsPending.value) return 'Loading…'
+  if (!metrics.value) return '—'
+  if (networkUsagePercent.value != null) return formatPercent(networkUsagePercent.value)
+  return networkRateText.value || '—'
+})
+
+const networkUsageDetail = computed(() => {
+  if (!metrics.value) return ''
+  const parts = []
+  if (networkUsagePercent.value != null && networkRateText.value) parts.push(networkRateText.value)
+  const iface = String(metrics.value.netInterface || '').trim()
+  const link = formatLinkMbps(metrics.value.netLinkMbps)
+  if (iface) parts.push(iface)
+  if (link) parts.push(`link ${link}`)
+  return parts.join(' · ')
+})
+
+const reachabilityLabel = computed(() => {
+  if (metricsLoading.value && hostReachable.value == null) return 'Checking whether this edge answers over SSH…'
+  if (hostReachable.value === true) return 'Reachable over SSH'
+  if (hostReachable.value === false) return 'Not answering over SSH'
+  return 'Reachability not checked yet'
+})
+
+const vitalTone = (percent, warm, hot) => {
+  if (percent == null) return ''
+  if (percent >= hot) return 'is-hot'
+  if (percent >= warm) return 'is-warm'
+  return ''
+}
+
+const snapshotVitals = computed(() => [
+  {
+    key: 'cpu',
+    label: 'CPU',
+    value: cpuUsageDisplay.value,
+    detail: cpuUsageDetail.value,
+    percent: cpuUsagePercent.value,
+    tone: vitalTone(cpuUsagePercent.value, 70, 90),
+  },
+  {
+    key: 'memory',
+    label: 'Memory',
+    value: memoryUsageDisplay.value,
+    detail: memoryUsageDetail.value,
+    percent: memoryUsagePercent.value,
+    tone: vitalTone(memoryUsagePercent.value, 75, 90),
+  },
+  {
+    key: 'disk',
+    label: 'Disk',
+    value: diskUsageDisplay.value,
+    detail: diskUsageDetail.value,
+    percent: diskUsagePercent.value,
+    tone: vitalTone(diskUsagePercent.value, 80, 92),
+  },
+  {
+    key: 'network',
+    label: 'Network',
+    value: metricsPending.value
+      ? 'Loading…'
+      : (!metrics.value || !networkRateText.value
+        ? '—'
+        : formatBitRate(Math.max(Number(metrics.value.netRxBytesPerSec) || 0, Number(metrics.value.netTxBytesPerSec) || 0))),
+    detail: [
+      networkRateText.value,
+      String(metrics.value?.netInterface || '').trim(),
+      formatLinkMbps(metrics.value?.netLinkMbps),
+    ].filter(Boolean).join(' · '),
+    percent: networkUsagePercent.value,
+    tone: vitalTone(networkUsagePercent.value, 70, 90),
+  },
+])
+
+const snapshotConnection = computed(() => [
+  { label: 'SSH', value: sshInfo.value },
+  { label: 'Users', value: managedUsers.value.length ? managedUsers.value.join(', ') : '—' },
+  { label: 'System', value: serverOs.value },
+  { label: 'Created', value: localServer.value?.created || '—' },
+])
+
+const snapshotHost = computed(() => {
+  const temperature = temperatureLabel.value
+    ? `${temperatureDisplay.value} · ${temperatureLabel.value}`
+    : temperatureDisplay.value
+  const rows = [
+    { label: 'Kernel', value: kernelDisplay.value },
+    { label: 'Hostname', value: hostnameDisplay.value },
+    { label: 'Uptime', value: uptimeDisplay.value },
+    { label: 'Load', value: loadDisplay.value, tone: loadClass.value },
+    { label: 'Temperature', value: temperature, tone: temperatureClass.value },
+  ]
+  if (showSwap.value) {
+    const detail = swapUsageDetail.value
+    rows.push({
+      label: 'Swap',
+      value: detail ? `${swapUsageDisplay.value} · ${detail}` : swapUsageDisplay.value,
+    })
+  }
+  return rows
+})
+
 const mergeServerUpdate = (updated) => {
   if (!updated || typeof updated !== 'object') return
   localServer.value = {
@@ -396,7 +754,7 @@ const refreshMetrics = async () => {
     metrics.value = null
     hostReachable.value = false
     metricsError.value = error?.message || 'Failed to load host metrics.'
-    notifyError(MONITOR_TITLE, metricsError.value)
+    notifyError(statusTitle.value, metricsError.value)
   } finally {
     metricsLoading.value = false
   }
@@ -406,8 +764,9 @@ const markServiceChecked = () => {
   lastServiceCheckedAt.value = new Date()
 }
 
-const refreshServiceStatuses = async () => {
+const refreshServiceStatuses = async (options) => {
   if (!props.serverId || runtimeRefreshing.value) return
+  const announce = options?.announce !== false
   runtimeRefreshing.value = true
   serviceBusy.angelos = true
   serviceBusy.sparta = true
@@ -416,9 +775,9 @@ const refreshServiceStatuses = async () => {
     const updated = await refreshServerRuntimeStatus(props.serverId)
     mergeServerUpdate(updated)
     markServiceChecked()
-    notifySuccess(MONITOR_TITLE, 'The service statuses are successfully refreshed.')
+    if (announce) notifySuccess(statusTitle.value, 'The service statuses are successfully refreshed.')
   } catch (error) {
-    notifyError(MONITOR_TITLE, error?.message || 'The service statuses could not be refreshed.')
+    notifyError(statusTitle.value, error?.message || 'The service statuses could not be refreshed.')
   } finally {
     runtimeRefreshing.value = false
     serviceBusy.angelos = false
@@ -435,9 +794,9 @@ const controlService = async (service, action) => {
     mergeServerUpdate(updated)
     markServiceChecked()
     const label = service.charAt(0).toUpperCase() + service.slice(1)
-    notifySuccess(MONITOR_TITLE, `The ${label} ${action} command is successfully sent.`)
+    notifySuccess(statusTitle.value, `The ${label} ${action} command is successfully sent.`)
   } catch (error) {
-    notifyError(MONITOR_TITLE, error?.message || `The ${label} service could not be ${action}.`)
+    notifyError(statusTitle.value, error?.message || `The ${label} service could not be ${action}.`)
   } finally {
     serviceBusy[service] = false
   }
@@ -469,11 +828,11 @@ const runHostPowerAction = async (action) => {
       metrics.value = null
     }
     notifySuccess(
-      MONITOR_TITLE,
+      statusTitle.value,
       action === 'poweroff' ? 'The power off command is successfully sent.' : 'The restart command is successfully sent.'
     )
   } catch (error) {
-    notifyError(MONITOR_TITLE, error?.message || 'The host power action could not be completed.')
+    notifyError(statusTitle.value, error?.message || 'The host power action could not be completed.')
   } finally {
     hostActionBusy.value = false
   }
@@ -518,29 +877,48 @@ watch(
 
 onMounted(() => {
   void refreshMetrics()
-  void refreshServiceStatuses()
+  void refreshServiceStatuses({ announce: false })
 })
 </script>
 
 <style scoped>
 .server-status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   padding: 16px;
 }
 
-.status-grid {
-  display: grid;
+.server-status-panel--embedded {
+  padding: 0;
+}
+
+.server-status-panel--embedded .server-facts,
+.server-status-panel--embedded .server-usage {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
 .status-card {
   display: flex;
   flex-direction: column;
-  min-height: 380px;
+  min-height: 0;
   border: 1px solid var(--app-border-strong);
   border-radius: 8px;
   background: var(--app-surface-solid);
   overflow: hidden;
+}
+
+.status-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .status-card-header {
@@ -561,15 +939,32 @@ onMounted(() => {
 }
 
 .status-card-body {
-  flex: 1;
-  padding: 14px 16px;
+  padding: 14px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+}
+
+.server-facts,
+.server-usage {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px 18px;
+  align-items: start;
+}
+
+.server-usage {
+  padding-top: 14px;
+  border-top: 1px solid var(--app-border-strong);
 }
 
 .status-card-body :deep(.usage-metric) {
   margin-top: 2px;
+}
+
+.status-card-body :deep(.usage-metric-value) {
+  white-space: normal;
+  text-align: right;
 }
 
 .metric-row,
@@ -596,16 +991,26 @@ onMounted(() => {
   word-break: break-word;
 }
 
+.metric-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--type-caption);
+  font-weight: 500;
+  color: var(--app-text-muted);
+}
+
+.metric-value--warm {
+  color: #d97706;
+}
+
+.metric-value--hot {
+  color: #dc2626;
+}
+
 .status-error {
   margin: 4px 0 0;
   font-size: var(--type-caption);
   color: #b91c1c;
-}
-
-.metric-divider {
-  height: 1px;
-  margin: 2px 0;
-  background: var(--app-border-strong);
 }
 
 .managed-users {
@@ -626,18 +1031,17 @@ onMounted(() => {
   border: 1px solid rgba(168, 85, 247, 0.25);
 }
 
-.status-card-actions--row {
+.status-card-actions--inline {
   display: flex;
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 12px;
-  border-top: 1px solid var(--app-border-strong);
+  margin-left: auto;
 }
 
 .host-action-btn {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: 96px;
   min-height: 34px;
   display: inline-flex;
   align-items: center;
@@ -717,13 +1121,203 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+.host-snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.host-snapshot__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+}
+
+.host-snapshot__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--app-text-muted);
+  flex: 0 0 auto;
+}
+
+.host-snapshot__dot--running {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.16);
+}
+
+.host-snapshot__dot--stopped {
+  background: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
+}
+
+.host-snapshot__refresh {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-accent);
+  font: inherit;
+  font-size: var(--type-caption);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.host-snapshot__refresh:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.host-snapshot__vitals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.host-snapshot__vital {
+  min-width: 0;
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-bg) 72%, var(--app-surface-solid, var(--app-surface)));
+}
+
+.host-snapshot__vital-label {
+  display: block;
+  font-size: var(--type-caption);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.host-snapshot__vital strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--app-heading);
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.host-snapshot__vital-detail {
+  display: block;
+  min-height: 2.6em;
+  margin-top: 4px;
+  font-size: var(--type-caption);
+  line-height: 1.35;
+  color: var(--app-text-muted);
+  word-break: break-word;
+}
+
+.host-snapshot__meter {
+  display: block;
+  height: 3px;
+  margin-top: 8px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--app-border) 80%, transparent);
+  overflow: hidden;
+}
+
+.host-snapshot__meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dorian-viper-400, var(--app-accent));
+}
+
+.host-snapshot__meter.is-idle {
+  opacity: 0.45;
+}
+
+.host-snapshot__vital strong.is-warm {
+  color: #d97706;
+}
+
+.host-snapshot__vital strong.is-hot {
+  color: #dc2626;
+}
+
+.host-snapshot__meter > span.is-warm {
+  background: #d97706;
+}
+
+.host-snapshot__meter > span.is-hot {
+  background: #dc2626;
+}
+
+.host-snapshot__sheet {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 32px;
+}
+
+.host-snapshot__sheet dl {
+  margin: 0;
+}
+
+.host-snapshot__sheet dl div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-border) 75%, transparent);
+}
+
+.host-snapshot__sheet dt {
+  margin: 0;
+  font-size: var(--type-caption);
+  font-weight: 600;
+  color: var(--app-text-muted);
+}
+
+.host-snapshot__sheet dd {
+  margin: 0;
+  font-size: var(--type-base);
+  line-height: 1.35;
+  color: var(--app-heading);
+  word-break: break-word;
+}
+
+.host-snapshot__sheet dd.metric-value--warm {
+  color: #d97706;
+}
+
+.host-snapshot__sheet dd.metric-value--hot {
+  color: #dc2626;
+}
+
 @media (max-width: 1100px) {
-  .server-status-panel {
-    overflow-x: auto;
+  .server-facts,
+  .server-usage,
+  .server-status-panel--embedded .server-facts,
+  .server-status-panel--embedded .server-usage {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .server-facts,
+  .server-usage,
+  .service-grid,
+  .server-status-panel--embedded .server-facts,
+  .server-status-panel--embedded .server-usage {
+    grid-template-columns: 1fr;
   }
 
-  .status-grid {
-    min-width: 960px;
+  .status-card-header {
+    flex-wrap: wrap;
+  }
+
+  .host-snapshot__vitals,
+  .host-snapshot__sheet {
+    grid-template-columns: 1fr;
   }
 }
 </style>

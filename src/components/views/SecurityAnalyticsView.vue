@@ -2,13 +2,15 @@
   <div class="dashboard-view security-analytics-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Security analytics</h2>
-        <p>Blocked traffic, geography, and top threat sources across edges and sites.</p>
+        <h2>L7 attacks</h2>
+        <p>Blocked requests, geography, and top threat sources across edges and sites.</p>
       </div>
       <div class="dash-topbar__right">
         <AppTopbarActions />
       </div>
     </header>
+
+    <DetectionNav />
 
     <div class="dash-filterbar">
       <div class="dash-filter-field">
@@ -74,7 +76,7 @@
       </div>
     </div>
 
-    <nav class="dash-tabbar" aria-label="Security analytics sections">
+    <nav class="dash-tabbar" aria-label="L7 attack sections">
       <button
         v-for="tab in securityTabs"
         :key="tab.id"
@@ -330,6 +332,7 @@ import ApexCharts from 'apexcharts'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import DetectionNav from '@/components/views/DetectionNav.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import {
@@ -346,6 +349,7 @@ import {
   getApexTimeRangeAnnotations,
   padSeriesToTimeRange,
 } from '@/utils/chartTheme'
+import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
 
 const chartColors = () => getApexSeriesColors()
 const themeChartColors = () => getApexChartColors()
@@ -373,7 +377,7 @@ const securityTabs = [
 
 const selectedServer = ref('all')
 const selectedSite = ref('all')
-const selectedTimeRange = ref('30m')
+const selectedTimeRange = ref(readSharedTimeRange())
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
 const customStartDate = ref(null)
@@ -383,7 +387,7 @@ const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
   site: 'all',
-  range: '30m',
+  range: readSharedTimeRange(),
   isCustom: false,
   customStart: '',
   customEnd: '',
@@ -565,35 +569,7 @@ const mapBlockPoints = (points) =>
     })
     .filter((point) => Number.isFinite(point.x))
 
-const resolveRangeMs = (filters) => {
-  switch (filters.range) {
-    case '30m':
-      return 30 * 60 * 1000
-    case '1h':
-      return 60 * 60 * 1000
-    case '2h':
-      return 2 * 60 * 60 * 1000
-    case '4h':
-      return 4 * 60 * 60 * 1000
-    case '6h':
-      return 6 * 60 * 60 * 1000
-    case '8h':
-      return 8 * 60 * 60 * 1000
-    case '12h':
-      return 12 * 60 * 60 * 1000
-    case '24h':
-      return 24 * 60 * 60 * 1000
-    case 'today': {
-      const now = new Date()
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      return now.getTime() - start.getTime()
-    }
-    case 'yesterday':
-      return 24 * 60 * 60 * 1000
-    default:
-      return 60 * 60 * 1000
-  }
-}
+const resolveRangeMs = (filters) => rangeDurationMs(filters?.range)
 
 const resolveRangeWindow = (filters) => {
   const now = new Date()
@@ -752,22 +728,12 @@ const selectedRangeLabel = computed(() => {
   return found?.label || 'All'
 })
 
-const timeRanges = [
-  { label: '30m', value: '30m' },
-  { label: '1h', value: '1h' },
-  { label: '2h', value: '2h' },
-  { label: '4h', value: '4h' },
-  { label: '6h', value: '6h' },
-  { label: '8h', value: '8h' },
-  { label: '12h', value: '12h' },
-  { label: '24h', value: '24h' },
-  { label: 'Yesterday', value: 'yesterday' },
-  { label: 'Today', value: 'today' },
-]
+const timeRanges = sharedTimeRanges
 
 const selectTimeRange = (value) => {
   selectedTimeRange.value = value
   isCustomRange.value = false
+  writeSharedTimeRange(value)
 }
 
 const applyCustomRange = () => {

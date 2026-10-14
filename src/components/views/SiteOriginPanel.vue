@@ -2,21 +2,21 @@
   <div class="origin-panel">
     <header class="origin-intro">
       <div class="origin-intro__copy">
-        <p class="origin-kicker">Site origin</p>
+        <p class="origin-kicker">{{ introKicker }}</p>
         <h4 class="info-hint-heading">
-          <span>Domain, SSL &amp; backends</span>
+          <span>{{ introTitle }}</span>
           <InfoHint
-            text="Point traffic at this site’s hostname, choose how HTTPS is terminated, then attach the origin servers that serve responses."
-            aria-label="Domain, SSL & backends help"
+            :text="introHint"
+            :aria-label="`${introTitle} help`"
           />
         </h4>
       </div>
       <div v-if="siteId && !loading && !loadError" class="origin-summary">
-        <div class="summary-chip">
+        <div v-if="showDomain" class="summary-chip">
           <span class="summary-chip__label">Hostname</span>
           <strong class="summary-chip__value">{{ displayDomain }}</strong>
         </div>
-        <div class="summary-chip">
+        <div v-if="showSsl" class="summary-chip">
           <span class="summary-chip__label">SSL</span>
           <strong class="summary-chip__value">
             <span class="cert-pill" :class="certStatusClass(snapshot.certificateStatus)">
@@ -24,7 +24,7 @@
             </span>
           </strong>
         </div>
-        <div class="summary-chip">
+        <div v-if="showSsl" class="summary-chip">
           <span class="summary-chip__label">Provider</span>
           <strong class="summary-chip__value">{{ formatSslType(initial.sslType) }}</strong>
         </div>
@@ -36,7 +36,7 @@
     <p v-else-if="loadError" class="helper-banner helper-banner--error">{{ loadError }}</p>
 
     <template v-else>
-      <section class="origin-card" :class="{ 'origin-card--dirty': isDomainDirty }">
+      <section v-if="showDomain" class="origin-card" :class="{ 'origin-card--dirty': isDomainDirty }">
         <div class="origin-card__head">
           <div class="origin-card__title-row">
             <span class="step-badge" aria-hidden="true">1</span>
@@ -89,10 +89,10 @@
         </div>
       </section>
 
-      <section class="origin-card" :class="{ 'origin-card--dirty': isSslDirty }">
+      <section v-if="showSsl" class="origin-card" :class="{ 'origin-card--dirty': isSslDirty }">
         <div class="origin-card__head">
           <div class="origin-card__title-row">
-            <span class="step-badge" aria-hidden="true">2</span>
+            <span v-if="showDomain" class="step-badge" aria-hidden="true">2</span>
             <div>
               <h5>SSL settings</h5>
               <p>Choose how the edge presents a certificate for this domain over HTTPS.</p>
@@ -179,7 +179,7 @@
                 id="origin-ssl-key"
                 v-model="form.sslCertKey"
                 rows="5"
-                placeholder="-----BEGIN PRIVATE KEY-----"
+                :placeholder="hasStoredKey ? 'Stored securely. Leave blank to keep the current private key.' : '-----BEGIN PRIVATE KEY-----'"
                 :disabled="savingDomain || savingSsl"
               ></textarea>
             </div>
@@ -210,10 +210,10 @@
         </div>
       </section>
 
-      <section class="origin-card origin-card--servers">
+      <section v-if="showServers" class="origin-card origin-card--servers">
         <div class="origin-card__head">
           <div class="origin-card__title-row">
-            <span class="step-badge" aria-hidden="true">3</span>
+            <span class="step-badge" aria-hidden="true">{{ showDomain ? '2' : '1' }}</span>
             <div>
               <h5>Origin servers</h5>
               <p>Backend hosts the CDN contacts for uncached or dynamic content.</p>
@@ -251,6 +251,30 @@ const props = defineProps({
     type: [Number, String],
     default: null,
   },
+  focus: {
+    type: String,
+    default: 'all',
+  },
+})
+
+const showDomain = computed(() => props.focus !== 'certificate')
+const showSsl = computed(() => props.focus !== 'origin')
+const showServers = computed(() => props.focus !== 'certificate')
+
+const introKicker = computed(() => (props.focus === 'certificate' ? 'HTTPS' : 'Site origin'))
+const introTitle = computed(() => {
+  if (props.focus === 'certificate') return 'Certificates'
+  if (props.focus === 'origin') return 'Hostname and backends'
+  return 'Domain, SSL & backends'
+})
+const introHint = computed(() => {
+  if (props.focus === 'certificate') {
+    return 'Choose how this domain presents HTTPS: automatic issuance or a certificate you upload.'
+  }
+  if (props.focus === 'origin') {
+    return 'Set the public hostname, then attach the origin servers that serve uncached responses.'
+  }
+  return 'Point traffic at this site’s hostname, choose how HTTPS is terminated, then attach the origin servers that serve responses.'
 })
 
 const emit = defineEmits(['updated'])
@@ -307,7 +331,13 @@ const initial = reactive({
   sslType: 'none',
   sslCert: '',
   sslCertKey: '',
+  hasSslCertKey: false,
 })
+
+// The API never returns the private key; a blank key on save keeps the stored one.
+const hasStoredKey = computed(
+  () => initial.hasSslCertKey && String(initial.sslType || '').toLowerCase() === 'custom',
+)
 
 const displayDomain = computed(() => initial.domain.trim() || 'Not set')
 
@@ -376,12 +406,13 @@ const applySite = (site) => {
   form.domain = site.domain || ''
   form.sslType = site.sslType || 'none'
   form.sslCert = site.sslCert || ''
-  form.sslCertKey = site.sslCertKey || ''
+  form.sslCertKey = ''
 
   initial.domain = form.domain
   initial.sslType = form.sslType
   initial.sslCert = form.sslCert
-  initial.sslCertKey = form.sslCertKey
+  initial.sslCertKey = ''
+  initial.hasSslCertKey = Boolean(site.hasSslCertKey)
 }
 
 const loadSite = async () => {
@@ -428,7 +459,7 @@ const validateDomain = (domain) => {
 
 const validateSsl = () => {
   if (String(form.sslType || '').toLowerCase() === 'custom') {
-    if (!form.sslCert.trim() || !form.sslCertKey.trim()) {
+    if (!form.sslCert.trim() || (!form.sslCertKey.trim() && !hasStoredKey.value)) {
       return 'Manual SSL requires both certificate and private key.'
     }
   }

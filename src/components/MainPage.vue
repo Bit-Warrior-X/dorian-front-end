@@ -8,7 +8,7 @@
       <div class="panel-header">
         <div class="panel-brand">
           <DorianBrandMark size="sm" wordmark wordmark-class="panel-header__wordmark" />
-          <span class="panel-brand__sub">Operator console</span>
+          <span class="panel-brand__sub">CDN</span>
         </div>
         <button class="panel-toggle-btn" type="button" @click="togglePanel" title="Collapse sidebar">
           <svg v-if="isPanelOpen" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -35,8 +35,8 @@
               <span>Overview</span>
             </RouterLink>
           </li>
-          <li :class="['nav-item', 'nav-item-parent', isServersOpen ? 'open' : '', isServersRoute ? 'active' : '']">
-            <a href="#" @click.prevent="toggleServers">
+          <li :class="['nav-item', isServersRoute ? 'active' : '']">
+            <RouterLink to="/app/servers/list">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                   <rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect>
@@ -46,27 +46,10 @@
                 </svg>
               </span>
               <span>Edges</span>
-              <span class="nav-arrow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </span>
-            </a>
-            <ul v-show="isServersOpen" class="nav-submenu">
-              <li :class="['nav-subitem', isRouteActive('server-list') ? 'active' : '']">
-                <RouterLink to="/app/servers/list">
-                  <span>All edges</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('server-settings') ? 'active' : '']">
-                <RouterLink to="/app/servers/settings">
-                  <span>Configure</span>
-                </RouterLink>
-              </li>
-            </ul>
+            </RouterLink>
           </li>
-          <li :class="['nav-item', 'nav-item-parent', isSitesOpen ? 'open' : '', isSitesRoute ? 'active' : '']">
-            <a href="#" @click.prevent="toggleSites">
+          <li :class="['nav-item', isSitesRoute ? 'active' : '']">
+            <RouterLink to="/app/sites/list">
               <span class="nav-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="10"></circle>
@@ -75,24 +58,7 @@
                 </svg>
               </span>
               <span>Sites</span>
-              <span class="nav-arrow">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </span>
-            </a>
-            <ul v-show="isSitesOpen" class="nav-submenu">
-              <li :class="['nav-subitem', isRouteActive('site-list') ? 'active' : '']">
-                <RouterLink to="/app/sites/list">
-                  <span>All sites</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('site-settings') ? 'active' : '']">
-                <RouterLink to="/app/sites/settings">
-                  <span>Configure</span>
-                </RouterLink>
-              </li>
-            </ul>
+            </RouterLink>
           </li>
 
           <li class="nav-group-label" aria-hidden="true">Security</li>
@@ -138,6 +104,21 @@
               </span>
             </a>
             <ul v-show="isDataAnalyticsOpen" class="nav-submenu">
+              <li :class="['nav-subitem', isRouteActive('attack-detection') ? 'active' : '']">
+                <RouterLink to="/app/analytics/detection">
+                  <span>Detection</span>
+                </RouterLink>
+              </li>
+              <li :class="['nav-subitem', isRouteActive('layer4-attack-analytics') ? 'active' : '']">
+                <RouterLink to="/app/analytics/layer4-attack-analytics">
+                  <span>L4 attacks</span>
+                </RouterLink>
+              </li>
+              <li :class="['nav-subitem', isRouteActive('security-analytics-detail') ? 'active' : '']">
+                <RouterLink to="/app/analytics/security-analytics-detail">
+                  <span>L7 attacks</span>
+                </RouterLink>
+              </li>
               <li :class="['nav-subitem', isRouteActive('security-analytics') ? 'active' : '']">
                 <RouterLink to="/app/analytics/security-analytics">
                   <span>Traffic</span>
@@ -146,16 +127,6 @@
               <li :class="['nav-subitem', isRouteActive('access-log') ? 'active' : '']">
                 <RouterLink to="/app/analytics/access-log">
                   <span>Access logs</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('security-analytics-detail') ? 'active' : '']">
-                <RouterLink to="/app/analytics/security-analytics-detail">
-                  <span>Security</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('layer4-attack-analytics') ? 'active' : '']">
-                <RouterLink to="/app/analytics/layer4-attack-analytics">
-                  <span>L4 attacks</span>
                 </RouterLink>
               </li>
             </ul>
@@ -305,8 +276,6 @@ const router = useRouter()
 
 const isPanelOpen = ref(true)
 const isDataAnalyticsOpen = ref(false)
-const isServersOpen = ref(false)
-const isSitesOpen = ref(false)
 const isUsersOpen = ref(false)
 
 const isServersRoute = computed(
@@ -335,6 +304,7 @@ const hideShellTopbar = computed(
     [
       'dashboard',
       'access-log',
+      'attack-detection',
       'security-analytics',
       'security-analytics-detail',
       'layer4-attack-analytics',
@@ -351,12 +321,6 @@ const isAdmin = computed(
 watch(
   () => route.path,
   () => {
-    if (isServersRoute.value) {
-      isServersOpen.value = true
-    }
-    if (isSitesRoute.value) {
-      isSitesOpen.value = true
-    }
     if (isUsersRoute.value) {
       isUsersOpen.value = true
     }
@@ -369,14 +333,6 @@ watch(
 
 const toggleDataAnalytics = () => {
   isDataAnalyticsOpen.value = !isDataAnalyticsOpen.value
-}
-
-const toggleServers = () => {
-  isServersOpen.value = !isServersOpen.value
-}
-
-const toggleSites = () => {
-  isSitesOpen.value = !isSitesOpen.value
 }
 
 const toggleUsers = () => {

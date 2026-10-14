@@ -129,8 +129,8 @@
                   >
                     {{ renewCertLabel }}
                   </button>
-                  <button class="cfg-btn" type="button" @click="onTabClick('origin')">
-                    Manage in Origin
+                  <button class="cfg-btn" type="button" @click="onTabClick('certificate')">
+                    Certificates
                   </button>
                 </div>
               </div>
@@ -169,7 +169,7 @@
                   <p>{{ wafSectionHint }}</p>
                 </div>
                 <button class="cfg-btn" type="button" @click="onTabClick('waf')">
-                  Open WAF
+                  Security
                 </button>
               </div>
               <div class="cfg-detail-grid">
@@ -196,7 +196,7 @@
                   <p>Edge nodes that currently accept traffic for this domain.</p>
                 </div>
                 <button class="cfg-btn" type="button" @click="onTabClick('traffic')">
-                  Manage traffic
+                  Delivery
                 </button>
               </div>
               <div v-if="assignedServers.length" class="cfg-edges">
@@ -206,7 +206,7 @@
                 </div>
               </div>
               <p v-else class="cfg-info-empty">
-                No edges assigned yet. Open Traffic to attach edge nodes, or edit the site from All sites.
+                No edges assigned yet. Edit the site from All sites to attach edge nodes.
               </p>
             </section>
           </div>
@@ -218,6 +218,14 @@
 
         <SiteOriginPanel
           v-else-if="activeTab === 'origin'"
+          focus="origin"
+          :site-id="selectedSiteId"
+          @updated="onOriginUpdated"
+        />
+
+        <SiteOriginPanel
+          v-else-if="activeTab === 'certificate'"
+          focus="certificate"
           :site-id="selectedSiteId"
           @updated="onOriginUpdated"
         />
@@ -297,10 +305,11 @@ const wafModifyConfirmMessage = computed(() => {
 })
 
 const tabs = [
-  { id: 'general', label: 'Overview', hint: 'Status & shortcuts' },
-  { id: 'origin', label: 'Origin', hint: 'Backend & SSL' },
-  { id: 'waf', label: 'WAF', hint: 'Security rules' },
-  { id: 'traffic', label: 'Traffic', hint: 'Edges & routing' },
+  { id: 'general', label: 'Overview', hint: 'Live traffic and status' },
+  { id: 'traffic', label: 'Delivery', hint: 'Cache, compression, and ports' },
+  { id: 'waf', label: 'Security', hint: 'Firewall rules for this site' },
+  { id: 'origin', label: 'Origin', hint: 'Hostname and backend servers' },
+  { id: 'certificate', label: 'Certificates', hint: 'HTTPS for this domain' },
 ]
 
 const assignedServers = computed(() => {
@@ -633,6 +642,9 @@ const applyRouteQuery = () => {
   } else if (tab === 'origin') {
     pendingWafTab.value = false
     activeTab.value = 'origin'
+  } else if (tab === 'certificate') {
+    pendingWafTab.value = false
+    activeTab.value = 'certificate'
   } else if (tab) {
     pendingWafTab.value = false
     activeTab.value = 'general'

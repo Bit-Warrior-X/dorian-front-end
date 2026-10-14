@@ -1,6 +1,6 @@
 <template>
   <div class="edges-view">
-    <section class="edges-metrics" aria-label="Edge fleet metrics">
+    <section v-if="edgeMetricCards.length" class="edges-metrics" aria-label="Edge fleet metrics">
       <article
         v-for="metric in edgeMetricCards"
         :key="metric.label"
@@ -15,46 +15,59 @@
 
     <div class="edges-filterbar">
       <div class="edges-filter-field edges-filter-field--grow">
-        <label for="edge-name-filter">Name</label>
+        <label class="list-filter-label" for="edge-name-filter">Search</label>
         <input
           id="edge-name-filter"
           v-model="filters.name"
           type="search"
-          placeholder="Search by name…"
+          placeholder="Search name or IP…"
         />
       </div>
-      <div class="edges-filter-field">
-        <label for="edge-ip-filter">IP</label>
-        <input
-          id="edge-ip-filter"
-          v-model="filters.ip"
-          type="search"
-          placeholder="Search by IP…"
-        />
+      <div class="list-status-pills" role="group" aria-label="Health">
+        <button type="button" :class="{ 'is-active': filters.angelos === '' }" @click="filters.angelos = ''">All</button>
+        <button type="button" :class="{ 'is-active': filters.angelos === 'running' }" @click="filters.angelos = 'running'">Running</button>
+        <button type="button" :class="{ 'is-active': filters.angelos === 'stopped' }" @click="filters.angelos = 'stopped'">Stopped</button>
       </div>
-      <div class="edges-filter-field">
-        <label for="edge-angelos-filter">Angelos</label>
-        <select id="edge-angelos-filter" v-model="filters.angelos">
-          <option value="">All</option>
-          <option value="running">Running</option>
-          <option value="stopped">Stopped</option>
-          <option value="deployed">Deployed</option>
-          <option value="unknown">Unknown</option>
-        </select>
-      </div>
-      <div class="edges-filter-field">
-        <label for="edge-license-filter">License</label>
-        <select id="edge-license-filter" v-model="filters.license">
-          <option value="">All</option>
-          <option value="Trial">Trial</option>
-          <option value="L4">L4</option>
-          <option value="L7">L7</option>
-          <option value="Unified">Unified</option>
-        </select>
+      <div ref="edgeFilterMenu" class="list-filter">
+        <button
+          type="button"
+          class="list-filter__toggle"
+          :class="{ 'is-active': edgeFiltersOpen || edgeExtraFilterCount }"
+          :aria-expanded="edgeFiltersOpen"
+          @click="edgeFiltersOpen = !edgeFiltersOpen"
+        >
+          Filters
+          <span v-if="edgeExtraFilterCount" class="list-filter__count">{{ edgeExtraFilterCount }}</span>
+        </button>
+        <div v-if="edgeFiltersOpen" class="list-filter__panel">
+          <div class="edges-filter-field">
+            <label for="edge-angelos-filter">Health</label>
+            <select id="edge-angelos-filter" v-model="filters.angelos">
+              <option value="">All</option>
+              <option value="running">Running</option>
+              <option value="stopped">Stopped</option>
+              <option value="deployed">Deployed</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+          <div class="edges-filter-field">
+            <label for="edge-license-filter">License</label>
+            <select id="edge-license-filter" v-model="filters.license">
+              <option value="">All</option>
+              <option value="Trial">Trial</option>
+              <option value="L4">L4</option>
+              <option value="L7">L7</option>
+              <option value="Unified">Unified</option>
+            </select>
+          </div>
+          <button v-if="edgeExtraFilterCount" class="list-filter__clear" type="button" @click="clearEdgeExtraFilters">
+            Clear filters
+          </button>
+        </div>
       </div>
       <div class="edges-filter-summary">
         <span class="edges-live-dot" aria-hidden="true"></span>
-        {{ filteredServers.length }} shown · runtime status
+        {{ filteredServers.length }} shown
       </div>
     </div>
 
@@ -78,19 +91,16 @@
             <tr>
               <th class="edges-col-layers" aria-label="L4 and L7 status"></th>
               <th>Edge</th>
-              <th>Angelos</th>
+              <th>Health</th>
+              <th>Traffic</th>
               <th>License</th>
-              <th>Users</th>
-              <th>Version</th>
-              <th>OS</th>
               <th>Expires</th>
-              <th>Created</th>
               <th class="edges-col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="!filteredServers.length">
-              <td colspan="10" class="edges-empty">
+              <td colspan="7" class="edges-empty">
                 No edges match these filters.
                 <button class="edges-empty-link" type="button" @click="openNewServerDialog">Create an edge</button>
               </td>
@@ -136,7 +146,7 @@
                   class="edges-angelos"
                   :class="isRuntimeStatusRefreshing(server.id) ? 'edges-angelos--loading' : `edges-angelos--${angelosStatusClass(server)}`"
                   :aria-busy="isRuntimeStatusRefreshing(server.id)"
-                  :aria-label="isRuntimeStatusRefreshing(server.id) ? 'Angelos: checking status' : undefined"
+                  :aria-label="isRuntimeStatusRefreshing(server.id) ? 'Health: checking status' : undefined"
                 >
                   <span class="edges-angelos__dot" aria-hidden="true"></span>
                   <strong v-if="!isRuntimeStatusRefreshing(server.id)">{{ angelosStatusLabel(server) }}</strong>
@@ -144,32 +154,13 @@
                 </div>
               </td>
               <td>
-                <span class="edges-license">{{ server.license || '—' }}</span>
-              </td>
-              <td>
-                <div v-if="server.managedUsers?.length" class="edges-users">
-                  <span
-                    v-for="user in server.managedUsers.slice(0, 2)"
-                    :key="user"
-                    class="edges-user-chip"
-                  >
-                    {{ user }}
-                  </span>
-                  <span
-                    v-if="server.managedUsers.length > 2"
-                    class="edges-user-more"
-                    :title="server.managedUsers.slice(2).join(', ')"
-                  >
-                    +{{ server.managedUsers.length - 2 }}
-                  </span>
+                <div class="edges-traffic num">
+                  <strong>{{ edgeTrafficLabel(server, 'tx') }}</strong>
+                  <span>{{ edgeTrafficLabel(server, 'rx') }}</span>
                 </div>
-                <span v-else class="edges-muted">—</span>
               </td>
               <td>
-                <span class="edges-meta num">{{ displayServerVersion(server.version) }}</span>
-              </td>
-              <td>
-                <span class="edges-meta">{{ displayServerOs(server.os) }}</span>
+                <span class="edges-license">{{ server.license || '—' }}</span>
               </td>
               <td>
                 <div
@@ -179,9 +170,6 @@
                   <strong>{{ formatEdgeExpiryLabel(server) }}</strong>
                   <span v-if="server.expiredDate">{{ server.expiredDate }}</span>
                 </div>
-              </td>
-              <td>
-                <span class="edges-meta">{{ server.created || '—' }}</span>
               </td>
               <td class="edges-col-actions" @click.stop>
                 <div class="menu-wrap">
@@ -254,8 +242,19 @@
     <div class="dialog-card dialog-card--form dialog-card--edge-info" @click.stop>
       <div class="dialog-header">
         <div class="dialog-header-text">
-          <p class="edge-wizard-kicker">Infrastructure</p>
-          <h3>Edge details</h3>
+          <h3>{{ edgeInfoServer.name || 'Edge details' }}</h3>
+          <p class="edge-info-subtitle">
+            <span class="num">{{ edgeInfoServer.ip || '—' }}</span>
+            <span class="edge-info-subtitle__sep" aria-hidden="true">·</span>
+            <span>{{ edgeInfoServer.license || 'No license' }}</span>
+            <span class="edge-info-subtitle__sep" aria-hidden="true">·</span>
+            <span class="num">{{ displayServerVersion(edgeInfoServer.version) }}</span>
+            <span class="edge-info-subtitle__sep" aria-hidden="true">·</span>
+            <span :class="`edge-info-expiry edge-info-expiry--${licenseExpiryTone(edgeInfoServer)}`">
+              {{ formatEdgeExpiryLabel(edgeInfoServer) }}
+              <template v-if="edgeInfoServer.expiredDate"> · {{ edgeInfoServer.expiredDate }}</template>
+            </span>
+          </p>
         </div>
         <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeEdgeInfoDialog">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -266,147 +265,52 @@
       </div>
 
       <div class="dialog-body edge-info-body">
-        <section class="edge-info-hero" aria-label="Edge overview">
-          <div class="edge-info-hero__top">
-            <div class="edge-info-hero__identity">
-              <strong class="edge-info-hero__name">{{ edgeInfoServer.name || 'Edge' }}</strong>
-              <span class="edge-info-hero__ip num">{{ edgeInfoServer.ip || '—' }}</span>
-            </div>
-            <span
-              class="edge-info-status-pill"
-              :class="`edge-info-status-pill--${angelosStatusClass(edgeInfoServer)}`"
-            >
-              <span class="edge-info-status-pill__dot" aria-hidden="true"></span>
-              {{ angelosStatusLabel(edgeInfoServer) }}
-            </span>
-          </div>
-          <div class="edge-info-hero__metrics">
-            <div class="edge-info-metric">
-              <span class="edge-info-metric__label">L4</span>
-              <div class="edge-info-metric__value">
-                <LayerStatusDot
-                  layer="l4"
-                  :status="resolveLayerStatus(edgeInfoServer, 'l4')"
-                  :description="runtimeStatusDotDescription(edgeInfoServer, 'l4')"
-                  :aria-label="runtimeStatusAriaLabel(edgeInfoServer, 'l4')"
-                />
-                <span>{{ layerStatusPlain(edgeInfoServer, 'l4') }}</span>
-              </div>
-            </div>
-            <div class="edge-info-metric">
-              <span class="edge-info-metric__label">L7</span>
-              <div class="edge-info-metric__value">
-                <LayerStatusDot
-                  layer="l7"
-                  :status="resolveLayerStatus(edgeInfoServer, 'l7')"
-                  :description="runtimeStatusDotDescription(edgeInfoServer, 'l7')"
-                  :aria-label="runtimeStatusAriaLabel(edgeInfoServer, 'l7')"
-                />
-                <span>{{ layerStatusPlain(edgeInfoServer, 'l7') }}</span>
-              </div>
-            </div>
-            <div
-              class="edge-info-metric"
-              :class="`edge-info-metric--${licenseExpiryTone(edgeInfoServer)}`"
-            >
-              <span class="edge-info-metric__label">License</span>
-              <strong class="edge-info-metric__value">{{ formatEdgeExpiryLabel(edgeInfoServer) }}</strong>
-            </div>
-          </div>
-        </section>
+        <ServerStatusPanel
+          variant="snapshot"
+          :show-services="false"
+          :server-id="edgeInfoServer.id"
+          :server="edgeInfoServer"
+          @updated="syncEdgeFromStatus"
+        />
 
-        <section class="edge-info-panel">
-          <h4 class="edge-info-panel__title">Details</h4>
-          <dl class="edge-info-grid">
-            <div class="edge-info-cell">
-              <dt>Edge ID</dt>
-              <dd class="num">{{ edgeInfoServer.id ?? '—' }}</dd>
-            </div>
-            <div class="edge-info-cell">
-              <dt>Status</dt>
-              <dd>{{ edgeInfoServer.status || edgeInfoServer.statusLabel || '—' }}</dd>
-            </div>
-            <div class="edge-info-cell">
-              <dt>Version</dt>
-              <dd class="num">{{ displayServerVersion(edgeInfoServer.version) }}</dd>
-            </div>
-            <div class="edge-info-cell">
-              <dt>OS</dt>
-              <dd>{{ displayServerOs(edgeInfoServer.os) }}</dd>
-            </div>
-            <div class="edge-info-cell">
-              <dt>License</dt>
-              <dd>{{ edgeInfoServer.license || '—' }}</dd>
-            </div>
-            <div class="edge-info-cell">
-              <dt>Expires</dt>
-              <dd>
-                {{ formatEdgeExpiryLabel(edgeInfoServer) }}
-                <span v-if="edgeInfoServer.expiredDate" class="edge-info-sub"> · {{ edgeInfoServer.expiredDate }}</span>
-              </dd>
-            </div>
-            <div class="edge-info-cell">
-              <dt>Created</dt>
-              <dd>{{ edgeInfoServer.created || '—' }}</dd>
-            </div>
-            <div class="edge-info-cell">
-              <dt>SSH</dt>
-              <dd class="num">
-                {{ edgeInfoServer.sshUser || '—' }}:{{ edgeInfoServer.sshPort || '22' }}
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="edge-info-panel">
-          <h4 class="edge-info-panel__title">
-            Management users
-            <span v-if="edgeInfoServer.managedUsers?.length" class="edge-info-panel__count">
-              {{ edgeInfoServer.managedUsers.length }}
-            </span>
-          </h4>
-          <ul v-if="edgeInfoServer.managedUsers?.length" class="edge-info-user-list">
-            <li
-              v-for="user in edgeInfoServer.managedUsers"
-              :key="user"
-              class="edge-info-user-item"
-              :title="user"
-            >
-              {{ user }}
-            </li>
-          </ul>
-          <p v-else class="edge-info-empty">No management users assigned.</p>
+        <section class="edge-info-services" aria-label="Service health">
+          <article
+            v-for="service in edgeServiceSummaries"
+            :key="service.id"
+            class="edge-info-service"
+          >
+            <header class="edge-info-service__header">
+              <h4>{{ service.title }}</h4>
+              <span
+                class="edge-info-service__status"
+                :class="`edge-info-service__status--${service.status}`"
+              >
+                {{ service.statusLabel }}
+              </span>
+            </header>
+            <p class="edge-info-service__health">{{ service.health }}</p>
+            <p class="edge-info-service__license">{{ service.license }}</p>
+          </article>
         </section>
       </div>
 
       <div class="dialog-footer edge-info-footer">
-        <button class="secondary-btn" type="button" @click="closeEdgeInfoDialog">Close</button>
-        <div class="dialog-footer-actions">
-          <button
-            class="secondary-btn"
-            type="button"
-            title="Name, IP, SSH credentials, and management users"
-            @click="editFromEdgeInfo"
-          >
-            Edit details
-          </button>
-          <button
-            class="secondary-btn"
-            type="button"
-            title="Deploy a newer software build"
-            @click="upgradeFromEdgeInfo"
-          >
-            Upgrade
-          </button>
-          <button
-            class="primary-btn"
-            type="button"
-            title="Ports, L4 defense, allow/block lists, and monitoring"
-            @click="configureFromEdgeInfo"
-          >
-            Configure
-          </button>
-        </div>
+        <button class="edge-info-action" type="button" @click="editFromEdgeInfo">
+          <strong>Edit edge</strong>
+          <span>Name, IP, SSH, and users</span>
+        </button>
+        <button class="edge-info-action" type="button" @click="licenseFromEdgeInfo">
+          <strong>Change license</strong>
+          <span>Tier and expiry</span>
+        </button>
+        <button class="edge-info-action" type="button" @click="upgradeFromEdgeInfo">
+          <strong>Upgrade software</strong>
+          <span>Install a newer build</span>
+        </button>
+        <button class="edge-info-action edge-info-action--primary" type="button" @click="configureFromEdgeInfo">
+          <strong>Open configure</strong>
+          <span>Monitor, ports, and protection</span>
+        </button>
       </div>
     </div>
   </div>
@@ -519,14 +423,61 @@
               />
             </div>
             <div class="dialog-field">
+              <span class="dialog-field__label" id="new-server-auth-label">Authentication</span>
+              <div class="auth-type-toggle" role="radiogroup" aria-labelledby="new-server-auth-label">
+                <button
+                  type="button"
+                  role="radio"
+                  :aria-checked="newServer.sshAuthType === 'password'"
+                  :class="{ active: newServer.sshAuthType === 'password' }"
+                  @click="newServer.sshAuthType = 'password'"
+                >
+                  Password
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  :aria-checked="newServer.sshAuthType === 'key'"
+                  :class="{ active: newServer.sshAuthType === 'key' }"
+                  @click="newServer.sshAuthType = 'key'"
+                >
+                  SSH key
+                </button>
+              </div>
+            </div>
+            <div v-if="newServer.sshAuthType === 'password'" class="dialog-field">
               <label for="new-server-password">Password</label>
               <input
                 id="new-server-password"
                 v-model="newServer.password"
                 type="password"
+                autocomplete="new-password"
                 placeholder="Enter password"
               />
             </div>
+            <template v-else>
+              <div class="dialog-field">
+                <label for="new-server-ssh-key">SSH private key</label>
+                <textarea
+                  id="new-server-ssh-key"
+                  v-model="newServer.sshPrivateKey"
+                  rows="4"
+                  spellcheck="false"
+                  autocomplete="off"
+                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                ></textarea>
+              </div>
+              <div class="dialog-field">
+                <label for="new-server-ssh-key-passphrase">Key passphrase (optional)</label>
+                <input
+                  id="new-server-ssh-key-passphrase"
+                  v-model="newServer.sshKeyPassphrase"
+                  type="password"
+                  autocomplete="new-password"
+                  placeholder="Only if the key is encrypted"
+                />
+              </div>
+            </template>
             <div class="dialog-field">
               <label for="new-server-ssh">SSH port</label>
               <input
@@ -777,13 +728,27 @@
               />
             </div>
             <div class="dialog-field">
-              <label for="edit-server-password">Password</label>
-              <input
-                id="edit-server-password"
-                v-model="editServer.password"
-                type="password"
-                placeholder="Enter password"
-              />
+              <span class="dialog-field__label" id="edit-server-auth-label">Authentication</span>
+              <div class="auth-type-toggle" role="radiogroup" aria-labelledby="edit-server-auth-label">
+                <button
+                  type="button"
+                  role="radio"
+                  :aria-checked="editServer.sshAuthType === 'password'"
+                  :class="{ active: editServer.sshAuthType === 'password' }"
+                  @click="editServer.sshAuthType = 'password'"
+                >
+                  Password
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  :aria-checked="editServer.sshAuthType === 'key'"
+                  :class="{ active: editServer.sshAuthType === 'key' }"
+                  @click="editServer.sshAuthType = 'key'"
+                >
+                  SSH key
+                </button>
+              </div>
             </div>
             <div class="dialog-field">
               <label for="edit-server-ssh">SSH port</label>
@@ -795,6 +760,48 @@
               />
             </div>
           </div>
+          <div class="dialog-grid" style="margin-top: 16px">
+            <div v-if="editServer.sshAuthType === 'password'" class="dialog-field">
+              <label for="edit-server-password">Password</label>
+              <input
+                id="edit-server-password"
+                v-model="editServer.password"
+                type="password"
+                autocomplete="new-password"
+                :placeholder="editServer.hasPassword ? 'Leave blank to keep current password' : 'Enter password'"
+              />
+            </div>
+            <template v-else>
+              <div class="dialog-field dialog-field--full">
+                <label for="edit-server-ssh-key">SSH private key</label>
+                <textarea
+                  id="edit-server-ssh-key"
+                  v-model="editServer.sshPrivateKey"
+                  rows="4"
+                  spellcheck="false"
+                  autocomplete="off"
+                  :placeholder="editServer.hasSshKey ? 'A key is stored. Leave blank to keep it, or paste a new key to replace it.' : '-----BEGIN OPENSSH PRIVATE KEY-----'"
+                ></textarea>
+              </div>
+              <div class="dialog-field">
+                <label for="edit-server-ssh-key-passphrase">Key passphrase (optional)</label>
+                <input
+                  id="edit-server-ssh-key-passphrase"
+                  v-model="editServer.sshKeyPassphrase"
+                  type="password"
+                  autocomplete="new-password"
+                  :placeholder="editServer.hasSshKey && !editServer.sshPrivateKey.trim() ? 'Leave blank to keep the current passphrase' : 'Only if the key is encrypted'"
+                />
+              </div>
+            </template>
+          </div>
+          <p v-if="editAuthTypeChanged" class="dialog-field__hint" style="margin-top: 8px">
+            Saving switches this edge to {{ editServer.sshAuthType === 'key' ? 'SSH key' : 'password' }} authentication and deletes the stored {{ editServer.sshAuthType === 'key' ? 'password' : 'SSH key' }}.
+          </p>
+          <label class="checkbox-option" style="margin-top: 12px">
+            <input v-model="editServer.resetHostKey" type="checkbox" />
+            <span>Reset trusted SSH host key (only after reinstalling the edge OS)</span>
+          </label>
         </div>
 
         <div class="dialog-section">
@@ -847,7 +854,7 @@
       </div>
       <div class="dialog-footer">
         <button class="secondary-btn" @click="closeEditServerDialog">Cancel</button>
-        <button class="primary-btn" @click="requestEditConfirm">Confirm</button>
+        <button class="primary-btn" :disabled="!canSaveEditServer" @click="requestEditConfirm">Confirm</button>
       </div>
     </div>
   </div>
@@ -1086,6 +1093,7 @@ import LayerStatusDot from '../LayerStatusDot.vue'
 import LicenseTierUpgradePanel from '../LicenseTierUpgradePanel.vue'
 import LicenseTierSelector from '../LicenseTierSelector.vue'
 import VersionPanelSelector from '../VersionPanelSelector.vue'
+import ServerStatusPanel from './ServerStatusPanel.vue'
 import {
   formatServerVersionDisplay,
   formatVersionOs,
@@ -1102,10 +1110,13 @@ import {
   layerDotTitle,
   resolveAngelosRuntimeStatus,
   resolveLayerStatus,
+  runtimeStatusLabel,
+  serviceStatusDetailRows,
 } from '@/utils/serverLayerStatus'
 import {
   createServer as createServerApi,
   fetchServers,
+  fetchServerHostMetrics,
   fetchDeployVersions,
   probeHostVersions,
   upgradeServer,
@@ -1187,7 +1198,25 @@ const editServer = ref({
   ip: '',
   username: '',
   password: '',
-  sshPort: ''
+  hasPassword: false,
+  resetHostKey: false,
+  sshPort: '',
+  sshAuthType: 'password',
+  originalAuthType: 'password',
+  sshPrivateKey: '',
+  sshKeyPassphrase: '',
+  hasSshKey: false,
+})
+
+const editAuthTypeChanged = computed(
+  () => editServer.value.sshAuthType !== editServer.value.originalAuthType
+)
+
+const canSaveEditServer = computed(() => {
+  if (editServer.value.sshAuthType === 'key') {
+    return Boolean(editServer.value.sshPrivateKey?.trim()) || editServer.value.hasSshKey
+  }
+  return Boolean(editServer.value.password?.trim()) || editServer.value.hasPassword
 })
 const isConfirmDialogOpen = ref(false)
 const confirmAction = ref(null)
@@ -1213,8 +1242,10 @@ const selectedCreateVersionUuid = ref('')
 
 const canProceedBasicStep = computed(() => {
   if (!newServer.value.name?.trim() || !newServer.value.ip?.trim()) return false
-  if (!newServer.value.username?.trim() || !newServer.value.password?.trim()) return false
-  return true
+  if (!newServer.value.username?.trim()) return false
+  return newServer.value.sshAuthType === 'key'
+    ? Boolean(newServer.value.sshPrivateKey?.trim())
+    : Boolean(newServer.value.password?.trim())
 })
 
 const canProceedVersionStep = computed(() => {
@@ -1294,6 +1325,7 @@ const isLicenseUpgradeDialogOpen = ref(false)
 const licenseUpgradeTarget = ref(null)
 const isLicenseUpgrading = ref(false)
 const servers = ref([])
+const edgeHostMetrics = ref({})
 const deployVersionsCatalog = ref([])
 const pageSize = ref(8)
 const currentPage = ref(1)
@@ -1308,15 +1340,30 @@ const newServer = ref({
   ip: '',
   username: '',
   password: '',
-  sshPort: '22'
+  sshPort: '22',
+  sshAuthType: 'password',
+  sshPrivateKey: '',
+  sshKeyPassphrase: '',
 })
+
+const newServerCredentialFields = () => {
+  const useKey = newServer.value.sshAuthType === 'key'
+  return {
+    sshAuthType: useKey ? 'key' : 'password',
+    sshPassword: useKey ? '' : newServer.value.password?.trim() || '',
+    sshPrivateKey: useKey ? newServer.value.sshPrivateKey?.trim() || '' : '',
+    sshKeyPassphrase: useKey ? newServer.value.sshKeyPassphrase || '' : '',
+  }
+}
 
 const filteredServers = computed(() => {
   const nameQuery = filters.name.trim().toLowerCase()
-  const ipQuery = filters.ip.trim().toLowerCase()
   return servers.value.filter((server) => {
-    if (nameQuery && !String(server.name || '').toLowerCase().includes(nameQuery)) return false
-    if (ipQuery && !String(server.ip || '').toLowerCase().includes(ipQuery)) return false
+    if (nameQuery) {
+      const name = String(server.name || '').toLowerCase()
+      const ip = String(server.ip || '').toLowerCase()
+      if (!name.includes(nameQuery) && !ip.includes(nameQuery)) return false
+    }
     if (filters.angelos && resolveAngelosRuntimeStatus(server) !== filters.angelos) return false
     if (filters.license && String(server.license || '') !== filters.license) return false
     return true
@@ -1324,21 +1371,13 @@ const filteredServers = computed(() => {
 })
 
 const edgeMetricCards = computed(() => {
-  const list = servers.value
-  const total = list.length
-  const angelosRunning = list.filter((server) => resolveAngelosRuntimeStatus(server) === 'running').length
-  const l4Running = list.filter((server) => resolveLayerStatus(server, 'l4') === 'running').length
-  const l7Running = list.filter((server) => resolveLayerStatus(server, 'l7') === 'running').length
-  const licenseRisk = list.filter((server) => {
+  const licenseRisk = servers.value.filter((server) => {
     const tone = licenseExpiryTone(server)
     return tone === 'expired' || tone === 'expiring'
   }).length
+  if (!licenseRisk) return []
   return [
-    { label: 'Edges', value: String(total), hint: 'Registered nodes', tone: 'viper' },
-    { label: 'Angelos', value: String(angelosRunning), hint: 'Runtime healthy', tone: 'signal' },
-    { label: 'L4 live', value: String(l4Running), hint: 'Sparta running', tone: 'l4' },
-    { label: 'L7 live', value: String(l7Running), hint: 'Athens running', tone: 'ok' },
-    { label: 'License risk', value: String(licenseRisk), hint: 'Expired or ≤14d', tone: 'warn' },
+    { label: 'License risk', value: String(licenseRisk), hint: 'Expired or due within 14 days', tone: 'warn' },
   ]
 })
 
@@ -1374,16 +1413,25 @@ const edgeRowClass = (server) => {
   return classes
 }
 
+// The signed-in user is always assignable, even when /users is not readable (non-admins).
+const assignableUsers = computed(() => {
+  const current = auth.state.user
+  if (!current?.id || allUsers.value.some((user) => user.id === current.id)) {
+    return allUsers.value
+  }
+  return [current, ...allUsers.value]
+})
+
 const usersById = computed(() => {
   const map = new Map()
-  allUsers.value.forEach((user) => {
+  assignableUsers.value.forEach((user) => {
     map.set(user.id, user)
   })
   return map
 })
 
 const availableUsers = computed(() =>
-  allUsers.value.filter((user) => !selectedUsers.value.includes(user.id))
+  assignableUsers.value.filter((user) => !selectedUsers.value.includes(user.id))
 )
 
 const filteredAvailableUsers = computed(() => {
@@ -1444,8 +1492,8 @@ const loadCreateVersionsForHost = async () => {
     const data = await probeHostVersions({
       ip: newServer.value.ip?.trim() || '',
       sshUser: newServer.value.username?.trim() || '',
-      sshPassword: newServer.value.password?.trim() || '',
       sshPort: newServer.value.sshPort?.toString().trim() || '',
+      ...newServerCredentialFields(),
     })
     const list = Array.isArray(data?.versions) ? data.versions : []
     detectedHostOs.value = data?.os || ''
@@ -1501,9 +1549,14 @@ const onNewServerFormSubmit = () => {
   }
 }
 
+const defaultManagementUserIds = () => {
+  const userId = auth.state.user?.id
+  return userId ? [userId] : []
+}
+
 const openNewServerDialog = () => {
   // Reset dialog state each time it's opened
-  selectedUsers.value = []
+  selectedUsers.value = defaultManagementUserIds()
   userSearch.value = ''
   isUserDropdownOpen.value = false
   licenseTier.value = 'Trial'
@@ -1522,7 +1575,10 @@ const openNewServerDialog = () => {
     ip: '',
     username: '',
     password: '',
-    sshPort: '22'
+    sshPort: '22',
+    sshAuthType: 'password',
+    sshPrivateKey: '',
+    sshKeyPassphrase: '',
   }
   if (licenseInput.value) {
     licenseInput.value.value = ''
@@ -1542,8 +1598,15 @@ const openEditServer = (server) => {
     name: server.name,
     ip: server.ip,
     username: server.sshUser || '',
-    password: server.sshPassword || '',
-    sshPort: server.sshPort || ''
+    password: '',
+    hasPassword: Boolean(server.hasSshPassword),
+    resetHostKey: false,
+    sshPort: server.sshPort || '',
+    sshAuthType: server.sshAuthType || (server.hasSshKey ? 'key' : 'password'),
+    originalAuthType: server.sshAuthType || (server.hasSshKey ? 'key' : 'password'),
+    sshPrivateKey: '',
+    sshKeyPassphrase: '',
+    hasSshKey: Boolean(server.hasSshKey),
   }
   selectedUsers.value = server.managedUserIds
     ? [...server.managedUserIds]
@@ -1579,11 +1642,54 @@ const editFromEdgeInfo = () => {
 }
 
 const configureFromEdgeInfo = () => {
+  const serverId = edgeInfoServer.value?.id
+  if (serverId == null || serverId === '') return
+  closeEdgeInfoDialog()
+  void router.push({ name: 'server-settings', query: { server: String(serverId) } })
+}
+
+const licenseFromEdgeInfo = () => {
   const server = edgeInfoServer.value
   if (!server) return
   closeEdgeInfoDialog()
-  openServerSettings(server)
+  openLicenseUpgradeDialog(server)
 }
+
+const syncEdgeFromStatus = (updated) => {
+  if (!updated?.id) return
+  if (edgeInfoServer.value?.id === updated.id) {
+    edgeInfoServer.value = { ...edgeInfoServer.value, ...updated }
+  }
+  const index = servers.value.findIndex((server) => server.id === updated.id)
+  if (index === -1) return
+  servers.value[index] = {
+    ...servers.value[index],
+    ...updated,
+    serviceStatus: updated.serviceStatus ?? updated.service_status ?? servers.value[index].serviceStatus,
+    l4Status: updated.l4Status ?? updated.l4_status ?? servers.value[index].l4Status,
+    l7Status: updated.l7Status ?? updated.l7_status ?? servers.value[index].l7Status,
+  }
+}
+
+const edgeServiceSummaries = computed(() => {
+  const server = edgeInfoServer.value
+  if (!server) return []
+  const services = [
+    { id: 'angelos', title: 'Angelos', status: resolveAngelosRuntimeStatus(server) },
+    { id: 'sparta', title: 'Sparta', status: resolveLayerStatus(server, 'l4') },
+    { id: 'athens', title: 'Athens', status: resolveLayerStatus(server, 'l7') },
+  ]
+  return services.map((service) => {
+    const rows = serviceStatusDetailRows(service.id, server, service.status, null)
+    const valueFor = (label) => rows.find((row) => row.label === label)?.value || '—'
+    return {
+      ...service,
+      statusLabel: runtimeStatusLabel(service.status),
+      health: valueFor('Health'),
+      license: valueFor('License'),
+    }
+  })
+})
 
 const openServerSettings = (server) => {
   if (!server?.id) return
@@ -1596,13 +1702,6 @@ const upgradeFromEdgeInfo = () => {
   if (!server) return
   closeEdgeInfoDialog()
   void openUpgradeDialog(server)
-}
-
-const layerStatusPlain = (server, layer) => {
-  const status = resolveLayerStatus(server, layer)
-  if (status === 'running') return 'running'
-  if (status === 'stopped') return 'stopped'
-  return 'unknown'
 }
 
 const openUserDropdown = () => {
@@ -1628,9 +1727,23 @@ const toggleRowMenu = (rowId) => {
   activeRowMenu.value = activeRowMenu.value === rowId ? null : rowId
 }
 
+const edgeFiltersOpen = ref(false)
+const edgeFilterMenu = ref(null)
+const edgeExtraFilterCount = computed(() => {
+  const healthExtra = filters.angelos === 'deployed' || filters.angelos === 'unknown' ? 1 : 0
+  return healthExtra + (filters.license ? 1 : 0)
+})
+const clearEdgeExtraFilters = () => {
+  if (filters.angelos === 'deployed' || filters.angelos === 'unknown') filters.angelos = ''
+  filters.license = ''
+}
+
 const handleClickOutsideMenu = (event) => {
   if (!event.target.closest('.menu-wrap')) {
     activeRowMenu.value = null
+  }
+  if (edgeFilterMenu.value && !edgeFilterMenu.value.contains(event.target)) {
+    edgeFiltersOpen.value = false
   }
 }
 
@@ -1652,6 +1765,49 @@ const loadDeployVersionsCatalog = async () => {
   }
 }
 
+const formatBitRate = (bytesPerSec) => {
+  const bytes = Number(bytesPerSec)
+  if (!Number.isFinite(bytes) || bytes < 0) return '—'
+  const bits = bytes * 8
+  if (bits >= 1_000_000_000) return `${(bits / 1_000_000_000).toFixed(2)} Gbps`
+  if (bits >= 1_000_000) return `${(bits / 1_000_000).toFixed(1)} Mbps`
+  if (bits >= 1_000) return `${(bits / 1_000).toFixed(1)} Kbps`
+  return `${Math.round(bits)} bps`
+}
+
+const edgeTrafficLabel = (server, direction) => {
+  const metric = edgeHostMetrics.value[server?.id]
+  if (!metric) return '…'
+  if (metric.error) return '—'
+  const bytes = direction === 'rx' ? metric.netRxBytesPerSec : metric.netTxBytesPerSec
+  const prefix = direction === 'rx' ? '↓' : '↑'
+  return `${prefix} ${formatBitRate(bytes)}`
+}
+
+const loadEdgeHostMetrics = async (list) => {
+  const rows = Array.isArray(list) ? list : []
+  if (!rows.length) {
+    edgeHostMetrics.value = {}
+    return
+  }
+  const results = await Promise.all(rows.map(async (server) => {
+    try {
+      const payload = await fetchServerHostMetrics(server.id)
+      return [server.id, {
+        netTxBytesPerSec: Number(payload?.netTxBytesPerSec) || 0,
+        netRxBytesPerSec: Number(payload?.netRxBytesPerSec) || 0,
+      }]
+    } catch {
+      return [server.id, { error: true }]
+    }
+  }))
+  const next = {}
+  results.forEach(([id, metric]) => {
+    next[id] = metric
+  })
+  edgeHostMetrics.value = next
+}
+
 const loadServers = async () => {
   try {
     const data = await fetchServers()
@@ -1660,6 +1816,7 @@ const loadServers = async () => {
       String(auth.state.user?.role || '').toLowerCase() === 'admin'
     if (isAdmin) {
       servers.value = list
+      void loadEdgeHostMetrics(list)
       return
     }
     const userId = auth.state.user?.id
@@ -1672,6 +1829,7 @@ const loadServers = async () => {
         ? server.managedUserIds.includes(userId)
         : false
     )
+    void loadEdgeHostMetrics(servers.value)
   } catch {
     servers.value = []
   }
@@ -1794,9 +1952,9 @@ const createServer = async () => {
     versionUuid: pickedVersion.uuid,
     os: pickedVersion.os || '',
     sshUser: newServer.value.username?.trim() || '',
-    sshPassword: newServer.value.password?.trim() || '',
     sshPort: newServer.value.sshPort?.toString().trim() || '22',
     userIds: [...selectedUsers.value],
+    ...newServerCredentialFields(),
   }
 
   try {
@@ -2026,17 +2184,22 @@ const applyEditServer = async () => {
   if (index === -1) return
 
   const updatedUsers = [...selectedUsers.value]
+  const useKey = editServer.value.sshAuthType === 'key'
   try {
     await updateServer(editServerId.value, {
       name: editServer.value.name || servers.value[index].name,
       ip: editServer.value.ip || servers.value[index].ip,
       sshUser: editServer.value.username || '',
-      sshPassword: editServer.value.password || '',
       sshPort: editServer.value.sshPort?.toString().trim() || '',
+      resetSshHostKey: Boolean(editServer.value.resetHostKey),
+      sshAuthType: useKey ? 'key' : 'password',
+      sshPassword: useKey ? '' : editServer.value.password || '',
+      sshPrivateKey: useKey ? editServer.value.sshPrivateKey?.trim() || '' : '',
+      sshKeyPassphrase: useKey ? editServer.value.sshKeyPassphrase || '' : '',
     })
     await updateServerUsers(editServerId.value, updatedUsers)
-  } catch {
-    enqueueNotification('The edge could not be updated.', 'error')
+  } catch (err) {
+    enqueueNotification(err?.message || 'The edge could not be updated.', 'error')
     return
   }
   servers.value[index] = {
@@ -2049,7 +2212,9 @@ const applyEditServer = async () => {
       .filter(Boolean),
     managedUserIds: updatedUsers,
     sshUser: editServer.value.username,
-    sshPassword: editServer.value.password,
+    sshAuthType: useKey ? 'key' : 'password',
+    hasSshPassword: !useKey && (servers.value[index].hasSshPassword || Boolean(editServer.value.password)),
+    hasSshKey: useKey,
     sshPort: editServer.value.sshPort
   }
 
@@ -2198,7 +2363,7 @@ const nextPage = () => {
 .edges-filterbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
   padding: 12px 14px;
   border-radius: var(--edges-radius);
@@ -2467,6 +2632,22 @@ const nextPage = () => {
   font-size: 12.5px;
   font-weight: 650;
   color: var(--app-heading);
+}
+
+.edges-traffic {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.edges-traffic strong {
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.edges-traffic span {
+  color: var(--app-text-muted);
 }
 
 .edges-users {
@@ -3376,31 +3557,45 @@ const nextPage = () => {
   max-height: min(92vh, 860px);
 }
 
-.dialog-card--edge-info {
-  width: min(100%, 520px);
-  max-width: 520px;
-  max-height: min(88vh, 720px);
+.dialog-card.dialog-card--edge-info {
+  width: min(100%, 900px);
+  max-width: 900px;
+  max-height: min(92vh, 860px);
   display: flex;
   flex-direction: column;
-  box-shadow:
-    0 24px 48px color-mix(in srgb, var(--app-shadow) 85%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 14%, var(--app-border));
 }
 
 .dialog-card--edge-info .dialog-header {
-  padding: 14px 16px;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 8%, transparent) 0%,
-      transparent 55%
-    ),
-    var(--app-surface-solid, var(--app-surface));
+  align-items: flex-start;
+  padding: 16px 18px 12px;
 }
 
 .dialog-card--edge-info .dialog-header h3 {
-  font-size: 1.05rem;
-  letter-spacing: -0.02em;
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+}
+
+.edge-info-subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--app-text-secondary, var(--app-text-muted));
+}
+
+.edge-info-subtitle__sep {
+  margin: 0 7px;
+  color: var(--app-text-muted);
+}
+
+.edge-info-expiry--expired {
+  color: #e15241;
+}
+
+.edge-info-expiry--expiring {
+  color: #d97706;
 }
 
 .edge-info-body {
@@ -3409,320 +3604,150 @@ const nextPage = () => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 18px;
+  padding: 6px 18px 16px;
 }
 
-.edge-info-hero {
+.edge-info-services {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--app-border);
+}
+
+.edge-info-service {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 20%, var(--app-border));
-  background:
-    linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 12%, transparent) 0%,
-      var(--app-surface-elevated, var(--app-surface)) 100%
-    );
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 16px 0 0;
 }
 
-.edge-info-hero__top {
+.edge-info-service + .edge-info-service {
+  padding-left: 16px;
+  border-left: 1px solid var(--app-border);
+}
+
+.edge-info-service__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-}
-
-.edge-info-hero__identity {
-  min-width: 0;
-  flex: 1;
-}
-
-.edge-info-hero__name {
-  display: block;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--app-heading);
-  line-height: 1.25;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.edge-info-hero__ip {
-  display: block;
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 550;
-  color: var(--app-text-secondary, var(--app-text-muted));
-}
-
-.edge-info-status-pill {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--app-border);
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-}
-
-.edge-info-status-pill__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
-}
-
-.edge-info-status-pill--running {
-  color: var(--dorian-viper-400, var(--app-accent));
-  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 40%, var(--app-border));
-  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 14%, var(--app-surface));
-}
-
-.edge-info-status-pill--deployed {
-  color: #5b9df0;
-  border-color: color-mix(in srgb, #5b9df0 40%, var(--app-border));
-  background: color-mix(in srgb, #5b9df0 14%, var(--app-surface));
-}
-
-.edge-info-status-pill--stopped {
-  color: #e15241;
-  border-color: color-mix(in srgb, #e15241 40%, var(--app-border));
-  background: color-mix(in srgb, #e15241 14%, var(--app-surface));
-}
-
-.edge-info-hero__metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  width: 100%;
 }
 
-.edge-info-metric {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-solid, var(--app-surface));
-}
-
-.edge-info-metric__label {
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-}
-
-.edge-info-metric__value {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 650;
-  color: var(--app-heading);
-  text-transform: capitalize;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.edge-info-metric--ok {
-  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 28%, var(--app-border));
-  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 8%, var(--app-surface));
-}
-
-.edge-info-metric--expiring {
-  border-color: color-mix(in srgb, #d97706 35%, var(--app-border));
-  background: color-mix(in srgb, #d97706 10%, var(--app-surface));
-}
-
-.edge-info-metric--expiring .edge-info-metric__value {
-  color: #d97706;
-}
-
-.edge-info-metric--expired {
-  border-color: color-mix(in srgb, #e15241 35%, var(--app-border));
-  background: color-mix(in srgb, #e15241 10%, var(--app-surface));
-}
-
-.edge-info-metric--expired .edge-info-metric__value {
-  color: #e15241;
-}
-
-.edge-info-panel {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  border-radius: 10px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-elevated, var(--app-surface));
-  overflow: hidden;
-}
-
-.edge-info-panel__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.edge-info-service__header h4 {
   margin: 0;
-  padding: 9px 14px;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.edge-info-service__status {
+  flex: none;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-  border-bottom: 1px solid var(--app-border);
-  background: color-mix(in srgb, var(--app-surface) 65%, transparent);
-}
-
-.edge-info-panel__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0;
-  color: var(--dorian-viper-400, var(--app-accent));
-  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 14%, transparent);
-}
-
-.edge-info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  margin: 0;
-  width: 100%;
-}
-
-.edge-info-cell {
-  min-width: 0;
-  padding: 10px 14px;
-  border-right: 1px solid color-mix(in srgb, var(--app-border) 75%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--app-border) 75%, transparent);
-}
-
-.edge-info-cell:nth-child(2n) {
-  border-right: none;
-}
-
-.edge-info-cell:nth-last-child(-n + 2) {
-  border-bottom: none;
-}
-
-.edge-info-cell dt {
-  margin: 0 0 3px;
-  font-size: 10.5px;
-  font-weight: 550;
   color: var(--app-text-muted);
 }
 
-.edge-info-cell dd {
+.edge-info-service__status--running {
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.edge-info-service__status--stopped {
+  color: #e15241;
+}
+
+.edge-info-service__status--na {
+  color: var(--app-text-muted);
+}
+
+.edge-info-service__health,
+.edge-info-service__license {
   margin: 0;
   font-size: 12.5px;
-  font-weight: 650;
-  color: var(--app-heading);
-  line-height: 1.35;
-  word-break: break-word;
+  line-height: 1.4;
+  color: var(--app-text-secondary);
 }
 
-.edge-info-sub {
+.edge-info-service__license {
   color: var(--app-text-muted);
-  font-weight: 500;
-}
-
-.edge-info-user-list {
-  list-style: none;
-  margin: 0;
-  padding: 6px 8px 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  width: 100%;
-  max-height: 140px;
-  overflow-y: auto;
-}
-
-.edge-info-user-item {
-  max-width: 100%;
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 24%, var(--app-border));
-  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 10%, transparent);
-  color: var(--dorian-viper-400, var(--app-accent));
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.3;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.edge-info-empty {
-  margin: 0;
-  padding: 12px 14px;
-  color: var(--app-text-muted);
-  font-size: 12px;
 }
 
 .edge-info-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
   margin-top: 0;
   padding: 12px 16px;
   border-top: 1px solid var(--app-border);
   background: color-mix(in srgb, var(--app-surface-elevated) 55%, transparent);
 }
 
-.dialog-footer-actions {
+.edge-info-action {
   display: flex;
-  gap: 8px;
-  margin-left: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.edge-info-action:hover {
+  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
+  background: color-mix(in srgb, var(--app-accent) 6%, var(--app-surface));
+}
+
+.edge-info-action strong {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.edge-info-action span {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--app-text-muted);
+}
+
+.edge-info-action--primary {
+  border-color: rgba(46, 158, 108, 0.45);
+  background: rgba(46, 158, 108, 0.12);
+}
+
+.edge-info-action--primary strong {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.edge-info-action--primary:hover {
+  background: rgba(46, 158, 108, 0.18);
+}
+
+@media (max-width: 860px) {
+  .edge-info-services,
+  .edge-info-footer {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .edge-info-service + .edge-info-service {
+    border-left: none;
+    padding-left: 0;
+  }
 }
 
 @media (max-width: 560px) {
-  .dialog-card--edge-info {
+  .dialog-card.dialog-card--edge-info {
     width: min(100%, 100%);
     max-width: 100%;
   }
 
-  .edge-info-hero__metrics,
-  .edge-info-grid {
+  .edge-info-services,
+  .edge-info-footer {
     grid-template-columns: 1fr;
-  }
-
-  .edge-info-cell {
-    border-right: none;
-  }
-
-  .edge-info-cell:nth-last-child(-n + 2) {
-    border-bottom: 1px solid color-mix(in srgb, var(--app-border) 75%, transparent);
-  }
-
-  .edge-info-cell:last-child {
-    border-bottom: none;
   }
 }
 
@@ -4108,6 +4133,79 @@ const nextPage = () => {
 .dialog-field input:focus {
   border-color: var(--app-accent);
   box-shadow: 0 0 0 3px var(--app-accent-soft);
+}
+
+.dialog-field textarea {
+  border: 0.5px solid var(--app-input-border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  color: var(--app-text);
+  background: var(--app-input-bg);
+  outline: none;
+  resize: vertical;
+  min-height: 72px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dialog-field textarea:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
+}
+
+.dialog-field textarea:disabled {
+  opacity: 0.55;
+}
+
+.dialog-field--full {
+  grid-column: 1 / -1;
+}
+
+.dialog-field__label {
+  font-family: var(--font-mono);
+  font-size: var(--type-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  font-weight: 500;
+}
+
+.auth-type-toggle {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px;
+  gap: 2px;
+  border: 0.5px solid var(--app-input-border);
+  border-radius: 6px;
+  background: var(--app-input-bg);
+}
+
+.auth-type-toggle button {
+  border: none;
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: var(--type-base);
+  color: var(--app-text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.auth-type-toggle button.active {
+  color: var(--app-text);
+  background: var(--app-accent-soft);
+  font-weight: 500;
+}
+
+.auth-type-toggle button:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 1px;
+}
+
+.dialog-field__hint {
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
 }
 
 .dialog-field select {

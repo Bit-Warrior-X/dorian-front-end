@@ -15,10 +15,11 @@
         <label for="server-settings-target">Edge</label>
         <select
           id="server-settings-target"
-          v-model.number="selectedServer"
+          :value="selectedServer === '' || selectedServer == null ? '' : String(selectedServer)"
+          @change="onServerPicked"
         >
           <option disabled value="">Select an edge</option>
-          <option v-for="server in serverOptions" :key="server.id" :value="server.id">
+          <option v-for="server in serverOptions" :key="server.id" :value="String(server.id)">
             {{ server.name || server.ip || `Edge #${server.id}` }}
           </option>
         </select>
@@ -76,7 +77,11 @@
           :key="tab.id"
           type="button"
           class="edge-cfg__tab"
-          :class="{ active: activeTab === tab.id }"
+          :class="{
+            active: activeTab === tab.id,
+            'edge-cfg__tab--locked': isL4TabLocked(tab.id),
+          }"
+          :aria-disabled="isL4TabLocked(tab.id) ? 'true' : undefined"
           @click="selectTab(tab.id)"
         >
           <span class="edge-cfg__tab-label info-hint-heading">
@@ -102,17 +107,17 @@
           :server-id="selectedServer"
         />
         <L4DdosDefensePanel
-          v-else-if="activeTab === 'l4-config'"
+          v-else-if="activeTab === 'l4-config' && l4LicenseValid"
           :key="`l4-config-${selectedServer}`"
           :server-id="selectedServer"
         />
         <L4BlacklistPanel
-          v-else-if="activeTab === 'l4-blacklist'"
+          v-else-if="activeTab === 'l4-blacklist' && l4LicenseValid"
           :key="`l4-blacklist-${selectedServer}`"
           :server-id="selectedServer"
         />
         <L4WhitelistPanel
-          v-else-if="activeTab === 'l4-whitelist'"
+          v-else-if="activeTab === 'l4-whitelist' && l4LicenseValid"
           :key="`l4-whitelist-${selectedServer}`"
           :server-id="selectedServer"
         />
@@ -145,7 +150,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchServers } from '@/api/servers'
 import L4DdosDefensePanel from './L4DdosDefensePanel.vue'
@@ -155,9 +160,12 @@ import LayerStatusDot from '../LayerStatusDot.vue'
 import InfoHint from '../InfoHint.vue'
 import ListeningPortsPanel from './ListeningPortsPanel.vue'
 import ServerStatusPanel from './ServerStatusPanel.vue'
+import { notifyWarning } from '@/utils/notify'
 import {
   angelosStatusClass,
   angelosStatusLabel,
+  isL4LicenseValid,
+  l4LicenseBlockMessage,
   layerDotDescription,
   layerDotTitle,
   resolveLayerStatus,
@@ -169,8 +177,15 @@ const serverOptions = ref([])
 const selectedServer = ref('')
 const tabsBodyEl = ref(null)
 const selectedServerData = computed(() =>
-  serverOptions.value.find((server) => server.id === selectedServer.value),
+  serverOptions.value.find((server) => Number(server.id) === Number(selectedServer.value)),
 )
+
+const serverIdFromQuery = () => {
+  const raw = Array.isArray(route.query.server) ? route.query.server[0] : route.query.server
+  if (raw == null || String(raw).trim() === '') return null
+  const id = Number(raw)
+  return Number.isFinite(id) ? id : null
+}
 
 const statusSummary = computed(() => {
   const server = selectedServerData.value
@@ -189,18 +204,34 @@ const loadServers = async () => {
     serverOptions.value = []
   }
 
-  if (!selectedServer.value && serverOptions.value.length) {
-    selectedServer.value = serverOptions.value[0].id
+  const requested = serverIdFromQuery()
+  if (requested != null) {
+    selectedServer.value = requested
+    return
+  }
+  if ((selectedServer.value === '' || selectedServer.value == null) && serverOptions.value.length) {
+    selectedServer.value = Number(serverOptions.value[0].id)
   }
 }
 
 const tabs = [
   { id: 'server-status', label: 'Monitor', hint: 'Host metrics and Angelos / Sparta / Athens service health.' },
   { id: 'listening-ports', label: 'Ports', hint: 'Ports that accept client traffic on this edge.' },
-  { id: 'l4-config', label: 'XDP', hint: 'How Sparta attaches to the NIC and reacts to L4 floods.' },
-  { id: 'l4-blacklist', label: 'Block IP', hint: 'Blocked source IPs for this edge’s XDP path.' },
-  { id: 'l4-whitelist', label: 'Allow IP', hint: 'Trusted source IPs that bypass L4 blocking.' },
+  { id: 'l4-config', label: 'XDP', hint: 'How Sparta attaches to the NIC and reacts to L4 floods.', requiresL4: true },
+  { id: 'l4-blacklist', label: 'Block IP', hint: 'Blocked source IPs for this edge’s XDP path.', requiresL4: true },
+  { id: 'l4-whitelist', label: 'Allow IP', hint: 'Trusted source IPs that bypass L4 blocking.', requiresL4: true },
 ]
+
+const L4_TAB_IDS = new Set(tabs.filter((tab) => tab.requiresL4).map((tab) => tab.id))
+
+const l4LicenseValid = computed(() => isL4LicenseValid(selectedServerData.value))
+
+const isL4TabLocked = (tabId) => L4_TAB_IDS.has(tabId) && !l4LicenseValid.value
+
+const notifyL4LicenseBlocked = (tabId) => {
+  const tab = tabs.find((item) => item.id === tabId)
+  notifyWarning(tab?.label || 'L4', l4LicenseBlockMessage(selectedServerData.value))
+}
 
 const activeTab = ref(tabs[0].id)
 const activeConfigRows = computed(() => {
@@ -219,6 +250,11 @@ const activeConfigRows = computed(() => {
 })
 
 const selectTab = (tabId) => {
+  if (L4_TAB_IDS.has(tabId) && !l4LicenseValid.value) {
+    notifyL4LicenseBlocked(tabId)
+    if (L4_TAB_IDS.has(activeTab.value)) activeTab.value = 'server-status'
+    return
+  }
   activeTab.value = tabId
   requestAnimationFrame(() => {
     tabsBodyEl.value?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -234,12 +270,9 @@ const applyRouteQuery = () => {
     return
   }
 
-  const raw = route.query.server
-  if (raw != null && String(raw).trim() !== '') {
-    const id = Number(raw)
-    if (!Number.isNaN(id)) {
-      selectedServer.value = id
-    }
+  const requested = serverIdFromQuery()
+  if (requested != null) {
+    selectedServer.value = requested
   }
   const tab = String(route.query.tab || '').toLowerCase()
   if (['basic', 'monitor-server', 'server-status'].includes(tab)) {
@@ -257,7 +290,7 @@ const applyRouteQuery = () => {
 
 const onServerStatusUpdated = (updated) => {
   if (!updated?.id) return
-  const index = serverOptions.value.findIndex((server) => server.id === updated.id)
+  const index = serverOptions.value.findIndex((server) => Number(server.id) === Number(updated.id))
   if (index === -1) return
   serverOptions.value[index] = {
     ...serverOptions.value[index],
@@ -268,6 +301,19 @@ const onServerStatusUpdated = (updated) => {
   }
 }
 
+let pickingServer = false
+
+const onServerPicked = (event) => {
+  const id = Number(event.target.value)
+  if (!Number.isFinite(id)) return
+  pickingServer = true
+  selectedServer.value = id
+  const nextQuery = { ...route.query, server: String(id) }
+  void router.replace({ name: 'server-settings', query: nextQuery }).finally(() => {
+    pickingServer = false
+  })
+}
+
 watch(
   () => route.fullPath,
   () => {
@@ -275,9 +321,27 @@ watch(
   },
 )
 
+watch(selectedServer, (id) => {
+  if (pickingServer) return
+  const requested = serverIdFromQuery()
+  if (requested != null && Number(id) !== requested) {
+    selectedServer.value = requested
+  }
+})
+
+watch(selectedServerData, (server) => {
+  const tabId = activeTab.value
+  if (!server || !L4_TAB_IDS.has(tabId) || isL4LicenseValid(server)) return
+  activeTab.value = 'server-status'
+  notifyL4LicenseBlocked(tabId)
+})
+
 onMounted(() => {
-  void loadServers().then(() => {
+  void loadServers().then(async () => {
     applyRouteQuery()
+    await nextTick()
+    const requested = serverIdFromQuery()
+    if (requested != null) selectedServer.value = requested
   })
 })
 </script>
@@ -521,9 +585,18 @@ onMounted(() => {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.edge-cfg__tab:hover:not(.active) {
+.edge-cfg__tab:hover:not(.active):not(.edge-cfg__tab--locked) {
   border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
   background: color-mix(in srgb, var(--app-accent) 5%, var(--app-surface));
+}
+
+.edge-cfg__tab--locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.edge-cfg__tab--locked .edge-cfg__tab-label {
+  color: var(--app-text-muted);
 }
 
 .edge-cfg__tab.active {

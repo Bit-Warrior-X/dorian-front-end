@@ -7,16 +7,6 @@
         <p>{{ fleetSubtitle }}</p>
       </div>
       <div class="dash-topbar__right">
-        <nav class="dash-quick-links" aria-label="Console shortcuts">
-          <RouterLink
-            v-for="link in quickLinks"
-            :key="link.to.name"
-            class="dash-quick-link"
-            :to="link.to"
-          >
-            {{ link.label }}
-          </RouterLink>
-        </nav>
         <AppTopbarActions />
       </div>
     </header>
@@ -70,7 +60,6 @@
       </button>
     </div>
 
-    <!-- Fleet command strip: health + delivery KPIs in one glance -->
     <section class="dash-command" aria-label="Network health">
       <div class="dash-command__health">
         <div class="dash-hero__ring" :class="fleetHealthTone" :style="{ '--health': `${edgeHealthPercent}%` }">
@@ -86,7 +75,7 @@
         <div class="dash-kpi" role="listitem">
           <span class="dash-kpi__label">Live egress</span>
           <span class="dash-kpi__value num signal">{{ formatBandwidthValue(liveEgressKbps) }}</span>
-          <span class="dash-kpi__hint">site L7 TX</span>
+          <span class="dash-kpi__hint">bandwidth leaving your sites</span>
         </div>
         <div class="dash-kpi" role="listitem">
           <span class="dash-kpi__label">Cache hit</span>
@@ -94,302 +83,125 @@
           <span class="dash-kpi__hint">{{ fleetCacheHitHint }}</span>
         </div>
         <div class="dash-kpi" role="listitem">
-          <span class="dash-kpi__label">Edges online</span>
-          <span class="dash-kpi__value num">
-            {{ formatNumber(healthyEdges) }}
-            <small>/ {{ formatNumber(dashboardStats.totalServers) }}</small>
-          </span>
-        </div>
-        <div class="dash-kpi" role="listitem">
-          <span class="dash-kpi__label">Sites protected</span>
-          <span class="dash-kpi__value num">
-            {{ formatNumber(dashboardStats.activeSites) }}
-            <small>/ {{ formatNumber(dashboardStats.totalSites) }}</small>
-          </span>
-        </div>
-        <div class="dash-kpi" role="listitem">
           <span class="dash-kpi__label">Live req/s</span>
           <span class="dash-kpi__value num signal">{{ formatRate(latestRequestRate) }}</span>
           <span class="dash-kpi__hint">{{ formatRate(latestResponseRate) }} resp/s</span>
         </div>
-        <div class="dash-kpi" role="listitem">
+        <RouterLink class="dash-kpi" role="listitem" :to="{ name: 'attack-detection' }">
           <span class="dash-kpi__label">Threats blocked</span>
           <span class="dash-kpi__value num warn">{{ formatNumber(threatsThisMonth) }}</span>
-          <span class="dash-kpi__hint">this month · L4 + L7</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Threat summary as metric panels (not charts) -->
-    <section class="dash-threat-row" aria-label="Threat summary">
-      <div class="dash-threat-row__head">
-        <h3>Threat summary</h3>
-        <div class="dash-threat-row__actions">
-          <span class="dash-count-tag">monthly</span>
-          <RouterLink class="dash-panel-link" :to="{ name: 'layer4-attack-analytics' }">L4 attacks →</RouterLink>
-          <RouterLink class="dash-panel-link" :to="{ name: 'security-analytics-detail' }">Security →</RouterLink>
-        </div>
-      </div>
-      <div class="dash-threat-grid">
-        <RouterLink
-          v-for="panel in threatPanels"
-          :key="panel.id"
-          class="dash-threat-tile dash-threat-tile--link"
-          :class="`tone-${panel.tone}`"
-          :to="panel.to"
-        >
-          <span class="dash-threat-tile__label">{{ panel.label }}</span>
-          <span class="dash-threat-tile__value num">{{ formatNumber(panel.value) }}</span>
-          <div class="dash-threat-tile__meta">
-            <span class="dash-threat-tile__hint">{{ panel.hint }}</span>
-            <span
-              v-if="panel.delta"
-              class="dash-threat-tile__delta"
-              :class="panel.delta.tone"
-            >{{ panel.delta.label }}</span>
-          </div>
+          <span class="dash-kpi__hint">this month · open detection</span>
         </RouterLink>
       </div>
     </section>
 
-    <!-- Live traffic + events + edge health: primary operational glance -->
     <section class="dash-grid12 dash-ops">
-      <div class="dash-panel c-6 dash-panel--hero-chart">
+      <div class="dash-panel c-8 dash-panel--hero-chart">
         <div class="dash-panel-head">
-          <h3><span class="dash-live-dot" aria-hidden="true"></span> Real-time traffic</h3>
+          <h3><span class="dash-live-dot" aria-hidden="true"></span> Traffic</h3>
           <div class="dash-panel-head__actions">
-            <div class="dash-readouts">
-              <div>
-                <div class="dash-readout-label">REQ/S</div>
-                <div class="dash-readout-value signal num">{{ formatRate(latestRequestRate) }}</div>
-              </div>
-              <div>
-                <div class="dash-readout-label">RESP/S</div>
-                <div class="dash-readout-value l4 num">{{ formatRate(latestResponseRate) }}</div>
-              </div>
+            <div class="dash-traffic-counts" aria-label="Live request and response counts">
+              <span class="dash-traffic-count">
+                <span class="dash-traffic-swatch req" aria-hidden="true"></span>
+                <span class="dash-traffic-count__label">Requests</span>
+                <span class="dash-traffic-count__value num">{{ formatNumber(latestRequestRate) }}</span>
+              </span>
+              <span class="dash-traffic-count">
+                <span class="dash-traffic-swatch resp" aria-hidden="true"></span>
+                <span class="dash-traffic-count__label">Responses</span>
+                <span class="dash-traffic-count__value num">{{ formatNumber(latestResponseRate) }}</span>
+              </span>
             </div>
-            <RouterLink class="dash-panel-link" :to="{ name: 'security-analytics' }">
-              Analytics →
-            </RouterLink>
+            <RouterLink class="dash-panel-link" :to="{ name: 'security-analytics' }">Analytics</RouterLink>
           </div>
         </div>
         <div class="dash-chart-wrap dash-chart-wrap--ops">
           <div ref="requestResponseChart"></div>
         </div>
       </div>
-
-      <div class="dash-panel c-3">
-        <div class="dash-panel-head">
-          <h3>Security events</h3>
-          <span class="dash-count-tag dash-count-tag--live">live</span>
-        </div>
-        <div class="dash-log dash-log--compact">
-          <div v-if="!securityEvents.length" class="dash-log-line">
-            <span class="dash-log-time">—</span>
-            <span class="dash-log-tag sys">SYS</span>
-            <span class="dash-log-msg">No events yet.</span>
-          </div>
-          <div v-for="event in securityEvents.slice(0, 8)" :key="event.id" class="dash-log-line">
-            <span class="dash-log-time">{{ formatLogTime(event.createdAt) }}</span>
-            <span class="dash-log-tag" :class="eventLogTagClass(event)">{{ eventLogTag(event) }}</span>
-            <span class="dash-log-msg" :title="`${event.title} — ${event.description}`">{{ event.title }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="dash-panel c-3">
-        <div class="dash-panel-head">
-          <h3>Edge health</h3>
-          <div class="dash-panel-head__actions">
-            <span class="dash-count-tag">{{ serversList.length }}</span>
-            <RouterLink class="dash-panel-link" :to="{ name: 'server-list' }">All →</RouterLink>
-          </div>
-        </div>
-        <div class="dash-table-wrap">
-          <table class="dash-table dash-table--compact">
-            <thead>
-              <tr>
-                <th>Node</th>
-                <th class="mono">CPU</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="server in serversList.slice(0, 6)"
-                :key="server.id"
-                class="dash-table-row--link"
-                @click="goToEdgeSettings(server)"
-              >
-                <td>
-                  <span class="node-dot" :class="edgeDotClass(server)"></span>
-                  <span class="ip-mono">{{ server.name || `Edge ${server.id}` }}</span>
-                </td>
-                <td>
-                  <span class="dash-cpu-value num" :class="cpuLevelClass(server)">{{ formatCpuDisplay(server) }}</span>
-                </td>
-                <td>
-                  <span class="dash-health-pill" :class="edgeHealthClass(server)">{{ edgeHealthLabel(server) }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p v-if="!serversList.length" class="dash-empty">
-            No edges yet.
-            <RouterLink class="dash-inline-link" :to="{ name: 'server-list' }">Add an edge</RouterLink>
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Delivery snapshot: status + top sites + sources -->
-    <section class="dash-grid12">
-      <div class="dash-panel c-3">
-        <div class="dash-panel-head">
-          <h3>Response codes</h3>
-          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-        </div>
-        <div v-for="row in statusBreakdown" :key="row.label" class="dash-bar-row dash-bar-row--tight">
-          <div class="dash-bar-top">
-            <span>{{ row.label }}</span>
-            <span class="num pct">{{ row.percent }}%</span>
-          </div>
-          <div class="dash-bar-track">
-            <div class="dash-bar-fill" :class="row.tone" :style="{ width: `${row.percent}%` }"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dash-panel c-3">
-        <div class="dash-panel-head">
-          <h3>Top sites</h3>
-          <div class="dash-panel-head__actions">
+      <div class="dash-side c-4">
+        <div class="dash-panel">
+          <div class="dash-panel-head">
+            <h3>Status codes</h3>
             <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-            <RouterLink class="dash-panel-link" :to="{ name: 'site-list' }">All →</RouterLink>
           </div>
-        </div>
-        <p v-if="!topSiteRows.length" class="dash-empty">No site traffic yet.</p>
-        <RouterLink
-          v-for="row in topSiteRows.slice(0, 5)"
-          :key="`site-${row.label}`"
-          class="dash-bar-row dash-bar-row--link dash-bar-row--tight"
-          :to="row.siteId ? { name: 'site-settings', query: { siteId: String(row.siteId) } } : { name: 'site-list' }"
-        >
-          <div class="dash-bar-top">
-            <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
-            <span class="dash-rank-meta">
-              <span v-if="row.cacheLabel" class="dash-cache-chip num">{{ row.cacheLabel }}</span>
+          <div v-for="row in statusBreakdown" :key="row.label" class="dash-bar-row dash-bar-row--tight">
+            <div class="dash-bar-top">
+              <span>{{ row.label }}</span>
               <span class="num pct">{{ row.percent }}%</span>
-            </span>
-          </div>
-          <div class="dash-bar-track">
-            <div class="dash-bar-fill ok" :style="{ width: `${row.percent}%` }"></div>
-          </div>
-        </RouterLink>
-      </div>
-
-      <div class="dash-panel c-3">
-        <div class="dash-panel-head">
-          <h3>Top user agents</h3>
-          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-        </div>
-        <p v-if="!topUserAgentRows.length" class="dash-empty">No user agent data yet.</p>
-        <div v-for="row in topUserAgentRows.slice(0, 5)" :key="`ua-${row.label}`" class="dash-bar-row dash-bar-row--tight">
-          <div class="dash-bar-top">
-            <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
-            <span class="num pct">{{ row.percent }}%</span>
-          </div>
-          <div class="dash-bar-track">
-            <div class="dash-bar-fill l4" :style="{ width: `${row.percent}%` }"></div>
+            </div>
+            <div class="dash-bar-track">
+              <div class="dash-bar-fill" :class="row.tone" :style="{ width: `${row.percent}%` }"></div>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div class="dash-panel c-3">
-        <div class="dash-panel-head">
-          <h3>Top referrers</h3>
-          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-        </div>
-        <p v-if="!topRefererRows.length" class="dash-empty">No referrer data yet.</p>
-        <div v-for="row in topRefererRows.slice(0, 5)" :key="`ref-${row.label}`" class="dash-bar-row dash-bar-row--tight">
-          <div class="dash-bar-top">
-            <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
-            <span class="num pct">{{ row.percent }}%</span>
+        <div class="dash-panel">
+          <div class="dash-panel-head">
+            <h3>Top sites</h3>
+            <RouterLink class="dash-panel-link" :to="{ name: 'site-list' }">All sites</RouterLink>
           </div>
-          <div class="dash-bar-track">
-            <div class="dash-bar-fill l7" :style="{ width: `${row.percent}%` }"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Deeper charts below the fold -->
-    <section class="dash-grid12">
-      <div class="dash-panel c-6">
-        <div class="dash-panel-head">
-          <h3>Bandwidth</h3>
-          <span class="dash-count-tag">NIC in / out · {{ bandwidthRangeLabel }}</span>
-        </div>
-        <div class="dash-chart-wrap">
-          <div ref="bandwidthCombinedChart"></div>
-        </div>
-        <div class="dash-legend">
-          <button
-            v-for="server in serversForCharts"
-            :key="server.id"
-            type="button"
-            class="dash-legend-item"
-            :class="{ 'dash-legend-item--hidden': hiddenServers.has(server.id) }"
-            @click="toggleServerSeries(server)"
+          <p v-if="!topSiteRows.length" class="dash-empty">No site traffic yet.</p>
+          <RouterLink
+            v-for="row in topSiteRows.slice(0, 5)"
+            :key="`site-${row.label}`"
+            class="dash-bar-row dash-bar-row--link dash-bar-row--tight"
+            :to="row.siteId ? { name: 'site-settings', query: { siteId: String(row.siteId) } } : { name: 'site-list' }"
           >
-            <span class="dash-legend-swatch" :style="{ background: server.color }"></span>
-            <span>{{ server.label }}</span>
-          </button>
+            <div class="dash-bar-top">
+              <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
+              <span class="dash-rank-meta">
+                <span v-if="row.cacheLabel" class="dash-cache-chip num">{{ row.cacheLabel }}</span>
+                <span class="num pct">{{ row.percent }}%</span>
+              </span>
+            </div>
+            <div class="dash-bar-track">
+              <div class="dash-bar-fill ok" :style="{ width: `${row.percent}%` }"></div>
+            </div>
+          </RouterLink>
         </div>
       </div>
+    </section>
 
+    <section class="dash-grid12 dash-nic">
       <div class="dash-panel c-6">
         <div class="dash-panel-head">
-          <h3>Status codes over time</h3>
+          <h3>NIC receive</h3>
           <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
         </div>
-        <div class="dash-chart-wrap">
-          <div ref="statusCodeChart"></div>
+        <div class="dash-chart-wrap dash-chart-wrap--nic">
+          <div ref="bandwidthNicRxChart"></div>
+        </div>
+      </div>
+      <div class="dash-panel c-6">
+        <div class="dash-panel-head">
+          <h3>NIC send</h3>
+          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
+        </div>
+        <div class="dash-chart-wrap dash-chart-wrap--nic">
+          <div ref="bandwidthNicTxChart"></div>
         </div>
       </div>
     </section>
 
-    <section class="dash-grid12">
-      <div class="dash-panel c-12 dash-panel--throughput">
-        <div class="dash-panel-head">
-          <h3>NIC throughput by edge</h3>
-          <div class="dash-panel-head__actions">
-            <span class="dash-count-tag">live · Kbps</span>
-            <RouterLink class="dash-panel-link" :to="{ name: 'server-list' }">
-              Edge nodes →
-            </RouterLink>
-          </div>
-        </div>
-        <div class="dash-mini-charts dash-mini-charts--row">
-          <div class="dash-mini-chart">
-            <h4>NIC RX</h4>
-            <div class="dash-chart-wrap dash-chart-wrap--sm"><div ref="bandwidthNicRxChart"></div></div>
-          </div>
-          <div class="dash-mini-chart">
-            <h4>NIC TX</h4>
-            <div class="dash-chart-wrap dash-chart-wrap--sm"><div ref="bandwidthNicTxChart"></div></div>
-          </div>
-          <div class="dash-mini-chart">
-            <h4>L7 RX</h4>
-            <div class="dash-chart-wrap dash-chart-wrap--sm"><div ref="bandwidthL7RxChart"></div></div>
-          </div>
-          <div class="dash-mini-chart">
-            <h4>L7 TX</h4>
-            <div class="dash-chart-wrap dash-chart-wrap--sm"><div ref="bandwidthL7TxChart"></div></div>
-          </div>
+    <section v-if="securityEvents.length" class="dash-panel">
+      <div class="dash-panel-head">
+        <h3>Security events</h3>
+        <RouterLink class="dash-panel-link" :to="{ name: 'attack-detection' }">Detection</RouterLink>
+      </div>
+      <div class="dash-log dash-log--compact">
+        <div v-for="event in securityEvents.slice(0, 6)" :key="event.id" class="dash-log-line">
+          <span class="dash-log-time">{{ formatLogTime(event.createdAt) }}</span>
+          <span class="dash-log-tag" :class="eventLogTagClass(event)">{{ eventLogTag(event) }}</span>
+          <span
+            class="dash-log-msg"
+            :title="[event.serverName, event.title, event.description].filter(Boolean).join(' — ')"
+          >
+            {{ event.title }}<span v-if="event.serverName" class="dash-log-edge"> · {{ event.serverName }}</span>
+          </span>
         </div>
       </div>
     </section>
+
   </div>
 </template>
 
@@ -427,21 +239,12 @@ import {
 import {
   resolveAngelosRuntimeStatus,
 } from '@/utils/serverLayerStatus'
+import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
 
 const seriesColors = () => getApexSeriesColors()
 const linePalette = () => getApexLinePalette()
 const productionStrokeFill = () => getApexProductionStrokeFill({ variant: 'line' })
 const router = useRouter()
-
-const quickLinks = [
-  { label: 'Docs', to: { name: 'docs-get-started' } },
-  { label: 'Sites', to: { name: 'site-list' } },
-  { label: 'Edges', to: { name: 'server-list' } },
-  { label: 'Analytics', to: { name: 'security-analytics' } },
-  { label: 'Access logs', to: { name: 'access-log' } },
-  { label: 'Configure site', to: { name: 'site-settings' } },
-  { label: 'Configure edge', to: { name: 'server-settings' } },
-]
 
 const dashboardRoot = ref(null)
 const bandwidthNicRxChart = ref(null)
@@ -449,6 +252,7 @@ const bandwidthNicTxChart = ref(null)
 const bandwidthL7RxChart = ref(null)
 const bandwidthL7TxChart = ref(null)
 const bandwidthCombinedChart = ref(null)
+const bandwidthDeliveryChart = ref(null)
 const requestResponseChart = ref(null)
 const statusCodeChart = ref(null)
 
@@ -488,6 +292,7 @@ let nicTxChartInstance = null
 let l7RxChartInstance = null
 let l7TxChartInstance = null
 let combinedChartInstance = null
+let deliveryChartInstance = null
 let requestResponseChartInstance = null
 let statusCodeChartInstance = null
 let bandwidthTimer = null
@@ -497,20 +302,12 @@ let resizeRaf = 0
 let loadGeneration = 0
 let filterReloadTimer = 0
 
-const rangePillOptions = [
-  { label: '1H', value: '1h' },
-  { label: '2H', value: '2h' },
-  { label: '4H', value: '4h' },
-  { label: '12H', value: '12h' },
-  { label: '1D', value: '1d' },
-  { label: '2D', value: '2d' },
-  { label: '7D', value: '7d' },
-  { label: '1M', value: '1m' },
-]
+const rangePillOptions = sharedTimeRanges
+const initialTimeRange = readSharedTimeRange()
 
-const bandwidthRange = ref('4h')
-const requestRange = ref('4h')
-const statusRange = ref('4h')
+const bandwidthRange = ref(initialTimeRange)
+const requestRange = ref(initialTimeRange)
+const statusRange = ref(initialTimeRange)
 
 const bandwidthRangeLabel = computed(() =>
   rangePillOptions.find((o) => o.value === bandwidthRange.value)?.label || bandwidthRange.value,
@@ -676,6 +473,10 @@ const threatPanels = computed(() => {
   ]
 })
 
+const threatsAreQuiet = computed(() =>
+  threatPanels.value.every((panel) => !Number(panel.value)),
+)
+
 const liveEgressKbps = computed(() =>
   sitesList.value.reduce((sum, site) => sum + (Number(site.currentBandwidth) || 0), 0),
 )
@@ -763,6 +564,18 @@ const combinedBandwidthSeries = computed(() => [
   { name: 'Out (NIC TX)', data: sumSeriesPoints(bandwidthNicTxSeries.value) },
   { name: 'In (NIC RX)', data: sumSeriesPoints(bandwidthNicRxSeries.value) },
 ])
+
+const l7BandwidthSeries = computed(() => [
+  { name: 'Egress', data: sumSeriesPoints(bandwidthL7TxSeries.value) },
+  { name: 'Ingress', data: sumSeriesPoints(bandwidthL7RxSeries.value) },
+])
+
+const fleetEdgeRows = computed(() => {
+  const list = selectedEdge.value === 'all'
+    ? serversList.value
+    : serversList.value.filter((server) => String(server.id) === String(selectedEdge.value))
+  return list.slice(0, 8)
+})
 
 const statusBreakdown = computed(() => {
   const totals = { '2xx success': 0, '3xx redirect': 0, '4xx client error': 0, '5xx server error': 0 }
@@ -876,6 +689,22 @@ const formatRate = (value) => {
   return String(Math.round(n))
 }
 
+const formatBitRate = (bytesPerSec) => {
+  const bytes = Number(bytesPerSec)
+  if (!Number.isFinite(bytes) || bytes < 0) return '—'
+  const bits = bytes * 8
+  if (bits >= 1_000_000_000) return `${(bits / 1_000_000_000).toFixed(2)} Gbps`
+  if (bits >= 1_000_000) return `${(bits / 1_000_000).toFixed(1)} Mbps`
+  if (bits >= 1_000) return `${(bits / 1_000).toFixed(1)} Kbps`
+  return `${Math.round(bits)} bps`
+}
+
+const formatEdgeEgress = (server) => {
+  const metric = edgeMetrics.value[server?.id]
+  if (!metric || metric.loading) return '…'
+  return formatBitRate(metric.netTxBytesPerSec)
+}
+
 const formatBandwidthValue = (value) => {
   const numeric = Number(value)
   if (!Number.isFinite(numeric) || numeric <= 0) return '0 Kbps'
@@ -976,7 +805,12 @@ const loadEdgeMetrics = async (servers) => {
     list.map(async (server) => {
       try {
         const payload = await fetchServerHostMetrics(server.id)
-        return [server.id, { loading: false, cpuPercent: Number(payload?.cpuPercent) }]
+        return [server.id, {
+          loading: false,
+          cpuPercent: payload?.cpuPercent == null ? null : Number(payload.cpuPercent),
+          netTxBytesPerSec: Number(payload?.netTxBytesPerSec) || 0,
+          netRxBytesPerSec: Number(payload?.netRxBytesPerSec) || 0,
+        }]
       } catch {
         return [server.id, { loading: false, cpuPercent: null }]
       }
@@ -994,21 +828,10 @@ const setRange = (value) => {
   bandwidthRange.value = value
   requestRange.value = value
   statusRange.value = value
+  writeSharedTimeRange(value)
 }
 
-const getBandwidthRangeMs = (value) => {
-  switch (value) {
-    case '1h': return 60 * 60 * 1000
-    case '2h': return 2 * 60 * 60 * 1000
-    case '4h': return 4 * 60 * 60 * 1000
-    case '12h': return 12 * 60 * 60 * 1000
-    case '1d': return 24 * 60 * 60 * 1000
-    case '2d': return 2 * 24 * 60 * 60 * 1000
-    case '7d': return 7 * 24 * 60 * 60 * 1000
-    case '1m': return 30 * 24 * 60 * 60 * 1000
-    default: return 24 * 60 * 60 * 1000
-  }
-}
+const getBandwidthRangeMs = (value) => rangeDurationMs(value)
 
 const createEmptyBandwidthSeries = () =>
   serversForCharts.value.map((server) => ({ name: server.label, data: [] }))
@@ -1100,6 +923,7 @@ const loadBandwidthServers = async () => {
     destroyBandwidthCharts()
     createBandwidthCharts()
     createCombinedChart()
+    createDeliveryChart()
   } catch (error) {
     serversList.value = []
     bandwidthServers.value = []
@@ -1107,7 +931,7 @@ const loadBandwidthServers = async () => {
 }
 
 const destroyBandwidthCharts = () => {
-  ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance].forEach((inst) => {
+  ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, deliveryChartInstance].forEach((inst) => {
     if (inst) inst.destroy()
   })
   nicRxChartInstance = null
@@ -1115,6 +939,7 @@ const destroyBandwidthCharts = () => {
   l7RxChartInstance = null
   l7TxChartInstance = null
   combinedChartInstance = null
+  deliveryChartInstance = null
 }
 
 const defaultLineOptions = (height = 280, colors = null) => {
@@ -1130,6 +955,8 @@ const defaultLineOptions = (height = 280, colors = null) => {
       ...base.chart,
       type: 'line',
       height,
+      width: '100%',
+      parentHeightOffset: 0,
       toolbar: { show: false },
       zoom: { enabled: false },
       animations: { enabled: false },
@@ -1158,7 +985,7 @@ const defaultLineOptions = (height = 280, colors = null) => {
   }
 }
 
-const MINI_BANDWIDTH_CHART_HEIGHT = 240
+const MINI_BANDWIDTH_CHART_HEIGHT = 210
 
 const createBandwidthCharts = () => {
   if (!bandwidthServers.value.length) return
@@ -1178,12 +1005,19 @@ const createBandwidthCharts = () => {
     },
   })
   const pad = (series) => padSeriesToTimeRange(series, startMs, now)
+  const nicLegend = {
+    show: true,
+    position: 'top',
+    horizontalAlign: 'left',
+    fontSize: '11px',
+    labels: { colors: getApexAxisLabelStyle('11px').colors },
+  }
   if (bandwidthNicRxChart.value) {
-    nicRxChartInstance = new ApexCharts(bandwidthNicRxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: pad(bandwidthNicRxSeries.value) })
+    nicRxChartInstance = new ApexCharts(bandwidthNicRxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), legend: nicLegend, series: pad(bandwidthNicRxSeries.value) })
     nicRxChartInstance.render()
   }
   if (bandwidthNicTxChart.value) {
-    nicTxChartInstance = new ApexCharts(bandwidthNicTxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), series: pad(bandwidthNicTxSeries.value) })
+    nicTxChartInstance = new ApexCharts(bandwidthNicTxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), legend: nicLegend, series: pad(bandwidthNicTxSeries.value) })
     nicTxChartInstance.render()
   }
   if (bandwidthL7RxChart.value) {
@@ -1219,13 +1053,57 @@ const createCombinedChart = () => {
   combinedChartInstance.render()
 }
 
+const createDeliveryChart = () => {
+  if (!bandwidthDeliveryChart.value) return
+  if (deliveryChartInstance) {
+    deliveryChartInstance.destroy()
+    deliveryChartInstance = null
+  }
+  const now = Date.now()
+  const startMs = now - getBandwidthRangeMs(bandwidthRange.value)
+  const endMs = now
+  deliveryChartInstance = new ApexCharts(bandwidthDeliveryChart.value, {
+    ...defaultLineOptions(240, [seriesColors().viper, seriesColors().viperSoft]),
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '11px',
+      labels: { colors: getApexAxisLabelStyle('11px').colors },
+    },
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
+    series: padSeriesToTimeRange(l7BandwidthSeries.value, startMs, endMs),
+    yaxis: {
+      ...defaultLineOptions(240).yaxis,
+      labels: { formatter: (v) => formatBandwidthValue(v), style: getApexAxisLabelStyle('10px') },
+    },
+    tooltip: {
+      theme: 'dark',
+      x: {
+        formatter: (val) =>
+          new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
+      },
+      y: { formatter: (v) => formatBandwidthValue(v) },
+    },
+  })
+  deliveryChartInstance.render()
+}
+
 const createRequestResponseChart = () => {
   if (!requestResponseChart.value) return
   const now = Date.now()
   const startMs = now - getBandwidthRangeMs(requestRange.value)
   const endMs = now
   requestResponseChartInstance = new ApexCharts(requestResponseChart.value, {
-    ...defaultLineOptions(220, [seriesColors().viper, seriesColors().l4]),
+    ...defaultLineOptions(248, [seriesColors().viper, seriesColors().viperSoft]),
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '11px',
+      labels: { colors: getApexAxisLabelStyle('11px').colors },
+    },
     xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     series: padSeriesToTimeRange(requestResponseSeries.value, startMs, endMs),
@@ -1252,6 +1130,13 @@ const createStatusCodeChart = () => {
   const endMs = now
   statusCodeChartInstance = new ApexCharts(statusCodeChart.value, {
     ...defaultLineOptions(240, getApexStatusPalette()),
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      fontSize: '11px',
+      labels: { colors: getApexAxisLabelStyle('11px').colors },
+    },
     xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
     annotations: getApexTimeRangeAnnotations(startMs, endMs),
     series: padSeriesToTimeRange(statusCodeSeries.value, startMs, endMs),
@@ -1305,6 +1190,8 @@ const loadBandwidthSeries = async () => {
     if (l7RxChartInstance) { l7RxChartInstance.updateSeries(pad(bandwidthL7RxSeries.value), false); l7RxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7RxChartInstance) }
     if (l7TxChartInstance) { l7TxChartInstance.updateSeries(pad(bandwidthL7TxSeries.value), false); l7TxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7TxChartInstance) }
     if (combinedChartInstance) { combinedChartInstance.updateSeries(pad(combinedBandwidthSeries.value), false); combinedChartInstance.updateOptions(rangeOpts, false, false) }
+    if (!deliveryChartInstance) createDeliveryChart()
+    if (deliveryChartInstance) { deliveryChartInstance.updateSeries(pad(l7BandwidthSeries.value), false); deliveryChartInstance.updateOptions(rangeOpts, false, false) }
   } catch (error) {
     console.error('Failed to load bandwidth series', error)
   }
@@ -1452,7 +1339,7 @@ const refreshDashboard = async () => {
 
 const refreshChartTheme = () => {
   const patch = getApexThemePatch()
-  ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, requestResponseChartInstance, statusCodeChartInstance].forEach((chart) => {
+  ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, deliveryChartInstance, requestResponseChartInstance, statusCodeChartInstance].forEach((chart) => {
     if (chart) chart.updateOptions(patch, false, false)
   })
 }
@@ -1470,11 +1357,23 @@ const runIfVisible = (fn) => {
   fn()
 }
 
+let heroChartHeight = 248
+
+const fitHeroChart = () => {
+  const wrap = requestResponseChart.value?.parentElement
+  if (!wrap || !requestResponseChartInstance) return
+  const next = Math.round(wrap.clientHeight)
+  if (next < 180 || Math.abs(next - heroChartHeight) < 8) return
+  heroChartHeight = next
+  requestResponseChartInstance.updateOptions({ chart: { height: next } }, false, false)
+}
+
 const resizeCharts = () => {
   if (resizeRaf) cancelAnimationFrame(resizeRaf)
   resizeRaf = requestAnimationFrame(() => {
     resizeRaf = 0
-    ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, requestResponseChartInstance, statusCodeChartInstance].forEach((c) => c?.resize?.())
+    ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, deliveryChartInstance, requestResponseChartInstance, statusCodeChartInstance].forEach((c) => c?.resize?.())
+    fitHeroChart()
   })
 }
 
@@ -1482,6 +1381,7 @@ onMounted(() => {
   window.addEventListener('cdnproxy-theme-change', refreshChartTheme)
   createRequestResponseChart()
   createStatusCodeChart()
+  requestAnimationFrame(() => requestAnimationFrame(fitHeroChart))
   void refreshDashboard()
 
   bandwidthTimer = window.setInterval(() => {
@@ -1579,6 +1479,32 @@ watch(selectedSite, scheduleFilterReload)
   flex-shrink: 0;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.dash-quiet {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding: 10px 2px;
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+}
+
+.dash-quiet p {
+  margin: 0;
+}
+
+.dash-side {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dash-side .dash-panel {
+  flex: 1;
 }
 
 .dash-quick-links {
@@ -1680,7 +1606,7 @@ watch(selectedSite, scheduleFilterReload)
 
 .dash-kpi-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1690,6 +1616,16 @@ watch(selectedSite, scheduleFilterReload)
   border: 0.5px solid var(--app-border);
   background: var(--app-surface-muted);
   min-width: 0;
+}
+
+a.dash-kpi {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.dash-kpi:hover {
+  border-color: color-mix(in srgb, var(--dorian-warn, #e0a83f) 45%, var(--app-border));
 }
 
 .dash-kpi__label {
@@ -1826,7 +1762,17 @@ watch(selectedSite, scheduleFilterReload)
 .dash-threat-tile__delta.flat { color: var(--app-text-muted); }
 
 .dash-chart-wrap--ops {
-  min-height: 210px;
+  flex: 1 1 auto;
+  min-height: 220px;
+}
+
+.dash-chart-wrap--nic {
+  min-height: 0;
+}
+
+.dash-chart-wrap--detect {
+  height: auto;
+  min-height: 0;
 }
 
 .dash-log--compact {
@@ -1955,6 +1901,10 @@ watch(selectedSite, scheduleFilterReload)
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 16px;
+  align-items: start;
+}
+
+.dash-ops {
   align-items: stretch;
 }
 
@@ -1974,13 +1924,15 @@ watch(selectedSite, scheduleFilterReload)
   background: var(--app-surface);
   border: 0.5px solid var(--app-border);
   border-radius: 10px;
+  min-width: 0;
+  overflow: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
-  min-width: 0;
 }
 
 .dash-panel--hero-chart {
+  height: 100%;
   background:
     linear-gradient(180deg, rgba(46, 158, 108, 0.04) 0%, transparent 42%),
     var(--app-surface);
@@ -2005,6 +1957,44 @@ watch(selectedSite, scheduleFilterReload)
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.dash-traffic-counts {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dash-traffic-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dash-traffic-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  align-self: center;
+  flex: none;
+}
+
+.dash-traffic-swatch.req { background: #3fbd85; }
+.dash-traffic-swatch.resp { background: #6bcfa0; }
+
+.dash-traffic-count__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.dash-traffic-count__value {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--app-heading);
 }
 
 .dash-panel-link,
@@ -2061,7 +2051,9 @@ watch(selectedSite, scheduleFilterReload)
 
 .dash-chart-wrap {
   position: relative;
-  min-height: 200px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .dash-chart-wrap--tall {
@@ -2083,6 +2075,7 @@ watch(selectedSite, scheduleFilterReload)
 .dash-chart-wrap :deep(.apexcharts-canvas),
 .dash-chart-wrap :deep(.apexcharts-svg) {
   background: transparent !important;
+  max-width: 100%;
 }
 
 .dash-bar-row {
@@ -2148,6 +2141,10 @@ watch(selectedSite, scheduleFilterReload)
   color: var(--app-text-muted);
   flex: none;
   opacity: 0.7;
+}
+
+.dash-log-edge {
+  opacity: 0.75;
 }
 
 .dash-log-tag {
@@ -2424,7 +2421,7 @@ a.dash-bar-row--link:hover {
 }
 
 @media (max-width: 1300px) {
-  .c-3, .c-4, .c-5, .c-6, .c-7, .c-8, .c-12 {
+  .c-3, .c-4, .c-5, .c-6, .c-7, .c-8, .c-12, .dash-side {
     grid-column: span 12;
   }
 

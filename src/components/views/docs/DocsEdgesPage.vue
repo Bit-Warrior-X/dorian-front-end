@@ -74,8 +74,9 @@
             <tr>
               <td>Monitor</td>
               <td>
-                CPU / RAM / disk, SSH summary, power actions; start · stop · refresh for Angelos,
-                Sparta, Athens
+                CPU, memory, disk, swap, load, uptime, temperature, and network throughput,
+                plus SSH summary and power actions; start · stop · refresh for Angelos, Sparta,
+                Athens
               </td>
             </tr>
             <tr>

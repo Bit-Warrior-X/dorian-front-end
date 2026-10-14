@@ -31,6 +31,7 @@ import { useRouter } from 'vue-router'
 import { completeOAuthSession } from '@/api/oauth'
 import DorianBrandMark from '@/components/DorianBrandMark.vue'
 import { useAuth } from '@/stores/auth'
+import { saveMFAHandoff } from '@/stores/mfaHandoff'
 
 const router = useRouter()
 const auth = useAuth()
@@ -45,11 +46,19 @@ onMounted(async () => {
   try {
     const params = parseHashParams()
     const token = params.get('token')
+    const mfaToken = params.get('mfa_token')
+    const remember = params.get('remember') === '1'
+    const redirectTo = params.get('redirect') || '/app'
+
+    if (mfaToken) {
+      saveMFAHandoff({ mfaToken, redirect: redirectTo, remember })
+      window.history.replaceState({}, document.title, window.location.pathname)
+      await router.replace({ name: 'login' })
+      return
+    }
     if (!token) {
       throw new Error('Missing sign-in token. Please try Google sign-in again.')
     }
-    const remember = params.get('remember') === '1'
-    const redirectTo = params.get('redirect') || '/app'
 
     const result = await completeOAuthSession(token)
     auth.setSession({

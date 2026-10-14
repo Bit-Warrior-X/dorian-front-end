@@ -63,6 +63,12 @@ export const login = async ({ email, password }) => {
   })
 }
 
+export const loginWithMFA = async ({ mfaToken, code }) =>
+  apiRequest('/auth/login/mfa', {
+    method: 'POST',
+    body: JSON.stringify({ mfaToken, code }),
+  })
+
 export const logout = async (reason = 'manual') => {
   const { useMocks } = await getApiConfig()
   if (useMocks) {

@@ -96,8 +96,10 @@
 
           <header class="tier-header">
             <div class="tier-header-text">
-              <span v-if="plan.badge" class="tier-badge">{{ plan.badge }}</span>
-              <span class="tier-title">{{ plan.title }}</span>
+              <span class="tier-title-row">
+                <span class="tier-title">{{ plan.title }}</span>
+                <span v-if="plan.badge" class="tier-badge">{{ plan.badge }}</span>
+              </span>
               <span class="tier-tagline">{{ plan.tagline }}</span>
             </div>
             <span class="tier-radio" :class="{ checked: modelValue === plan.id }" aria-hidden="true">
@@ -532,13 +534,23 @@ const featuresForPlan = (plan) => {
 
 .tier-header-text {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
+.tier-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
 .tier-badge {
-  align-self: flex-start;
+  flex-shrink: 0;
+  white-space: nowrap;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   font-size: var(--type-small);
   font-weight: 600;
@@ -549,7 +561,6 @@ const featuresForPlan = (plan) => {
   border: 0.5px solid rgba(201, 162, 74, 0.35);
   padding: 3px 8px;
   border-radius: 4px;
-  margin-bottom: 6px;
 }
 
 .tier-title {

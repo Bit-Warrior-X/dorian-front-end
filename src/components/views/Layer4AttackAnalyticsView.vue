@@ -10,6 +10,8 @@
       </div>
     </header>
 
+    <DetectionNav />
+
     <div class="dash-filterbar">
       <div class="dash-filter-field">
         <label for="layer4-server">Server</label>
@@ -321,11 +323,13 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ApexCharts from 'apexcharts'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import DetectionNav from '@/components/views/DetectionNav.vue'
 import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { notifyError, notifySuccess } from '@/utils/notify'
+import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
 import {
   formatApexTimeTick,
   getApexChartColors,
@@ -350,22 +354,7 @@ const chartTooltipTheme = () =>
     ? 'dark'
     : 'light'
 
-const resolveRangeMs = (filters) => {
-  switch (String(filters?.range || '')) {
-    case '1h':
-      return 60 * 60 * 1000
-    case '2h':
-      return 2 * 60 * 60 * 1000
-    case '4h':
-      return 4 * 60 * 60 * 1000
-    case '6h':
-      return 6 * 60 * 60 * 1000
-    case '24h':
-      return 24 * 60 * 60 * 1000
-    default:
-      return 60 * 60 * 1000
-  }
-}
+const resolveRangeMs = (filters) => rangeDurationMs(filters?.range)
 
 const resolveRangeWindow = (filters) => {
   const now = new Date()
@@ -393,7 +382,7 @@ const l4Tabs = [
 
 const selectedServer = ref('all')
 const selectedSite = ref('all')
-const selectedTimeRange = ref('1h')
+const selectedTimeRange = ref(readSharedTimeRange())
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
 const customStartDate = ref(null)
@@ -403,7 +392,7 @@ const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
   site: 'all',
-  range: '1h',
+  range: readSharedTimeRange(),
   isCustom: false,
   start: null,
   end: null,
@@ -433,14 +422,7 @@ const blacklistForm = ref({
   serverId: 'all',
 })
 
-const timeRanges = [
-  { label: '1h', value: '1h' },
-  { label: '4h', value: '4h' },
-  { label: '6h', value: '6h' },
-  { label: '24h', value: '24h' },
-  { label: 'Yesterday', value: 'yesterday' },
-  { label: 'Today', value: 'today' },
-]
+const timeRanges = sharedTimeRanges
 
 const serverOptions = computed(() => [
   { label: 'All Servers', value: 'all' },
@@ -471,6 +453,7 @@ const siteOptions = computed(() => {
 const selectTimeRange = (value) => {
   selectedTimeRange.value = value
   isCustomRange.value = false
+  writeSharedTimeRange(value)
 }
 
 const applyCustomRange = () => {

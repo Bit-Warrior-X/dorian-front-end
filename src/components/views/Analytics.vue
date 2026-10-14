@@ -568,6 +568,7 @@ import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
 import { notifyError } from '@/utils/notify'
+import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
 import {
   formatApexTimeTick,
   getApexChartColors,
@@ -976,7 +977,7 @@ const analyticsTabs = [
 
 const selectedServer = ref('all')
 const selectedSite = ref('all')
-const selectedTimeRange = ref('1h')
+const selectedTimeRange = ref(readSharedTimeRange())
 const isCustomRange = ref(false)
 const showCustomDialog = ref(false)
 const customStartDate = ref(null)
@@ -986,7 +987,7 @@ const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
   site: 'all',
-  range: '1h',
+  range: readSharedTimeRange(),
   isCustom: false,
   customStart: '',
   customEnd: '',
@@ -1325,20 +1326,12 @@ const selectedRangeLabel = computed(() => {
   return found?.label || 'All'
 })
 
-const timeRanges = [
-  { label: '1h', value: '1h' },
-  { label: '2h', value: '2h' },
-  { label: '4h', value: '4h' },
-  { label: '6h', value: '6h' },
-  { label: '12h', value: '12h' },
-  { label: '24h', value: '24h' },
-  { label: 'Yesterday', value: 'yesterday' },
-  { label: 'Today', value: 'today' },
-]
+const timeRanges = sharedTimeRanges
 
 const selectTimeRange = (value) => {
   selectedTimeRange.value = value
   isCustomRange.value = false
+  writeSharedTimeRange(value)
 }
 
 const applyCustomRange = () => {
@@ -1362,35 +1355,7 @@ const applyFilters = () => {
   loadAnalyticsData()
 }
 
-const resolveRangeMs = (filters) => {
-  switch (filters.range) {
-    case '30m':
-      return 30 * 60 * 1000
-    case '1h':
-      return 60 * 60 * 1000
-    case '2h':
-      return 2 * 60 * 60 * 1000
-    case '4h':
-      return 4 * 60 * 60 * 1000
-    case '6h':
-      return 6 * 60 * 60 * 1000
-    case '8h':
-      return 8 * 60 * 60 * 1000
-    case '12h':
-      return 12 * 60 * 60 * 1000
-    case '24h':
-      return 24 * 60 * 60 * 1000
-    case 'today': {
-      const now = new Date()
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      return now.getTime() - start.getTime()
-    }
-    case 'yesterday':
-      return 24 * 60 * 60 * 1000
-    default:
-      return 60 * 60 * 1000
-  }
-}
+const resolveRangeMs = (filters) => rangeDurationMs(filters?.range)
 
 const statusCodeList = [
   '200', '206', '301', '302', '400', '403', '404', '444',

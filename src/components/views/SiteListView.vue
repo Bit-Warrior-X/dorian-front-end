@@ -31,7 +31,7 @@
 
     <div class="sites-filterbar">
       <div class="sites-filter-field sites-filter-field--grow">
-        <label for="site-domain-filter">Domain</label>
+        <label class="list-filter-label" for="site-domain-filter">Domain</label>
         <input
           id="site-domain-filter"
           v-model="filters.domain"
@@ -39,50 +39,64 @@
           placeholder="Search domains…"
         />
       </div>
-      <div class="sites-filter-field">
-        <label for="site-status-filter">Status</label>
-        <select id="site-status-filter" v-model="filters.status">
-          <option value="">All</option>
-          <option value="ENABLE">Enabled</option>
-          <option value="DISABLE">Disabled</option>
-        </select>
+      <div class="list-status-pills" role="group" aria-label="Status">
+        <button type="button" :class="{ 'is-active': filters.status === '' }" @click="filters.status = ''">All</button>
+        <button type="button" :class="{ 'is-active': filters.status === 'ENABLE' }" @click="filters.status = 'ENABLE'">Enabled</button>
+        <button type="button" :class="{ 'is-active': filters.status === 'DISABLE' }" @click="filters.status = 'DISABLE'">Disabled</button>
       </div>
-      <div class="sites-filter-field">
-        <label for="site-activity-filter">Activity</label>
-        <select id="site-activity-filter" v-model="filters.activity">
-          <option value="">All</option>
-          <option value="active">Active</option>
-          <option value="idle">Idle</option>
-          <option value="offline">Offline</option>
-        </select>
-      </div>
-      <div class="sites-filter-field">
-        <label for="site-cert-filter">Certificate</label>
-        <select id="site-cert-filter" v-model="filters.certificateStatus">
-          <option value="">All</option>
-          <option value="valid">Valid</option>
-          <option value="expiring">Expiring</option>
-          <option value="expired">Expired</option>
-          <option value="issuing">Issuing</option>
-          <option value="failed">Failed</option>
-          <option value="none">Not configured</option>
-        </select>
-      </div>
-      <div class="sites-filter-field">
-        <label for="site-ssl-filter">SSL</label>
-        <select id="site-ssl-filter" v-model="filters.sslType">
-          <option value="">All</option>
-          <option value="none">Not Configured</option>
-          <option value="letsencrypt">Let's Encrypt</option>
-          <option value="zerossl">ZeroSSL</option>
-          <option value="googletrust">Google Trust</option>
-          <option value="custom">Manual</option>
-          <option value="managed">Managed</option>
-        </select>
+      <div ref="siteFilterMenu" class="list-filter">
+        <button
+          type="button"
+          class="list-filter__toggle"
+          :class="{ 'is-active': siteFiltersOpen || siteExtraFilterCount }"
+          :aria-expanded="siteFiltersOpen"
+          @click="siteFiltersOpen = !siteFiltersOpen"
+        >
+          Filters
+          <span v-if="siteExtraFilterCount" class="list-filter__count">{{ siteExtraFilterCount }}</span>
+        </button>
+        <div v-if="siteFiltersOpen" class="list-filter__panel">
+          <div class="sites-filter-field">
+            <label for="site-activity-filter">Activity</label>
+            <select id="site-activity-filter" v-model="filters.activity">
+              <option value="">All</option>
+              <option value="active">Active</option>
+              <option value="idle">Idle</option>
+              <option value="offline">Offline</option>
+            </select>
+          </div>
+          <div class="sites-filter-field">
+            <label for="site-cert-filter">Certificate</label>
+            <select id="site-cert-filter" v-model="filters.certificateStatus">
+              <option value="">All</option>
+              <option value="valid">Valid</option>
+              <option value="expiring">Expiring</option>
+              <option value="expired">Expired</option>
+              <option value="issuing">Issuing</option>
+              <option value="failed">Failed</option>
+              <option value="none">Not configured</option>
+            </select>
+          </div>
+          <div class="sites-filter-field">
+            <label for="site-ssl-filter">Certificate type</label>
+            <select id="site-ssl-filter" v-model="filters.sslType">
+              <option value="">All</option>
+              <option value="none">Not configured</option>
+              <option value="letsencrypt">Let's Encrypt</option>
+              <option value="zerossl">ZeroSSL</option>
+              <option value="googletrust">Google Trust</option>
+              <option value="custom">Manual</option>
+              <option value="managed">Managed</option>
+            </select>
+          </div>
+          <button v-if="siteExtraFilterCount" class="list-filter__clear" type="button" @click="clearSiteExtraFilters">
+            Clear filters
+          </button>
+        </div>
       </div>
       <div class="sites-filter-summary">
         <span class="sites-live-dot" aria-hidden="true"></span>
-        {{ filteredSites.length }} shown · live egress
+        {{ filteredSites.length }} shown
       </div>
     </div>
 
@@ -563,6 +577,7 @@ const emptySiteForm = () => ({
   sslType: 'none',
   sslCert: '',
   sslCertKey: '',
+  hasSslCertKey: false,
   originServers: [createEmptyOriginServer()],
 })
 
@@ -639,10 +654,6 @@ const activeSitesCount = computed(() =>
   sites.value.filter((site) => siteActivityKey(site) === 'active').length,
 )
 
-const validTlsCount = computed(() =>
-  sites.value.filter((site) => String(site.certificateStatus || '').toLowerCase() === 'valid').length,
-)
-
 const totalEgressKbps = computed(() =>
   sites.value.reduce((sum, site) => sum + (Number(site.currentBandwidth) || 0), 0),
 )
@@ -656,33 +667,9 @@ const sitesSubtitle = computed(() => {
 
 const siteMetricCards = computed(() => [
   {
-    label: 'Sites',
-    value: String(sites.value.length),
-    hint: 'Hostnames on the fabric',
-    tone: 'viper',
-  },
-  {
-    label: 'Active',
-    value: String(activeSitesCount.value),
-    hint: 'Serving live egress now',
-    tone: 'signal',
-  },
-  {
-    label: 'Enabled',
-    value: String(enabledSitesCount.value),
-    hint: `${Math.max(0, sites.value.length - enabledSitesCount.value)} disabled`,
-    tone: 'ok',
-  },
-  {
-    label: 'TLS valid',
-    value: String(validTlsCount.value),
-    hint: 'Certificates ready to serve',
-    tone: 'l4',
-  },
-  {
     label: 'Live egress',
     value: formatLiveBandwidth(totalEgressKbps.value),
-    hint: 'Sum of site L7 TX',
+    hint: 'Bandwidth leaving your sites',
     tone: 'viper',
   },
 ])
@@ -889,7 +876,9 @@ const applyFormValues = (target, site) => {
   target.bandwidth = site.bandwidth ?? 0
   target.sslType = site.sslType || 'none'
   target.sslCert = site.sslCert || ''
-  target.sslCertKey = site.sslCertKey || ''
+  // The API never returns the private key; a blank key on save keeps the stored one.
+  target.sslCertKey = ''
+  target.hasSslCertKey = Boolean(site.hasSslCertKey) && String(site.sslType || '').toLowerCase() === 'custom'
   target.originServers = [createEmptyOriginServer()]
   selectedServers.value = site.serverIds ? [...site.serverIds] : []
 }
@@ -1081,9 +1070,23 @@ const toggleRowMenu = (rowId) => {
   activeRowMenu.value = activeRowMenu.value === rowId ? null : rowId
 }
 
+const siteFiltersOpen = ref(false)
+const siteFilterMenu = ref(null)
+const siteExtraFilterCount = computed(() =>
+  [filters.activity, filters.certificateStatus, filters.sslType].filter(Boolean).length,
+)
+const clearSiteExtraFilters = () => {
+  filters.activity = ''
+  filters.certificateStatus = ''
+  filters.sslType = ''
+}
+
 const handleClickOutsideMenu = (event) => {
   if (!event.target.closest('.menu-wrap')) {
     activeRowMenu.value = null
+  }
+  if (siteFilterMenu.value && !siteFilterMenu.value.contains(event.target)) {
+    siteFiltersOpen.value = false
   }
 }
 
@@ -1188,7 +1191,7 @@ const validateSiteForm = (form) => {
     return 'Domain is required.'
   }
   if (String(form.sslType || '').toLowerCase() === 'custom') {
-    if (!String(form.sslCert || '').trim() || !String(form.sslCertKey || '').trim()) {
+    if (!String(form.sslCert || '').trim() || (!String(form.sslCertKey || '').trim() && !form.hasSslCertKey)) {
       return 'Manual SSL configuration requires both certificate and private key.'
     }
   }
@@ -1428,7 +1431,7 @@ onBeforeUnmount(() => {
 
 .sites-metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
   gap: 10px;
 }
 
@@ -1485,7 +1488,7 @@ onBeforeUnmount(() => {
 .sites-filterbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 10px;
   padding: 12px 14px;
   border-radius: var(--sites-radius);
