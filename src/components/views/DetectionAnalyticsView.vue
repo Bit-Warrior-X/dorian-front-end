@@ -102,13 +102,20 @@
         </div>
         <p v-if="!l4EventRows.length" class="dash-empty">No L4 attack events in the live window.</p>
         <div v-else class="dash-log">
-          <div v-for="event in l4EventRows" :key="event.id" class="dash-log-line">
+          <button
+            v-for="event in l4EventRows"
+            :key="event.id"
+            type="button"
+            class="dash-log-line"
+            @click="openSecurityEvent(event)"
+          >
             <span class="dash-log-time">{{ formatLogTime(event.createdAt) }}</span>
             <span class="dash-log-tag l4">L4</span>
             <span class="dash-log-msg">
-              {{ event.title }}<span v-if="event.serverName" class="dash-log-edge"> · {{ event.serverName }}</span>
+              <span>{{ event.title }}<span v-if="event.serverName" class="dash-log-edge"> · {{ event.serverName }}</span></span>
+              <span v-if="event.description" class="dash-log-detail">{{ event.description }}</span>
             </span>
-          </div>
+          </button>
         </div>
       </div>
       <div class="dash-panel c-6">
@@ -117,16 +124,24 @@
         </div>
         <p v-if="!l7EventRows.length" class="dash-empty">No L7 block events in the live window.</p>
         <div v-else class="dash-log">
-          <div v-for="event in l7EventRows" :key="event.id" class="dash-log-line">
+          <button
+            v-for="event in l7EventRows"
+            :key="event.id"
+            type="button"
+            class="dash-log-line"
+            @click="selectedSecurityEvent = event"
+          >
             <span class="dash-log-time">{{ formatLogTime(event.createdAt) }}</span>
             <span class="dash-log-tag l7">L7</span>
             <span class="dash-log-msg">
-              {{ event.title }}<span v-if="event.serverName" class="dash-log-edge"> · {{ event.serverName }}</span>
+              <span>{{ event.title }}<span v-if="event.serverName" class="dash-log-edge"> · {{ event.serverName }}</span></span>
+              <span v-if="event.description" class="dash-log-detail">{{ event.description }}</span>
             </span>
-          </div>
+          </button>
         </div>
       </div>
     </section>
+    <SecurityEventDialog :event="selectedSecurityEvent" @close="selectedSecurityEvent = null" />
   </div>
 </template>
 
@@ -136,6 +151,8 @@ import { RouterLink } from 'vue-router'
 import ApexCharts from 'apexcharts'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import DetectionNav from '@/components/views/DetectionNav.vue'
+import SecurityEventDialog from '@/components/SecurityEventDialog.vue'
+import { openAttackConsole } from '@/stores/attackAlert'
 import { fetchDashboardSummary, fetchSecurityEvents } from '@/api/dashboard'
 import { fetchL4Series, fetchL4Summary } from '@/api/l4Analytics'
 import { fetchSecuritySeries, fetchSecuritySummary } from '@/api/securityAnalytics'
@@ -162,6 +179,14 @@ const selectedRange = ref(readSharedTimeRange())
 const servers = ref([])
 const sites = ref([])
 const securityEvents = ref([])
+const selectedSecurityEvent = ref(null)
+const openSecurityEvent = (event) => {
+  if (event?.reqId) {
+    openAttackConsole(event.reqId)
+    return
+  }
+  selectedSecurityEvent.value = event
+}
 const l4Defense = ref({ blockedTraffic: 0 })
 const l7Defense = ref({ blockRequestCounts: 0 })
 const l4BlockedSeries = ref([{ name: 'Blocked', data: [] }])
@@ -198,8 +223,10 @@ const siteOptions = computed(() => {
 })
 
 const eventTag = (event) => {
+  const layer = String(event?.layer || '').toUpperCase()
+  if (layer === 'L4' || layer === 'L7') return layer
   const title = String(event?.title || '').toLowerCase()
-  if (title.includes('l4') || title.includes('ddos')) return 'L4'
+  if (title.includes('l4') || title.includes('ddos') || title.includes('attack')) return 'L4'
   if (title.includes('waf') || title.includes('l7')) return 'L7'
   return 'SYS'
 }
@@ -451,7 +478,35 @@ a.dash-kpi {
 .dash-log-line {
   display: flex;
   gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: var(--app-text-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-log-line:hover {
+  background: rgba(63, 189, 133, 0.08);
+  color: var(--app-heading);
+}
+
+.dash-log-msg {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.dash-log-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
 }
 
 .dash-log-time,

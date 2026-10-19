@@ -3,7 +3,7 @@
     <div class="docs-article__head">
       <div>
         <h1 class="docs-article__title">Security</h1>
-        <p class="docs-article__lead">WAF packs, IP blocklist, and Layer-4 mitigation.</p>
+        <p class="docs-article__lead">WAF packs, temporary blocks, and Layer-4 mitigation.</p>
       </div>
       <RouterLink class="docs-panel-link" :to="{ name: 'waf-rules' }">Open WAF rules</RouterLink>
     </div>
@@ -13,7 +13,7 @@
         <div class="docs-concept">
           <h3>Layer 4 (Sparta / XDP)</h3>
           <p>
-            Stops volumetric network floods — SYN, ACK, RST, UDP, ICMP, GRE — before HTTP. Tune
+            Stops volumetric network floods — SYN, ACK, RST, STOMP (TCP PSH+ACK), UDP, ICMP, GRE — and drops SOCKET scans (NULL, XMAS, FIN) before HTTP. Tune
             under Configure edges → <strong>XDP</strong>.
           </p>
         </div>
@@ -60,7 +60,7 @@
         </li>
         <li>
           Edge-scoped and global IP blocks:
-          <RouterLink :to="{ name: 'server-blacklist' }">IP blocklist</RouterLink>
+          <RouterLink :to="{ name: 'server-blacklist' }">Temporary blocks</RouterLink>
           and Configure edges → Block IP / Allow IP.
         </li>
       </ul>

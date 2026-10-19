@@ -81,7 +81,7 @@
                   <path d="m4.9 4.9 14.2 14.2"></path>
                 </svg>
               </span>
-              <span>IP blocklist</span>
+              <span>Temporary blocks</span>
             </RouterLink>
           </li>
 
@@ -257,6 +257,7 @@
         <RouterView />
       </div>
     </main>
+    <AttackAlertHost />
   </div>
 </template>
 
@@ -266,6 +267,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { logout } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
 import AppTopbarActions from './AppTopbarActions.vue'
+import AttackAlertHost from './AttackAlertHost.vue'
 import DorianBrandMark from './DorianBrandMark.vue'
 import InfoHint from './InfoHint.vue'
 import NotificationToastStack from './NotificationToastStack.vue'

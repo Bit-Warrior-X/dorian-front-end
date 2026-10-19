@@ -151,7 +151,7 @@ export const troubleshooting = [
     steps: [
       'Traffic must hairpin through the edge (DNS / routing), not bypass it.',
       'Configure edges → XDP: enable relevant flood checks and set block duration.',
-      'Use L4 Attacks analytics to identify top sources, then Block IP / IP blocklist.',
+      'Use L4 Attacks analytics to identify top sources, then Block IP / Temporary blocks.',
     ],
     to: { name: 'layer4-attack-analytics' },
     cta: 'Open L4 attacks',
@@ -217,7 +217,7 @@ export const cheatSheet = [
   { label: 'All sites', path: '/app/sites/list', to: { name: 'site-list' } },
   { label: 'Configure sites', path: '/app/sites/settings', to: { name: 'site-settings' } },
   { label: 'WAF rules', path: '/app/waf', to: { name: 'waf-rules' } },
-  { label: 'IP blocklist', path: '/app/blacklist', to: { name: 'server-blacklist' } },
+  { label: 'Temporary blocks', path: '/app/blacklist', to: { name: 'server-blacklist' } },
   {
     label: 'Detection',
     path: '/app/analytics/detection',

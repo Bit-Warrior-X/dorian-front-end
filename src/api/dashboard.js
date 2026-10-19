@@ -7,6 +7,12 @@ const appendScopeParams = (params, serverId = 'all', siteId = 'all') => {
 
 export const fetchDashboardSummary = async () => apiRequest('/dashboard/summary')
 
+export const fetchAttackConsole = async (reqId) => {
+  const params = new URLSearchParams()
+  params.set('reqId', String(reqId))
+  return apiRequest(`/dashboard/attack-console?${params}`)
+}
+
 export const fetchSecurityEvents = async (limit = 5) => {
   const params = new URLSearchParams()
   if (limit) params.set('limit', String(limit))

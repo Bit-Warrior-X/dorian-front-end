@@ -1,5 +1,6 @@
 <template>
   <div ref="rootRef" class="app-topbar-actions">
+    <AlarmBell />
     <ThemeToggleButton variant="icon-btn" />
     <div class="app-topbar-user">
       <button
@@ -31,6 +32,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { logout } from '@/api/auth'
 import { useAuth } from '@/stores/auth'
+import AlarmBell from './AlarmBell.vue'
 import ThemeToggleButton from './ThemeToggleButton.vue'
 
 const auth = useAuth()

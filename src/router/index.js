@@ -257,9 +257,9 @@ const routes = [
         name: 'server-blacklist',
         component: () => import('@/components/views/ServerBlacklistView.vue'),
         meta: {
-          title: 'IP blocklist',
+          title: 'Temporary blocks',
           section: 'blacklist',
-          description: 'Global or edge-scoped blocked source addresses.',
+          description: 'Current temporary blocks, with URL, rule, and time remaining.',
         }
       },
       {

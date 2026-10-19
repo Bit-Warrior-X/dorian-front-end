@@ -216,6 +216,15 @@
       />
     </div>
 
+    <section v-if="showServices" class="status-card sparta-live">
+      <div class="status-card-header">
+        <h3 class="status-card-title">Sparta log</h3>
+      </div>
+      <div class="sparta-live__body">
+        <SpartaLogView :lines="spartaLines" :error="spartaError" />
+      </div>
+    </section>
+
     <ConfirmDialog
       v-model="isConfirmDialogOpen"
       :title="confirmTitle"
@@ -229,10 +238,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   controlServerService,
   fetchServerHostMetrics,
+  fetchSpartaLog,
   refreshServerRuntimeStatus,
   serverHostPower,
 } from '@/api/servers'
@@ -246,6 +256,7 @@ import {
 import { formatVersionOs } from '@/utils/deployVersions'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import EdgeNicCharts from './EdgeNicCharts.vue'
+import SpartaLogView from '@/components/SpartaLogView.vue'
 import ServiceStatusCard from './ServiceStatusCard.vue'
 import StatusCornerDot from '../StatusCornerDot.vue'
 import UsageMetricBar from '../UsageMetricBar.vue'
@@ -282,6 +293,25 @@ const props = defineProps({
 const emit = defineEmits(['updated'])
 
 const statusTitle = computed(() => (props.variant === 'snapshot' ? 'Edge details' : 'Monitor Status'))
+const spartaLines = ref([])
+const spartaError = ref('')
+let spartaTimer = 0
+let spartaBusy = false
+
+const loadSpartaLog = async () => {
+  if (!props.showServices || !props.serverId || spartaBusy || document.visibilityState === 'hidden') return
+  spartaBusy = true
+  try {
+    const payload = await fetchSpartaLog(props.serverId)
+    spartaLines.value = Array.isArray(payload?.lines) ? payload.lines : []
+    spartaError.value = payload?.error || ''
+  } catch (err) {
+    spartaError.value = err?.message || 'Sparta log is unavailable'
+  } finally {
+    spartaBusy = false
+  }
+}
+
 const metrics = ref(null)
 const metricsLoading = ref(false)
 const metricsError = ref('')
@@ -870,14 +900,23 @@ watch(
     metricsError.value = ''
     hostReachable.value = null
     lastServiceCheckedAt.value = null
+    spartaLines.value = []
+    spartaError.value = ''
     void refreshMetrics()
     void refreshServiceStatuses()
+    void loadSpartaLog()
   }
 )
 
 onMounted(() => {
   void refreshMetrics()
   void refreshServiceStatuses({ announce: false })
+  void loadSpartaLog()
+  spartaTimer = window.setInterval(loadSpartaLog, 2000)
+})
+
+onBeforeUnmount(() => {
+  window.clearInterval(spartaTimer)
 })
 </script>
 
@@ -902,6 +941,10 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.sparta-live__body {
+  padding: 12px;
 }
 
 .status-card {

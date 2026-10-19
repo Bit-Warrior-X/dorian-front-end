@@ -60,6 +60,98 @@
       </button>
     </div>
 
+    <section class="dash-attacks" :class="{ live: liveAttacks.length }" aria-label="Attack alerts">
+      <div class="dash-attacks__head">
+        <h3>
+          <span class="dash-attacks__dot" :class="{ live: liveAttacks.length }" aria-hidden="true"></span>
+          Attack alerts
+        </h3>
+        <div class="dash-attacks__stats">
+          <span><b class="num">{{ attacksToday.length }}</b> {{ attacksToday.length === 1 ? 'attack' : 'attacks' }} today</span>
+          <span><b class="num">{{ formatNumber(sourcesToday) }}</b> sources blocked today</span>
+          <RouterLink class="dash-panel-link" :to="{ name: 'attack-detection' }">Detection</RouterLink>
+        </div>
+      </div>
+
+      <div v-if="liveAttacks.length" class="dash-attacks__live">
+        <button
+          v-for="period in liveAttacks"
+          :key="period.reqId"
+          type="button"
+          class="dash-live-attack"
+          @click="openAttackConsole(period.reqId)"
+        >
+          <span class="dash-live-attack__badge"><i aria-hidden="true"></i>Under attack</span>
+          <span class="dash-live-attack__main">
+            <strong>{{ attackHeadline(period) }}</strong>
+            <span>{{ period.serverName || 'Edge' }} · started {{ formatLogTime(period.startedAt) }} · {{ elapsedLabel(period.startedAt, nowMs) }} ago</span>
+          </span>
+          <span class="dash-live-attack__metric">
+            <b class="num">{{ formatNumber(period.activeIpCount || 0) }}</b>
+            <span>blocking now</span>
+          </span>
+          <span class="dash-live-attack__metric">
+            <b class="num">{{ formatNumber(period.ipCount || 0) }}</b>
+            <span>sources so far</span>
+          </span>
+          <span class="dash-live-attack__open">Open live view</span>
+        </button>
+      </div>
+      <div v-else class="dash-attacks__calm">
+        <span class="dash-attacks__calm-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        </span>
+        <span>
+          <strong>No attack in progress</strong>
+          <template v-if="recentAttacks[0]"> · last attack {{ formatAttackDay(recentAttacks[0].startedAt) }} {{ formatLogTime(recentAttacks[0].startedAt) }} on {{ recentAttacks[0].serverName || 'an edge' }}, {{ elapsedLabel(recentAttacks[0].endedAt || recentAttacks[0].startedAt, nowMs) }} ago</template>
+          <template v-else> · no attacks recorded{{ selectedEdge === 'all' ? '' : ' on this edge' }}</template>
+        </span>
+      </div>
+
+      <div v-if="recentAttacks.length" class="dash-attack-list" role="list">
+        <div class="dash-attack-row dash-attack-row--head" aria-hidden="true">
+          <span>Status</span><span>Attack</span><span>Started</span><span>Duration</span><span>Sources</span><span>Vectors</span>
+        </div>
+        <button
+          v-for="period in recentAttacks.slice(0, 6)"
+          :key="period.reqId"
+          type="button"
+          role="listitem"
+          class="dash-attack-row"
+          @click="openAttackConsole(period.reqId)"
+        >
+          <span class="dash-attack-status" :class="period.status === 'ongoing' ? 'live' : 'ended'">
+            {{ period.status === 'ongoing' ? 'Ongoing' : 'Mitigated' }}
+          </span>
+          <span class="dash-attack-name">
+            <strong>{{ attackHeadline(period) }}</strong>
+            <span>{{ period.serverName || 'Edge' }}</span>
+          </span>
+          <span class="num dash-attack-dim">{{ formatAttackDay(period.startedAt) }} {{ formatLogTime(period.startedAt) }}</span>
+          <span class="num dash-attack-dim">{{ attackDuration(period) }}</span>
+          <span class="num">{{ formatNumber(period.ipCount || 0) }}</span>
+          <span class="dash-attack-vectors" :title="vectorTitle(period)">
+            <i v-for="part in vectorParts(period)" :key="part.label" :style="{ width: `${part.share}%`, background: part.color }"></i>
+          </span>
+        </button>
+      </div>
+
+      <div v-if="securityNotices.length" class="dash-notices">
+        <span class="dash-notices__label">Notices</span>
+        <button
+          v-for="event in securityNotices.slice(0, 3)"
+          :key="event.id"
+          type="button"
+          class="dash-notice"
+          @click="openSecurityEvent(event)"
+        >
+          <span class="num">{{ formatLogTime(event.createdAt) }}</span>
+          <span>{{ noticeLabel(event) }}</span>
+          <span v-if="event.serverName" class="dash-attack-dim">{{ event.serverName }}</span>
+        </button>
+      </div>
+    </section>
+
     <section class="dash-command" aria-label="Network health">
       <div class="dash-command__health">
         <div class="dash-hero__ring" :class="fleetHealthTone" :style="{ '--health': `${edgeHealthPercent}%` }">
@@ -72,22 +164,22 @@
         </div>
       </div>
       <div class="dash-kpi-strip" role="list">
-        <div class="dash-kpi" role="listitem">
-          <span class="dash-kpi__label">Live egress</span>
+        <div class="dash-kpi tone-signal" role="listitem">
+          <span class="dash-kpi__label">Site egress</span>
           <span class="dash-kpi__value num signal">{{ formatBandwidthValue(liveEgressKbps) }}</span>
-          <span class="dash-kpi__hint">bandwidth leaving your sites</span>
+          <span class="dash-kpi__hint">served by your sites now</span>
         </div>
-        <div class="dash-kpi" role="listitem">
+        <div class="dash-kpi tone-l4" role="listitem">
           <span class="dash-kpi__label">Cache hit</span>
           <span class="dash-kpi__value num">{{ formatCacheRatio(fleetCacheHitRatio) }}</span>
           <span class="dash-kpi__hint">{{ fleetCacheHitHint }}</span>
         </div>
-        <div class="dash-kpi" role="listitem">
-          <span class="dash-kpi__label">Live req/s</span>
-          <span class="dash-kpi__value num signal">{{ formatRate(latestRequestRate) }}</span>
-          <span class="dash-kpi__hint">{{ formatRate(latestResponseRate) }} resp/s</span>
+        <div class="dash-kpi tone-l7" role="listitem">
+          <span class="dash-kpi__label">Requests / min</span>
+          <span class="dash-kpi__value num">{{ formatPerMinute(latestRequestRate) }}</span>
+          <span class="dash-kpi__hint">{{ formatPerMinute(latestResponseRate) }} responses / min</span>
         </div>
-        <RouterLink class="dash-kpi" role="listitem" :to="{ name: 'attack-detection' }">
+        <RouterLink class="dash-kpi tone-warn" role="listitem" :to="{ name: 'attack-detection' }">
           <span class="dash-kpi__label">Threats blocked</span>
           <span class="dash-kpi__value num warn">{{ formatNumber(threatsThisMonth) }}</span>
           <span class="dash-kpi__hint">this month · open detection</span>
@@ -95,118 +187,194 @@
       </div>
     </section>
 
-    <section class="dash-grid12 dash-ops">
-      <div class="dash-panel c-8 dash-panel--hero-chart">
+    <section class="dash-grid12 dash-nic" aria-label="Edge network interfaces">
+      <div
+        v-for="nic in [
+          { key: 'rx', title: 'NIC receive', hint: 'into the edges', summary: nicRxSummary },
+          { key: 'tx', title: 'NIC send', hint: 'out of the edges', summary: nicTxSummary },
+        ]"
+        :key="nic.key"
+        class="dash-panel c-6 dash-nic-panel"
+        :class="nic.key"
+      >
         <div class="dash-panel-head">
-          <h3><span class="dash-live-dot" aria-hidden="true"></span> Traffic</h3>
+          <h3>
+            <span class="dash-nic-dir" :class="nic.key" aria-hidden="true">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path v-if="nic.key === 'rx'" d="M8 3v10M4 9l4 4 4-4" />
+                <path v-else d="M8 13V3M4 7l4-4 4 4" />
+              </svg>
+            </span>
+            {{ nic.title }}
+            <span class="dash-nic-hint">{{ nic.hint }}</span>
+          </h3>
+          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
+        </div>
+
+        <div class="dash-nic-readouts">
+          <div class="dash-nic-readout now">
+            <span class="dash-nic-readout__label">Now</span>
+            <span class="dash-nic-readout__value num">{{ formatNicValue(nic.summary.now) }}</span>
+            <span class="dash-nic-readout__hint">{{ nicAsOfLabel(nic.summary) }}</span>
+          </div>
+          <div class="dash-nic-readout">
+            <span class="dash-nic-readout__label">Average</span>
+            <span class="dash-nic-readout__value num">{{ formatNicValue(nic.summary.avg) }}</span>
+            <span class="dash-nic-readout__hint">over {{ bandwidthRangeLabel }}</span>
+          </div>
+          <div class="dash-nic-readout">
+            <span class="dash-nic-readout__label">Peak</span>
+            <span class="dash-nic-readout__value num">{{ formatNicValue(nic.summary.peak) }}</span>
+            <span class="dash-nic-readout__hint">busiest minute</span>
+          </div>
+        </div>
+
+        <div class="dash-chart-wrap dash-chart-wrap--nic">
+          <div :ref="(el) => setNicChartRef(nic.key, el)"></div>
+        </div>
+
+        <div class="dash-nic-edges" role="list">
+          <button
+            v-for="row in nic.summary.rows"
+            :key="`${nic.key}-${row.id}`"
+            type="button"
+            role="listitem"
+            class="dash-nic-edge"
+            :class="{ off: row.hidden }"
+            :title="row.hidden ? `Show ${row.label}` : `Hide ${row.label}`"
+            @click="toggleServerSeries(row)"
+          >
+            <span class="dash-nic-edge__swatch" :style="{ background: row.color }" aria-hidden="true"></span>
+            <span class="dash-nic-edge__name">{{ row.label }}</span>
+            <span class="dash-nic-edge__bar" aria-hidden="true">
+              <span :style="{ width: `${row.share}%`, background: row.color }"></span>
+            </span>
+            <span class="dash-nic-edge__value num">{{ row.now == null ? 'no data' : formatBandwidthValue(row.now) }}</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="dash-grid12 dash-ops">
+      <div class="dash-panel c-8 dash-panel--hero-chart dash-traffic-panel">
+        <div class="dash-panel-head">
+          <h3>
+            <span class="dash-panel-icon signal" aria-hidden="true">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1.5 9h3l2-5 3 9 2-4h3" />
+              </svg>
+            </span>
+            Traffic
+            <span class="dash-panel-hint">HTTP requests per minute</span>
+          </h3>
           <div class="dash-panel-head__actions">
-            <div class="dash-traffic-counts" aria-label="Live request and response counts">
-              <span class="dash-traffic-count">
-                <span class="dash-traffic-swatch req" aria-hidden="true"></span>
-                <span class="dash-traffic-count__label">Requests</span>
-                <span class="dash-traffic-count__value num">{{ formatNumber(latestRequestRate) }}</span>
-              </span>
-              <span class="dash-traffic-count">
-                <span class="dash-traffic-swatch resp" aria-hidden="true"></span>
-                <span class="dash-traffic-count__label">Responses</span>
-                <span class="dash-traffic-count__value num">{{ formatNumber(latestResponseRate) }}</span>
-              </span>
-            </div>
+            <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
             <RouterLink class="dash-panel-link" :to="{ name: 'security-analytics' }">Analytics</RouterLink>
           </div>
         </div>
+
+        <div class="dash-readout-strip">
+          <div class="dash-readout-cell lead">
+            <span class="dash-readout-cell__label"><i class="sw req" aria-hidden="true"></i>Requests</span>
+            <span class="dash-readout-cell__value num">{{ formatPerMinute(latestRequestRate) }}<small>/min</small></span>
+          </div>
+          <div class="dash-readout-cell">
+            <span class="dash-readout-cell__label"><i class="sw resp" aria-hidden="true"></i>Responses</span>
+            <span class="dash-readout-cell__value num">{{ formatPerMinute(latestResponseRate) }}<small>/min</small></span>
+          </div>
+          <div class="dash-readout-cell">
+            <span class="dash-readout-cell__label">Average</span>
+            <span class="dash-readout-cell__value num">{{ formatPerMinute(trafficSummary.avg) }}<small>/min</small></span>
+          </div>
+          <div class="dash-readout-cell">
+            <span class="dash-readout-cell__label">Peak</span>
+            <span class="dash-readout-cell__value num">{{ formatPerMinute(trafficSummary.peak) }}<small>/min</small></span>
+          </div>
+        </div>
+
         <div class="dash-chart-wrap dash-chart-wrap--ops">
           <div ref="requestResponseChart"></div>
         </div>
       </div>
+
       <div class="dash-side c-4">
-        <div class="dash-panel">
+        <div class="dash-panel dash-status-panel">
           <div class="dash-panel-head">
-            <h3>Status codes</h3>
+            <h3>
+              <span class="dash-panel-icon l4" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                  <path d="M3 13V8M8 13V3M13 13V6" />
+                </svg>
+              </span>
+              Status codes
+            </h3>
             <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
           </div>
-          <div v-for="row in statusBreakdown" :key="row.label" class="dash-bar-row dash-bar-row--tight">
-            <div class="dash-bar-top">
-              <span>{{ row.label }}</span>
-              <span class="num pct">{{ row.percent }}%</span>
-            </div>
-            <div class="dash-bar-track">
-              <div class="dash-bar-fill" :class="row.tone" :style="{ width: `${row.percent}%` }"></div>
+          <div class="dash-status-stack" role="img" :aria-label="statusBreakdown.map((r) => `${r.code} ${r.percent}%`).join(', ')">
+            <span
+              v-for="row in statusBreakdown"
+              v-show="row.percent > 0"
+              :key="`stack-${row.code}`"
+              :class="row.tone"
+              :style="{ flexGrow: row.percent }"
+            ></span>
+            <span v-if="!statusHasTraffic" class="empty"></span>
+          </div>
+          <div class="dash-status-rows">
+            <div v-for="row in statusBreakdown" :key="row.code" class="dash-status-row" :class="{ quiet: !row.percent }">
+              <span class="dash-status-code num" :class="row.tone">{{ row.code }}</span>
+              <span class="dash-status-label">{{ row.label }}</span>
+              <span class="dash-status-rate num">{{ formatPerMinute(row.perMinute) }}<small>/min</small></span>
+              <span class="dash-status-pct num">{{ row.percent }}%</span>
             </div>
           </div>
         </div>
-        <div class="dash-panel">
+
+        <div class="dash-panel dash-sites-panel">
           <div class="dash-panel-head">
-            <h3>Top sites</h3>
+            <h3>
+              <span class="dash-panel-icon l7" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                  <circle cx="8" cy="8" r="6" />
+                  <path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12" />
+                </svg>
+              </span>
+              Top sites
+            </h3>
             <RouterLink class="dash-panel-link" :to="{ name: 'site-list' }">All sites</RouterLink>
           </div>
-          <p v-if="!topSiteRows.length" class="dash-empty">No site traffic yet.</p>
+          <p v-if="!topSiteRows.length" class="dash-empty">No site traffic in this range.</p>
           <RouterLink
-            v-for="row in topSiteRows.slice(0, 5)"
+            v-for="(row, index) in topSiteRows.slice(0, 5)"
             :key="`site-${row.label}`"
-            class="dash-bar-row dash-bar-row--link dash-bar-row--tight"
+            class="dash-site-row"
             :to="row.siteId ? { name: 'site-settings', query: { siteId: String(row.siteId) } } : { name: 'site-list' }"
           >
-            <div class="dash-bar-top">
-              <span class="dash-rank-label" :title="row.label">{{ row.label }}</span>
-              <span class="dash-rank-meta">
-                <span v-if="row.cacheLabel" class="dash-cache-chip num">{{ row.cacheLabel }}</span>
-                <span class="num pct">{{ row.percent }}%</span>
+            <span class="dash-site-rank num">{{ index + 1 }}</span>
+            <span class="dash-site-main">
+              <span class="dash-site-top">
+                <span class="dash-site-name" :title="row.label">{{ row.label }}</span>
+                <span class="dash-site-count num">{{ formatNumber(row.count) }}</span>
               </span>
-            </div>
-            <div class="dash-bar-track">
-              <div class="dash-bar-fill ok" :style="{ width: `${row.percent}%` }"></div>
-            </div>
+              <span class="dash-site-bar" aria-hidden="true"><span :style="{ width: `${row.percent}%` }"></span></span>
+            </span>
+            <span class="dash-site-meta">
+              <span class="dash-site-pct num">{{ row.percent }}%</span>
+              <span v-if="row.cacheLabel" class="dash-site-cache num" title="Cache hit ratio">{{ row.cacheLabel }} hit</span>
+            </span>
           </RouterLink>
         </div>
       </div>
     </section>
 
-    <section class="dash-grid12 dash-nic">
-      <div class="dash-panel c-6">
-        <div class="dash-panel-head">
-          <h3>NIC receive</h3>
-          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-        </div>
-        <div class="dash-chart-wrap dash-chart-wrap--nic">
-          <div ref="bandwidthNicRxChart"></div>
-        </div>
-      </div>
-      <div class="dash-panel c-6">
-        <div class="dash-panel-head">
-          <h3>NIC send</h3>
-          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-        </div>
-        <div class="dash-chart-wrap dash-chart-wrap--nic">
-          <div ref="bandwidthNicTxChart"></div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="securityEvents.length" class="dash-panel">
-      <div class="dash-panel-head">
-        <h3>Security events</h3>
-        <RouterLink class="dash-panel-link" :to="{ name: 'attack-detection' }">Detection</RouterLink>
-      </div>
-      <div class="dash-log dash-log--compact">
-        <div v-for="event in securityEvents.slice(0, 6)" :key="event.id" class="dash-log-line">
-          <span class="dash-log-time">{{ formatLogTime(event.createdAt) }}</span>
-          <span class="dash-log-tag" :class="eventLogTagClass(event)">{{ eventLogTag(event) }}</span>
-          <span
-            class="dash-log-msg"
-            :title="[event.serverName, event.title, event.description].filter(Boolean).join(' — ')"
-          >
-            {{ event.title }}<span v-if="event.serverName" class="dash-log-edge"> · {{ event.serverName }}</span>
-          </span>
-        </div>
-      </div>
-    </section>
-
+    <SecurityEventDialog :event="selectedSecurityEvent" @close="selectedSecurityEvent = null" />
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import SecurityEventDialog from '@/components/SecurityEventDialog.vue'
+import { openAttackConsole } from '@/stores/attackAlert'
 import { RouterLink, useRouter } from 'vue-router'
 import ApexCharts from 'apexcharts'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
@@ -249,6 +417,10 @@ const router = useRouter()
 const dashboardRoot = ref(null)
 const bandwidthNicRxChart = ref(null)
 const bandwidthNicTxChart = ref(null)
+const setNicChartRef = (key, el) => {
+  if (key === 'rx') bandwidthNicRxChart.value = el
+  else bandwidthNicTxChart.value = el
+}
 const bandwidthL7RxChart = ref(null)
 const bandwidthL7TxChart = ref(null)
 const bandwidthCombinedChart = ref(null)
@@ -257,6 +429,103 @@ const requestResponseChart = ref(null)
 const statusCodeChart = ref(null)
 
 const securityEvents = ref([])
+const selectedSecurityEvent = ref(null)
+const openSecurityEvent = (event) => {
+  if (event?.reqId) {
+    openAttackConsole(event.reqId)
+    return
+  }
+  selectedSecurityEvent.value = event
+}
+const nowMs = ref(Date.now())
+const scopedPeriods = computed(() => securityEvents.value.filter((period) => (
+  selectedEdge.value === 'all' || String(period.serverId ?? '') === String(selectedEdge.value)
+)))
+const recentAttacks = computed(() => scopedPeriods.value.filter((period) => period.reqId))
+const liveAttacks = computed(() => recentAttacks.value.filter((period) => period.status === 'ongoing'))
+const securityNotices = computed(() => scopedPeriods.value.filter((period) => !period.reqId))
+const attacksToday = computed(() => {
+  const today = new Date(nowMs.value).toDateString()
+  return recentAttacks.value.filter((period) => new Date(period.startedAt).toDateString() === today)
+})
+const sourcesToday = computed(() => attacksToday.value.reduce((sum, period) => sum + (Number(period.ipCount) || 0), 0))
+
+const VECTOR_LABELS = [
+  ['SOCKET', 'Socket'], ['XMAS', 'Socket'], ['NULL', 'Socket'], ['FIN', 'Socket'],
+  ['STOMP', 'STOMP'], ['PSH', 'STOMP'], ['HANDSHAKE', 'Handshake'],
+  ['SYN', 'SYN'], ['RST', 'RST'], ['ACK', 'ACK'],
+  ['UDP', 'UDP'], ['ICMP', 'ICMP'], ['GRE', 'GRE'],
+]
+const vectorLabel = (raw) => {
+  const tokens = new Set(String(raw || '').toUpperCase().split(/[^A-Z0-9]+/))
+  const hit = VECTOR_LABELS.find(([token]) => tokens.has(token))
+  return hit ? hit[1] : ''
+}
+const periodVectors = (period) => {
+  const totals = new Map()
+  ;(period?.vectors || []).forEach((item) => {
+    const label = vectorLabel(item.type)
+    if (label) totals.set(label, (totals.get(label) || 0) + (Number(item.count) || 0))
+  })
+  if (!totals.size) {
+    const label = vectorLabel(period?.attackType)
+    if (label) totals.set(label, Number(period?.ipCount) || 1)
+  }
+  return [...totals.entries()].sort((a, b) => b[1] - a[1])
+}
+const attackHeadline = (period) => {
+  const labels = periodVectors(period).slice(0, 2).map(([label]) => label)
+  return labels.length ? `${labels.join(' + ')} flood` : (period?.title || 'L4 attack')
+}
+const vectorColor = (label) => {
+  const colors = getApexSeriesColors()
+  return {
+    STOMP: colors.l7, Handshake: colors.warn, SYN: colors.sand, ACK: colors.warn, RST: colors.danger,
+    UDP: colors.l4, ICMP: colors.teal, GRE: colors.teal, Socket: colors.slate,
+  }[label] || colors.muted
+}
+const vectorParts = (period) => {
+  const entries = periodVectors(period)
+  const total = entries.reduce((sum, [, count]) => sum + count, 0) || 1
+  return entries.slice(0, 4).map(([label, count]) => ({
+    label,
+    share: Math.max(6, Math.round((count / total) * 100)),
+    color: vectorColor(label),
+  }))
+}
+const vectorTitle = (period) => periodVectors(period).map(([label, count]) => `${label} ${count}`).join(' · ')
+const elapsedLabel = (value, now) => {
+  const start = Date.parse(value || '')
+  if (!Number.isFinite(start)) return '—'
+  const seconds = Math.max(0, Math.round((now - start) / 1000))
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 48) return `${hours}h ${String(minutes % 60).padStart(2, '0')}m`
+  return `${Math.floor(hours / 24)}d`
+}
+const attackDuration = (period) => {
+  const start = Date.parse(period?.startedAt || '')
+  const end = period?.status === 'ongoing' ? nowMs.value : Date.parse(period?.endedAt || '')
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '—'
+  return elapsedLabel(period.startedAt, end)
+}
+const formatAttackDay = (value) => {
+  const date = new Date(value || '')
+  if (Number.isNaN(date.getTime())) return ''
+  const today = new Date(nowMs.value)
+  if (date.toDateString() === today.toDateString()) return ''
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+const noticeLabel = (event) => {
+  const raw = String(event?.attackType || event?.title || '')
+  if (/CONNECTION_LIMIT/i.test(raw)) return 'TCP connection limit reached'
+  return event?.title || raw.replace(/^EVENT_/, '').replace(/_/g, ' ').toLowerCase()
+}
 const serversList = ref([])
 const edgeMetrics = ref({})
 const topUserAgentsRaw = ref([])
@@ -285,7 +554,6 @@ const bandwidthServers = ref([])
 const bandwidthRefreshMs = 60 * 1000
 const trafficRefreshMs = 60 * 1000
 /** Cap chart points so ApexCharts stays responsive on long ranges. */
-const CHART_MAX_POINTS = 320
 
 let nicRxChartInstance = null
 let nicTxChartInstance = null
@@ -296,6 +564,9 @@ let deliveryChartInstance = null
 let requestResponseChartInstance = null
 let statusCodeChartInstance = null
 let bandwidthTimer = null
+let attackTimer = null
+const attackRefreshMs = 10000
+let clockTimer = null
 let trafficTimer = null
 let layoutResizeObserver = null
 let resizeRaf = 0
@@ -552,6 +823,7 @@ const sumSeriesPoints = (seriesList) => {
   const map = new Map()
   seriesList.forEach((series) => {
     ;(series.data || []).forEach((point) => {
+      if (point.y == null) return
       map.set(point.x, (map.get(point.x) || 0) + point.y)
     })
   })
@@ -564,6 +836,67 @@ const combinedBandwidthSeries = computed(() => [
   { name: 'Out (NIC TX)', data: sumSeriesPoints(bandwidthNicTxSeries.value) },
   { name: 'In (NIC RX)', data: sumSeriesPoints(bandwidthNicRxSeries.value) },
 ])
+
+const nicRxMeta = ref({})
+const nicTxMeta = ref({})
+const NIC_STALE_MS = 15 * 60 * 1000
+
+const buildNicSummary = (meta) => {
+  const servers = serversForCharts.value.filter((server) =>
+    selectedEdge.value === 'all' || String(server.id) === String(selectedEdge.value),
+  )
+  const rows = servers.map((server) => {
+    const entry = meta[server.id]
+    const fresh = entry?.latestAt != null && nowMs.value - entry.latestAt < NIC_STALE_MS
+    return {
+      id: server.id,
+      label: server.label,
+      color: server.color,
+      hidden: hiddenServers.value.has(server.id),
+      now: fresh ? entry.latest : null,
+      latestAt: entry?.latestAt ?? null,
+      points: entry?.points || [],
+    }
+  })
+  const visible = rows.filter((row) => !row.hidden)
+  const totals = new Map()
+  visible.forEach((row) => {
+    row.points.forEach((point) => {
+      const slot = totals.get(point.x) || { avg: 0, peak: 0 }
+      slot.avg += point.y
+      slot.peak += point.peak
+      totals.set(point.x, slot)
+    })
+  })
+  const slots = Array.from(totals.values())
+  const avg = slots.length ? slots.reduce((sum, slot) => sum + slot.avg, 0) / slots.length : null
+  const peak = slots.length ? Math.max(...slots.map((slot) => slot.peak)) : null
+  const live = visible.filter((row) => row.now != null)
+  const now = live.length ? live.reduce((sum, row) => sum + row.now, 0) : null
+  const asOf = live.length ? Math.max(...live.map((row) => row.latestAt)) : null
+  return {
+    now,
+    avg,
+    peak,
+    asOf,
+    rows: rows.map((row) => ({
+      ...row,
+      share: now && row.now != null && !row.hidden ? Math.round((row.now / now) * 100) : 0,
+    })),
+  }
+}
+
+const nicRxSummary = computed(() => buildNicSummary(nicRxMeta.value))
+const nicTxSummary = computed(() => buildNicSummary(nicTxMeta.value))
+
+const nicAsOfLabel = (summary) => {
+  if (summary.asOf == null) return 'no recent samples'
+  const lag = Math.max(0, Math.round((nowMs.value - summary.asOf) / 60000))
+  const clock = new Date(summary.asOf).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  return lag <= 1 ? `minute ${clock}` : `minute ${clock} · ${lag} min ago`
+}
+
+const formatNicValue = (value) => (value == null ? '—' : formatBandwidthValue(value))
 
 const l7BandwidthSeries = computed(() => [
   { name: 'Egress', data: sumSeriesPoints(bandwidthL7TxSeries.value) },
@@ -586,13 +919,37 @@ const statusBreakdown = computed(() => {
     totals[keys[index]] = data.reduce((sum, p) => sum + (Number(p.y) || 0), 0)
   })
   const grand = Object.values(totals).reduce((a, b) => a + b, 0) || 1
-  const tones = ['ok', 'info', 'warn2', 'danger2']
+  const tones = ['ok', 'info', 'warn', 'danger']
+  const points = Math.max(1, ...seriesKeys.map((name) => (statusCodeSeries.value.find((s) => s.name === name)?.data || []).length))
   return keys.map((label, index) => ({
-    label,
+    code: seriesKeys[index],
+    label: label.replace(/^\dxx /, ''),
     percent: Math.round((totals[label] / grand) * 1000) / 10,
+    perMinute: totals[label] / points,
     tone: tones[index],
   }))
 })
+
+const statusHasTraffic = computed(() => statusBreakdown.value.some((row) => row.percent > 0))
+
+const trafficSummary = computed(() => {
+  const requests = (requestResponseSeries.value[0]?.data || []).filter((p) => p.y != null)
+  const values = requests.map((p) => Number(p.y) || 0)
+  return {
+    avg: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null,
+    peak: values.length ? Math.max(...values) : null,
+    lastAt: requests.length ? requests[requests.length - 1].x : null,
+  }
+})
+
+const formatPerMinute = (value) => {
+  const n = Number(value)
+  if (value == null || !Number.isFinite(n)) return '—'
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`
+  if (n > 0 && n < 10) return n.toFixed(n < 1 ? 2 : 1).replace(/\.?0+$/, '')
+  return String(Math.round(n))
+}
 
 const buildTrafficParams = () => ({
   range: bandwidthRange.value,
@@ -682,13 +1039,6 @@ const formatNumber = (value) => {
   return numeric.toLocaleString()
 }
 
-const formatRate = (value) => {
-  const n = Number(value)
-  if (!Number.isFinite(n)) return '0'
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return String(Math.round(n))
-}
-
 const formatBitRate = (bytesPerSec) => {
   const bytes = Number(bytesPerSec)
   if (!Number.isFinite(bytes) || bytes < 0) return '—'
@@ -705,12 +1055,15 @@ const formatEdgeEgress = (server) => {
   return formatBitRate(metric.netTxBytesPerSec)
 }
 
+// Stored bandwidth is the edge's bits/s divided by 1024; display it in decimal
+// units so it reads the same as the edge monitor.
 const formatBandwidthValue = (value) => {
   const numeric = Number(value)
   if (!Number.isFinite(numeric) || numeric <= 0) return '0 Kbps'
-  if (numeric >= 1024 * 1024) return `${(numeric / (1024 * 1024)).toFixed(1)} Gbps`
-  if (numeric >= 1024) return `${(numeric / 1024).toFixed(1)} Mbps`
-  return `${Math.round(numeric)} Kbps`
+  const bits = numeric * 1024
+  if (bits >= 1e9) return `${(bits / 1e9).toFixed(2)} Gbps`
+  if (bits >= 1e6) return `${(bits / 1e6).toFixed(1)} Mbps`
+  return `${Math.round(bits / 1e3)} Kbps`
 }
 
 const formatLogTime = (value) => {
@@ -718,20 +1071,6 @@ const formatLogTime = (value) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
-
-const eventLogTag = (event) => {
-  const title = String(event?.title || '').toLowerCase()
-  if (title.includes('l4') || title.includes('ddos')) return 'L4'
-  if (title.includes('waf') || title.includes('l7')) return 'L7'
-  return 'SYS'
-}
-
-const eventLogTagClass = (event) => {
-  const tag = eventLogTag(event).toLowerCase()
-  if (tag === 'l4') return 'l4'
-  if (tag === 'l7') return 'l7'
-  return 'sys'
 }
 
 const edgeDotClass = (server) => edgeHealthClass(server)
@@ -836,34 +1175,49 @@ const getBandwidthRangeMs = (value) => rangeDurationMs(value)
 const createEmptyBandwidthSeries = () =>
   serversForCharts.value.map((server) => ({ name: server.label, data: [] }))
 
-const downsamplePoints = (data, maxPoints = CHART_MAX_POINTS) => {
-  if (!Array.isArray(data) || data.length <= maxPoints) return data
-  const last = data[data.length - 1]
-  const step = (data.length - 1) / (maxPoints - 1)
-  const out = new Array(maxPoints)
-  for (let i = 0; i < maxPoints - 1; i += 1) {
-    out[i] = data[Math.round(i * step)]
-  }
-  out[maxPoints - 1] = last
+// A missing stretch longer than this many buckets is drawn as a gap.
+const BANDWIDTH_GAP_BUCKETS = 2
+
+const withGaps = (points, bucketMs) => {
+  const out = []
+  points.forEach((point, index) => {
+    const prev = points[index - 1]
+    if (prev && point.x - prev.x > bucketMs * BANDWIDTH_GAP_BUCKETS) {
+      out.push({ x: prev.x + bucketMs, y: null })
+    }
+    out.push(point)
+  })
   return out
 }
 
-const mapPayloadToSeries = (payload) => {
+const mapPayloadToSeries = (payload, meta = null) => {
   const seriesMap = new Map()
   if (Array.isArray(payload)) {
     payload.forEach((entry) => {
-      seriesMap.set(Number(entry?.serverId), Array.isArray(entry?.points) ? entry.points : [])
+      seriesMap.set(Number(entry?.serverId), entry)
     })
   }
   return serversForCharts.value.map((server) => {
-    const points = seriesMap.get(server.id) || []
-    const data = downsamplePoints(
-      points
-        .map((point) => ({ x: new Date(point.timestamp).getTime(), y: Number(point.bandwidth ?? 0) }))
-        .filter((point) => !Number.isNaN(point.x))
-        .sort((a, b) => a.x - b.x),
-    )
-    return { name: server.label, data }
+    const entry = seriesMap.get(server.id)
+    const bucketMs = (Number(entry?.bucketSeconds) || 60) * 1000
+    const points = (Array.isArray(entry?.points) ? entry.points : [])
+      .map((point) => ({
+        x: new Date(point.timestamp).getTime(),
+        y: Number(point.bandwidth ?? 0),
+        peak: Number(point.peak ?? point.bandwidth ?? 0),
+      }))
+      .filter((point) => !Number.isNaN(point.x))
+      .sort((a, b) => a.x - b.x)
+    if (meta) {
+      const latestAt = entry?.latest ? new Date(entry.latest.timestamp).getTime() : NaN
+      meta[server.id] = {
+        bucketMs,
+        latestAt: Number.isNaN(latestAt) ? null : latestAt,
+        latest: entry?.latest ? Number(entry.latest.bandwidth) || 0 : null,
+        points,
+      }
+    }
+    return { name: server.label, data: withGaps(points.map(({ x, y }) => ({ x, y })), bucketMs) }
   })
 }
 
@@ -889,7 +1243,7 @@ const loadDashboardSummary = async () => {
 
 const loadSecurityEvents = async () => {
   try {
-    const payload = await fetchSecurityEvents(12)
+    const payload = await fetchSecurityEvents(30)
     securityEvents.value = Array.isArray(payload) ? payload : []
   } catch (error) {
     securityEvents.value = []
@@ -986,6 +1340,13 @@ const defaultLineOptions = (height = 280, colors = null) => {
 }
 
 const MINI_BANDWIDTH_CHART_HEIGHT = 210
+const NIC_CHART_HEIGHT = 190
+
+const windowXaxis = (startMs, endMs) => ({
+  ...getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
+  min: startMs,
+  max: endMs,
+})
 
 const createBandwidthCharts = () => {
   if (!bandwidthServers.value.length) return
@@ -1005,19 +1366,32 @@ const createBandwidthCharts = () => {
     },
   })
   const pad = (series) => padSeriesToTimeRange(series, startMs, now)
-  const nicLegend = {
-    show: true,
-    position: 'top',
-    horizontalAlign: 'left',
-    fontSize: '11px',
-    labels: { colors: getApexAxisLabelStyle('11px').colors },
+  const nicOpts = () => {
+    const base = getApexBaseChartOptions()
+    return {
+      ...opts(NIC_CHART_HEIGHT),
+      chart: { ...opts(NIC_CHART_HEIGHT).chart, type: 'area' },
+      stroke: { curve: 'smooth', width: 1.6 },
+      fill: { type: 'gradient', gradient: { shadeIntensity: 0, opacityFrom: 0.28, opacityTo: 0.02, stops: [0, 95] } },
+      markers: { size: 0, hover: { size: 3 } },
+      dataLabels: { enabled: false },
+      legend: { show: false },
+      xaxis: windowXaxis(startMs, now),
+      annotations: {},
+      tooltip: {
+        ...base.tooltip,
+        shared: true,
+        x: { formatter: (val) => new Date(val).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) },
+        y: { formatter: (v) => (v == null ? '—' : formatBandwidthValue(v)) },
+      },
+    }
   }
   if (bandwidthNicRxChart.value) {
-    nicRxChartInstance = new ApexCharts(bandwidthNicRxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), legend: nicLegend, series: pad(bandwidthNicRxSeries.value) })
+    nicRxChartInstance = new ApexCharts(bandwidthNicRxChart.value, { ...nicOpts(), series: bandwidthNicRxSeries.value })
     nicRxChartInstance.render()
   }
   if (bandwidthNicTxChart.value) {
-    nicTxChartInstance = new ApexCharts(bandwidthNicTxChart.value, { ...opts(MINI_BANDWIDTH_CHART_HEIGHT), legend: nicLegend, series: pad(bandwidthNicTxSeries.value) })
+    nicTxChartInstance = new ApexCharts(bandwidthNicTxChart.value, { ...nicOpts(), series: bandwidthNicTxSeries.value })
     nicTxChartInstance.render()
   }
   if (bandwidthL7RxChart.value) {
@@ -1095,29 +1469,27 @@ const createRequestResponseChart = () => {
   const now = Date.now()
   const startMs = now - getBandwidthRangeMs(requestRange.value)
   const endMs = now
+  const base = defaultLineOptions(248, [seriesColors().viper, seriesColors().l4])
   requestResponseChartInstance = new ApexCharts(requestResponseChart.value, {
-    ...defaultLineOptions(248, [seriesColors().viper, seriesColors().viperSoft]),
-    legend: {
-      show: true,
-      position: 'top',
-      horizontalAlign: 'left',
-      fontSize: '11px',
-      labels: { colors: getApexAxisLabelStyle('11px').colors },
-    },
-    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
-    annotations: getApexTimeRangeAnnotations(startMs, endMs),
-    series: padSeriesToTimeRange(requestResponseSeries.value, startMs, endMs),
+    ...base,
+    chart: { ...base.chart, type: 'area' },
+    stroke: { curve: 'smooth', width: [1.8, 1.4], dashArray: [0, 4] },
+    fill: { type: 'gradient', gradient: { shadeIntensity: 0, opacityFrom: [0.26, 0.06], opacityTo: [0.02, 0], stops: [0, 95] } },
+    markers: { size: 0, hover: { size: 3 } },
+    dataLabels: { enabled: false },
+    legend: { show: false },
+    xaxis: windowXaxis(startMs, endMs),
+    annotations: {},
+    series: requestResponseSeries.value,
     yaxis: {
-      ...defaultLineOptions(220).yaxis,
-      labels: { formatter: (v) => `${Math.round(v)}`, style: getApexAxisLabelStyle('10px') },
+      ...base.yaxis,
+      labels: { formatter: (v) => formatPerMinute(v), style: getApexAxisLabelStyle('10px') },
     },
     tooltip: {
-      theme: 'dark',
-      x: {
-        formatter: (val) =>
-          new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }),
-      },
-      y: { formatter: (v) => `${Math.round(v)} rps` },
+      ...getApexBaseChartOptions().tooltip,
+      shared: true,
+      x: { formatter: (val) => new Date(val).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) },
+      y: { formatter: (v) => (v == null ? '—' : `${formatPerMinute(v)} / min`) },
     },
   })
   requestResponseChartInstance.render()
@@ -1170,8 +1542,12 @@ const loadBandwidthSeries = async () => {
       fetchBandwidthL7RxSeries(bandwidthRange.value, serverFilter, siteFilter),
       fetchBandwidthL7TxSeries(bandwidthRange.value, serverFilter, siteFilter),
     ])
-    bandwidthNicRxSeries.value = mapPayloadToSeries(payloadNicRx)
-    bandwidthNicTxSeries.value = mapPayloadToSeries(payloadNicTx)
+    const rxMeta = {}
+    const txMeta = {}
+    bandwidthNicRxSeries.value = mapPayloadToSeries(payloadNicRx, rxMeta)
+    bandwidthNicTxSeries.value = mapPayloadToSeries(payloadNicTx, txMeta)
+    nicRxMeta.value = rxMeta
+    nicTxMeta.value = txMeta
     bandwidthL7RxSeries.value = mapPayloadToSeries(payloadL7Rx)
     bandwidthL7TxSeries.value = mapPayloadToSeries(payloadL7Tx)
 
@@ -1185,8 +1561,9 @@ const loadBandwidthSeries = async () => {
     }
     const pad = (series) => padSeriesToTimeRange(series, startMs, endMs)
 
-    if (nicRxChartInstance) { nicRxChartInstance.updateSeries(pad(bandwidthNicRxSeries.value), false); nicRxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(nicRxChartInstance) }
-    if (nicTxChartInstance) { nicTxChartInstance.updateSeries(pad(bandwidthNicTxSeries.value), false); nicTxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(nicTxChartInstance) }
+    const nicRangeOpts = { xaxis: windowXaxis(startMs, endMs) }
+    if (nicRxChartInstance) { nicRxChartInstance.updateSeries(bandwidthNicRxSeries.value, false); nicRxChartInstance.updateOptions(nicRangeOpts, false, false); applyHidden(nicRxChartInstance) }
+    if (nicTxChartInstance) { nicTxChartInstance.updateSeries(bandwidthNicTxSeries.value, false); nicTxChartInstance.updateOptions(nicRangeOpts, false, false); applyHidden(nicTxChartInstance) }
     if (l7RxChartInstance) { l7RxChartInstance.updateSeries(pad(bandwidthL7RxSeries.value), false); l7RxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7RxChartInstance) }
     if (l7TxChartInstance) { l7TxChartInstance.updateSeries(pad(bandwidthL7TxSeries.value), false); l7TxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7TxChartInstance) }
     if (combinedChartInstance) { combinedChartInstance.updateSeries(pad(combinedBandwidthSeries.value), false); combinedChartInstance.updateOptions(rangeOpts, false, false) }
@@ -1201,11 +1578,9 @@ const loadRequestResponseSeries = async () => {
   try {
     const payload = await fetchRequestResponseSeries(requestRange.value, selectedEdge.value, selectedSite.value)
     const points = Array.isArray(payload) ? payload : []
-    const mapped = downsamplePoints(
-      points
-        .map((p) => ({ x: new Date(p.timestamp).getTime(), request: Number(p.requestCount ?? 0), response: Number(p.responseCount ?? 0) }))
-        .filter((p) => !Number.isNaN(p.x)),
-    )
+    const mapped = points
+      .map((p) => ({ x: new Date(p.timestamp).getTime(), request: Number(p.requestCount ?? 0), response: Number(p.responseCount ?? 0) }))
+      .filter((p) => !Number.isNaN(p.x))
     requestResponseSeries.value = [
       { name: 'Requests', data: mapped.map((p) => ({ x: p.x, y: p.request })) },
       { name: 'Responses', data: mapped.map((p) => ({ x: p.x, y: p.response })) },
@@ -1213,14 +1588,8 @@ const loadRequestResponseSeries = async () => {
     if (requestResponseChartInstance) {
       const now = Date.now()
       const startMs = now - getBandwidthRangeMs(requestRange.value)
-      requestResponseChartInstance.updateSeries(
-        padSeriesToTimeRange(requestResponseSeries.value, startMs, now),
-        false,
-      )
-      requestResponseChartInstance.updateOptions({
-        xaxis: getApexDatetimeXaxis(startMs, now, { tickCount: 6, fontSize: '10px' }),
-        annotations: getApexTimeRangeAnnotations(startMs, now),
-      }, false, false)
+      requestResponseChartInstance.updateSeries(requestResponseSeries.value, false)
+      requestResponseChartInstance.updateOptions({ xaxis: windowXaxis(startMs, now) }, false, false)
     }
   } catch (error) {
     requestResponseSeries.value = [{ name: 'Requests', data: [] }, { name: 'Responses', data: [] }]
@@ -1231,17 +1600,15 @@ const loadStatusCodeSeries = async () => {
   try {
     const payload = await fetchStatusCodeSeries(statusRange.value, selectedEdge.value, selectedSite.value)
     const points = Array.isArray(payload) ? payload : []
-    const mapped = downsamplePoints(
-      points
-        .map((p) => ({
-          x: new Date(p.timestamp).getTime(),
-          success: Number(p.success ?? 0),
-          redirect: Number(p.redirect ?? 0),
-          client: Number(p.client ?? 0),
-          server: Number(p.server ?? 0),
-        }))
-        .filter((p) => !Number.isNaN(p.x)),
-    )
+    const mapped = points
+      .map((p) => ({
+        x: new Date(p.timestamp).getTime(),
+        success: Number(p.success ?? 0),
+        redirect: Number(p.redirect ?? 0),
+        client: Number(p.client ?? 0),
+        server: Number(p.server ?? 0),
+      }))
+      .filter((p) => !Number.isNaN(p.x))
     statusCodeSeries.value = [
       { name: '2xx', data: mapped.map((p) => ({ x: p.x, y: p.success })) },
       { name: '3xx', data: mapped.map((p) => ({ x: p.x, y: p.redirect })) },
@@ -1389,6 +1756,12 @@ onMounted(() => {
       if (bandwidthServers.value.length) void loadBandwidthSeries()
     })
   }, bandwidthRefreshMs)
+  attackTimer = window.setInterval(() => {
+    runIfVisible(() => void loadSecurityEvents())
+  }, attackRefreshMs)
+  clockTimer = window.setInterval(() => {
+    nowMs.value = Date.now()
+  }, 1000)
   trafficTimer = window.setInterval(() => {
     runIfVisible(() => {
       void loadRequestResponseSeries()
@@ -1407,6 +1780,8 @@ onBeforeUnmount(() => {
   loadGeneration += 1
   if (bandwidthTimer) window.clearInterval(bandwidthTimer)
   if (trafficTimer) window.clearInterval(trafficTimer)
+  if (attackTimer) window.clearInterval(attackTimer)
+  if (clockTimer) window.clearInterval(clockTimer)
   if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
   if (resizeRaf) cancelAnimationFrame(resizeRaf)
   destroyBandwidthCharts()
@@ -1535,6 +1910,329 @@ watch(selectedSite, scheduleFilterReload)
   background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 10%, var(--app-surface));
 }
 
+.dash-attacks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.dash-attacks.live {
+  border-color: color-mix(in srgb, var(--dorian-danger, #e15241) 55%, var(--app-border));
+  background:
+    radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--dorian-danger, #e15241) 14%, transparent) 0%, transparent 60%),
+    var(--app-surface);
+}
+
+.dash-attacks__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-attacks__head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--type-section-title);
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.dash-attacks__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dorian-viper-400, var(--app-accent));
+}
+
+.dash-attacks__dot.live {
+  background: var(--dorian-danger, #e15241);
+  animation: dash-attack-pulse 1.6s ease-out infinite;
+}
+
+.dash-attacks__stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.dash-attacks__stats b {
+  color: var(--app-heading);
+  font-weight: 650;
+}
+
+.dash-attacks__live {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dash-live-attack {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--dorian-danger, #e15241) 45%, var(--app-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 10%, var(--app-surface-muted));
+  color: var(--app-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dash-live-attack:hover {
+  border-color: var(--dorian-danger, #e15241);
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 15%, var(--app-surface-muted));
+}
+
+.dash-live-attack__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 22%, transparent);
+  color: var(--dorian-danger, #e15241);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.dash-live-attack__badge i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dash-attack-pulse 1.6s ease-out infinite;
+}
+
+.dash-live-attack__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dash-live-attack__main strong {
+  color: var(--app-heading);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.dash-live-attack__main span,
+.dash-live-attack__metric span {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.dash-live-attack__metric {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.dash-live-attack__metric b {
+  color: var(--app-heading);
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.dash-live-attack__open {
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: var(--dorian-danger, #e15241);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.dash-attacks__calm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
+  font-size: 12.5px;
+}
+
+.dash-attacks__calm strong {
+  color: var(--app-heading);
+  font-weight: 600;
+}
+
+.dash-attacks__calm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dorian-viper-500, #2e9e6c) 18%, transparent);
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.dash-attacks__calm-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.dash-attack-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-attack-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1.6fr) minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(90px, 0.9fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 0.5px solid var(--app-border);
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.dash-attack-row:hover {
+  background: var(--app-surface-hover);
+}
+
+.dash-attack-row--head {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 8px;
+  color: var(--app-text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: default;
+}
+
+.dash-attack-status {
+  justify-self: start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.dash-attack-status.live {
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 18%, transparent);
+  color: var(--dorian-danger, #e15241);
+}
+
+.dash-attack-status.ended {
+  background: color-mix(in srgb, var(--dorian-viper-500, #2e9e6c) 14%, transparent);
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.dash-attack-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-attack-name strong {
+  overflow: hidden;
+  color: var(--app-heading);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-attack-name span,
+.dash-attack-dim {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.dash-attack-vectors {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--app-border);
+}
+
+.dash-notices {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.dash-notices__label {
+  color: var(--app-text-muted);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dash-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 0.5px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dash-notice:hover {
+  border-color: color-mix(in srgb, var(--dorian-warn, #e0a83f) 45%, var(--app-border));
+}
+
+@keyframes dash-attack-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dorian-danger, #e15241) 55%, transparent); }
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (max-width: 900px) {
+  .dash-live-attack { grid-template-columns: auto minmax(0, 1fr); }
+  .dash-live-attack__metric { align-items: flex-start; }
+  .dash-attack-row { grid-template-columns: 88px minmax(0, 1fr) minmax(0, 0.8fr); }
+  .dash-attack-row > :nth-child(n + 4) { display: none; }
+}
+
 .dash-command {
   display: grid;
   grid-template-columns: minmax(220px, 0.9fr) minmax(0, 2.2fr);
@@ -1606,17 +2304,39 @@ watch(selectedSite, scheduleFilterReload)
 
 .dash-kpi-strip {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .dash-kpi {
-  padding: 10px 12px;
+  --kpi-tone: var(--app-border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 11px 12px 11px 14px;
   border-radius: 8px;
   border: 0.5px solid var(--app-border);
   background: var(--app-surface-muted);
   min-width: 0;
+  overflow: hidden;
 }
+
+.dash-kpi::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--kpi-tone);
+}
+
+.dash-kpi.tone-signal { --kpi-tone: var(--dorian-viper-400, var(--app-accent)); }
+.dash-kpi.tone-l4 { --kpi-tone: var(--dorian-l4, #6b9fd4); }
+.dash-kpi.tone-l7 { --kpi-tone: var(--dorian-l7, #9b8cff); }
+.dash-kpi.tone-warn { --kpi-tone: var(--dorian-warn, #e0a83f); }
 
 a.dash-kpi {
   display: block;
@@ -1775,10 +2495,6 @@ a.dash-kpi:hover {
   min-height: 0;
 }
 
-.dash-log--compact {
-  max-height: 230px;
-}
-
 .dash-bar-row--tight {
   margin-bottom: 8px;
 }
@@ -1896,7 +2612,6 @@ a.dash-kpi:hover {
   transform: rotate(360deg);
 }
 
-
 .dash-grid12 {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -1981,7 +2696,7 @@ a.dash-kpi:hover {
 }
 
 .dash-traffic-swatch.req { background: #3fbd85; }
-.dash-traffic-swatch.resp { background: #6bcfa0; }
+.dash-traffic-swatch.resp { background: #6b9fd4; }
 
 .dash-traffic-count__label {
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
@@ -2120,41 +2835,6 @@ a.dash-kpi:hover {
 .dash-bar-fill.danger { background: #d95b4e; }
 .dash-bar-fill.l4 { background: #6b9fd4; }
 .dash-bar-fill.l7 { background: #8fa3b8; }
-
-
-
-.dash-log {
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: var(--type-caption);
-  line-height: 1.9;
-  max-height: 280px;
-  overflow-y: auto;
-}
-
-.dash-log-line {
-  display: flex;
-  gap: 8px;
-  color: var(--app-text-muted);
-}
-
-.dash-log-time {
-  color: var(--app-text-muted);
-  flex: none;
-  opacity: 0.7;
-}
-
-.dash-log-edge {
-  opacity: 0.75;
-}
-
-.dash-log-tag {
-  flex: none;
-  font-weight: 600;
-}
-
-.dash-log-tag.l4 { color: #6b9fd4; }
-.dash-log-tag.l7 { color: #8fa3b8; }
-.dash-log-tag.sys { color: var(--dorian-viper-400, var(--app-accent)); }
 
 .dash-table-wrap {
   overflow-x: auto;
@@ -2420,9 +3100,476 @@ a.dash-bar-row--link:hover {
   font-size: var(--type-caption);
 }
 
+.dash-traffic-panel,
+.dash-status-panel,
+.dash-sites-panel {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--panel-tone) 6%, transparent) 0%, transparent 34%),
+    var(--app-surface);
+}
+
+.dash-traffic-panel { --panel-tone: var(--dorian-viper-400, var(--app-accent)); }
+.dash-status-panel { --panel-tone: var(--dorian-l4, #6b9fd4); }
+.dash-sites-panel { --panel-tone: var(--dorian-l7, #8fa3b8); }
+
+.dash-traffic-panel .dash-panel-head h3,
+.dash-status-panel .dash-panel-head h3,
+.dash-sites-panel .dash-panel-head h3 {
+  color: var(--app-heading);
+  font-weight: 600;
+}
+
+.dash-traffic-panel .dash-panel-head,
+.dash-status-panel .dash-panel-head,
+.dash-sites-panel .dash-panel-head {
+  margin-bottom: 10px;
+}
+
+.dash-panel-icon {
+  --icon-tone: var(--app-accent);
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--icon-tone);
+  background: color-mix(in srgb, var(--icon-tone) 14%, transparent);
+}
+
+.dash-panel-icon.signal { --icon-tone: var(--dorian-viper-400, var(--app-accent)); }
+.dash-panel-icon.l4 { --icon-tone: var(--dorian-l4, #6b9fd4); }
+.dash-panel-icon.l7 { --icon-tone: var(--dorian-l7, #8fa3b8); }
+
+.dash-panel-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.dash-panel-hint {
+  font-size: var(--type-small, 11px);
+  font-weight: 400;
+  color: var(--app-text-muted);
+}
+
+.dash-readout-strip {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr));
+  border: 0.5px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface-muted);
+  margin-bottom: 8px;
+}
+
+.dash-readout-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  min-width: 0;
+}
+
+.dash-readout-cell + .dash-readout-cell {
+  border-left: 0.5px solid var(--app-border);
+}
+
+.dash-readout-cell__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.dash-readout-cell__label .sw {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.dash-readout-cell__label .sw.req { background: var(--dorian-viper-400, var(--app-accent)); }
+
+.dash-readout-cell__label .sw.resp {
+  background: transparent;
+  border: 1.5px dashed var(--dorian-l4, #6b9fd4);
+}
+
+.dash-readout-cell__value {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.dash-readout-cell.lead .dash-readout-cell__value {
+  font-size: 20px;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.dash-readout-cell__value small,
+.dash-status-rate small {
+  margin-left: 2px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--app-text-muted);
+}
+
+.dash-status-stack {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: var(--app-border);
+}
+
+.dash-status-stack span {
+  flex-basis: 0;
+  min-width: 3px;
+}
+
+.dash-status-stack .empty { flex-grow: 1; background: var(--app-border); }
+
+.dash-status-stack .ok,
+.dash-status-code.ok { --status-tone: var(--dorian-success, #4fbd7a); }
+.dash-status-stack .info,
+.dash-status-code.info { --status-tone: var(--dorian-l4, #6b9fd4); }
+.dash-status-stack .warn,
+.dash-status-code.warn { --status-tone: var(--dorian-warn, #d4a24a); }
+.dash-status-stack .danger,
+.dash-status-code.danger { --status-tone: var(--dorian-danger, #d95b4e); }
+
+.dash-status-stack span:not(.empty) {
+  background: var(--status-tone);
+}
+
+.dash-status-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-status-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+}
+
+.dash-status-row + .dash-status-row {
+  border-top: 0.5px solid var(--app-border);
+}
+
+.dash-status-row.quiet {
+  opacity: 0.55;
+}
+
+.dash-status-code {
+  justify-self: start;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--status-tone);
+  background: color-mix(in srgb, var(--status-tone) 14%, transparent);
+}
+
+.dash-status-label {
+  color: var(--app-text);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-status-rate {
+  color: var(--app-text-muted);
+  white-space: nowrap;
+}
+
+.dash-status-pct {
+  text-align: right;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.dash-site-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 6px;
+  margin: 0 -6px;
+  border-radius: 7px;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.dash-site-row + .dash-site-row {
+  margin-top: 2px;
+}
+
+.dash-site-row:hover {
+  background: var(--app-surface-muted);
+}
+
+.dash-site-row:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 1px;
+}
+
+.dash-site-rank {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--app-text-muted);
+  background: var(--app-surface-muted);
+  border: 0.5px solid var(--app-border);
+}
+
+.dash-site-row:first-of-type .dash-site-rank {
+  color: var(--dorian-viper-400, var(--app-accent));
+  border-color: color-mix(in srgb, var(--dorian-viper-400, var(--app-accent)) 40%, var(--app-border));
+}
+
+.dash-site-main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.dash-site-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dash-site-name {
+  font-size: 12.5px;
+  color: var(--app-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-site-count {
+  font-size: 11px;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+}
+
+.dash-site-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--app-border);
+  overflow: hidden;
+}
+
+.dash-site-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--dorian-viper-500, #2e9e6c);
+}
+
+.dash-site-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 52px;
+}
+
+.dash-site-pct {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.dash-site-cache {
+  font-size: 10px;
+  color: var(--dorian-viper-400, var(--app-accent));
+  white-space: nowrap;
+}
+
+.dash-nic-panel {
+  gap: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--nic-tone) 7%, transparent) 0%, transparent 38%),
+    var(--app-surface);
+}
+
+.dash-nic-panel.rx { --nic-tone: var(--dorian-viper-400, var(--app-accent)); }
+.dash-nic-panel.tx { --nic-tone: var(--dorian-l4, #6b9fd4); }
+
+.dash-nic-panel .dash-panel-head {
+  margin-bottom: 10px;
+}
+
+.dash-nic-panel .dash-panel-head h3 {
+  color: var(--app-heading);
+  font-weight: 600;
+}
+
+.dash-nic-dir {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--nic-tone);
+  background: color-mix(in srgb, var(--nic-tone) 14%, transparent);
+}
+
+.dash-nic-dir svg {
+  width: 12px;
+  height: 12px;
+}
+
+.dash-nic-hint {
+  font-size: var(--type-small, 11px);
+  font-weight: 400;
+  color: var(--app-text-muted);
+}
+
+.dash-nic-readouts {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr 1fr;
+  border: 0.5px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface-muted);
+  margin-bottom: 8px;
+}
+
+.dash-nic-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px;
+  min-width: 0;
+}
+
+.dash-nic-readout + .dash-nic-readout {
+  border-left: 0.5px solid var(--app-border);
+}
+
+.dash-nic-readout__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.dash-nic-readout__value {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.dash-nic-readout.now .dash-nic-readout__value {
+  font-size: 20px;
+  color: var(--nic-tone);
+}
+
+.dash-nic-readout__hint {
+  font-size: 11px;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-nic-edges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.dash-nic-edge {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 56px auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  border: 0.5px solid var(--app-border);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dash-nic-edge:hover {
+  background: var(--app-surface-muted);
+}
+
+.dash-nic-edge:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 1px;
+}
+
+.dash-nic-edge.off {
+  opacity: 0.45;
+}
+
+.dash-nic-edge__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.dash-nic-edge__name {
+  font-size: 12px;
+  color: var(--app-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-nic-edge__bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--app-border);
+  overflow: hidden;
+}
+
+.dash-nic-edge__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.dash-nic-edge__value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-heading);
+  white-space: nowrap;
+}
+
 @media (max-width: 1300px) {
   .c-3, .c-4, .c-5, .c-6, .c-7, .c-8, .c-12, .dash-side {
     grid-column: span 12;
+  }
+
+  .dash-nic > .dash-nic-panel {
+    grid-column: span 6;
   }
 
   .dash-command {
@@ -2442,7 +3589,38 @@ a.dash-bar-row--link:hover {
   }
 }
 
+@media (max-width: 1000px) {
+  .dash-nic > .dash-nic-panel {
+    grid-column: span 12;
+  }
+}
+
 @media (max-width: 760px) {
+  .dash-readout-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dash-readout-cell:nth-child(3) {
+    border-left: 0;
+  }
+
+  .dash-readout-cell:nth-child(n + 3) {
+    border-top: 0.5px solid var(--app-border);
+  }
+
+  .dash-nic-readouts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dash-nic-readout.now {
+    grid-column: span 2;
+  }
+
+  .dash-nic-readout + .dash-nic-readout {
+    border-left: 0;
+    border-top: 0.5px solid var(--app-border);
+  }
+
   .dash-filter-summary {
     margin-left: 0;
     width: 100%;
@@ -2457,7 +3635,9 @@ a.dash-bar-row--link:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dash-live-dot {
+  .dash-live-dot,
+  .dash-attacks__dot.live,
+  .dash-live-attack__badge i {
     animation: none;
   }
 }

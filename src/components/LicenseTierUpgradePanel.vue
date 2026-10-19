@@ -5,6 +5,7 @@
     <LicenseTierSelector
       v-model="selectedTier"
       v-model:billing-period="billingPeriod"
+      :current-tier="initialTier"
       :disabled="isSubmitting"
       :aria-label="'License type for ' + (server?.name || 'server')"
     />
@@ -13,23 +14,29 @@
       Regenerating license and deploying to the host… This may take several minutes.
     </p>
     <div class="actions">
-      <button
-        v-if="showCancel"
-        type="button"
-        class="btn-secondary"
-        :disabled="isSubmitting"
-        @click="$emit('close')"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="btn-primary"
-        :disabled="isSubmitting || !canSubmit"
-        @click="submit"
-      >
-        {{ okLabel }}
-      </button>
+      <div class="actions__copy">
+        <strong>{{ selectedTier }}</strong>
+        <span>{{ actionHint }}</span>
+      </div>
+      <div class="actions__buttons">
+        <button
+          v-if="showCancel"
+          type="button"
+          class="btn-secondary"
+          :disabled="isSubmitting"
+          @click="$emit('close')"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn-primary"
+          :disabled="isSubmitting || !canSubmit"
+          @click="submit"
+        >
+          {{ okLabel }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -85,6 +92,16 @@ const canSubmit = computed(() => {
   if (selectedTier.value !== initialTier.value) return true
   // Same tier is still valid when changing billing period (duration / pricing).
   return selectedTier.value !== 'Trial'
+})
+
+const actionHint = computed(() => {
+  if (selectedTier.value === initialTier.value && selectedTier.value === 'Trial') {
+    return 'Select a paid plan to continue'
+  }
+  if (selectedTier.value === initialTier.value) {
+    return `Renew ${selectedTier.value} · ${billingPeriod.value} billing`
+  }
+  return `Switch from ${initialTier.value} to ${selectedTier.value}`
 })
 
 const submit = async () => {
@@ -160,29 +177,59 @@ const submit = async () => {
 
 .actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
   flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+}
+
+.actions__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.actions__copy strong {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.actions__copy span {
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.actions__buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .btn-primary,
 .btn-secondary {
-  border-radius: var(--btn-radius, 8px);
+  border-radius: 8px;
   padding: 10px 18px;
   font-size: var(--type-base);
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s ease, background 0.15s ease;
+  transition: opacity 0.2s ease, background 0.15s ease, border-color 0.15s ease;
 }
 
 .btn-primary {
   border: none;
-  color: var(--app-btn-primary-fg, #fff);
-  background: var(--app-btn-primary-bg);
+  color: var(--app-btn-primary-fg, #08120e);
+  background: var(--app-btn-primary-bg, var(--dorian-viper-500, #2e9e6c));
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--app-btn-primary-hover);
+  background: var(--app-btn-primary-hover, var(--dorian-viper-700, #1f6e4a));
 }
 
 .btn-primary:disabled {
@@ -191,13 +238,14 @@ const submit = async () => {
 }
 
 .btn-secondary {
-  border: 0.5px solid var(--dorian-gold-500, #c9a24a);
+  border: 0.5px solid var(--app-border-strong);
   background: transparent;
-  color: var(--dorian-gold-500, #c9a24a);
+  color: var(--app-text);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--dorian-gold-dim, rgba(58, 46, 20, 0.12));
+  background: var(--app-surface-hover, var(--app-accent-soft));
+  border-color: var(--app-border-strong);
 }
 
 .btn-secondary:disabled {

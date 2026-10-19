@@ -654,6 +654,227 @@
             </div>
           </div>
         </section>
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>STOMP Flood</h5>
+            <div class="l4-yn" role="group" aria-label="Enable">
+                <button
+                  type="button"
+                  class="l4-yn__opt"
+                  :class="{ active: stompForm.enabled }"
+                  :aria-pressed="stompForm.enabled"
+                  @click="stompForm.enabled = true"
+                >Yes</button>
+                <button
+                  type="button"
+                  class="l4-yn__opt l4-yn__opt--no"
+                  :class="{ active: !stompForm.enabled }"
+                  :aria-pressed="!stompForm.enabled"
+                  @click="stompForm.enabled = false"
+                >No</button>
+              </div>
+          </div>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="stomp-threshold">
+                      Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Packets per second of TCP PSH+ACK to trigger STOMP flood defense."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="stomp-threshold"
+                      v-model="stompForm.threshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!stompForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="stomp-burst-pkt">
+                      Burst Pkt
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="stomp-burst-pkt"
+                      v-model="stompForm.burstPkt"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!stompForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="stomp-burst-counter">
+                      Burst Counter
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="stomp-burst-counter"
+                      v-model="stompForm.burstCounter"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!stompForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="stomp-fixed-duration">
+                      Fixed Duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="stomp-fixed-duration"
+                      v-model="stompForm.fixedDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!stompForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="stomp-fixed-threshold">
+                      Fixed Threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="stomp-fixed-threshold"
+                      v-model="stompForm.fixedThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!stompForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="l4-config-section">
+          <div class="l4-config-title">
+            <h5>SOCKET</h5>
+            <div class="l4-yn" role="group" aria-label="Enable">
+                <button
+                  type="button"
+                  class="l4-yn__opt"
+                  :class="{ active: socketForm.enabled }"
+                  :aria-pressed="socketForm.enabled"
+                  @click="socketForm.enabled = true"
+                >Yes</button>
+                <button
+                  type="button"
+                  class="l4-yn__opt l4-yn__opt--no"
+                  :class="{ active: !socketForm.enabled }"
+                  :aria-pressed="!socketForm.enabled"
+                  @click="socketForm.enabled = false"
+                >No</button>
+              </div>
+          </div>
+          <p class="l4-config-note">
+            NULL scans and XMAS scans are dropped immediately. A FIN without acknowledgement, from a flow that is not established, blocks above the FIN threshold. Every other unusual flag combination blocks above the fixed threshold in the same window.
+          </p>
+          <div class="l4-form">
+            <div class="l4-form-sections">
+              <div class="l4-section">
+                <div class="l4-form-grid">
+                  <div class="l4-field">
+                    <label for="socket-fin-threshold">
+                      FIN threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="FIN without acknowledgement, on a flow that is not established, blocks above this count."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="socket-fin-threshold"
+                      v-model="socketForm.finThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!socketForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="socket-fixed-threshold">
+                      Fixed threshold
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Other unusual flag combinations block above this count in the fixed window."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="socket-fixed-threshold"
+                      v-model="socketForm.fixedThreshold"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!socketForm.enabled"
+                    />
+                  </div>
+                  <div class="l4-field">
+                    <label for="socket-fixed-duration">
+                      Fixed duration
+                      <button
+                        type="button"
+                        class="tooltip-btn"
+                        title="Seconds in the window used for unusual flag combinations."
+                      >
+                        i
+                      </button>
+                    </label>
+                    <input
+                      id="socket-fixed-duration"
+                      v-model="socketForm.fixedDuration"
+                      type="text"
+                      class="l4-input"
+                      :disabled="!socketForm.enabled"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
         <div class="l4-config-row">
         <section class="l4-config-section">
           <div class="l4-config-title">
@@ -1230,6 +1451,21 @@ const rstForm = ref({
   fixedDuration: "15s",
   blockDuration: "3600s"
 });
+const stompForm = ref({
+  enabled: true,
+  threshold: "5k pps",
+  burstPkt: "90",
+  burstCounter: "5",
+  fixedThreshold: "4k pps",
+  fixedDuration: "15s",
+  blockDuration: "3600s"
+});
+const socketForm = ref({
+  enabled: true,
+  finThreshold: "100",
+  fixedThreshold: "500",
+  fixedDuration: "15"
+});
 const icmpForm = ref({
   enabled: true,
   threshold: "3k pps",
@@ -1598,6 +1834,23 @@ const applyConfig = (config) => {
   rstForm.value.fixedDuration = String(config.rstFixedCheckDuration ?? "");
   rstForm.value.blockDuration = String(config.rstProtectionDuration ?? "");
 
+  stompForm.value.enabled = Boolean(config.stompValid);
+  stompForm.value.threshold = String(config.stompThreshold ?? "");
+  stompForm.value.burstPkt = String(config.stompBurstPkt ?? "");
+  stompForm.value.burstCounter = String(config.stompBurstCountPerSec ?? "");
+  stompForm.value.fixedThreshold = String(config.stompFixedThreshold ?? "");
+  stompForm.value.fixedDuration = String(config.stompFixedCheckDuration ?? "");
+  stompForm.value.blockDuration = String(
+    Number(config.stompProtectionDuration) > 0
+      ? config.stompProtectionDuration
+      : (config.rstProtectionDuration || 120)
+  );
+
+  socketForm.value.enabled = Boolean(config.socketValid);
+  socketForm.value.finThreshold = String(config.socketFinThreshold ?? "");
+  socketForm.value.fixedThreshold = String(config.socketFixedThreshold ?? "");
+  socketForm.value.fixedDuration = String(config.socketFixedCheckDuration ?? "");
+
   icmpForm.value.enabled = Boolean(config.icmpValid);
   icmpForm.value.threshold = String(config.icmpThreshold ?? "");
   icmpForm.value.burstPkt = String(config.icmpBurstPkt ?? "");
@@ -1699,6 +1952,18 @@ const buildPayload = () => ({
   rstFixedThreshold: parseNumber(rstForm.value.fixedThreshold, 0),
   rstFixedCheckDuration: parseNumber(rstForm.value.fixedDuration, 0),
   rstProtectionDuration: parseNumber(rstForm.value.blockDuration, 0),
+  stompValid: Boolean(stompForm.value.enabled),
+  stompThreshold: parseNumber(stompForm.value.threshold, 0),
+  stompBurstPkt: parseNumber(stompForm.value.burstPkt, 0),
+  stompBurstCountPerSec: parseNumber(stompForm.value.burstCounter, 0),
+  stompFixedThreshold: parseNumber(stompForm.value.fixedThreshold, 0),
+  stompFixedCheckDuration: parseNumber(stompForm.value.fixedDuration, 0),
+  stompProtectionDuration:
+    parseNumber(stompForm.value.blockDuration, 0) || parseNumber(rstForm.value.blockDuration, 120),
+  socketValid: Boolean(socketForm.value.enabled),
+  socketFinThreshold: parseNumber(socketForm.value.finThreshold, 0),
+  socketFixedThreshold: parseNumber(socketForm.value.fixedThreshold, 0),
+  socketFixedCheckDuration: parseNumber(socketForm.value.fixedDuration, 0),
   icmpValid: Boolean(icmpForm.value.enabled),
   icmpThreshold: parseNumber(icmpForm.value.threshold, 0),
   icmpBurstPkt: parseNumber(icmpForm.value.burstPkt, 0),
@@ -1993,6 +2258,13 @@ watch(
   font-size: var(--type-base);
   font-weight: 600;
   color: var(--app-heading);
+}
+
+.l4-config-note {
+  margin: -4px 0 12px;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .l4-settings-header {

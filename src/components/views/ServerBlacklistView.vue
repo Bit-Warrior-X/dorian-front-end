@@ -56,7 +56,7 @@
 
     <div class="content-card table-card">
       <div class="card-title">
-        <h3>Blocked List Entries</h3>
+        <h3>Temporary blocks</h3>
         <span class="count-pill">{{ filteredEntries.length }} items</span>
       </div>
       <div class="table-wrap">
@@ -80,7 +80,7 @@
               <td>{{ entry.ipAddress }}</td>
               <td>{{ entry.url || '-' }}</td>
               <td>{{ entry.geolocation }}</td>
-              <td>{{ entry.triggerRule || 'manual' }}</td>
+              <td>{{ triggerLabel(entry) }}</td>
               <td>{{ formatTimestamp(entry.createdAt) }}</td>
               <td>{{ entry.ttl || 'Indefinite' }}</td>
               <td>{{ formatRemainingTime(entry) }}</td>
@@ -107,7 +107,7 @@
           </tbody>
         </table>
         <div v-if="!filteredEntries.length" class="empty-state">
-          No blocked list entries match the current filters.
+          No temporary blocks match the current filters.
         </div>
       </div>
     </div>
@@ -226,7 +226,7 @@ import {
 } from "@/api/serverBlacklist";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
-const BLACKLIST_TITLE = "Blocked List";
+const BLACKLIST_TITLE = "Temporary blocks";
 const serverFilter = ref("");
 const siteFilter = ref("");
 const ruleFilter = ref("");
@@ -300,6 +300,11 @@ const entryMatchesSite = (entry, site) => {
   return url.includes(domain);
 };
 
+const triggerLabel = (entry) => {
+  if (entry?.triggerRule === "l4ddos") return entry.reason || "L4 DDOS";
+  return entry?.triggerRule || "manual";
+};
+
 const siteLabel = (entry) => {
   if (Number(entry?.siteId) > 0) {
     const site = sites.value.find((item) => String(item.id) === String(entry.siteId));
@@ -323,7 +328,7 @@ const filteredEntries = computed(() => {
       entry.reason.toLowerCase().includes(query) ||
       String(entry.url || "").toLowerCase().includes(query) ||
       entry.server?.toLowerCase().includes(query);
-    return matchesServer && matchesSite && matchesRule && matchesQuery;
+    return matchesServer && matchesSite && matchesRule && matchesQuery && !isBlockExpired(entry);
   });
 });
 
@@ -342,6 +347,8 @@ const formatTimestamp = (value) => {
   const seconds = pad(parsed.getSeconds());
   return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
 };
+
+const isBlockExpired = (entry) => formatRemainingTime(entry) === "Expired";
 
 const formatRemainingTime = (entry) => {
   if (!entry || !entry.ttl || !entry.createdAt) return "-";
@@ -406,7 +413,7 @@ const loadBlacklist = async () => {
       ...entry,
       siteId: Number(entry.siteId) || 0,
       ipAddress: entry.ipAddress || "",
-      geolocation: entry.geolocation || "Manual",
+      geolocation: entry.geolocation || (entry.triggerRule === "l4ddos" ? "-" : "Manual"),
       reason: entry.reason || "",
       url: entry.url || "",
       server: entry.server || "",
@@ -414,7 +421,7 @@ const loadBlacklist = async () => {
       triggerRule: entry.triggerRule || ""
     }));
   } catch (error) {
-    notifyError(BLACKLIST_TITLE, error?.message || "The blocked list entries could not be loaded.");
+    notifyError(BLACKLIST_TITLE, error?.message || "The temporary blocks could not be loaded.");
   }
 };
 
@@ -508,17 +515,17 @@ const removeEntry = (entryId) => {
 };
 
 const confirmTitle = computed(() => {
-  if (confirmAction.value === "flush") return "Flush all blocked list entries";
-  if (confirmAction.value === "remove") return "Remove blocked list entry";
+  if (confirmAction.value === "flush") return "Flush all temporary blocks";
+  if (confirmAction.value === "remove") return "Remove temporary block";
   return "Confirm action";
 });
 
 const confirmMessage = computed(() => {
   if (confirmAction.value === "flush") {
-    return "Are you sure you want to flush all blocked list entries?";
+    return "Are you sure you want to flush all temporary blocks?";
   }
   if (confirmAction.value === "remove") {
-    return "Are you sure you want to remove this blocked list entry?";
+    return "Are you sure you want to remove this temporary block?";
   }
   return "Are you sure you want to continue?";
 });
@@ -533,10 +540,10 @@ const handleConfirmDialog = async () => {
   try {
     if (confirmAction.value === "flush") {
       await flushBlacklistEntries(serverFilter.value ? Number(serverFilter.value) : undefined);
-      notifySuccess(BLACKLIST_TITLE, "All blocked list entries are successfully flushed.");
+      notifySuccess(BLACKLIST_TITLE, "All temporary blocks are successfully flushed.");
     } else if (confirmAction.value === "remove") {
       await deleteBlacklistEntry(confirmTargetId.value);
-      notifySuccess(BLACKLIST_TITLE, "The blocked list entry is successfully deleted.");
+      notifySuccess(BLACKLIST_TITLE, "The temporary block is successfully removed.");
     }
     await loadBlacklist();
   } catch (error) {

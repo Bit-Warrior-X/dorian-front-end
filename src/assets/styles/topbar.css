@@ -81,3 +81,304 @@
 .app-topbar-menu-item--danger {
   color: #f0555a;
 }
+
+/* Alarm bell — queues important alerts (attacks) across every topbar. */
+.alarm-bell {
+  position: relative;
+}
+
+.alarm-bell__btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 0.5px solid var(--app-border-strong);
+  background: var(--app-surface);
+  color: var(--app-text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.alarm-bell__btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.alarm-bell__btn:hover,
+.alarm-bell__btn.open {
+  background: var(--app-surface-elevated);
+  color: var(--app-text-secondary);
+}
+
+.alarm-bell__btn.unread {
+  color: var(--dorian-danger, #e15241);
+}
+
+.alarm-bell__btn.live:not(.unread) {
+  color: var(--dorian-warn, #e0a83f);
+}
+
+.alarm-bell__btn.unread svg {
+  animation: alarm-bell-ring 1.6s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+.alarm-bell__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--dorian-danger, #e15241);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 0 0 1.5px var(--app-surface, var(--app-bg));
+}
+
+.alarm-bell__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(440px, 70vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--app-surface-elevated, var(--app-surface-solid));
+  border: 0.5px solid var(--app-border);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px var(--app-shadow, rgba(0, 0, 0, 0.35));
+  z-index: 40;
+  overflow: hidden;
+  color: var(--app-text);
+}
+
+.alarm-bell__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  border-bottom: 0.5px solid var(--app-border);
+  background: var(--app-surface-elevated, var(--app-surface-solid));
+}
+
+.alarm-bell__head h3 {
+  margin: 0;
+  font-size: var(--type-base, 0.8125rem);
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.alarm-bell__head p {
+  margin: 2px 0 0;
+  font-size: var(--type-caption, 0.72rem);
+  color: var(--app-text-muted);
+}
+
+.alarm-bell__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.alarm-bell__text-btn {
+  border: 0;
+  background: transparent;
+  color: var(--app-accent);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
+.alarm-bell__text-btn:hover {
+  color: var(--app-accent-hover, var(--app-accent));
+  text-decoration: underline;
+}
+
+.alarm-bell__empty {
+  margin: 0;
+  padding: 28px 16px;
+  text-align: center;
+  font-size: var(--type-caption, 0.72rem);
+  color: var(--app-text-muted);
+  line-height: 1.45;
+}
+
+.alarm-bell__list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  background: var(--app-surface-elevated, var(--app-surface-solid));
+}
+
+.alarm-bell__item {
+  --alarm-accent: var(--dorian-warn, #e0a83f);
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+  position: relative;
+  overflow: hidden;
+}
+
+.alarm-bell__item + .alarm-bell__item {
+  margin-top: 6px;
+}
+
+.alarm-bell__item.critical,
+.alarm-bell__item.live {
+  --alarm-accent: var(--dorian-danger, #e15241);
+}
+
+.alarm-bell__item.unread {
+  border-color: color-mix(in srgb, var(--alarm-accent) 35%, var(--app-border));
+  background: color-mix(in srgb, var(--alarm-accent) 8%, var(--app-surface));
+}
+
+.alarm-bell__accent {
+  width: 3px;
+  background: var(--alarm-accent);
+  opacity: 0.55;
+}
+
+.alarm-bell__item.unread .alarm-bell__accent,
+.alarm-bell__item.live .alarm-bell__accent {
+  opacity: 1;
+}
+
+.alarm-bell__item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 8px 10px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.alarm-bell__item-main:hover {
+  background: var(--app-surface-hover, var(--app-accent-soft));
+}
+
+.alarm-bell__item-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--alarm-accent);
+}
+
+.alarm-bell__live-tag,
+.alarm-bell__ended-tag {
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.alarm-bell__live-tag {
+  color: var(--dorian-danger, #e15241);
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 14%, transparent);
+}
+
+.alarm-bell__ended-tag {
+  color: var(--app-text-muted);
+  background: var(--app-surface-muted);
+  letter-spacing: 0.04em;
+}
+
+.alarm-bell__item-main strong {
+  font-size: var(--type-base, 0.8125rem);
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.3;
+}
+
+.alarm-bell__item-body {
+  font-size: var(--type-caption, 0.72rem);
+  font-weight: 500;
+  color: var(--app-text-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.alarm-bell__item-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--app-text-muted);
+  margin-top: 1px;
+}
+
+.alarm-bell__dismiss {
+  align-self: start;
+  width: 28px;
+  height: 28px;
+  margin: 6px 6px 0 0;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.alarm-bell__dismiss svg {
+  width: 12px;
+  height: 12px;
+}
+
+.alarm-bell__dismiss:hover {
+  opacity: 1;
+  background: var(--app-surface-hover, var(--app-surface-muted));
+  color: var(--app-heading);
+}
+
+@keyframes alarm-bell-ring {
+  0%, 100% { transform: rotate(0); }
+  12% { transform: rotate(10deg); }
+  24% { transform: rotate(-8deg); }
+  36% { transform: rotate(6deg); }
+  48% { transform: rotate(-3deg); }
+  60% { transform: rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alarm-bell__btn.unread svg {
+    animation: none;
+  }
+}

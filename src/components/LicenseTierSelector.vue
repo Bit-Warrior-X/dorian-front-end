@@ -7,13 +7,18 @@
     <button
       type="button"
       class="trial-banner"
-      :class="{ selected: modelValue === 'Trial', disabled }"
+      :class="{
+        selected: modelValue === 'Trial',
+        disabled,
+        current: currentTier === 'Trial',
+      }"
       :disabled="disabled"
       :aria-pressed="modelValue === 'Trial'"
       @click="select('Trial')"
     >
       <div class="trial-banner__main">
         <span class="trial-banner__badge">Free evaluation</span>
+        <span v-if="currentTier === 'Trial'" class="tier-current">Current</span>
         <div class="trial-banner__copy">
           <strong>Trial</strong>
           <span>3 days · full L4 + L7 preview · no credit card</span>
@@ -86,7 +91,11 @@
           class="tier-card"
           :class="[
             `tier-card--${plan.accent}`,
-            { selected: modelValue === plan.id, disabled },
+            {
+              selected: modelValue === plan.id,
+              disabled,
+              current: currentTier === plan.id,
+            },
           ]"
           :disabled="disabled"
           :aria-pressed="modelValue === plan.id"
@@ -98,7 +107,8 @@
             <div class="tier-header-text">
               <span class="tier-title-row">
                 <span class="tier-title">{{ plan.title }}</span>
-                <span v-if="plan.badge" class="tier-badge">{{ plan.badge }}</span>
+                <span v-if="currentTier === plan.id" class="tier-current">Current</span>
+                <span v-else-if="plan.badge" class="tier-badge">{{ plan.badge }}</span>
               </span>
               <span class="tier-tagline">{{ plan.tagline }}</span>
             </div>
@@ -204,6 +214,11 @@ const props = defineProps({
   compact: {
     type: Boolean,
     default: false,
+  },
+  /** Active license on the selected edge — shows a Current badge. */
+  currentTier: {
+    type: String,
+    default: '',
   },
 })
 
@@ -561,6 +576,33 @@ const featuresForPlan = (plan) => {
   border: 0.5px solid rgba(201, 162, 74, 0.35);
   padding: 3px 8px;
   border-radius: 4px;
+}
+
+.tier-current {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dorian-viper-700, #1f6e4a);
+  background: color-mix(in srgb, var(--dorian-viper-400, var(--app-accent)) 16%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-viper-400, var(--app-accent)) 35%, var(--app-border));
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+:global([data-theme='dark']) .tier-current {
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.tier-card.current:not(.selected) {
+  border-color: color-mix(in srgb, var(--dorian-viper-400, var(--app-accent)) 40%, var(--app-border));
+}
+
+.trial-banner.current:not(.selected) {
+  border-color: color-mix(in srgb, #6b9fd4 45%, var(--app-border));
 }
 
 .tier-title {

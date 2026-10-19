@@ -87,7 +87,7 @@
               <td>XDP</td>
               <td>
                 Sparta L4: protection mode, sensitivity, NIC, attach mode, block duration; TCP
-                connection limit; SYN / ACK / RST / ICMP / UDP / GRE floods; geo IP check
+                connection limit; SYN / ACK / RST / STOMP (TCP PSH+ACK) floods; SOCKET scans (NULL, XMAS, FIN); ICMP / UDP / GRE floods; geo IP check
               </td>
             </tr>
             <tr>
@@ -103,7 +103,7 @@
       </div>
       <p class="docs-lead">
         Fleet-wide blocks also live under
-        <RouterLink :to="{ name: 'server-blacklist' }">IP blocklist</RouterLink>.
+        <RouterLink :to="{ name: 'server-blacklist' }">Temporary blocks</RouterLink>.
       </p>
     </div>
   </div>

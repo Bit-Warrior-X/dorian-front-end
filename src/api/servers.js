@@ -185,6 +185,15 @@ export const deleteServer = async (serverId) =>
     method: 'DELETE',
   })
 
+/** Newest Sparta counter lines from the edge journal (GET /servers/:id/sparta-log). */
+export const fetchSpartaLog = async (serverId) => {
+  const opts = {}
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(8_000)
+  }
+  return apiRequest(`/servers/${serverId}/sparta-log`, opts)
+}
+
 /** SSH probe for remote host CPU, memory, disk, network, and thermal state (GET /servers/:id/host-metrics). */
 export const fetchServerHostMetrics = async (serverId) => {
   const opts = {}

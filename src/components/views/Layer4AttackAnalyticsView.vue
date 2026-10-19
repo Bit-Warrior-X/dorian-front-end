@@ -182,7 +182,7 @@
                   <td>{{ formatDateTime(row.timestamp) }}</td>
                   <td class="num">{{ row.sourceIp }}</td>
                   <td>
-                    <span :class="['badge', attackBadgeClass(row.attackType)]">{{ row.attackType }}</span>
+                    <span :class="['badge', attackBadgeClass(row.attackType)]">{{ attackTypeLabel(row.attackType) }}</span>
                   </td>
                 </tr>
                 <tr v-if="!recentAttackRows.length">
@@ -626,8 +626,23 @@ const formatDateInput = (value) => {
   return parsed.toISOString()
 }
 
+const attackTypeLabel = (value) => {
+  const upper = String(value || '').toUpperCase()
+  if (upper.includes('SOCKET') || upper.includes('XMAS') || upper.includes('NULL') || upper.includes('FIN')) return 'SOCKET'
+  if (upper.includes('STOMP') || upper.includes('PSH')) return 'STOMP'
+  if (upper.includes('SYN')) return 'TCP SYN'
+  if (upper.includes('RST')) return 'TCP RST'
+  if (upper.includes('ACK')) return 'TCP ACK'
+  if (upper.includes('UDP')) return 'UDP'
+  if (upper.includes('ICMP')) return 'ICMP'
+  if (upper.includes('GRE')) return 'GRE'
+  return value || 'L4'
+}
+
 const attackBadgeClass = (value) => {
   const normalized = String(value || '').toLowerCase()
+  if (normalized.includes('socket') || normalized.includes('xmas') || normalized.includes('null') || normalized.includes('fin')) return 'attack-socket'
+  if (normalized.includes('stomp') || normalized.includes('psh')) return 'attack-stomp'
   if (normalized.includes('syn')) return 'attack-syn'
   if (normalized.includes('udp')) return 'attack-udp'
   if (normalized.includes('icmp')) return 'attack-icmp'
@@ -1171,6 +1186,16 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+.attack-socket {
+  background: rgba(143, 163, 184, 0.16);
+  color: #8fa3b8;
+}
+
+.attack-stomp {
+  background: rgba(224, 122, 95, 0.16);
+  color: #e07a5f;
 }
 
 .attack-syn {
