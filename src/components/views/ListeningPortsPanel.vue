@@ -1,161 +1,139 @@
 <template>
-  <div class="edge-subpanel">
-    <header class="edge-subpanel__intro">
-      <div>
-        <p class="edge-subpanel__kicker">Traffic</p>
-        <h4 class="info-hint-heading">
-          <span>Listening ports</span>
-          <InfoHint
-            text="Configure which ports accept client traffic on this edge."
-            aria-label="Listening ports help"
-          />
-        </h4>
+  <div class="lpp">
+    <header class="cfg-head">
+      <div class="cfg-head__copy">
+        <span class="cfg-head__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2-5 4 10 2-5h4" /></svg>
+        </span>
+        <div>
+          <p class="cfg-head__kicker">Traffic</p>
+          <h4>Listening ports</h4>
+          <p class="cfg-head__desc">Ports this edge accepts client traffic on. Ports already used by the host are listed below and can't be reused.</p>
+        </div>
       </div>
-      <div class="edge-subpanel__actions">
-        <button class="primary-btn" type="button" @click="openAddDialog">Add Port</button>
+      <div class="cfg-head__actions">
+        <button class="lpp__icon-btn" :class="{ spinning: isRefreshing }" type="button" aria-label="Refresh ports" title="Refresh" @click="refreshPorts">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" /></svg>
+        </button>
+        <button class="primary-btn lpp__primary" type="button" @click="openAddDialog">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10" /></svg>
+          Add port
+        </button>
       </div>
     </header>
 
-    <div class="edge-subpanel__card">
-      <div class="edge-subpanel__card-head">
-        <h5>Port list</h5>
-        <button class="ghost-btn" type="button" @click="refreshPorts">Refresh</button>
-      </div>
-      <div class="table-wrap">
-        <table class="ports-table">
+    <section class="lpp__stats" aria-label="Summary">
+      <div class="lpp__stat"><span>Configured</span><strong class="num">{{ listeningPorts.length }}</strong></div>
+      <div class="lpp__stat"><span>Active</span><strong class="num ok">{{ activeCount }}</strong></div>
+      <div class="lpp__stat"><span>Host bound</span><strong class="num">{{ systemBoundPorts.length }}</strong></div>
+    </section>
+
+    <section class="lpp__card">
+      <header class="lpp__card-head">
+        <h5>Client ports <span class="lpp__badge num">{{ listeningPorts.length }}</span></h5>
+      </header>
+      <div v-if="formattedPorts.length" class="lpp__table-wrap">
+        <table class="lpp__table">
           <thead>
             <tr>
-              <th>Status</th>
               <th>Port</th>
               <th>Protocol</th>
+              <th>Status</th>
               <th>Description</th>
-              <th>Action</th>
+              <th class="lpp__th-action"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="entry in formattedPorts" :key="entry.id">
+              <td><span class="lpp__port num">{{ entry.port }}</span></td>
+              <td><span class="lpp__proto" :class="`lpp__proto--${String(entry.protocol || 'http').toLowerCase()}`">{{ entry.protocol }}</span></td>
               <td>
-                <span
-                  class="status-dot"
-                  :class="entry.statusClass"
-                  :aria-label="entry.statusLabel"
-                  role="img"
-                ></span>
+                <span class="lpp__status" :class="entry.statusClass"><i aria-hidden="true" />{{ entry.statusLabel }}</span>
               </td>
-              <td class="num">{{ entry.port }}</td>
-              <td>{{ entry.protocol }}</td>
-              <td class="description-cell">
-                <span class="description-text">{{ entry.description || "—" }}</span>
-              </td>
-              <td>
-                <button
-                  class="icon-danger-btn"
-                  type="button"
-                  aria-label="Remove"
-                  title="Remove"
-                  @click="openRemoveConfirm(entry)"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6l-1 14H6L5 6"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
-                  </svg>
+              <td class="lpp__desc">{{ entry.description || "—" }}</td>
+              <td class="lpp__td-action">
+                <button class="lpp__remove" type="button" :aria-label="`Remove port ${entry.port}`" title="Remove" @click="openRemoveConfirm(entry)">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" /></svg>
                 </button>
               </td>
             </tr>
           </tbody>
         </table>
-        <div v-if="portsLoading" class="empty-state">Loading listening ports...</div>
-        <div v-else-if="portsError" class="empty-state bound-error">{{ portsError }}</div>
-        <div v-else-if="!listeningPorts.length" class="empty-state">
-          No listening ports configured yet.
-        </div>
       </div>
-    </div>
+      <div v-else class="lpp__empty" :class="{ error: portsError }">
+        <strong>{{ portsLoading ? "Loading listening ports…" : portsError ? "Couldn't load ports" : "No client ports yet" }}</strong>
+        <p v-if="!portsLoading">{{ portsError || "Add 443 or 80 so this edge can serve traffic." }}</p>
+        <button v-if="!portsLoading && !portsError" class="primary-btn lpp__primary" type="button" @click="openAddDialog">Add port</button>
+      </div>
+    </section>
 
-    <div class="edge-subpanel__card">
-      <div class="edge-subpanel__card-head">
-        <h5>System bound ports</h5>
-        <button class="ghost-btn" type="button" @click="refreshPorts">Refresh</button>
-      </div>
-      <p class="helper-text system-bound-lead">
-        TCP ports currently listening on this edge. These ports cannot be added again.
-      </p>
-      <div class="table-wrap">
-        <table class="ports-table">
-          <thead>
-            <tr>
-              <th>Port</th>
-              <th>Bind Address</th>
-              <th>Process</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="entry in systemBoundPorts" :key="`${entry.port}-${entry.address}`">
-              <td class="num">{{ entry.port }}</td>
-              <td class="num">{{ entry.address || "—" }}</td>
-              <td class="description-cell">{{ entry.process || "—" }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="boundPortsLoading" class="empty-state">Loading system ports...</div>
-        <div v-else-if="boundPortsError" class="empty-state bound-error">{{ boundPortsError }}</div>
-        <div v-else-if="!systemBoundPorts.length" class="empty-state">
-          No bound ports detected on the system.
+    <section class="lpp__card">
+      <header class="lpp__card-head">
+        <h5>Host bound ports <span class="lpp__badge num">{{ systemBoundPorts.length }}</span></h5>
+        <p>TCP ports already listening on the host.</p>
+      </header>
+      <div v-if="systemBoundPorts.length" class="lpp__chips">
+        <div v-for="entry in systemBoundPorts" :key="`${entry.port}-${entry.address}`" class="lpp__chip">
+          <strong class="num">{{ entry.port }}</strong>
+          <span class="lpp__chip-copy">
+            <span>{{ entry.process || "unknown" }}</span>
+            <small class="num">{{ entry.address || "—" }}</small>
+          </span>
         </div>
       </div>
-    </div>
+      <div v-else class="lpp__empty lpp__empty--compact" :class="{ error: boundPortsError }">
+        <strong>{{ boundPortsLoading ? "Scanning host ports…" : boundPortsError ? "Couldn't scan the host" : "No bound ports detected" }}</strong>
+        <p v-if="boundPortsError">{{ boundPortsError }}</p>
+      </div>
+    </section>
 
-    <div v-if="isAddDialogOpen" class="dialog-backdrop" @click="closeAddDialog">
-      <div class="dialog-card" @click.stop>
-        <div class="dialog-header">
-          <h4>Add Listening Port</h4>
-          <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeAddDialog">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <p class="helper-text">Enter the port and protocol clients will connect to on this edge.</p>
-        <div class="form-grid">
-          <div class="form-field">
-            <label for="listening-port">Port</label>
-            <input
-              id="listening-port"
-              v-model="newPort"
-              type="number"
-              min="1"
-              max="65535"
-              placeholder="443"
-            />
-            <p v-if="portConflictMessage" class="field-error">{{ portConflictMessage }}</p>
+    <Teleport to="body">
+      <div v-if="isAddDialogOpen" class="lpp-dialog" @click.self="closeAddDialog">
+        <form class="lpp-dialog__card" role="dialog" aria-modal="true" aria-label="Add listening port" @submit.prevent="addPort">
+          <header class="lpp-dialog__head">
+            <div>
+              <h4>Add listening port</h4>
+              <p>Clients connect to this port on the edge.</p>
+            </div>
+            <button class="lpp__icon-btn" type="button" aria-label="Close dialog" @click="closeAddDialog">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+            </button>
+          </header>
+          <div class="lpp-dialog__quick" role="group" aria-label="Common ports">
+            <button
+              v-for="option in quickPorts"
+              :key="option.port"
+              type="button"
+              :class="{ active: String(newPort) === option.port && newProtocol === option.protocol }"
+              @click="pickQuickPort(option)"
+            >
+              <strong class="num">{{ option.port }}</strong>{{ option.protocol }}
+            </button>
           </div>
-          <div class="form-field">
-            <label for="listening-protocol">Protocol</label>
-            <select id="listening-protocol" v-model="newProtocol">
-              <option value="HTTP">HTTP</option>
-              <option value="HTTPS">HTTPS</option>
-            </select>
+          <div class="lpp-dialog__grid">
+            <label class="lpp-dialog__field">
+              <span>Port</span>
+              <input v-model="newPort" class="num" type="number" min="1" max="65535" placeholder="443" :class="{ invalid: portConflictMessage }" />
+            </label>
+            <div class="lpp-dialog__field">
+              <span id="lpp-proto-label">Protocol</span>
+              <div class="lpp-dialog__segment" role="radiogroup" aria-labelledby="lpp-proto-label">
+                <button v-for="proto in ['HTTPS', 'HTTP']" :key="proto" type="button" role="radio" :aria-checked="newProtocol === proto" :class="{ active: newProtocol === proto }" @click="newProtocol = proto">{{ proto }}</button>
+              </div>
+            </div>
+            <label class="lpp-dialog__field lpp-dialog__field--wide">
+              <span>Description <small>optional</small></span>
+              <input v-model="newDescription" type="text" placeholder="Public HTTPS entry" />
+            </label>
           </div>
-          <div class="form-field form-field--wide">
-            <label for="listening-description">Description</label>
-            <input
-              id="listening-description"
-              v-model="newDescription"
-              type="text"
-              placeholder="Public HTTPS entry"
-            />
-          </div>
-        </div>
-        <div class="dialog-actions">
-          <button class="ghost-btn" type="button" @click="closeAddDialog">Cancel</button>
-          <button class="primary-btn" type="button" :disabled="Boolean(portConflictMessage)" @click="addPort">Add Port</button>
-        </div>
+          <p v-if="portConflictMessage" class="lpp-dialog__error">{{ portConflictMessage }}</p>
+          <footer class="lpp-dialog__foot">
+            <button class="secondary-btn" type="button" @click="closeAddDialog">Cancel</button>
+            <button class="primary-btn" type="submit" :disabled="Boolean(portConflictMessage)">Add port</button>
+          </footer>
+        </form>
       </div>
-    </div>
+    </Teleport>
 
     <ConfirmDialog
       v-model="isConfirmDialogOpen"
@@ -163,6 +141,7 @@
       :message="confirmMessage"
       confirm-text="Remove"
       cancel-text="Cancel"
+      danger
       @confirm="handleConfirmRemove"
       @cancel="clearConfirm"
     />
@@ -172,7 +151,6 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
-import InfoHint from "../InfoHint.vue";
 import {
   fetchListeningPorts,
   fetchBoundListeningPorts,
@@ -247,6 +225,22 @@ const portConflictMessage = computed(() => {
   }
   return "";
 });
+
+const activeCount = computed(() => listeningPorts.value.filter((entry) => entry.status === "ENABLE").length);
+
+const quickPorts = [
+  { port: "443", protocol: "HTTPS" },
+  { port: "80", protocol: "HTTP" },
+  { port: "8443", protocol: "HTTPS" },
+  { port: "8080", protocol: "HTTP" }
+];
+
+const pickQuickPort = (option) => {
+  newPort.value = option.port;
+  newProtocol.value = option.protocol;
+};
+
+const isRefreshing = computed(() => portsLoading.value || boundPortsLoading.value);
 
 const openAddDialog = () => {
   isAddDialogOpen.value = true;
@@ -381,26 +375,39 @@ watch(
 </script>
 
 <style scoped>
-
-.edge-subpanel {
-  --cfg-radius: 8px;
+.lpp {
+  --lpp-tone: var(--dorian-l4, #6b9fd4);
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: 100%;
 }
 
-.edge-subpanel__intro {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  padding-bottom: 2px;
+.num {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
 }
 
-.edge-subpanel__kicker {
-  margin: 0 0 3px;
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.cfg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cfg-head__copy { display: flex; gap: 12px; min-width: 0; }
+
+.cfg-head__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--lpp-tone);
+  background: color-mix(in srgb, var(--lpp-tone) 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--lpp-tone) 30%, transparent);
+}
+
+.cfg-head__icon svg { width: 18px; height: 18px; }
+
+.cfg-head__kicker {
+  margin: 0 0 2px;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   font-size: 10px;
   font-weight: 650;
@@ -409,259 +416,324 @@ watch(
   color: var(--dorian-viper-400, var(--app-accent));
 }
 
-.edge-subpanel__intro h4 {
-  margin: 0 0 4px;
-  font-size: 1.1rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--app-heading);
-}
+.cfg-head h4 { margin: 0; font-size: 1.1rem; font-weight: 650; letter-spacing: -0.02em; color: var(--app-heading); }
+.cfg-head__desc { margin: 3px 0 0; max-width: 44rem; font-size: 12.5px; line-height: 1.45; color: var(--app-text-muted); }
+.cfg-head__actions { display: flex; align-items: center; gap: 8px; }
 
-.edge-subpanel__intro p:not(.edge-subpanel__kicker) {
-  margin: 0;
-  font-size: 13px;
+.lpp__primary { display: inline-flex; align-items: center; gap: 6px; }
+.lpp__primary svg { width: 12px; height: 12px; }
+
+.lpp__icon-btn {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border-strong);
+  background: transparent;
   color: var(--app-text-muted);
-  line-height: 1.45;
-  max-width: 44rem;
+  cursor: pointer;
 }
 
-.edge-subpanel__actions {
+.lpp__icon-btn:hover { color: var(--app-heading); background: var(--app-surface-muted); }
+.lpp__icon-btn svg { width: 14px; height: 14px; }
+.lpp__icon-btn.spinning svg { animation: lpp-spin 0.9s linear infinite; }
+
+.lpp__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+
+.lpp__stat {
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+}
+
+.lpp__stat span {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.lpp__stat strong { display: block; margin-top: 4px; font-size: 18px; font-weight: 650; color: var(--app-heading); }
+.lpp__stat strong.ok { color: var(--dorian-viper-400, #3fbd85); }
+
+.lpp__card {
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+  overflow: hidden;
+}
+
+.lpp__card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--app-border);
+}
+
+.lpp__card-head h5 {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-}
-
-.num {
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-variant-numeric: tabular-nums;
-}
-
-
-.edge-subpanel__card {
-  border: 1px solid var(--app-border);
-  border-radius: var(--cfg-radius);
-  background: var(--app-surface-elevated, var(--app-surface));
-  padding: 12px;
-}
-
-.edge-subpanel__card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.edge-subpanel__card-head h5 {
   margin: 0;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 650;
   color: var(--app-heading);
 }
 
-.helper-text {
-  margin: 0 0 12px;
+.lpp__card-head p { margin: 0; font-size: 12px; color: var(--app-text-muted); }
+
+.lpp__badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
   color: var(--app-text-muted);
-  font-size: 12.5px;
-  line-height: 1.45;
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
 }
 
-.system-bound-lead {
-  margin: 0 0 10px;
+.lpp__table-wrap { overflow-x: auto; }
+.lpp__table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 13px; }
+
+.lpp__table th {
+  padding: 9px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  background: var(--app-surface);
+  border-bottom: 0.5px solid var(--app-border);
 }
 
-.bound-error {
-  color: #e15241;
+.lpp__table td { padding: 10px 14px; color: var(--app-text); border-bottom: 0.5px solid var(--app-border); }
+.lpp__table tbody tr { transition: background 0.12s ease; }
+.lpp__table tbody tr:hover { background: color-mix(in srgb, var(--app-surface) 70%, transparent); }
+.lpp__table tbody tr:last-child td { border-bottom: 0; }
+.lpp__th-action, .lpp__td-action { width: 48px; text-align: right !important; }
+
+.lpp__port {
+  display: inline-block;
+  min-width: 52px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-heading);
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-border-strong);
 }
 
-.field-error {
-  margin: 6px 0 0;
-  color: #e15241;
-  font-size: 12px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.form-field--wide {
-  grid-column: 1 / -1;
-}
-
-.form-field label {
+.lpp__proto {
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   font-size: 10.5px;
   font-weight: 650;
   letter-spacing: 0.04em;
+  color: var(--dorian-l4, #6b9fd4);
+  background: color-mix(in srgb, var(--dorian-l4, #6b9fd4) 13%, transparent);
+}
+
+.lpp__proto--https {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 13%, transparent);
+}
+
+.lpp__status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--app-text-muted); }
+.lpp__status i { width: 7px; height: 7px; border-radius: 50%; background: var(--app-border-strong); }
+.lpp__status.active { color: var(--app-text); }
+.lpp__status.active i { background: var(--dorian-viper-400, #3fbd85); box-shadow: 0 0 0 3px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 20%, transparent); }
+
+.lpp__desc { color: var(--app-text-muted) !important; font-size: 12.5px; }
+
+.lpp__remove {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.lpp__table tbody tr:hover .lpp__remove { opacity: 1; }
+.lpp__remove:hover { color: var(--dorian-danger, #e15241); background: color-mix(in srgb, var(--dorian-danger, #e15241) 12%, transparent); }
+.lpp__remove svg { width: 14px; height: 14px; }
+
+.lpp__chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.lpp__chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.lpp__chip strong {
+  min-width: 44px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--app-heading);
+  background: var(--app-surface-muted);
+}
+
+.lpp__chip-copy { display: flex; flex-direction: column; min-width: 0; }
+.lpp__chip-copy span,
+.lpp__chip-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lpp__chip-copy span { font-size: 12.5px; font-weight: 600; color: var(--app-text); }
+.lpp__chip-copy small { font-size: 10.5px; color: var(--app-text-muted); }
+
+.lpp__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 34px 20px;
+  text-align: center;
+}
+
+.lpp__empty--compact { padding: 22px 20px; }
+.lpp__empty strong { font-size: 13.5px; color: var(--app-heading); }
+.lpp__empty p { margin: 0 0 6px; font-size: 12.5px; color: var(--app-text-muted); }
+.lpp__empty.error strong { color: var(--dorian-danger, #e15241); }
+
+.lpp-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--app-overlay, rgba(0, 0, 0, 0.6));
+  backdrop-filter: blur(3px);
+}
+
+.lpp-dialog__card {
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 0.5px solid var(--app-border-strong);
+  background: var(--app-surface-solid, var(--app-surface));
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+}
+
+.lpp-dialog__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lpp-dialog__head h4 { margin: 0; font-size: 15px; font-weight: 650; color: var(--app-heading); }
+.lpp-dialog__head p { margin: 2px 0 0; font-size: 12px; color: var(--app-text-muted); }
+
+.lpp-dialog__quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+
+.lpp-dialog__quick button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.lpp-dialog__quick button strong { font-size: 14px; color: var(--app-heading); }
+
+.lpp-dialog__quick button.active {
+  border-color: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 50%, transparent);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 10%, transparent);
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.lpp-dialog__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.lpp-dialog__field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.lpp-dialog__field--wide { grid-column: 1 / -1; }
+
+.lpp-dialog__field > span {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--app-text-muted);
 }
 
-.form-field input,
-.form-field select {
-  border: 1px solid var(--app-input-border);
-  border-radius: 6px;
+.lpp-dialog__field small { text-transform: none; letter-spacing: 0; font-weight: 500; opacity: 0.8; }
+
+.lpp-dialog__field input {
   padding: 9px 11px;
-  font-size: 13px;
+  border-radius: 7px;
+  border: 1px solid var(--app-input-border);
+  background: var(--app-input-bg);
   color: var(--app-text);
+  font: inherit;
+  font-size: 13px;
   outline: none;
+}
+
+.lpp-dialog__field input:focus { border-color: var(--app-accent); box-shadow: 0 0 0 2px var(--app-accent-soft); }
+.lpp-dialog__field input.invalid { border-color: var(--dorian-danger, #e15241); }
+
+.lpp-dialog__segment {
+  display: flex;
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--app-input-border);
   background: var(--app-input-bg);
 }
 
-.form-field input:focus,
-.form-field select:focus {
-  border-color: var(--app-accent);
-  box-shadow: 0 0 0 2px var(--app-accent-soft);
-}
-
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--app-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 1000;
-}
-
-.dialog-card {
-  width: 100%;
-  max-width: 520px;
-  background: var(--app-surface-solid);
-  border-radius: 8px;
-  box-shadow: 0 18px 40px var(--app-shadow);
-  border: 1px solid var(--app-border);
-  padding: 18px;
-}
-
-.dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.dialog-header h4 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
-  color: var(--app-heading);
-}
-
-.dialog-close {
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-  color: var(--app-text-muted);
-  width: 30px;
-  height: 30px;
+.lpp-dialog__segment button {
+  flex: 1;
+  padding: 6px 10px;
+  border: 0;
   border-radius: 6px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dialog-close:hover {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.table-wrap {
-  border-radius: 6px;
-  border: 1px solid var(--app-border);
-  overflow-x: auto;
-  background: var(--app-surface);
-}
-
-.ports-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 520px;
-}
-
-.ports-table th,
-.ports-table td {
-  text-align: left;
-  padding: 10px 12px;
-  font-size: 13px;
-  color: var(--app-text);
-  border-bottom: 1px solid var(--app-border);
-}
-
-.ports-table th {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  background: transparent;
   color: var(--app-text-muted);
-  font-weight: 650;
-  background: color-mix(in srgb, var(--app-surface-elevated) 80%, transparent);
-}
-
-.description-cell {
-  color: var(--app-text-muted);
+  font: inherit;
   font-size: 12.5px;
-}
-
-.status-dot {
-  display: inline-flex;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #94a3b8;
-}
-
-.status-dot.active {
-  background: var(--dorian-viper-400, #3fbd85);
-  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.18);
-}
-
-.status-dot.inactive {
-  background: #9ca3af;
-}
-
-.icon-danger-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  border: 1px solid rgba(225, 82, 65, 0.45);
-  background: rgba(225, 82, 65, 0.08);
-  color: #e15241;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0;
 }
 
-.icon-danger-btn svg {
-  width: 15px;
-  height: 15px;
+.lpp-dialog__segment button.active {
+  color: var(--dorian-viper-400, #3fbd85);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 14%, transparent);
 }
 
-.icon-danger-btn:hover {
-  background: rgba(225, 82, 65, 0.14);
-}
+.lpp-dialog__error { margin: -4px 0 0; font-size: 12px; color: var(--dorian-danger, #e15241); }
+.lpp-dialog__foot { display: flex; justify-content: flex-end; gap: 8px; }
 
-.empty-state {
-  padding: 20px 12px;
-  text-align: center;
-  color: var(--app-text-muted);
-  font-size: 13px;
+@keyframes lpp-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 720px) {
+  .lpp__stats { grid-template-columns: 1fr; }
+  .lpp-dialog__quick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

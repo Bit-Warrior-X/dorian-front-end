@@ -6,7 +6,7 @@
         <h2 class="info-hint-heading">
           <span>Configure edge</span>
           <InfoHint
-            text="Monitor runtime health, listening ports, and L4 defense for the selected edge."
+            text="Edit basic info, monitor runtime health, listening ports, and L4 defense for the selected edge."
             aria-label="Configure edge help"
           />
         </h2>
@@ -37,7 +37,14 @@
     </div>
 
     <template v-else>
-      <section class="edge-cfg__statusbar" aria-label="Edge status">
+      <section class="edge-cfg__statusbar" :class="`edge-cfg__statusbar--${angelosStatusClass(selectedServerData)}`" aria-label="Edge status">
+        <span class="edge-cfg__avatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3.5" y="4" width="17" height="6.5" rx="1.6" />
+            <rect x="3.5" y="13.5" width="17" height="6.5" rx="1.6" />
+            <path d="M7 7.25h.01M7 16.75h.01M11 7.25h6M11 16.75h6" />
+          </svg>
+        </span>
         <div class="edge-cfg__status-copy">
           <strong>{{ selectedServerData.name || selectedServerData.ip || `Edge #${selectedServerData.id}` }}</strong>
           <span>{{ statusSummary }}</span>
@@ -62,7 +69,7 @@
             :class="`edge-cfg__angelos--${angelosStatusClass(selectedServerData)}`"
           >
             <span class="edge-cfg__angelos-dot" aria-hidden="true"></span>
-            <strong>{{ angelosStatusLabel(selectedServerData) }}</strong>
+            <strong>Angelos {{ angelosStatusLabel(selectedServerData) }}</strong>
           </div>
           <span class="edge-cfg__pill">{{ selectedServerData.license || 'No license' }}</span>
           <span v-if="selectedServerData.ip" class="edge-cfg__pill edge-cfg__pill--muted num">
@@ -71,23 +78,33 @@
         </div>
       </section>
 
-      <nav class="edge-cfg__tabs" aria-label="Edge configuration sections">
+      <nav class="edge-cfg__tabs" aria-label="Edge configuration sections" role="tablist">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           type="button"
+          role="tab"
           class="edge-cfg__tab"
           :class="{
             active: activeTab === tab.id,
             'edge-cfg__tab--locked': isL4TabLocked(tab.id),
           }"
+          :aria-selected="activeTab === tab.id"
           :aria-disabled="isL4TabLocked(tab.id) ? 'true' : undefined"
+          :title="isL4TabLocked(tab.id) ? 'Requires a valid L4 license' : tab.hint"
           @click="selectTab(tab.id)"
         >
-          <span class="edge-cfg__tab-label info-hint-heading">
-            <span>{{ tab.label }}</span>
-            <InfoHint v-if="tab.hint" :text="tab.hint" :aria-label="`${tab.label} help`" />
-          </span>
+          <svg class="edge-cfg__tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <template v-if="tab.id === 'basic-info'"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" /></template>
+            <template v-else-if="tab.id === 'server-status'"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" /></template>
+            <template v-else-if="tab.id === 'listening-ports'"><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M9 9v6M15 9v6M9 12h6" /></template>
+            <template v-else-if="tab.id === 'l4-config'"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /></template>
+            <template v-else-if="tab.id === 'l4-blacklist'"><circle cx="12" cy="12" r="8.5" /><path d="M6 6l12 12" /></template>
+            <template v-else><circle cx="12" cy="12" r="8.5" /><path d="M8.5 12l2.5 2.5 4.5-5" /></template>
+          </svg>
+          <span class="edge-cfg__tab-label">{{ tab.label }}</span>
+          <svg v-if="isL4TabLocked(tab.id)" class="edge-cfg__tab-lock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>
+          <span v-else-if="tab.requiresL4" class="edge-cfg__tab-tag">L4</span>
         </button>
       </nav>
 
@@ -95,8 +112,14 @@
         ref="tabsBodyEl"
         class="edge-cfg__panel"
       >
+        <ServerBasicSettingsPanel
+          v-if="activeTab === 'basic-info' && selectedServerData"
+          :key="`basic-info-${selectedServer}`"
+          :server="selectedServerData"
+          @updated="onServerStatusUpdated"
+        />
         <ServerStatusPanel
-          v-if="activeTab === 'server-status' && selectedServerData"
+          v-else-if="activeTab === 'server-status' && selectedServerData"
           :server-id="selectedServer"
           :server="selectedServerData"
           @updated="onServerStatusUpdated"
@@ -160,6 +183,7 @@ import LayerStatusDot from '../LayerStatusDot.vue'
 import InfoHint from '../InfoHint.vue'
 import ListeningPortsPanel from './ListeningPortsPanel.vue'
 import ServerStatusPanel from './ServerStatusPanel.vue'
+import ServerBasicSettingsPanel from './ServerBasicSettingsPanel.vue'
 import { notifyWarning } from '@/utils/notify'
 import {
   angelosStatusClass,
@@ -190,10 +214,14 @@ const serverIdFromQuery = () => {
 const statusSummary = computed(() => {
   const server = selectedServerData.value
   if (!server) return ''
-  const angelos = angelosStatusLabel(server)
-  const license = server.license || 'unlicensed'
-  const ip = server.ip ? ` · ${server.ip}` : ''
-  return `Angelos ${angelos} · ${license}${ip}`
+  const users = Array.isArray(server.managedUserIds) ? server.managedUserIds.length : Number(server.users) || 0
+  const parts = [
+    server.version ? `Version ${server.version}` : '',
+    server.os || '',
+    server.sshUser ? `SSH ${server.sshUser}@${server.sshPort || 22}` : '',
+    `${users} assigned user${users === 1 ? '' : 's'}`,
+  ]
+  return parts.filter(Boolean).join(' · ')
 })
 
 const loadServers = async () => {
@@ -215,6 +243,7 @@ const loadServers = async () => {
 }
 
 const tabs = [
+  { id: 'basic-info', label: 'Basic info', hint: 'Edge name, IP, SSH credentials and assigned users.' },
   { id: 'server-status', label: 'Monitor', hint: 'Host metrics and Angelos / Sparta / Athens service health.' },
   { id: 'listening-ports', label: 'Ports', hint: 'Ports that accept client traffic on this edge.' },
   { id: 'l4-config', label: 'XDP', hint: 'How Sparta attaches to the NIC and reacts to L4 floods.', requiresL4: true },
@@ -233,12 +262,13 @@ const notifyL4LicenseBlocked = (tabId) => {
   notifyWarning(tab?.label || 'L4', l4LicenseBlockMessage(selectedServerData.value))
 }
 
-const activeTab = ref(tabs[0].id)
+const activeTab = ref('server-status')
 const activeConfigRows = computed(() => {
   const active = tabs.find((tab) => tab.id === activeTab.value)
   if (!active) return []
   if (
-    active.id === 'server-status'
+    active.id === 'basic-info'
+    || active.id === 'server-status'
     || active.id === 'listening-ports'
     || active.id === 'l4-config'
     || active.id === 'l4-blacklist'
@@ -277,6 +307,8 @@ const applyRouteQuery = () => {
   const tab = String(route.query.tab || '').toLowerCase()
   if (['basic', 'monitor-server', 'server-status'].includes(tab)) {
     selectTab('server-status')
+  } else if (['basic-info', 'details', 'edit'].includes(tab)) {
+    selectTab('basic-info')
   } else if (tab === 'listening-ports') {
     selectTab('listening-ports')
   } else if (tab === 'l4-blacklist' || tab === 'blacklist') {
@@ -447,18 +479,39 @@ onMounted(() => {
 }
 
 .edge-cfg__statusbar {
+  --status-tone: var(--app-text-muted);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 12px 14px;
   padding: 12px 14px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--cfg-radius);
-  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
+  border-radius: 12px;
+  background:
+    radial-gradient(90% 140% at 0% 0%, color-mix(in srgb, var(--status-tone) 9%, transparent) 0%, transparent 60%),
+    var(--app-surface);
 }
 
+.edge-cfg__statusbar--running { --status-tone: var(--dorian-viper-400, #3fbd85); }
+.edge-cfg__statusbar--deployed { --status-tone: var(--dorian-l4, #6b9fd4); }
+.edge-cfg__statusbar--stopped { --status-tone: var(--dorian-danger, #e15241); }
+
+.edge-cfg__avatar {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--status-tone);
+  background: color-mix(in srgb, var(--status-tone) 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--status-tone) 30%, transparent);
+}
+
+.edge-cfg__avatar svg { width: 19px; height: 19px; }
+
 .edge-cfg__status-copy {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -467,11 +520,13 @@ onMounted(() => {
 
 .edge-cfg__status-copy strong {
   font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--app-heading);
 }
 
 .edge-cfg__status-copy span {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--app-text-muted);
 }
 
@@ -486,145 +541,158 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 0 4px;
 }
 
 .edge-cfg__angelos {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid transparent;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 0.5px solid transparent;
 }
 
 .edge-cfg__angelos-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
   flex: none;
 }
 
 .edge-cfg__angelos strong {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 650;
   line-height: 1.2;
 }
 
 .edge-cfg__angelos--running {
   color: var(--dorian-viper-400, #3fbd85);
-  background: rgba(46, 158, 108, 0.14);
-  border-color: rgba(46, 158, 108, 0.32);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 13%, transparent);
+  border-color: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 30%, transparent);
 }
 
 .edge-cfg__angelos--running .edge-cfg__angelos-dot {
-  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.2);
   animation: edge-cfg-pulse 1.8s ease-in-out infinite;
 }
 
 .edge-cfg__angelos--deployed {
-  color: #5b9df0;
-  background: rgba(91, 157, 240, 0.14);
-  border-color: rgba(91, 157, 240, 0.3);
+  color: var(--dorian-l4, #6b9fd4);
+  background: color-mix(in srgb, var(--dorian-l4, #6b9fd4) 13%, transparent);
+  border-color: color-mix(in srgb, var(--dorian-l4, #6b9fd4) 30%, transparent);
 }
 
 .edge-cfg__angelos--stopped {
-  color: #e15241;
-  background: rgba(225, 82, 65, 0.14);
-  border-color: rgba(225, 82, 65, 0.34);
+  color: var(--dorian-danger, #e15241);
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 13%, transparent);
+  border-color: color-mix(in srgb, var(--dorian-danger, #e15241) 32%, transparent);
 }
 
 .edge-cfg__angelos--unknown {
   color: var(--app-text-muted);
-  background: rgba(139, 151, 143, 0.12);
-  border-color: rgba(139, 151, 143, 0.24);
+  background: var(--app-surface-muted);
+  border-color: var(--app-border);
 }
 
 @keyframes edge-cfg-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+  50% { opacity: 0.4; }
 }
 
 .edge-cfg__pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 650;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  color: var(--dorian-viper-400, #3fbd85);
-  background: rgba(46, 158, 108, 0.12);
-  border: 1px solid rgba(46, 158, 108, 0.26);
+  color: var(--app-text);
+  background: var(--app-surface-muted);
+  border: 0.5px solid var(--app-border);
 }
 
 .edge-cfg__pill--muted {
   color: var(--app-text-muted);
-  background: rgba(139, 151, 143, 0.1);
-  border-color: rgba(139, 151, 143, 0.2);
 }
 
 .edge-cfg__tabs {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
+.edge-cfg__tabs::-webkit-scrollbar { display: none; }
+
 .edge-cfg__tab {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 12px 14px;
-  border-radius: var(--cfg-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-  color: var(--app-text);
-  text-align: left;
+  flex: 1 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--app-text-muted);
+  font: inherit;
+  white-space: nowrap;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .edge-cfg__tab:hover:not(.active):not(.edge-cfg__tab--locked) {
-  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
-  background: color-mix(in srgb, var(--app-accent) 5%, var(--app-surface));
+  color: var(--app-heading);
+  background: var(--app-surface-muted);
 }
 
-.edge-cfg__tab--locked {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.edge-cfg__tab--locked .edge-cfg__tab-label {
-  color: var(--app-text-muted);
+.edge-cfg__tab:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
 }
 
 .edge-cfg__tab.active {
-  border-color: rgba(46, 158, 108, 0.45);
-  background: rgba(46, 158, 108, 0.1);
-  box-shadow: inset 0 -2px 0 var(--dorian-viper-500, var(--app-accent));
+  color: var(--dorian-viper-400, var(--app-accent));
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 12%, var(--app-surface-muted));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 40%, transparent);
 }
+
+.edge-cfg__tab--locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.edge-cfg__tab-icon { width: 16px; height: 16px; flex-shrink: 0; }
 
 .edge-cfg__tab-label {
-  font-size: 13.5px;
-  font-weight: 650;
-  color: var(--app-heading);
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.edge-cfg__tab.active .edge-cfg__tab-label {
-  color: var(--dorian-viper-400, var(--app-accent));
-}
+.edge-cfg__tab-lock { width: 12px; height: 12px; }
 
-.edge-cfg__tab-hint {
-  font-size: 11.5px;
-  color: var(--app-text-muted);
+.edge-cfg__tab-tag {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--dorian-l4, #6b9fd4);
+  background: color-mix(in srgb, var(--dorian-l4, #6b9fd4) 14%, transparent);
 }
 
 .edge-cfg__panel {
-  border: 1px solid var(--app-border);
-  border-radius: var(--cfg-radius);
+  border: 0.5px solid var(--app-border);
+  border-radius: 12px;
   background: var(--app-surface);
-  padding: 16px;
+  padding: 18px;
   min-height: 320px;
 }
 
@@ -678,15 +746,8 @@ onMounted(() => {
   border-color: rgba(46, 158, 108, 0.28);
 }
 
-@media (max-width: 1100px) {
-  .edge-cfg__tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 760px) {
-  .edge-cfg__tabs {
-    grid-template-columns: 1fr;
-  }
+  .edge-cfg__tab { flex: 0 0 auto; }
+  .edge-cfg__status-pills { width: 100%; }
 }
 </style>

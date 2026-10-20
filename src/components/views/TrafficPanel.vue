@@ -1,10 +1,15 @@
 <template>
   <div class="cfg-subpanel">
-    <header class="cfg-subpanel__intro">
-      <div>
-        <p class="cfg-subpanel__kicker">Delivery</p>
-        <h4>Cache, compression, and ports</h4>
-        <p>Tune cache behavior, compression, and listening ports for this hostname.</p>
+    <header class="cfg-head">
+      <div class="cfg-head__copy">
+        <span class="cfg-head__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6L13 3z" /></svg>
+        </span>
+        <div>
+          <p class="cfg-head__kicker">Delivery</p>
+          <h4>Cache, compression and ports</h4>
+          <p class="cfg-head__desc">Tune cache behavior, compression, and listening ports for this hostname.</p>
+        </div>
       </div>
     </header>
 
@@ -20,8 +25,17 @@
             :class="{ active: activeTrafficItem === item.id }"
             @click="activeTrafficItem = item.id"
           >
-            <span class="cfg-subnav__item-label">{{ item.label }}</span>
-            <span class="cfg-subnav__item-hint">{{ item.hint }}</span>
+            <span class="cfg-subnav__item-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <template v-if="item.id === 'cache-management'"><ellipse cx="12" cy="6" rx="7.5" ry="2.8" /><path d="M4.5 6v6c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V6M4.5 12v6c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-6" /></template>
+                <template v-else-if="item.id === 'compress'"><path d="M8 3v5H3M16 3v5h5M8 21v-5H3M16 21v-5h5" /></template>
+                <template v-else><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M9 9v6M15 9v6M9 12h6" /></template>
+              </svg>
+            </span>
+            <span class="cfg-subnav__item-copy">
+              <span class="cfg-subnav__item-label">{{ item.label }}</span>
+              <span class="cfg-subnav__item-hint">{{ item.hint }}</span>
+            </span>
           </button>
         </div>
       </nav>
@@ -68,169 +82,9 @@ const activeTrafficLabel = computed(() => {
 
 <style scoped>
 .cfg-subpanel {
-  --cfg-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 16px;
   min-height: 420px;
-}
-
-.cfg-subpanel__intro {
-  padding: 0 0 14px;
-  border-bottom: 1px solid var(--app-border);
-  margin-bottom: 14px;
-}
-
-.cfg-subpanel__kicker {
-  margin: 0 0 3px;
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--dorian-viper-400, var(--app-accent));
-}
-
-.cfg-subpanel__intro h4 {
-  margin: 0 0 4px;
-  font-size: 1.15rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--app-heading);
-}
-
-.cfg-subpanel__intro p:last-child {
-  margin: 0;
-  font-size: 13px;
-  color: var(--app-text-muted);
-  line-height: 1.45;
-}
-
-.cfg-subpanel__body {
-  display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
-  gap: 14px;
-  min-height: 360px;
-}
-
-.cfg-subnav {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 4px 2px 4px 0;
-  border-right: 1px solid var(--app-border);
-}
-
-.cfg-subnav__group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cfg-subnav__group-label {
-  margin: 0 0 2px;
-  padding: 0 10px;
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-}
-
-.cfg-subnav__item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  width: 100%;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--app-text);
-  text-align: left;
-  padding: 8px 10px;
-  border-radius: var(--cfg-radius);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.cfg-subnav__item:hover:not(.active) {
-  background: color-mix(in srgb, var(--app-accent) 5%, transparent);
-  border-color: color-mix(in srgb, var(--app-accent) 25%, transparent);
-}
-
-.cfg-subnav__item.active {
-  background: rgba(46, 158, 108, 0.1);
-  border-color: rgba(46, 158, 108, 0.35);
-  box-shadow: inset 2px 0 0 var(--dorian-viper-500, var(--app-accent));
-}
-
-.cfg-subnav__item-label {
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--app-heading);
-}
-
-.cfg-subnav__item.active .cfg-subnav__item-label {
-  color: var(--dorian-viper-400, var(--app-accent));
-}
-
-.cfg-subnav__item-hint {
-  font-size: 11.5px;
-  color: var(--app-text-muted);
-  line-height: 1.3;
-}
-
-.cfg-subpanel__content {
-  min-width: 0;
-  padding: 2px 0 0;
-}
-
-.cfg-subpanel__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  min-height: 280px;
-  padding: 32px 16px;
-  border: 1px dashed var(--app-border);
-  border-radius: var(--cfg-radius);
-  color: var(--app-text-muted);
-}
-
-.cfg-subpanel__empty h4 {
-  margin: 0 0 6px;
-  color: var(--app-heading);
-  font-size: 1rem;
-}
-
-.cfg-subpanel__empty p {
-  margin: 0;
-  font-size: 13px;
-}
-
-@media (max-width: 900px) {
-  .cfg-subpanel__body {
-    grid-template-columns: 1fr;
-  }
-
-  .cfg-subnav {
-    border-right: none;
-    border-bottom: 1px solid var(--app-border);
-    padding-bottom: 12px;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .cfg-subnav__group {
-    flex: 1 1 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .cfg-subnav__item {
-    flex: 1 1 140px;
-  }
 }
 </style>

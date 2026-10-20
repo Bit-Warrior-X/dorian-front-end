@@ -85,136 +85,31 @@
         </button>
       </div>
 
-      <div class="edges-table-wrap">
-        <table class="edges-table">
-          <thead>
-            <tr>
-              <th class="edges-col-layers" aria-label="L4 and L7 status"></th>
-              <th>Edge</th>
-              <th>Health</th>
-              <th>Traffic</th>
-              <th>License</th>
-              <th>Expires</th>
-              <th class="edges-col-actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!filteredServers.length">
-              <td colspan="7" class="edges-empty">
-                No edges match these filters.
-                <button class="edges-empty-link" type="button" @click="openNewServerDialog">Create an edge</button>
-              </td>
-            </tr>
-            <tr
-              v-for="server in paginatedServers"
-              :key="server.id"
-              class="edges-row edges-row--clickable"
-              :class="edgeRowClass(server)"
-              role="button"
-              tabindex="0"
-              :aria-label="`View details for ${server.name}`"
-              @click="openEdgeInfoDialog(server)"
-              @keydown.enter.prevent="openEdgeInfoDialog(server)"
-              @keydown.space.prevent="openEdgeInfoDialog(server)"
-            >
-              <td class="edges-col-layers">
-                <span class="layer-status-dots" :aria-busy="isRuntimeStatusRefreshing(server.id)">
-                  <LayerStatusDot
-                    layer="l4"
-                    :loading="isRuntimeStatusRefreshing(server.id)"
-                    :status="resolveLayerStatus(server, 'l4')"
-                    :description="runtimeStatusDotDescription(server, 'l4')"
-                    :aria-label="runtimeStatusAriaLabel(server, 'l4')"
-                  />
-                  <LayerStatusDot
-                    layer="l7"
-                    :loading="isRuntimeStatusRefreshing(server.id)"
-                    :status="resolveLayerStatus(server, 'l7')"
-                    :description="runtimeStatusDotDescription(server, 'l7')"
-                    :aria-label="runtimeStatusAriaLabel(server, 'l7')"
-                  />
-                </span>
-              </td>
-              <td>
-                <div class="edges-identity">
-                  <span class="edges-identity__name">{{ server.name }}</span>
-                  <span class="edges-identity__ip num">{{ server.ip }}</span>
-                </div>
-              </td>
-              <td>
-                <div
-                  class="edges-angelos"
-                  :class="isRuntimeStatusRefreshing(server.id) ? 'edges-angelos--loading' : `edges-angelos--${angelosStatusClass(server)}`"
-                  :aria-busy="isRuntimeStatusRefreshing(server.id)"
-                  :aria-label="isRuntimeStatusRefreshing(server.id) ? 'Health: checking status' : undefined"
-                >
-                  <span class="edges-angelos__dot" aria-hidden="true"></span>
-                  <strong v-if="!isRuntimeStatusRefreshing(server.id)">{{ angelosStatusLabel(server) }}</strong>
-                  <strong v-else>Checking…</strong>
-                </div>
-              </td>
-              <td>
-                <div class="edges-traffic num">
-                  <strong>{{ edgeTrafficLabel(server, 'tx') }}</strong>
-                  <span>{{ edgeTrafficLabel(server, 'rx') }}</span>
-                </div>
-              </td>
-              <td>
-                <span class="edges-license">{{ server.license || '—' }}</span>
-              </td>
-              <td>
-                <div
-                  class="edges-expiry"
-                  :class="`edges-expiry--${licenseExpiryTone(server)}`"
-                >
-                  <strong>{{ formatEdgeExpiryLabel(server) }}</strong>
-                  <span v-if="server.expiredDate">{{ server.expiredDate }}</span>
-                </div>
-              </td>
-              <td class="edges-col-actions" @click.stop>
-                <div class="menu-wrap">
-                  <button
-                    class="edges-icon-btn"
-                    title="Actions"
-                    type="button"
-                    @click="toggleRowMenu(server.id)"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="5" r="1.5" />
-                      <circle cx="12" cy="12" r="1.5" />
-                      <circle cx="12" cy="19" r="1.5" />
-                    </svg>
-                  </button>
-                  <div v-if="activeRowMenu === server.id" class="row-menu">
-                    <button class="row-menu-item" type="button" @click="openServerSettings(server)">
-                      Configure
-                    </button>
-                    <button class="row-menu-item" type="button" @click="openEditServer(server)">
-                      Edit details
-                    </button>
-                    <button class="row-menu-item" type="button" @click="openUpgradeDialog(server)">
-                      Upgrade
-                    </button>
-                    <button
-                      class="row-menu-item"
-                      type="button"
-                      :disabled="isRuntimeStatusRefreshing(server.id)"
-                      @click="refreshRuntimeStatus(server)"
-                    >
-                      {{ isRuntimeStatusRefreshing(server.id) ? 'Refreshing…' : 'Refresh status' }}
-                    </button>
-                    <button class="row-menu-item" type="button" @click="openLicenseUpgradeDialog(server)">
-                      License
-                    </button>
-                    <button class="row-menu-item danger" type="button" @click="requestDeleteConfirm(server)">
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-if="!filteredServers.length" class="edges-empty edges-empty--panel">
+        No edges match these filters.
+        <button class="edges-empty-link" type="button" @click="openNewServerDialog">Create an edge</button>
+      </div>
+
+      <div v-else class="edges-card-grid" role="list">
+        <EdgeFleetCard
+          v-for="server in paginatedServers"
+          :key="server.id"
+          role="listitem"
+          :server="server"
+          :metric="edgeHostMetrics[server.id] || null"
+          :samples="edgeNicSamples[server.id] || []"
+          :refreshing="isRuntimeStatusRefreshing(server.id)"
+          :expiry-label="formatEdgeExpiryLabel(server)"
+          :expiry-tone="licenseExpiryTone(server)"
+          :version-label="displayServerVersion(server.version)"
+          :os-label="server.os ? displayServerOs(server.os) : ''"
+          @configure="openServerSettings(server)"
+          @edit="openEditServer(server)"
+          @license="openLicenseUpgradeDialog(server)"
+          @upgrade="openUpgradeDialog(server)"
+          @refresh="refreshRuntimeStatus(server)"
+          @delete="requestDeleteConfirm(server)"
+        />
       </div>
 
       <div class="edges-footer">
@@ -232,87 +127,6 @@
         </div>
       </div>
     </section>
-  </div>
-
-  <div
-    v-if="isEdgeInfoDialogOpen && edgeInfoServer"
-    class="dialog-backdrop"
-    @click="closeEdgeInfoDialog"
-  >
-    <div class="dialog-card dialog-card--form dialog-card--edge-info" @click.stop>
-      <div class="dialog-header">
-        <div class="dialog-header-text">
-          <h3>{{ edgeInfoServer.name || 'Edge details' }}</h3>
-          <p class="edge-info-subtitle">
-            <span class="num">{{ edgeInfoServer.ip || '—' }}</span>
-            <span class="edge-info-subtitle__sep" aria-hidden="true">·</span>
-            <span>{{ edgeInfoServer.license || 'No license' }}</span>
-            <span class="edge-info-subtitle__sep" aria-hidden="true">·</span>
-            <span class="num">{{ displayServerVersion(edgeInfoServer.version) }}</span>
-            <span class="edge-info-subtitle__sep" aria-hidden="true">·</span>
-            <span :class="`edge-info-expiry edge-info-expiry--${licenseExpiryTone(edgeInfoServer)}`">
-              {{ formatEdgeExpiryLabel(edgeInfoServer) }}
-              <template v-if="edgeInfoServer.expiredDate"> · {{ edgeInfoServer.expiredDate }}</template>
-            </span>
-          </p>
-        </div>
-        <button class="dialog-close" type="button" aria-label="Close dialog" @click="closeEdgeInfoDialog">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-
-      <div class="dialog-body edge-info-body">
-        <ServerStatusPanel
-          variant="snapshot"
-          :show-services="false"
-          :server-id="edgeInfoServer.id"
-          :server="edgeInfoServer"
-          @updated="syncEdgeFromStatus"
-        />
-
-        <section class="edge-info-services" aria-label="Service health">
-          <article
-            v-for="service in edgeServiceSummaries"
-            :key="service.id"
-            class="edge-info-service"
-          >
-            <header class="edge-info-service__header">
-              <h4>{{ service.title }}</h4>
-              <span
-                class="edge-info-service__status"
-                :class="`edge-info-service__status--${service.status}`"
-              >
-                {{ service.statusLabel }}
-              </span>
-            </header>
-            <p class="edge-info-service__health">{{ service.health }}</p>
-            <p class="edge-info-service__license">{{ service.license }}</p>
-          </article>
-        </section>
-      </div>
-
-      <div class="dialog-footer edge-info-footer">
-        <button class="edge-info-action" type="button" @click="editFromEdgeInfo">
-          <strong>Edit edge</strong>
-          <span>Name, IP, SSH, and users</span>
-        </button>
-        <button class="edge-info-action" type="button" @click="licenseFromEdgeInfo">
-          <strong>Change license</strong>
-          <span>Tier and expiry</span>
-        </button>
-        <button class="edge-info-action" type="button" @click="upgradeFromEdgeInfo">
-          <strong>Upgrade software</strong>
-          <span>Install a newer build</span>
-        </button>
-        <button class="edge-info-action edge-info-action--primary" type="button" @click="configureFromEdgeInfo">
-          <strong>Open configure</strong>
-          <span>Monitor, ports, and protection</span>
-        </button>
-      </div>
-    </div>
   </div>
 
   <div
@@ -1090,10 +904,10 @@ import { useRouter } from 'vue-router'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import DeployErrorPanel from '../DeployErrorPanel.vue'
 import LayerStatusDot from '../LayerStatusDot.vue'
+import EdgeFleetCard from './EdgeFleetCard.vue'
 import LicenseTierUpgradePanel from '../LicenseTierUpgradePanel.vue'
 import LicenseTierSelector from '../LicenseTierSelector.vue'
 import VersionPanelSelector from '../VersionPanelSelector.vue'
-import ServerStatusPanel from './ServerStatusPanel.vue'
 import {
   formatServerVersionDisplay,
   formatVersionOs,
@@ -1126,6 +940,7 @@ import {
   updateServerUsers,
 } from '@/api/servers'
 import { extractApiErrorDetails } from '@/api/client'
+import { fetchBandwidthNicRxSeries, fetchBandwidthNicTxSeries } from '@/api/dashboard'
 import { fetchUsers } from '@/api/users'
 import { useAuth } from '@/stores/auth'
 import { BILLING_PERIODS } from '@/data/licensePlans'
@@ -1189,8 +1004,6 @@ const licenseInput = ref(null)
 const userSearch = ref('')
 const activeRowMenu = ref(null)
 const runtimeStatusRefreshingIds = ref(new Set())
-const isEdgeInfoDialogOpen = ref(false)
-const edgeInfoServer = ref(null)
 const isEditServerDialogOpen = ref(false)
 const editServerId = ref(null)
 const editServer = ref({
@@ -1375,9 +1188,25 @@ const edgeMetricCards = computed(() => {
     const tone = licenseExpiryTone(server)
     return tone === 'expired' || tone === 'expiring'
   }).length
-  if (!licenseRisk) return []
+  const total = servers.value.length
+  if (!total) return []
+  const running = servers.value.filter((server) => resolveAngelosRuntimeStatus(server) === 'running').length
+  const live = servers.value
+    .map((server) => edgeHostMetrics.value[server.id])
+    .filter((metric) => metric && !metric.error)
+  const rx = live.reduce((sum, metric) => sum + (metric.netRxBytesPerSec || 0), 0)
+  const tx = live.reduce((sum, metric) => sum + (metric.netTxBytesPerSec || 0), 0)
+  const cpuRows = live.filter((metric) => metric.cpuPercent != null)
+  const avgCpu = cpuRows.length
+    ? Math.round(cpuRows.reduce((sum, metric) => sum + metric.cpuPercent, 0) / cpuRows.length)
+    : null
+  const reporting = live.length ? `${live.length} of ${total} reporting` : 'Waiting for probes'
   return [
-    { label: 'License risk', value: String(licenseRisk), hint: 'Expired or due within 14 days', tone: 'warn' },
+    { label: 'Edges online', value: `${running} / ${total}`, hint: running === total ? 'All edges running' : `${total - running} need attention`, tone: running === total ? 'ok' : 'warn' },
+    { label: 'Fleet receive', value: live.length ? formatBitRate(rx) : '—', hint: reporting, tone: 'signal' },
+    { label: 'Fleet send', value: live.length ? formatBitRate(tx) : '—', hint: reporting, tone: 'l4' },
+    { label: 'Avg CPU', value: avgCpu == null ? '—' : `${avgCpu}%`, hint: cpuRows.length ? `Across ${cpuRows.length} hosts` : 'No CPU data', tone: avgCpu != null && avgCpu >= 70 ? 'warn' : 'viper' },
+    { label: 'License risk', value: String(licenseRisk), hint: licenseRisk ? 'Expired or due within 14 days' : 'All licenses current', tone: licenseRisk ? 'warn' : 'ok' },
   ]
 })
 
@@ -1615,93 +1444,18 @@ const openEditServer = (server) => {
   isUserDropdownOpen.value = false
   isEditServerDialogOpen.value = true
   activeRowMenu.value = null
-  isEdgeInfoDialogOpen.value = false
 }
 
 const closeEditServerDialog = () => {
   isEditServerDialogOpen.value = false
 }
 
-const openEdgeInfoDialog = (server) => {
-  if (!server) return
-  edgeInfoServer.value = server
-  isEdgeInfoDialogOpen.value = true
-  activeRowMenu.value = null
-}
 
-const closeEdgeInfoDialog = () => {
-  isEdgeInfoDialogOpen.value = false
-  edgeInfoServer.value = null
-}
-
-const editFromEdgeInfo = () => {
-  const server = edgeInfoServer.value
-  if (!server) return
-  closeEdgeInfoDialog()
-  openEditServer(server)
-}
-
-const configureFromEdgeInfo = () => {
-  const serverId = edgeInfoServer.value?.id
-  if (serverId == null || serverId === '') return
-  closeEdgeInfoDialog()
-  void router.push({ name: 'server-settings', query: { server: String(serverId) } })
-}
-
-const licenseFromEdgeInfo = () => {
-  const server = edgeInfoServer.value
-  if (!server) return
-  closeEdgeInfoDialog()
-  openLicenseUpgradeDialog(server)
-}
-
-const syncEdgeFromStatus = (updated) => {
-  if (!updated?.id) return
-  if (edgeInfoServer.value?.id === updated.id) {
-    edgeInfoServer.value = { ...edgeInfoServer.value, ...updated }
-  }
-  const index = servers.value.findIndex((server) => server.id === updated.id)
-  if (index === -1) return
-  servers.value[index] = {
-    ...servers.value[index],
-    ...updated,
-    serviceStatus: updated.serviceStatus ?? updated.service_status ?? servers.value[index].serviceStatus,
-    l4Status: updated.l4Status ?? updated.l4_status ?? servers.value[index].l4Status,
-    l7Status: updated.l7Status ?? updated.l7_status ?? servers.value[index].l7Status,
-  }
-}
-
-const edgeServiceSummaries = computed(() => {
-  const server = edgeInfoServer.value
-  if (!server) return []
-  const services = [
-    { id: 'angelos', title: 'Angelos', status: resolveAngelosRuntimeStatus(server) },
-    { id: 'sparta', title: 'Sparta', status: resolveLayerStatus(server, 'l4') },
-    { id: 'athens', title: 'Athens', status: resolveLayerStatus(server, 'l7') },
-  ]
-  return services.map((service) => {
-    const rows = serviceStatusDetailRows(service.id, server, service.status, null)
-    const valueFor = (label) => rows.find((row) => row.label === label)?.value || '—'
-    return {
-      ...service,
-      statusLabel: runtimeStatusLabel(service.status),
-      health: valueFor('Health'),
-      license: valueFor('License'),
-    }
-  })
-})
 
 const openServerSettings = (server) => {
   if (!server?.id) return
   activeRowMenu.value = null
   void router.push({ name: 'server-settings', query: { server: String(server.id) } })
-}
-
-const upgradeFromEdgeInfo = () => {
-  const server = edgeInfoServer.value
-  if (!server) return
-  closeEdgeInfoDialog()
-  void openUpgradeDialog(server)
 }
 
 const openUserDropdown = () => {
@@ -1775,37 +1529,117 @@ const formatBitRate = (bytesPerSec) => {
   return `${Math.round(bits)} bps`
 }
 
-const edgeTrafficLabel = (server, direction) => {
-  const metric = edgeHostMetrics.value[server?.id]
-  if (!metric) return '…'
-  if (metric.error) return '—'
-  const bytes = direction === 'rx' ? metric.netRxBytesPerSec : metric.netTxBytesPerSec
-  const prefix = direction === 'rx' ? '↓' : '↑'
-  return `${prefix} ${formatBitRate(bytes)}`
+const EDGE_NIC_SAMPLE_CAP = 180
+const EDGE_NIC_HISTORY_MS = 30 * 60 * 1000
+const edgeMetricsRefreshMs = 10_000
+const edgeNicSamples = ref({})
+let edgeMetricsTimer = null
+let edgeMetricsInFlight = false
+
+const numOrNull = (value) => (value == null || value === '' || !Number.isFinite(Number(value)) ? null : Number(value))
+
+const recordEdgeNicSample = (id, rx, tx) => {
+  const list = [...(edgeNicSamples.value[id] || []), { t: Date.now(), rx, tx }]
+  const cutoff = Date.now() - EDGE_NIC_HISTORY_MS
+  const trimmed = list.filter((point) => point.t >= cutoff).slice(-EDGE_NIC_SAMPLE_CAP)
+  edgeNicSamples.value = { ...edgeNicSamples.value, [id]: trimmed }
+}
+
+/** Seeds sparklines with minute NIC history (stored as bits/s ÷ 1024). */
+const seedEdgeNicHistory = async () => {
+  try {
+    const [rxPayload, txPayload] = await Promise.all([
+      fetchBandwidthNicRxSeries('1h'),
+      fetchBandwidthNicTxSeries('1h'),
+    ])
+    const cutoff = Date.now() - EDGE_NIC_HISTORY_MS
+    const byServer = new Map()
+    const absorb = (payload, key) => {
+      ;(Array.isArray(payload) ? payload : []).forEach((entry) => {
+        const id = Number(entry?.serverId)
+        if (!Number.isFinite(id)) return
+        const buckets = byServer.get(id) || new Map()
+        ;(Array.isArray(entry?.points) ? entry.points : []).forEach((point) => {
+          const t = new Date(point.timestamp).getTime()
+          if (Number.isNaN(t) || t < cutoff) return
+          const row = buckets.get(t) || { t, rx: 0, tx: 0 }
+          row[key] = ((Number(point.bandwidth) || 0) * 1024) / 8
+          buckets.set(t, row)
+        })
+        byServer.set(id, buckets)
+      })
+    }
+    absorb(rxPayload, 'rx')
+    absorb(txPayload, 'tx')
+    const next = { ...edgeNicSamples.value }
+    byServer.forEach((buckets, id) => {
+      const history = [...buckets.values()].sort((x, y) => x.t - y.t)
+      const lastHist = history.at(-1)?.t ?? 0
+      const live = (next[id] || []).filter((point) => point.t > lastHist)
+      next[id] = [...history, ...live].slice(-EDGE_NIC_SAMPLE_CAP)
+    })
+    edgeNicSamples.value = next
+  } catch {
+    // live samples still accumulate
+  }
 }
 
 const loadEdgeHostMetrics = async (list) => {
   const rows = Array.isArray(list) ? list : []
-  if (!rows.length) {
-    edgeHostMetrics.value = {}
-    return
+  if (!rows.length || edgeMetricsInFlight) return
+  edgeMetricsInFlight = true
+  try {
+    const results = await Promise.all(rows.map(async (server) => {
+      try {
+        const payload = await fetchServerHostMetrics(server.id)
+        return [server.id, {
+          cpuPercent: numOrNull(payload?.cpuPercent),
+          cpuCores: numOrNull(payload?.cpuCores),
+          memoryUsedBytes: Number(payload?.memoryUsedBytes) || 0,
+          memoryTotalBytes: Number(payload?.memoryTotalBytes) || 0,
+          diskUsedBytes: Number(payload?.diskUsedBytes) || 0,
+          diskTotalBytes: Number(payload?.diskTotalBytes) || 0,
+          temperatureC: numOrNull(payload?.temperatureC),
+          temperatureLabel: payload?.temperatureLabel || '',
+          load1: numOrNull(payload?.load1),
+          load5: numOrNull(payload?.load5),
+          load15: numOrNull(payload?.load15),
+          uptimeSeconds: numOrNull(payload?.uptimeSeconds),
+          netRxBytesPerSec: Number(payload?.netRxBytesPerSec) || 0,
+          netTxBytesPerSec: Number(payload?.netTxBytesPerSec) || 0,
+          netLinkMbps: numOrNull(payload?.netLinkMbps),
+          netInterface: payload?.netInterface || '',
+          hostname: payload?.hostname || '',
+          kernel: payload?.kernel || '',
+        }]
+      } catch {
+        return [server.id, { error: true }]
+      }
+    }))
+    const next = { ...edgeHostMetrics.value }
+    results.forEach(([id, metric]) => {
+      next[id] = metric
+      if (!metric.error) recordEdgeNicSample(id, metric.netRxBytesPerSec, metric.netTxBytesPerSec)
+    })
+    edgeHostMetrics.value = next
+  } finally {
+    edgeMetricsInFlight = false
   }
-  const results = await Promise.all(rows.map(async (server) => {
-    try {
-      const payload = await fetchServerHostMetrics(server.id)
-      return [server.id, {
-        netTxBytesPerSec: Number(payload?.netTxBytesPerSec) || 0,
-        netRxBytesPerSec: Number(payload?.netRxBytesPerSec) || 0,
-      }]
-    } catch {
-      return [server.id, { error: true }]
-    }
-  }))
-  const next = {}
-  results.forEach(([id, metric]) => {
-    next[id] = metric
-  })
-  edgeHostMetrics.value = next
+}
+
+const pollEdgeHostMetrics = () => {
+  if (document.visibilityState === 'hidden') return
+  void loadEdgeHostMetrics(paginatedServers.value)
+}
+
+const startEdgeMetricsPolling = () => {
+  if (edgeMetricsTimer) return
+  edgeMetricsTimer = window.setInterval(pollEdgeHostMetrics, edgeMetricsRefreshMs)
+}
+
+const stopEdgeMetricsPolling = () => {
+  if (edgeMetricsTimer) window.clearInterval(edgeMetricsTimer)
+  edgeMetricsTimer = null
 }
 
 const loadServers = async () => {
@@ -1816,7 +1650,7 @@ const loadServers = async () => {
       String(auth.state.user?.role || '').toLowerCase() === 'admin'
     if (isAdmin) {
       servers.value = list
-      void loadEdgeHostMetrics(list)
+      void loadEdgeHostMetrics(paginatedServers.value)
       return
     }
     const userId = auth.state.user?.id
@@ -1829,7 +1663,7 @@ const loadServers = async () => {
         ? server.managedUserIds.includes(userId)
         : false
     )
-    void loadEdgeHostMetrics(servers.value)
+    void loadEdgeHostMetrics(paginatedServers.value)
   } catch {
     servers.value = []
   }
@@ -1851,6 +1685,13 @@ onMounted(() => {
   void loadServers()
   void loadUsers()
   void loadDeployVersionsCatalog()
+  void seedEdgeNicHistory()
+  startEdgeMetricsPolling()
+})
+
+watch(paginatedServers, (rows) => {
+  const missing = rows.filter((server) => !edgeHostMetrics.value[server.id])
+  if (missing.length) void loadEdgeHostMetrics(missing)
 })
 
 watch(
@@ -1870,6 +1711,7 @@ watch(
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutsideMenu)
   createServerSyncLock = false
+  stopEdgeMetricsPolling()
 })
 
 const openLicensePicker = () => {
@@ -2482,6 +2324,22 @@ const nextPage = () => {
   color: var(--app-text-muted);
 }
 
+.edges-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+}
+
+.edges-empty--panel {
+  padding: 36px 16px;
+  text-align: center;
+}
+
 .edges-table-wrap {
   overflow-x: auto;
   flex: 1;
@@ -2878,6 +2736,10 @@ const nextPage = () => {
 @media (max-width: 1200px) {
   .edges-metrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .edges-card-grid {
+    grid-template-columns: 1fr;
   }
 }
 

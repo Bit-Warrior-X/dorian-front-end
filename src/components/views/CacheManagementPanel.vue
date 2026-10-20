@@ -161,7 +161,7 @@
 
         <div class="cache-form" @click="closeFileTypeDropdown">
           <div class="cache-form-row">
-            <label class="cache-form-label required">CacheType:</label>
+            <label class="cache-form-label required">Cache type</label>
             <div class="cache-form-control">
               <div class="segment-toggle">
                 <button
@@ -185,7 +185,7 @@
           </div>
 
           <div class="cache-form-row">
-            <label class="cache-form-label required" for="cache-rule-name">Rule Name:</label>
+            <label class="cache-form-label required" for="cache-rule-name">Rule Name</label>
             <div class="cache-form-control">
               <input
                 id="cache-rule-name"
@@ -199,7 +199,7 @@
           </div>
 
           <div class="cache-form-row">
-            <label class="cache-form-label" for="cache-caching-time">Caching Time:</label>
+            <label class="cache-form-label" for="cache-caching-time">Caching Time</label>
             <div class="cache-form-control">
               <div class="input-with-unit">
                 <input
@@ -210,14 +210,14 @@
                   min="0"
                   placeholder="60"
                 />
-                <span class="input-unit">Second</span>
+                <span class="input-unit">sec</span>
               </div>
-              <p class="field-hint">0 seconds means no caching, and no caching is done by default</p>
+              <p class="field-hint">0 disables caching (default)</p>
             </div>
           </div>
 
           <div v-if="newRule.ruleType === 'file'" class="cache-form-row">
-            <label class="cache-form-label required" for="cache-file-types">File Types:</label>
+            <label class="cache-form-label required" for="cache-file-types">File Types</label>
             <div class="cache-form-control">
               <div class="combobox combobox--tags" @click.stop="toggleFileTypeDropdown">
                 <div class="combobox-input-wrap" @click.stop="openFileTypeDropdown">
@@ -281,7 +281,7 @@
           </div>
 
           <div v-else class="cache-form-row">
-            <label class="cache-form-label required" for="cache-url">URL:</label>
+            <label class="cache-form-label required" for="cache-url">URL</label>
             <div class="cache-form-control">
               <input
                 id="cache-url"
@@ -294,7 +294,7 @@
           </div>
 
           <div class="cache-form-row">
-            <label class="cache-form-label" for="cache-priority">Priority:</label>
+            <label class="cache-form-label" for="cache-priority">Priority</label>
             <div class="cache-form-control">
               <input
                 id="cache-priority"
@@ -304,12 +304,12 @@
                 min="0"
                 placeholder="1000"
               />
-              <p class="field-hint">The Higher Priority Value Is Preferred</p>
+              <p class="field-hint">Higher values take precedence</p>
             </div>
           </div>
 
           <div class="cache-form-row">
-            <label class="cache-form-label" for="cache-slice">Cache Slices:</label>
+            <label class="cache-form-label" for="cache-slice">Cache Slices</label>
             <div class="cache-form-control">
               <div class="input-with-unit">
                 <input
@@ -373,7 +373,7 @@
           </div>
 
           <div class="cache-form-row">
-            <label class="cache-form-label">Status:</label>
+            <label class="cache-form-label">Status</label>
             <div class="cache-form-control">
               <div class="segment-toggle">
                 <button
@@ -420,7 +420,7 @@
 
         <div class="cache-form">
           <div class="cache-form-row">
-            <label class="cache-form-label required">Match Type:</label>
+            <label class="cache-form-label required">Match Type</label>
             <div class="cache-form-control">
               <div class="segment-toggle">
                 <button
@@ -452,7 +452,7 @@
           </div>
 
           <div class="cache-form-row">
-            <label class="cache-form-label required" for="clear-url-match-content">Match Content:</label>
+            <label class="cache-form-label required" for="clear-url-match-content">Match Content</label>
             <div class="cache-form-control">
               <input
                 id="clear-url-match-content"
@@ -466,7 +466,7 @@
           </div>
 
           <div class="cache-form-row">
-            <label class="cache-form-label">Description:</label>
+            <label class="cache-form-label">Description</label>
             <div class="cache-form-control">
               <p class="field-hint url-cache-match-desc">{{ clearUrlCacheMatchDescriptionText }}</p>
             </div>

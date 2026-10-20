@@ -47,7 +47,8 @@ const levelClass = computed(() => {
 .usage-metric {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
+  min-width: 0;
 }
 
 .usage-metric-header {
@@ -58,37 +59,41 @@ const levelClass = computed(() => {
 }
 
 .usage-metric-label {
-  font-size: var(--type-base);
-  color: var(--app-text-muted);
+  font-size: 10px;
   font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
 }
 
 .usage-metric-value {
-  font-size: var(--type-caption);
-  font-weight: 600;
-  color: var(--app-text);
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-heading);
   white-space: nowrap;
 }
 
 .usage-bar {
   position: relative;
   width: 100%;
-  height: 8px;
+  height: 6px;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.22);
+  background: color-mix(in srgb, var(--app-border) 85%, transparent);
   overflow: hidden;
 }
 
 .usage-bar--empty {
-  background: rgba(148, 163, 184, 0.16);
+  opacity: 0.6;
 }
 
 .usage-bar--loading {
   background: linear-gradient(
     90deg,
-    rgba(148, 163, 184, 0.14) 0%,
-    rgba(148, 163, 184, 0.32) 50%,
-    rgba(148, 163, 184, 0.14) 100%
+    color-mix(in srgb, var(--app-border) 60%, transparent) 0%,
+    var(--app-border-strong) 50%,
+    color-mix(in srgb, var(--app-border) 60%, transparent) 100%
   );
   background-size: 200% 100%;
   animation: usage-bar-shimmer 1.2s ease-in-out infinite;
@@ -101,26 +106,26 @@ const levelClass = computed(() => {
 }
 
 .usage-bar-fill--low {
-  background: linear-gradient(90deg, #22c55e, #16a34a);
+  background: var(--dorian-viper-400, #3fbd85);
 }
 
 .usage-bar-fill--medium {
-  background: linear-gradient(90deg, #f59e0b, #d97706);
+  background: var(--dorian-warn, #e0a83f);
 }
 
 .usage-bar-fill--high {
-  background: linear-gradient(90deg, #ef4444, #dc2626);
+  background: var(--dorian-danger, #e15241);
 }
 
 .usage-bar-fill--unknown {
-  background: #94a3b8;
+  background: var(--app-border-strong);
 }
 
 .usage-metric-detail {
   margin: 0;
-  font-size: var(--type-caption);
+  font-size: 11px;
   color: var(--app-text-muted);
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 @keyframes usage-bar-shimmer {

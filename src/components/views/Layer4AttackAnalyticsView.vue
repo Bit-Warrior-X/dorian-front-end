@@ -114,20 +114,20 @@
               <div class="l4-chart-readout">
                 <span class="l4-chart-readout__swatch l4-chart-readout__swatch--allowed"></span>
                 <div>
-                  <div class="l4-chart-readout__label">Allowed</div>
+                  <div class="l4-chart-readout__label">Allowed now</div>
                   <div class="l4-chart-readout__value num signal">{{ latestAllowedLabel }}</div>
                 </div>
               </div>
               <div class="l4-chart-readout">
                 <span class="l4-chart-readout__swatch l4-chart-readout__swatch--blocked"></span>
                 <div>
-                  <div class="l4-chart-readout__label">Blocked</div>
+                  <div class="l4-chart-readout__label">Blocked now</div>
                   <div class="l4-chart-readout__value num danger">{{ latestBlockedLabel }}</div>
                 </div>
               </div>
               <div class="l4-chart-readout">
                 <div>
-                  <div class="l4-chart-readout__label">Block rate</div>
+                  <div class="l4-chart-readout__label">Block rate · {{ selectedRangeLabel }}</div>
                   <div class="l4-chart-readout__value num warn">{{ blockRateLabel }}</div>
                 </div>
               </div>
@@ -329,6 +329,7 @@ import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { notifyError, notifySuccess } from '@/utils/notify'
+import { l4AttackKind, l4AttackLabel } from '@/utils/l4AttackType'
 import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
 import {
   formatApexTimeTick,
@@ -528,13 +529,9 @@ const latestTrafficPoint = computed(() => {
   return points[points.length - 1]
 })
 
-const latestAllowedLabel = computed(() =>
-  formatThroughput(latestTrafficPoint.value?.allowedTraffic ?? l4Summary.value.allowedTraffic),
-)
+const latestAllowedLabel = computed(() => formatRate(latestTrafficPoint.value?.allowedTraffic ?? 0))
 
-const latestBlockedLabel = computed(() =>
-  formatThroughput(latestTrafficPoint.value?.blockedTraffic ?? l4Summary.value.blockedTraffic),
-)
+const latestBlockedLabel = computed(() => formatRate(latestTrafficPoint.value?.blockedTraffic ?? 0))
 
 const blockRateLabel = computed(() => {
   const total = Number(l4Summary.value.totalTraffic) || 0
@@ -612,6 +609,8 @@ const formatThroughput = (value) => {
   return `${current.toFixed(current >= 10 ? 0 : 1)} ${units[index]}`
 }
 
+const formatRate = (value) => `${formatThroughput(value).replace(' bytes', ' B')}/s`
+
 const formatDateTime = (value) => {
   if (!value) return '-'
   const parsed = new Date(value)
@@ -626,26 +625,11 @@ const formatDateInput = (value) => {
   return parsed.toISOString()
 }
 
-const attackTypeLabel = (value) => {
-  const upper = String(value || '').toUpperCase()
-  if (upper.includes('SOCKET') || upper.includes('XMAS') || upper.includes('NULL') || upper.includes('FIN')) return 'SOCKET'
-  if (upper.includes('STOMP') || upper.includes('PSH')) return 'STOMP'
-  if (upper.includes('SYN')) return 'TCP SYN'
-  if (upper.includes('RST')) return 'TCP RST'
-  if (upper.includes('ACK')) return 'TCP ACK'
-  if (upper.includes('UDP')) return 'UDP'
-  if (upper.includes('ICMP')) return 'ICMP'
-  if (upper.includes('GRE')) return 'GRE'
-  return value || 'L4'
-}
+const attackTypeLabel = (value) => l4AttackLabel(value)
 
 const attackBadgeClass = (value) => {
-  const normalized = String(value || '').toLowerCase()
-  if (normalized.includes('socket') || normalized.includes('xmas') || normalized.includes('null') || normalized.includes('fin')) return 'attack-socket'
-  if (normalized.includes('stomp') || normalized.includes('psh')) return 'attack-stomp'
-  if (normalized.includes('syn')) return 'attack-syn'
-  if (normalized.includes('udp')) return 'attack-udp'
-  if (normalized.includes('icmp')) return 'attack-icmp'
+  const kind = l4AttackKind(value)
+  if (['socket', 'stomp', 'syn', 'udp', 'icmp'].includes(kind)) return `attack-${kind}`
   return 'attack-other'
 }
 
@@ -797,7 +781,7 @@ const renderTrafficChart = () => {
     yaxis: {
       labels: {
         style: { colors: chartLabelColor(), fontSize: '11px' },
-        formatter: (val) => formatThroughput(val),
+        formatter: (val) => formatRate(val),
       },
       min: 0,
       forceNiceScale: true,
@@ -814,7 +798,7 @@ const renderTrafficChart = () => {
       shared: true,
       intersect: false,
       x: { formatter: (val) => formatApexTimeTick(val, startMs, endMs) },
-      y: { formatter: (val) => formatThroughput(val) },
+      y: { formatter: (val) => formatRate(val) },
       style: { fontSize: '12px' },
     },
     legend: { show: false },
@@ -902,7 +886,7 @@ const renderProtocolChart = () => {
     yaxis: {
       labels: {
         style: { colors: chartLabelColor(), fontSize: '11px' },
-        formatter: (val) => formatThroughput(val),
+        formatter: (val) => formatRate(val),
       },
       min: 0,
       forceNiceScale: true,
@@ -918,7 +902,7 @@ const renderProtocolChart = () => {
       shared: true,
       intersect: false,
       x: { formatter: (val) => formatApexTimeTick(val, startMs, endMs) },
-      y: { formatter: (val) => formatThroughput(val) },
+      y: { formatter: (val) => formatRate(val) },
     },
     legend: { show: false },
     markers: {

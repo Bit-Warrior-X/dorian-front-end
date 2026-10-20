@@ -1,5 +1,5 @@
 <template>
-  <section class="status-card">
+  <section class="status-card" :class="`status-card--${status}`">
     <header class="status-card-header">
       <h4 class="status-card-title info-hint-heading">
         <span>{{ title }}</span>
@@ -38,6 +38,7 @@
         :title="status === 'na' ? 'This feature is disabled because the license does not include it' : undefined"
         @click="$emit('start')"
       >
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 3.5v9l7-4.5-7-4.5z" /></svg>
         Start
       </button>
       <button
@@ -47,6 +48,7 @@
         :title="status === 'na' ? 'This feature is disabled because the license does not include it' : undefined"
         @click="$emit('stop')"
       >
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5" /></svg>
         Stop
       </button>
     </footer>
@@ -97,73 +99,83 @@ const roleHint = computed(() => serviceStatusRoleHint(props.service))
 
 <style scoped>
 .status-card {
+  --svc-tone: var(--app-text-muted);
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--app-border-strong);
-  border-radius: 14px;
-  background: var(--app-surface-solid);
+  border: 0.5px solid var(--app-border);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--svc-tone) 7%, transparent) 0%, transparent 42%),
+    var(--app-surface-muted);
   overflow: hidden;
 }
+
+.status-card--running { --svc-tone: var(--dorian-viper-400, #3fbd85); }
+.status-card--stopped { --svc-tone: var(--dorian-danger, #e15241); }
+.status-card--deployed { --svc-tone: var(--dorian-l4, #6b9fd4); }
+.status-card--unknown { --svc-tone: var(--dorian-warn, #e0a83f); }
 
 .status-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--app-border-strong);
+  padding: 11px 14px;
+  border-bottom: 0.5px solid var(--app-border);
 }
 
 .status-card-title {
   margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 650;
   color: var(--app-heading);
   line-height: 1.2;
 }
 
 .status-card-body {
   flex: 1;
-  padding: 14px 16px;
+  padding: 6px 14px;
 }
 
 .status-details {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
 .status-detail-row {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 0.5px solid color-mix(in srgb, var(--app-border) 70%, transparent);
 }
 
+.status-detail-row:last-child { border-bottom: 0; }
+
 .status-detail-label {
-  font-size: var(--type-caption);
+  font-size: 10px;
   font-weight: 600;
   color: var(--app-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
 }
 
 .status-detail-value {
-  font-size: var(--type-base);
-  color: var(--app-text-secondary);
+  font-size: 12.5px;
+  color: var(--app-text);
   line-height: 1.4;
   word-break: break-word;
 }
 
 .status-detail-row--warning .status-detail-value {
-  color: #d97706;
+  color: var(--dorian-warn, #e0a83f);
   font-weight: 600;
 }
 
 .status-detail-row--muted .status-detail-value {
   color: var(--app-text-muted);
-  font-style: italic;
 }
 
 .status-card-actions--row {
@@ -171,51 +183,57 @@ const roleHint = computed(() => serviceStatusRoleHint(props.service))
   flex-direction: row;
   flex-wrap: nowrap;
   gap: 8px;
-  padding: 12px;
-  border-top: 1px solid var(--app-border-strong);
+  padding: 10px 14px 12px;
+  border-top: 0.5px solid var(--app-border);
 }
 
 .service-action-btn {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 34px;
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  padding: 7px 12px;
-  font-size: var(--type-caption);
+  gap: 6px;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.25;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
+.service-action-btn svg { width: 11px; height: 11px; }
+
 .service-action-btn--start {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 45%, transparent);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 10%, transparent);
+  color: var(--dorian-viper-400, #3fbd85);
 }
 
 .service-action-btn--start:hover:not(:disabled) {
-  background: var(--app-surface-hover);
-  border-color: var(--app-border-strong);
-  color: var(--app-text);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 18%, transparent);
 }
 
 .service-action-btn--stop {
-  border: 1px solid #dc2626;
-  background: #dc2626;
-  color: #fff;
+  border: 0.5px solid color-mix(in srgb, var(--dorian-danger, #e15241) 45%, transparent);
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 10%, transparent);
+  color: var(--dorian-danger, #e15241);
 }
 
 .service-action-btn--stop:hover:not(:disabled) {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: var(--dorian-danger, #e15241);
+  border-color: var(--dorian-danger, #e15241);
+  color: #fff;
 }
 
 .service-action-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.4;
   cursor: not-allowed;
+  border-color: var(--app-border);
+  background: transparent;
+  color: var(--app-text-muted);
 }
 </style>

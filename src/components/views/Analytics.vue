@@ -62,6 +62,8 @@
       </button>
     </div>
 
+    <AttackAlertsPanel :server-id="selectedServer" />
+
     <div
       v-if="isLoading"
       class="dash-loading-overlay"
@@ -564,6 +566,7 @@ import ApexCharts from 'apexcharts'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import AttackAlertsPanel from '@/components/AttackAlertsPanel.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
@@ -1179,7 +1182,7 @@ const formatKiloBytes = (value) => {
 const formatKiloBps = (value) => {
   const numeric = Number(value)
   if (!Number.isFinite(numeric) || numeric <= 0) return '0 Kbps'
-  const units = ['KBps', 'MBps', 'GBps', 'TBps']
+  const units = ['Kbps', 'Mbps', 'Gbps', 'Tbps']
   let index = 0
   let current = numeric
   while (current >= 1024 && index < units.length - 1) {
@@ -1273,8 +1276,10 @@ const audienceMetricCards = computed(() => {
 const httpMetricCards = computed(() => {
   const methodTotal = methodTableRows.value.reduce((sum, row) => sum + Number(row.value ?? 0), 0)
   const protocolTotal = protocolTableRows.value.reduce((sum, row) => sum + Number(row.value ?? 0), 0)
-  const topMethod = methodTableRows.value[0]
-  const topProtocol = protocolTableRows.value[0]
+  const largest = (rows) =>
+    rows.reduce((best, row) => (Number(row.value ?? 0) > Number(best?.value ?? 0) ? row : best), null)
+  const topMethod = largest(methodTableRows.value)
+  const topProtocol = largest(protocolTableRows.value)
   return [
     { label: 'Method requests', value: formatNumber(methodTotal), hint: 'all methods', tone: 'info' },
     { label: 'Top method', value: topMethod?.method || '—', hint: topMethod?.rate || '', tone: 'ok' },
@@ -1568,7 +1573,7 @@ const loadAnalyticsData = async () => {
     ispTableRows.value = buildRateRows(ispRows)
 
     const refererRows = (Array.isArray(topReferers) ? topReferers : []).map((row) => ({
-      referer: row.referer,
+      referer: !row.referer || row.referer === '-' ? '(direct)' : row.referer,
       requests: Number(row.requests ?? 0),
     }))
     refererTableRows.value = buildRateRows(refererRows)

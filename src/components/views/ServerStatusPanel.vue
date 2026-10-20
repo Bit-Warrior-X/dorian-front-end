@@ -47,10 +47,23 @@
   </div>
 
   <div v-else class="server-status-panel" :class="{ 'server-status-panel--embedded': embedded }">
+    <header v-if="!embedded" class="cfg-head">
+      <div class="cfg-head__copy">
+        <span class="cfg-head__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" /></svg>
+        </span>
+        <div>
+          <p class="cfg-head__kicker">Runtime</p>
+          <h4>Monitor</h4>
+          <p class="cfg-head__desc">Live host vitals, interface traffic and the health of Angelos, Sparta and Athens.</p>
+        </div>
+      </div>
+    </header>
+
     <section class="status-card server-card">
       <header class="status-card-header">
         <div class="status-card-heading">
-          <h4 class="status-card-title">Server</h4>
+          <h4 class="status-card-title">Host</h4>
           <StatusCornerDot
             refreshable
             :status="hostAliveStatus"
@@ -924,8 +937,7 @@ onBeforeUnmount(() => {
 .server-status-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
 }
 
 .server-status-panel--embedded {
@@ -936,6 +948,36 @@ onBeforeUnmount(() => {
 .server-status-panel--embedded .server-usage {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
+
+.cfg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cfg-head__copy { display: flex; gap: 12px; min-width: 0; }
+
+.cfg-head__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--dorian-viper-400, #3fbd85);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 30%, transparent);
+}
+
+.cfg-head__icon svg { width: 18px; height: 18px; }
+
+.cfg-head__kicker {
+  margin: 0 0 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.cfg-head h4 { margin: 0; font-size: 1.1rem; font-weight: 650; letter-spacing: -0.02em; color: var(--app-heading); }
+.cfg-head__desc { margin: 3px 0 0; max-width: 44rem; font-size: 12.5px; line-height: 1.45; color: var(--app-text-muted); }
 
 .service-grid {
   display: grid;
@@ -951,9 +993,9 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--app-border-strong);
-  border-radius: 8px;
-  background: var(--app-surface-solid);
+  border: 0.5px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface-muted);
   overflow: hidden;
 }
 
@@ -969,14 +1011,14 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--app-border-strong);
+  padding: 11px 14px;
+  border-bottom: 0.5px solid var(--app-border);
 }
 
 .status-card-title {
   margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 650;
   color: var(--app-heading);
   line-height: 1.2;
 }
@@ -992,13 +1034,13 @@ onBeforeUnmount(() => {
 .server-usage {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px 18px;
+  gap: 14px 18px;
   align-items: start;
 }
 
 .server-usage {
   padding-top: 14px;
-  border-top: 1px solid var(--app-border-strong);
+  border-top: 0.5px solid var(--app-border);
 }
 
 .status-card-body :deep(.usage-metric) {
@@ -1016,18 +1058,22 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+  min-width: 0;
 }
 
 .metric-label,
 .status-label {
-  font-size: var(--type-base);
-  color: var(--app-text-muted);
+  font-size: 10px;
   font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
 }
 
 .metric-value,
 .status-value {
-  font-size: var(--type-base);
+  font-size: 13px;
+  font-weight: 600;
   color: var(--app-text);
   text-align: left;
   line-height: 1.35;
@@ -1037,23 +1083,23 @@ onBeforeUnmount(() => {
 .metric-sub {
   display: block;
   margin-top: 2px;
-  font-size: var(--type-caption);
+  font-size: 11px;
   font-weight: 500;
   color: var(--app-text-muted);
 }
 
 .metric-value--warm {
-  color: #d97706;
+  color: var(--dorian-warn, #e0a83f);
 }
 
 .metric-value--hot {
-  color: #dc2626;
+  color: var(--dorian-danger, #e15241);
 }
 
 .status-error {
   margin: 4px 0 0;
-  font-size: var(--type-caption);
-  color: #b91c1c;
+  font-size: 12px;
+  color: var(--dorian-danger, #e15241);
 }
 
 .managed-users {
@@ -1065,13 +1111,13 @@ onBeforeUnmount(() => {
 .managed-user-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: var(--type-caption);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--app-accent);
-  background: var(--app-accent-soft);
-  border: 1px solid rgba(168, 85, 247, 0.25);
+  color: var(--dorian-viper-400, #3fbd85);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 12%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 30%, transparent);
 }
 
 .status-card-actions--inline {
@@ -1084,14 +1130,15 @@ onBeforeUnmount(() => {
 
 .host-action-btn {
   flex: 0 0 auto;
-  min-width: 96px;
-  min-height: 34px;
+  min-width: 88px;
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  padding: 7px 12px;
-  font-size: var(--type-caption);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.25;
   cursor: pointer;
@@ -1099,30 +1146,30 @@ onBeforeUnmount(() => {
 }
 
 .host-action-btn--restart {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
-}
-
-.host-action-btn--restart:hover:not(:disabled) {
-  background: var(--app-surface-hover);
-  border-color: var(--app-border-strong);
+  border: 0.5px solid var(--app-border-strong);
+  background: transparent;
   color: var(--app-text);
 }
 
+.host-action-btn--restart:hover:not(:disabled) {
+  background: var(--app-surface);
+  color: var(--app-heading);
+}
+
 .host-action-btn--poweroff {
-  border: 1px solid #dc2626;
-  background: #dc2626;
-  color: #fff;
+  border: 0.5px solid color-mix(in srgb, var(--dorian-danger, #e15241) 50%, transparent);
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 10%, transparent);
+  color: var(--dorian-danger, #e15241);
 }
 
 .host-action-btn--poweroff:hover:not(:disabled) {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: var(--dorian-danger, #e15241);
+  border-color: var(--dorian-danger, #e15241);
+  color: #fff;
 }
 
 .host-action-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -1130,21 +1177,21 @@ onBeforeUnmount(() => {
 .primary-btn {
   display: inline-flex;
   align-items: center;
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: var(--type-caption);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .secondary-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
+  border: 0.5px solid var(--app-border-strong);
+  background: transparent;
+  color: var(--app-text);
 }
 
 .secondary-btn:hover:not(:disabled) {
-  background: var(--app-surface-hover);
+  background: var(--app-surface);
 }
 
 .primary-btn {
@@ -1154,8 +1201,8 @@ onBeforeUnmount(() => {
 }
 
 .primary-btn.danger-btn {
-  border-color: #dc2626;
-  background: #dc2626;
+  border-color: var(--dorian-danger, #e15241);
+  background: var(--dorian-danger, #e15241);
 }
 
 .secondary-btn:disabled,

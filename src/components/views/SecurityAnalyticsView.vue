@@ -191,7 +191,7 @@
               <thead>
                 <tr>
                   <th>Area</th>
-                  <th>Request counts</th>
+                  <th>Block counts</th>
                 </tr>
               </thead>
               <tbody>
@@ -811,9 +811,12 @@ const loadSecurityAnalytics = async () => {
     blockSeries.value = Array.isArray(blockCounts) ? blockCounts : []
     countryRequests.value = Array.isArray(countries) ? countries : []
     topRequestRows.value = Array.isArray(topRequests) ? topRequests : []
-    topBlockRows.value = Array.isArray(topBlocks) ? topBlocks : []
+    topBlockRows.value = (Array.isArray(topBlocks) ? topBlocks : []).filter((row) => Number(row.count) > 0)
     topUrlRows.value = Array.isArray(topUrls) ? topUrls : []
-    topRefererRows.value = Array.isArray(topReferers) ? topReferers : []
+    topRefererRows.value = (Array.isArray(topReferers) ? topReferers : []).map((row) => ({
+      ...row,
+      referer: !row.referer || row.referer === '-' ? '(direct)' : row.referer,
+    }))
     topUserAgentRows.value = Array.isArray(topUserAgents) ? topUserAgents : []
 
     nextTick(() => renderBlockCountChart())

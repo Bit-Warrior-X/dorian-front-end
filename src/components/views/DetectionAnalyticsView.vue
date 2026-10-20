@@ -99,21 +99,25 @@
       <div class="dash-panel c-6">
         <div class="dash-panel-head">
           <h3>L4 events</h3>
+          <span class="dash-count-tag">{{ formatNumber(l4EventRows.length) }} total</span>
         </div>
-        <p v-if="!l4EventRows.length" class="dash-empty">No L4 attack events in the live window.</p>
-        <div v-else class="dash-log">
+        <p v-if="!l4EventRows.length" class="dash-empty">No L4 attacks{{ selectedEdge === 'all' ? '' : ' on this edge' }} in the last {{ rangeLabel }}.</p>
+        <div v-else class="dash-log dash-log--full">
           <button
             v-for="event in l4EventRows"
-            :key="event.id"
+            :key="event.id || event.reqId"
             type="button"
             class="dash-log-line"
             @click="openSecurityEvent(event)"
           >
-            <span class="dash-log-time">{{ formatLogTime(event.createdAt) }}</span>
-            <span class="dash-log-tag l4">L4</span>
+            <span class="dash-log-time">{{ formatLogTime(event.startedAt || event.createdAt) }}</span>
+            <span class="dash-log-tag l4">{{ event.status === 'ongoing' ? 'LIVE' : 'L4' }}</span>
             <span class="dash-log-msg">
-              <span>{{ event.title }}<span v-if="event.serverName" class="dash-log-edge"> · {{ event.serverName }}</span></span>
-              <span v-if="event.description" class="dash-log-detail">{{ event.description }}</span>
+              <span>{{ l4AttackLabel(event.attackType || event.title) }}<span v-if="event.serverName" class="dash-log-edge"> · {{ event.serverName }}</span></span>
+              <span class="dash-log-detail">
+                <template v-if="event.description">{{ event.description }}</template>
+                <template v-else-if="event.ipCount">{{ formatNumber(event.ipCount) }} sources</template>
+              </span>
             </span>
           </button>
         </div>
@@ -122,7 +126,7 @@
         <div class="dash-panel-head">
           <h3>L7 events</h3>
         </div>
-        <p v-if="!l7EventRows.length" class="dash-empty">No L7 block events in the live window.</p>
+        <p v-if="!l7EventRows.length" class="dash-empty">No L7 block events in the last {{ rangeLabel }}.</p>
         <div v-else class="dash-log">
           <button
             v-for="event in l7EventRows"
@@ -153,6 +157,7 @@ import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import DetectionNav from '@/components/views/DetectionNav.vue'
 import SecurityEventDialog from '@/components/SecurityEventDialog.vue'
 import { openAttackConsole } from '@/stores/attackAlert'
+import { l4AttackLabel } from '@/utils/l4AttackType'
 import { fetchDashboardSummary, fetchSecurityEvents } from '@/api/dashboard'
 import { fetchL4Series, fetchL4Summary } from '@/api/l4Analytics'
 import { fetchSecuritySeries, fetchSecuritySummary } from '@/api/securityAnalytics'
@@ -231,8 +236,21 @@ const eventTag = (event) => {
   return 'SYS'
 }
 
-const l4EventRows = computed(() => securityEvents.value.filter((event) => eventTag(event) === 'L4').slice(0, 8))
-const l7EventRows = computed(() => securityEvents.value.filter((event) => eventTag(event) === 'L7').slice(0, 8))
+const eventInRange = (event) => {
+  const windowStart = Date.now() - rangeDurationMs(selectedRange.value)
+  if (event?.status === 'ongoing') return true
+  const last = new Date(event?.endedAt || event?.createdAt || event?.startedAt).getTime()
+  return Number.isFinite(last) && last >= windowStart
+}
+
+const l4EventRows = computed(() => securityEvents.value.filter((event) => {
+  if (eventTag(event) !== 'L4' || !eventInRange(event)) return false
+  if (selectedEdge.value === 'all') return true
+  return String(event.serverId ?? '') === String(selectedEdge.value)
+}))
+const l7EventRows = computed(() =>
+  securityEvents.value.filter((event) => eventTag(event) === 'L7' && eventInRange(event)).slice(0, 8),
+)
 
 const l4Hit = computed(() => Number(l4Defense.value.blockedTraffic) > 0 || l4EventRows.value.length > 0)
 const l7Hit = computed(() => Number(l7Defense.value.blockRequestCounts) > 0 || l7EventRows.value.length > 0)
@@ -267,7 +285,9 @@ const formatLogTime = (value) => {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  if (date.toDateString() === new Date().toDateString()) return time
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`
 }
 
 const mapL4Points = (points) =>
@@ -359,7 +379,10 @@ const renderCharts = () => {
   }
 }
 
+let loadToken = 0
+
 const loadDetection = async () => {
+  const token = ++loadToken
   const params = {
     range: selectedRange.value,
     serverId: selectedEdge.value,
@@ -371,13 +394,15 @@ const loadDetection = async () => {
       fetchL4Series('traffic', params),
       fetchSecuritySummary(params),
       fetchSecuritySeries('block-count', params),
-      fetchSecurityEvents(16),
+      fetchSecurityEvents(5000, selectedEdge.value),
       fetchDashboardSummary(),
     ])
+    if (token !== loadToken) return
     l4Defense.value = { blockedTraffic: Number(l4Summary?.blockedTraffic ?? 0) }
     l7Defense.value = { blockRequestCounts: Number(l7Summary?.blockRequestCounts ?? 0) }
     l4BlockedSeries.value = [{ name: 'Blocked', data: mapL4Points(l4Series) }]
     l7BlockSeries.value = [{ name: 'Blocked', data: mapL7Points(l7Series) }]
+    // Keep every returned attack period; L4 rows are filtered in l4EventRows.
     securityEvents.value = Array.isArray(events) ? events : []
     monthStats.value = {
       l4AttacksThisMonth: Number(summary?.l4AttacksThisMonth ?? 0),
@@ -473,6 +498,10 @@ a.dash-kpi {
   line-height: 1.9;
   max-height: 240px;
   overflow-y: auto;
+}
+
+.dash-log--full {
+  max-height: min(70vh, 720px);
 }
 
 .dash-log-line {

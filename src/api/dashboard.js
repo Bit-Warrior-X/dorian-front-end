@@ -13,9 +13,10 @@ export const fetchAttackConsole = async (reqId) => {
   return apiRequest(`/dashboard/attack-console?${params}`)
 }
 
-export const fetchSecurityEvents = async (limit = 5) => {
+export const fetchSecurityEvents = async (limit = 5, serverId = 'all') => {
   const params = new URLSearchParams()
   if (limit) params.set('limit', String(limit))
+  if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
   const query = params.toString()
   return apiRequest(`/dashboard/security-events${query ? `?${query}` : ''}`)
 }

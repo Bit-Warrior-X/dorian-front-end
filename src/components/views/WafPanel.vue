@@ -1,10 +1,15 @@
 <template>
   <div class="cfg-subpanel" :class="{ 'cfg-subpanel--embedded': embedded }">
-    <header v-if="!embedded" class="cfg-subpanel__intro">
-      <div>
-        <p class="cfg-subpanel__kicker">Security</p>
-        <h4>WAF protection</h4>
-        <p>Pick a rule category to allow, block, or rate-limit traffic for this site.</p>
+    <header v-if="!embedded" class="cfg-subpanel__intro cfg-head">
+      <div class="cfg-head__copy">
+        <span class="cfg-head__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /><path d="M9 12l2 2 4-4" /></svg>
+        </span>
+        <div>
+          <p class="cfg-subpanel__kicker cfg-head__kicker">Security</p>
+          <h4>WAF protection</h4>
+          <p class="cfg-head__desc">Pick a rule category to allow, block, or rate-limit traffic for this site.</p>
+        </div>
       </div>
     </header>
 

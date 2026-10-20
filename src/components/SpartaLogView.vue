@@ -50,8 +50,9 @@ watch(parsed, async () => {
   max-height: 320px;
   overflow: auto;
   padding: 10px 12px;
-  border-radius: 8px;
-  background: #070b09;
+  border-radius: 9px;
+  border: 0.5px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-bg, #070b09) 85%, #000);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   line-height: 1.55;

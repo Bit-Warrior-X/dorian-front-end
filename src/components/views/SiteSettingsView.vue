@@ -1,5 +1,5 @@
 <template>
-  <div class="cfg-view">
+  <div class="cfg-view site-cfg">
     <header class="cfg-topbar">
       <div class="cfg-topbar__left">
         <p class="cfg-kicker">Delivery</p>
@@ -40,15 +40,23 @@
     </div>
 
     <template v-else>
-      <section v-if="loadedSite" class="cfg-statusbar" aria-label="Site status">
+      <section
+        v-if="loadedSite"
+        class="cfg-statusbar"
+        :class="`cfg-statusbar--${siteActivityTone(loadedSite)}`"
+        aria-label="Site status"
+      >
+        <span class="cfg-avatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="8.5" />
+            <path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.2-3.6-8.5S9.6 5.9 12 3.5z" />
+          </svg>
+        </span>
         <div class="cfg-status-domain">
           <strong>{{ loadedSite.domain }}</strong>
           <span>{{ overviewSummary }}</span>
         </div>
         <div class="cfg-status-pills">
-          <span class="cfg-pill" :class="siteStatusClass(loadedSite.status)">
-            {{ siteStatusLabel(loadedSite.status) }}
-          </span>
           <span
             class="cfg-activity"
             :class="`cfg-activity--${siteActivityTone(loadedSite)}`"
@@ -57,11 +65,11 @@
             <span class="cfg-activity__dot" aria-hidden="true"></span>
             {{ siteActivityLabel(loadedSite) }}
           </span>
-          <span class="cfg-pill cfg-pill--muted" :class="certStatusClass(loadedSite.certificateStatus)">
+          <span class="cfg-pill" :class="certStatusClass(loadedSite.certificateStatus)">
             SSL {{ formatCertStatus(loadedSite.certificateStatus) }}
           </span>
           <span v-if="loadedSite.wafName" class="cfg-pill cfg-pill--muted">
-            {{ loadedSite.wafName }}
+            WAF · {{ loadedSite.wafName }}
           </span>
           <span class="cfg-pill cfg-pill--muted">
             {{ assignedServers.length }} {{ assignedServers.length === 1 ? 'edge' : 'edges' }}
@@ -69,26 +77,44 @@
         </div>
       </section>
 
-      <nav class="cfg-tabs" aria-label="Configuration sections">
+      <nav class="cfg-tabs" aria-label="Configuration sections" role="tablist">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           type="button"
+          role="tab"
           class="cfg-tab"
           :class="{ active: activeTab === tab.id }"
+          :aria-selected="activeTab === tab.id"
+          :title="tab.hint"
           :disabled="tab.id === 'waf' && !selectedSiteId"
           @click="onTabClick(tab.id)"
         >
-          <span class="cfg-tab__label info-hint-heading">
-            <span>{{ tab.label }}</span>
-            <InfoHint v-if="tab.hint" :text="tab.hint" :aria-label="`${tab.label} help`" />
-          </span>
+          <svg class="cfg-tab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <template v-if="tab.id === 'general'"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></template>
+            <template v-else-if="tab.id === 'traffic'"><path d="M13 3L5 13.5h6L10 21l8-10.5h-6L13 3z" /></template>
+            <template v-else-if="tab.id === 'waf'"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /><path d="M9 12l2 2 4-4" /></template>
+            <template v-else-if="tab.id === 'origin'"><rect x="4" y="4" width="16" height="6" rx="1.5" /><rect x="4" y="14" width="16" height="6" rx="1.5" /><path d="M8 7h.01M8 17h.01" /></template>
+            <template v-else><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" /></template>
+          </svg>
+          <span class="cfg-tab__label">{{ tab.label }}</span>
         </button>
       </nav>
 
       <section class="cfg-panel">
         <div v-if="activeTab === 'general' && loadedSite" class="cfg-overview">
-          <p class="cfg-section-kicker">Live metrics</p>
+          <header class="cfg-head">
+            <div class="cfg-head__copy">
+              <span class="cfg-head__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" /></svg>
+              </span>
+              <div>
+                <p class="cfg-head__kicker">Live</p>
+                <h4>Overview</h4>
+                <p class="cfg-head__desc">Live traffic, certificate, firewall and edge assignment for this hostname. Refreshes every 15 seconds.</p>
+              </div>
+            </div>
+          </header>
           <div class="cfg-metrics">
             <article class="cfg-metric cfg-metric--signal">
               <span class="cfg-metric__label">Egress</span>
@@ -231,7 +257,10 @@
         />
 
         <div v-else-if="activeTab === 'waf' && !canShowWafPanel" class="cfg-waf-prompt">
-          <p class="cfg-section-kicker">Security</p>
+          <span class="cfg-head__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /><path d="M9 12l2 2 4-4" /></svg>
+          </span>
+          <p class="cfg-head__kicker">Security</p>
           <h3>Predefined WAF rule</h3>
           <p>
             This site uses the shared rule
@@ -276,6 +305,7 @@ import InfoHint from '../InfoHint.vue'
 import SiteOriginPanel from './SiteOriginPanel.vue'
 import WafPanel from './WafPanel.vue'
 import TrafficPanel from './TrafficPanel.vue'
+import '@/assets/styles/site-config.css'
 
 const SETTINGS_TITLE = 'Site Settings'
 
@@ -394,16 +424,6 @@ const wafSectionHint = computed(() => {
   }
   return 'Using a custom rule set dedicated to this site.'
 })
-
-const siteStatusClass = (status) => {
-  const normalized = String(status || '').toUpperCase()
-  return normalized === 'ENABLE' ? 'on' : 'off'
-}
-
-const siteStatusLabel = (status) => {
-  const normalized = String(status || '').toUpperCase()
-  return normalized === 'ENABLE' ? 'Enabled' : 'Disabled'
-}
 
 const formatOverviewDate = (value) => {
   if (!value) return '—'
@@ -868,18 +888,38 @@ onBeforeUnmount(() => {
 }
 
 .cfg-statusbar {
+  --status-tone: var(--app-text-muted);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 12px 14px;
   padding: 12px 14px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--cfg-radius);
-  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
+  border-radius: 12px;
+  background:
+    radial-gradient(90% 140% at 0% 0%, color-mix(in srgb, var(--status-tone) 9%, transparent) 0%, transparent 60%),
+    var(--app-surface);
 }
 
+.cfg-statusbar--active { --status-tone: var(--dorian-viper-400, #3fbd85); }
+.cfg-statusbar--idle { --status-tone: var(--dorian-warn, #e0a83f); }
+
+.cfg-avatar {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--status-tone);
+  background: color-mix(in srgb, var(--status-tone) 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--status-tone) 30%, transparent);
+}
+
+.cfg-avatar svg { width: 19px; height: 19px; }
+
 .cfg-status-domain {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -888,11 +928,13 @@ onBeforeUnmount(() => {
 
 .cfg-status-domain strong {
   font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   color: var(--app-heading);
 }
 
 .cfg-status-domain span {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--app-text-muted);
 }
 
@@ -906,12 +948,12 @@ onBeforeUnmount(() => {
 .cfg-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 650;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  border: 1px solid transparent;
+  border: 0.5px solid transparent;
 }
 
 .cfg-pill--muted,
@@ -947,10 +989,13 @@ onBeforeUnmount(() => {
 .cfg-activity {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
   font-weight: 650;
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  background: color-mix(in srgb, currentColor 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, currentColor 30%, transparent);
 }
 
 .cfg-activity__dot {
@@ -978,37 +1023,49 @@ onBeforeUnmount(() => {
 }
 
 .cfg-tabs {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
+.cfg-tabs::-webkit-scrollbar { display: none; }
+
 .cfg-tab {
-  display: flex;
-  flex-direction: row;
+  flex: 1 0 auto;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-width: 0;
-  padding: 12px 10px;
-  border-radius: var(--cfg-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-  color: var(--app-text);
-  text-align: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--app-text-muted);
+  font: inherit;
+  white-space: nowrap;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .cfg-tab:hover:not(.active):not(:disabled) {
-  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
-  background: color-mix(in srgb, var(--app-accent) 5%, var(--app-surface));
+  color: var(--app-heading);
+  background: var(--app-surface-muted);
+}
+
+.cfg-tab:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
 }
 
 .cfg-tab.active {
-  border-color: rgba(46, 158, 108, 0.45);
-  background: rgba(46, 158, 108, 0.1);
-  box-shadow: inset 0 -2px 0 var(--dorian-viper-500, var(--app-accent));
+  color: var(--dorian-viper-400, var(--app-accent));
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 12%, var(--app-surface-muted));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 40%, transparent);
 }
 
 .cfg-tab:disabled {
@@ -1016,23 +1073,18 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-.cfg-tab__label {
-  font-size: 13.5px;
-  font-weight: 650;
-  color: var(--app-heading);
-  flex-wrap: nowrap;
-  white-space: nowrap;
-}
+.cfg-tab__icon { width: 16px; height: 16px; flex-shrink: 0; }
 
-.cfg-tab.active .cfg-tab__label {
-  color: var(--dorian-viper-400, var(--app-accent));
+.cfg-tab__label {
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .cfg-panel {
-  border: 1px solid var(--app-border);
-  border-radius: var(--cfg-radius);
+  border: 0.5px solid var(--app-border);
+  border-radius: 12px;
   background: var(--app-surface);
-  padding: 16px;
+  padding: 18px;
   min-height: 320px;
 }
 
@@ -1059,30 +1111,24 @@ onBeforeUnmount(() => {
 
 .cfg-metric {
   position: relative;
-  padding: 12px 14px 12px 16px;
-  border-radius: var(--cfg-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-elevated, var(--app-surface));
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background:
+    radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--metric-accent) 8%, transparent) 0%, transparent 55%),
+    var(--app-surface-muted);
   overflow: hidden;
 }
 
-.cfg-metric::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--metric-accent, var(--app-accent));
-}
-
-.cfg-metric--viper { --metric-accent: var(--dorian-viper-500, #2e9e6c); }
-.cfg-metric--ok { --metric-accent: #4fbd7a; }
-.cfg-metric--l4 { --metric-accent: #5b9df0; }
+.cfg-metric--viper { --metric-accent: var(--dorian-viper-400, #3fbd85); }
+.cfg-metric--ok { --metric-accent: var(--dorian-viper-400, #3fbd85); }
+.cfg-metric--l4 { --metric-accent: var(--dorian-l4, #6b9fd4); }
 .cfg-metric--signal { --metric-accent: var(--dorian-viper-400, #3fbd85); }
 
 .cfg-metric__label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1090,10 +1136,18 @@ onBeforeUnmount(() => {
   font-weight: 650;
 }
 
+.cfg-metric__label::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--metric-accent);
+}
+
 .cfg-metric__value {
   display: block;
-  margin-top: 6px;
-  font-size: 1.25rem;
+  margin-top: 8px;
+  font-size: 1.35rem;
   font-weight: 650;
   color: var(--app-heading);
   letter-spacing: -0.02em;
@@ -1117,10 +1171,10 @@ onBeforeUnmount(() => {
 }
 
 .cfg-section {
-  padding: 14px;
-  border-radius: var(--cfg-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-elevated, var(--app-surface));
+  padding: 14px 16px 16px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
 }
 
 .cfg-section--wide {
@@ -1132,7 +1186,9 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 0.5px solid var(--app-border);
 }
 
 .cfg-section__head h3 {
@@ -1157,21 +1213,25 @@ onBeforeUnmount(() => {
 }
 
 .cfg-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface);
+  display: inline-flex;
+  align-items: center;
+  height: var(--btn-height-md, 36px);
+  border: 0.5px solid var(--app-border-strong);
+  background: transparent;
   color: var(--app-text);
-  border-radius: 6px;
-  padding: 7px 11px;
-  font-size: 12.5px;
-  font-weight: 650;
+  border-radius: var(--btn-radius, 8px);
+  padding: 0 var(--btn-padding-x-md, 16px);
+  font-size: var(--btn-font-size-md, 13px);
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .cfg-btn:hover:not(:disabled) {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-  background: var(--app-accent-soft);
+  color: var(--app-heading);
+  background: var(--app-surface);
+  border-color: var(--app-border-strong);
 }
 
 .cfg-btn--primary {
@@ -1194,7 +1254,7 @@ onBeforeUnmount(() => {
 .cfg-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
+  gap: 14px 16px;
 }
 
 .cfg-detail {
@@ -1209,7 +1269,7 @@ onBeforeUnmount(() => {
 }
 
 .cfg-detail__label {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1239,14 +1299,19 @@ onBeforeUnmount(() => {
 .cfg-edge {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(46, 158, 108, 0.24);
-  background: rgba(46, 158, 108, 0.1);
-  color: var(--dorian-viper-400, #3fbd85);
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-heading);
   font-size: 12.5px;
   font-weight: 600;
+}
+
+.cfg-edge .cfg-edge__dot {
+  color: var(--dorian-viper-400, #3fbd85);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 18%, transparent);
 }
 
 .cfg-edge__dot {
@@ -1264,10 +1329,17 @@ onBeforeUnmount(() => {
 
 .cfg-waf-prompt {
   max-width: 560px;
+  margin: 24px auto;
+  padding: 24px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
+
+.cfg-waf-prompt .cfg-head__kicker { margin-top: 6px; }
 
 .cfg-waf-prompt h3 {
   margin: 0;
@@ -1323,16 +1395,8 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
-  .cfg-tabs {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
   .cfg-tab {
-    padding: 10px 6px;
-  }
-
-  .cfg-tab__label {
-    font-size: 12px;
+    flex: 0 0 auto;
   }
 
   .cfg-section--wide {

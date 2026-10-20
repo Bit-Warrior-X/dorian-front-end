@@ -16,94 +16,76 @@
       </div>
     </header>
 
-    <section class="sites-metrics" aria-label="Site fleet metrics">
-      <article
-        v-for="metric in siteMetricCards"
-        :key="metric.label"
-        class="sites-metric"
-        :class="`sites-metric--${metric.tone}`"
-      >
-        <span class="sites-metric__label">{{ metric.label }}</span>
-        <strong class="sites-metric__value num">{{ metric.value }}</strong>
-        <span class="sites-metric__hint">{{ metric.hint }}</span>
-      </article>
-    </section>
-
-    <div class="sites-filterbar">
-      <div class="sites-filter-field sites-filter-field--grow">
-        <label class="list-filter-label" for="site-domain-filter">Domain</label>
-        <input
-          id="site-domain-filter"
-          v-model="filters.domain"
-          type="search"
-          placeholder="Search domains…"
-        />
-      </div>
-      <div class="list-status-pills" role="group" aria-label="Status">
-        <button type="button" :class="{ 'is-active': filters.status === '' }" @click="filters.status = ''">All</button>
-        <button type="button" :class="{ 'is-active': filters.status === 'ENABLE' }" @click="filters.status = 'ENABLE'">Enabled</button>
-        <button type="button" :class="{ 'is-active': filters.status === 'DISABLE' }" @click="filters.status = 'DISABLE'">Disabled</button>
-      </div>
-      <div ref="siteFilterMenu" class="list-filter">
-        <button
-          type="button"
-          class="list-filter__toggle"
-          :class="{ 'is-active': siteFiltersOpen || siteExtraFilterCount }"
-          :aria-expanded="siteFiltersOpen"
-          @click="siteFiltersOpen = !siteFiltersOpen"
-        >
-          Filters
-          <span v-if="siteExtraFilterCount" class="list-filter__count">{{ siteExtraFilterCount }}</span>
-        </button>
-        <div v-if="siteFiltersOpen" class="list-filter__panel">
-          <div class="sites-filter-field">
-            <label for="site-activity-filter">Activity</label>
-            <select id="site-activity-filter" v-model="filters.activity">
-              <option value="">All</option>
-              <option value="active">Active</option>
-              <option value="idle">Idle</option>
-              <option value="offline">Offline</option>
-            </select>
-          </div>
-          <div class="sites-filter-field">
-            <label for="site-cert-filter">Certificate</label>
-            <select id="site-cert-filter" v-model="filters.certificateStatus">
-              <option value="">All</option>
-              <option value="valid">Valid</option>
-              <option value="expiring">Expiring</option>
-              <option value="expired">Expired</option>
-              <option value="issuing">Issuing</option>
-              <option value="failed">Failed</option>
-              <option value="none">Not configured</option>
-            </select>
-          </div>
-          <div class="sites-filter-field">
-            <label for="site-ssl-filter">Certificate type</label>
-            <select id="site-ssl-filter" v-model="filters.sslType">
-              <option value="">All</option>
-              <option value="none">Not configured</option>
-              <option value="letsencrypt">Let's Encrypt</option>
-              <option value="zerossl">ZeroSSL</option>
-              <option value="googletrust">Google Trust</option>
-              <option value="custom">Manual</option>
-              <option value="managed">Managed</option>
-            </select>
-          </div>
-          <button v-if="siteExtraFilterCount" class="list-filter__clear" type="button" @click="clearSiteExtraFilters">
-            Clear filters
-          </button>
-        </div>
-      </div>
-      <div class="sites-filter-summary">
-        <span class="sites-live-dot" aria-hidden="true"></span>
-        {{ filteredSites.length }} shown
-      </div>
-    </div>
-
     <section class="sites-panel">
-      <div class="sites-panel__head">
-        <h3>Protected hostnames</h3>
-        <span class="sites-count-tag">{{ filteredSites.length }}</span>
+      <div class="sites-filterbar">
+        <div class="sites-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></svg>
+          <input
+            id="site-domain-filter"
+            v-model="filters.domain"
+            type="search"
+            aria-label="Search domains"
+            placeholder="Search domains…"
+          />
+        </div>
+        <div class="list-status-pills" role="group" aria-label="Status">
+          <button type="button" :class="{ 'is-active': filters.status === '' }" @click="filters.status = ''">All</button>
+          <button type="button" :class="{ 'is-active': filters.status === 'ENABLE' }" @click="filters.status = 'ENABLE'">Enabled</button>
+          <button type="button" :class="{ 'is-active': filters.status === 'DISABLE' }" @click="filters.status = 'DISABLE'">Disabled</button>
+        </div>
+        <div ref="siteFilterMenu" class="list-filter">
+          <button
+            type="button"
+            class="list-filter__toggle"
+            :class="{ 'is-active': siteFiltersOpen || siteExtraFilterCount }"
+            :aria-expanded="siteFiltersOpen"
+            @click="siteFiltersOpen = !siteFiltersOpen"
+          >
+            Filters
+            <span v-if="siteExtraFilterCount" class="list-filter__count">{{ siteExtraFilterCount }}</span>
+          </button>
+          <div v-if="siteFiltersOpen" class="list-filter__panel">
+            <div class="sites-filter-field">
+              <label for="site-activity-filter">Activity</label>
+              <select id="site-activity-filter" v-model="filters.activity">
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="idle">Idle</option>
+                <option value="offline">Offline</option>
+              </select>
+            </div>
+            <div class="sites-filter-field">
+              <label for="site-cert-filter">Certificate</label>
+              <select id="site-cert-filter" v-model="filters.certificateStatus">
+                <option value="">All</option>
+                <option value="valid">Valid</option>
+                <option value="expiring">Expiring</option>
+                <option value="expired">Expired</option>
+                <option value="issuing">Issuing</option>
+                <option value="failed">Failed</option>
+                <option value="none">Not configured</option>
+              </select>
+            </div>
+            <div class="sites-filter-field">
+              <label for="site-ssl-filter">Certificate type</label>
+              <select id="site-ssl-filter" v-model="filters.sslType">
+                <option value="">All</option>
+                <option value="none">Not configured</option>
+                <option value="letsencrypt">Let's Encrypt</option>
+                <option value="zerossl">ZeroSSL</option>
+                <option value="googletrust">Google Trust</option>
+                <option value="custom">Manual</option>
+                <option value="managed">Managed</option>
+              </select>
+            </div>
+            <button v-if="siteExtraFilterCount" class="list-filter__clear" type="button" @click="clearSiteExtraFilters">
+              Clear filters
+            </button>
+          </div>
+        </div>
+        <div class="sites-filter-summary num">
+          {{ filteredSites.length }} of {{ sites.length }}
+        </div>
       </div>
 
       <div class="sites-table-wrap">
@@ -131,7 +113,7 @@
               </td>
             </tr>
             <tr
-              v-for="site in paginatedSites"
+              v-for="(site, rowIndex) in paginatedSites"
               :key="site.id"
               class="sites-row"
               :class="siteRowClass(site)"
@@ -139,36 +121,40 @@
             >
               <td>
                 <div class="sites-domain">
-                  <span class="sites-domain__name">{{ site.domain }}</span>
-                  <span class="sites-domain__meta">{{ formatSslType(site.sslType) }}</span>
-                </div>
-              </td>
-              <td>
-                <div
-                  class="sites-live-badge"
-                  :class="`sites-live-badge--${siteActivityTone(site)}`"
-                  :title="siteActivityTitle(site)"
-                >
-                  <span class="sites-live-badge__dot" aria-hidden="true"></span>
-                  <div class="sites-live-badge__copy">
-                    <strong>{{ siteActivityLabel(site) }}</strong>
-                    <span>{{ site.status === 'ENABLE' ? 'Enabled' : 'Disabled' }}</span>
+                  <span class="sites-domain__avatar" :class="`sites-domain__avatar--${siteActivityTone(site)}`" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.2-3.6-8.5S9.6 5.9 12 3.5z" /></svg>
+                  </span>
+                  <div class="sites-domain__copy">
+                    <span class="sites-domain__name">{{ site.domain }}</span>
+                    <span class="sites-domain__meta">{{ formatSslType(site.sslType) }}</span>
                   </div>
                 </div>
               </td>
               <td>
-                <span class="sites-waf" :title="site.wafName || 'No WAF rule'">
-                  {{ site.wafName || '—' }}
+                <span
+                  class="sites-live-badge"
+                  :class="`sites-live-badge--${siteActivityTone(site)}`"
+                  :title="`${siteActivityTitle(site)} · ${site.status === 'ENABLE' ? 'Enabled' : 'Disabled'}`"
+                >
+                  <span class="sites-live-badge__dot" aria-hidden="true"></span>
+                  {{ siteActivityLabel(site) }}
+                </span>
+              </td>
+              <td>
+                <span class="sites-waf" :class="{ 'sites-waf--none': !site.wafName }" :title="site.wafName || 'No WAF rule'">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /></svg>
+                  {{ site.wafName || 'No WAF' }}
                 </span>
               </td>
               <td>
                 <div
-                  class="sites-cert-badge"
-                  :class="certificateStatusClass(site.certificateStatus)"
+                  class="sites-cert"
                   :title="site.certificateError || certStatusDetail(site.certificateStatus)"
                 >
-                  <span class="sites-cert-badge__status">{{ formatCertStatus(site.certificateStatus) }}</span>
-                  <span class="sites-cert-badge__expiry">{{ formatCertExpiryLine(site) }}</span>
+                  <span class="sites-cert-badge" :class="certificateStatusClass(site.certificateStatus)">
+                    {{ formatCertStatus(site.certificateStatus) }}
+                  </span>
+                  <span class="sites-cert__expiry num">{{ formatCertExpiryLine(site) }}</span>
                 </div>
               </td>
               <td>
@@ -192,6 +178,7 @@
                     :key="server"
                     class="sites-edge-chip"
                   >
+                    <span class="sites-edge-chip__dot" aria-hidden="true"></span>
                     {{ server }}
                   </span>
                   <span
@@ -218,7 +205,11 @@
                       <circle cx="12" cy="19" r="1.5" />
                     </svg>
                   </button>
-                  <div v-if="activeRowMenu === site.id" class="row-menu">
+                  <div
+                    v-if="activeRowMenu === site.id"
+                    class="row-menu"
+                    :class="{ 'row-menu--up': paginatedSites.length > 3 && rowIndex >= paginatedSites.length - 2 }"
+                  >
                     <button class="row-menu-item" type="button" @click="openEditSite(site)">
                       Edit
                     </button>
@@ -654,25 +645,12 @@ const activeSitesCount = computed(() =>
   sites.value.filter((site) => siteActivityKey(site) === 'active').length,
 )
 
-const totalEgressKbps = computed(() =>
-  sites.value.reduce((sum, site) => sum + (Number(site.currentBandwidth) || 0), 0),
-)
-
 const sitesSubtitle = computed(() => {
   const total = sites.value.length
   const enabled = enabledSitesCount.value
   const active = activeSitesCount.value
   return `${total} hostnames · ${enabled} enabled · ${active} active`
 })
-
-const siteMetricCards = computed(() => [
-  {
-    label: 'Live egress',
-    value: formatLiveBandwidth(totalEgressKbps.value),
-    hint: 'Bandwidth leaving your sites',
-    tone: 'viper',
-  },
-])
 
 const confirmTitle = computed(() => {
   if (confirmAction.value === 'edit') return 'Site is modified'
@@ -1383,9 +1361,9 @@ onBeforeUnmount(() => {
   color: var(--dorian-viper-400, var(--app-accent));
 }
 
-.sites-topbar__left h2 {
+.sites-view .sites-topbar__left h2 {
   margin: 0 0 3px;
-  font-size: 1.4rem;
+  font-size: 1.4rem !important;
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--app-heading);
@@ -1429,71 +1407,47 @@ onBeforeUnmount(() => {
   filter: brightness(1.06);
 }
 
-.sites-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
-  gap: 10px;
-}
-
-.sites-metric {
-  position: relative;
-  overflow: hidden;
-  padding: 12px 14px 12px 16px;
-  border-radius: var(--sites-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-}
-
-.sites-metric::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--metric-accent, var(--dorian-viper-500, var(--app-accent)));
-}
-
-.sites-metric--viper { --metric-accent: var(--dorian-viper-500, #2e9e6c); }
-.sites-metric--ok { --metric-accent: #4fbd7a; }
-.sites-metric--l4 { --metric-accent: #5b9df0; }
-.sites-metric--signal { --metric-accent: var(--dorian-viper-400, #3fbd85); }
-
-.sites-metric__label {
-  display: block;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-  font-weight: 600;
-}
-
-.sites-metric__value {
-  display: block;
-  margin-top: 6px;
-  font-size: 1.3rem;
-  font-weight: 650;
-  color: var(--app-heading);
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-
-.sites-metric__hint {
-  display: block;
-  margin-top: 3px;
-  font-size: 11.5px;
-  color: var(--app-text-muted);
-}
-
 .sites-filterbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: var(--sites-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
+  border-bottom: 0.5px solid var(--app-border);
+}
+
+.sites-search {
+  position: relative;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+.sites-search svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  color: var(--app-text-muted);
+  pointer-events: none;
+}
+
+.sites-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px 0 32px;
+  border: 1px solid var(--app-input-border);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  outline: none;
+}
+
+.sites-search input:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-accent-soft);
 }
 
 .sites-filter-field {
@@ -1501,11 +1455,6 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 5px;
   min-width: 128px;
-}
-
-.sites-filter-field--grow {
-  flex: 1 1 200px;
-  min-width: 180px;
 }
 
 .sites-filter-field label {
@@ -1516,10 +1465,9 @@ onBeforeUnmount(() => {
   color: var(--app-text-muted);
 }
 
-.sites-filter-field input,
 .sites-filter-field select {
   border: 1px solid var(--app-input-border);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px 11px;
   font-size: 13px;
   background: var(--app-input-bg);
@@ -1527,34 +1475,21 @@ onBeforeUnmount(() => {
   outline: none;
 }
 
-.sites-filter-field input:focus,
 .sites-filter-field select:focus {
   border-color: var(--app-accent);
   box-shadow: 0 0 0 2px var(--app-accent-soft);
 }
 
 .sites-filter-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
   margin-left: auto;
-  padding: 7px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(46, 158, 108, 0.28);
-  background: rgba(46, 158, 108, 0.08);
-  color: var(--dorian-viper-400, var(--app-accent));
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+  color: var(--app-text-muted);
+  font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
-}
-
-.sites-live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--dorian-viper-400, var(--app-accent));
-  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.16);
-  animation: sites-live-pulse 1.8s ease-in-out infinite;
 }
 
 @keyframes sites-live-pulse {
@@ -1567,37 +1502,9 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-radius: var(--sites-radius);
-  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
   background: var(--app-surface);
-  overflow: hidden;
-}
-
-.sites-panel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--app-border);
-  background: color-mix(in srgb, var(--app-surface-elevated) 70%, transparent);
-}
-
-.sites-panel__head h3 {
-  margin: 0;
-  font-size: 13.5px;
-  font-weight: 650;
-  color: var(--app-heading);
-}
-
-.sites-count-tag {
-  flex: none;
-  padding: 3px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--app-border);
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 11px;
-  color: var(--app-text-muted);
 }
 
 .sites-table-wrap {
@@ -1614,58 +1521,76 @@ onBeforeUnmount(() => {
 .sites-table th,
 .sites-table td {
   text-align: left;
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--app-border);
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--app-border) !important;
   vertical-align: middle;
+  background: transparent !important;
+}
+
+.sites-table tbody tr:last-child td {
+  border-bottom: 0 !important;
 }
 
 .sites-table th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--app-surface-elevated);
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: var(--app-surface-muted) !important;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--app-text-muted);
+  color: var(--app-text-muted) !important;
   font-weight: 650;
 }
 
 .sites-row {
   cursor: pointer;
   transition: background 0.12s ease;
-  box-shadow: inset 3px 0 0 transparent;
 }
 
-.sites-row:hover {
-  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 6%, transparent);
+.sites-row:hover td {
+  background: var(--app-surface-muted) !important;
 }
 
-.sites-row--live {
-  box-shadow: inset 3px 0 0 var(--dorian-viper-500, #2e9e6c);
+.sites-row--cert-danger td:first-child {
+  box-shadow: inset 2px 0 0 var(--dorian-danger, #e15241);
 }
 
-.sites-row--cert-danger {
-  background: rgba(225, 82, 65, 0.05);
+.sites-row--cert-warn td:first-child {
+  box-shadow: inset 2px 0 0 var(--dorian-warn, #e0a83f);
 }
 
-.sites-row--cert-danger:hover {
-  background: rgba(225, 82, 65, 0.09);
-}
-
-.sites-row--cert-warn {
-  background: rgba(224, 168, 63, 0.05);
-}
-
-.sites-row--cert-warn:hover {
-  background: rgba(224, 168, 63, 0.09);
-}
-
-.sites-row--offline:not(.sites-row--cert-danger):not(.sites-row--cert-warn) {
-  opacity: 0.88;
+.sites-row--offline:not(.sites-row--cert-danger):not(.sites-row--cert-warn) .sites-domain__name {
+  color: var(--app-text-muted);
 }
 
 .sites-domain {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.sites-domain__avatar {
+  --tone: var(--app-text-muted);
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--tone) 28%, transparent);
+}
+
+.sites-domain__avatar svg { width: 16px; height: 16px; }
+.sites-domain__avatar--active { --tone: var(--dorian-viper-400, #3fbd85); }
+.sites-domain__avatar--idle { --tone: var(--dorian-warn, #e0a83f); }
+
+.sites-domain__copy {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1686,127 +1611,93 @@ onBeforeUnmount(() => {
 }
 
 .sites-live-badge {
+  --tone: var(--app-text-muted);
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-width: 0;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid transparent;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--tone) 30%, transparent);
+  white-space: nowrap;
 }
 
 .sites-live-badge__dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
   flex: none;
 }
 
-.sites-live-badge__copy {
+.sites-live-badge--active { --tone: var(--dorian-viper-400, #3fbd85); }
+.sites-live-badge--active .sites-live-badge__dot { animation: sites-live-pulse 1.8s ease-in-out infinite; }
+.sites-live-badge--idle { --tone: var(--dorian-warn, #e0a83f); }
+
+.sites-cert {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  align-items: flex-start;
+  gap: 4px;
   min-width: 0;
-}
-
-.sites-live-badge__copy strong {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-
-.sites-live-badge__copy span {
-  font-size: 10px;  
-  font-weight: 550;
-  opacity: 0.78;
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-}
-
-.sites-live-badge--active {
-  color: var(--dorian-viper-400, #3fbd85);
-  background: rgba(46, 158, 108, 0.14);
-  border-color: rgba(46, 158, 108, 0.32);
-}
-
-.sites-live-badge--active .sites-live-badge__dot {
-  box-shadow: 0 0 0 3px rgba(63, 189, 133, 0.2);
-  animation: sites-live-pulse 1.8s ease-in-out infinite;
-}
-
-.sites-live-badge--idle {
-  color: #d4921f;
-  background: rgba(224, 168, 63, 0.14);
-  border-color: rgba(224, 168, 63, 0.32);
-}
-
-.sites-live-badge--offline {
-  color: var(--app-text-muted);
-  background: rgba(139, 151, 143, 0.12);
-  border-color: rgba(139, 151, 143, 0.24);
 }
 
 .sites-cert-badge {
+  --tone: var(--app-text-muted);
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  min-width: 0;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid transparent;
-}
-
-.sites-cert-badge__status {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-
-.sites-cert-badge__expiry {
-  font-size: 10px;
-  font-weight: 550;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  opacity: 0.82;
-  line-height: 1.25;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--tone) 30%, transparent);
 }
 
-.sites-cert-badge--valid {
-  color: var(--dorian-viper-400, #3fbd85);
-  background: rgba(46, 158, 108, 0.14);
-  border-color: rgba(46, 158, 108, 0.32);
-}
-
-.sites-cert-badge--expiring,
-.sites-cert-badge--issuing {
-  color: #d4921f;
-  background: rgba(224, 168, 63, 0.14);
-  border-color: rgba(224, 168, 63, 0.32);
-}
-
-.sites-cert-badge--expired,
-.sites-cert-badge--failed {
-  color: #e15241;
-  background: rgba(225, 82, 65, 0.14);
-  border-color: rgba(225, 82, 65, 0.34);
-}
-
-.sites-cert-badge--none {
+.sites-cert__expiry {
+  font-size: 10.5px;
   color: var(--app-text-muted);
-  background: rgba(139, 151, 143, 0.12);
-  border-color: rgba(139, 151, 143, 0.24);
 }
+
+.sites-cert-badge--valid { --tone: var(--dorian-viper-400, #3fbd85); }
+.sites-cert-badge--expiring,
+.sites-cert-badge--issuing { --tone: var(--dorian-warn, #e0a83f); }
+.sites-cert-badge--expired,
+.sites-cert-badge--failed { --tone: var(--dorian-danger, #e15241); }
 
 .sites-waf {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--app-text);
   font-size: 12.5px;
+  font-weight: 550;
+}
+
+.sites-waf svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.sites-waf--none {
+  color: var(--app-text-muted);
+  font-weight: 500;
+}
+
+.sites-waf--none svg {
+  color: var(--app-text-muted);
+  opacity: 0.6;
 }
 
 .sites-egress {
@@ -1835,24 +1726,30 @@ onBeforeUnmount(() => {
   gap: 5px;
 }
 
-.sites-edge-chip {
-  padding: 3px 7px;
-  border-radius: 6px;
+.sites-edge-chip,
+.sites-edge-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--dorian-viper-400, #3fbd85);
-  background: rgba(46, 158, 108, 0.1);
-  border: 1px solid rgba(46, 158, 108, 0.22);
+  color: var(--app-text);
+  background: var(--app-surface-muted);
+  border: 0.5px solid var(--app-border);
+  white-space: nowrap;
+}
+
+.sites-edge-chip__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dorian-viper-400, #3fbd85);
 }
 
 .sites-edge-more {
-  padding: 3px 7px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 650;
   color: var(--app-text-muted);
-  background: var(--app-surface-elevated);
-  border: 1px solid var(--app-border);
 }
 
 .sites-muted,
@@ -1886,26 +1783,27 @@ onBeforeUnmount(() => {
 .sites-icon-btn {
   width: 30px;
   height: 30px;
-  border-radius: 6px;
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-elevated);
+  border-radius: 8px;
+  border: 0.5px solid transparent;
+  background: transparent;
   color: var(--app-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .sites-icon-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
 }
 
-.sites-icon-btn:hover {
-  border-color: var(--app-accent);
-  color: var(--app-accent);
-  background: var(--app-accent-soft);
+.sites-icon-btn:hover,
+.menu-wrap:has(.row-menu) .sites-icon-btn {
+  border-color: var(--app-border);
+  color: var(--app-heading);
+  background: var(--app-surface-muted);
 }
 
 .sites-footer {
@@ -1914,7 +1812,9 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  border-top: 1px solid var(--app-border);
+  border-top: 0.5px solid var(--app-border);
+  border-radius: 0 0 12px 12px;
+  background: var(--app-surface-muted);
 }
 
 .sites-footer__info,
@@ -1930,11 +1830,12 @@ onBeforeUnmount(() => {
 }
 
 .sites-pager-btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-elevated);
+  height: var(--btn-height-sm, 32px);
+  border: 0.5px solid var(--app-border-strong);
+  background: var(--app-surface);
   color: var(--app-text);
-  border-radius: 6px;
-  padding: 6px 11px;
+  border-radius: 8px;
+  padding: 0 12px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -1965,20 +1866,25 @@ onBeforeUnmount(() => {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  min-width: 148px;
+  min-width: 168px;
   background: var(--app-surface-solid);
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  box-shadow: 0 10px 24px var(--app-shadow);
+  border: 0.5px solid var(--app-border-strong);
+  border-radius: 10px;
+  box-shadow: 0 14px 32px var(--app-shadow);
   padding: 4px;
   z-index: 50;
+}
+
+.row-menu--up {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 
 .row-menu-item {
   width: 100%;
   text-align: left;
-  padding: 7px 10px;
-  border-radius: 4px;
+  padding: 8px 10px;
+  border-radius: 7px;
   border: none;
   background: transparent;
   font-size: 12.5px;
@@ -1988,8 +1894,8 @@ onBeforeUnmount(() => {
 }
 
 .row-menu-item:hover {
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
+  background: var(--app-surface-muted);
+  color: var(--app-heading);
 }
 
 .row-menu-item:disabled {
@@ -2003,35 +1909,21 @@ onBeforeUnmount(() => {
 }
 
 .row-menu-item.danger {
-  color: #f87171;
+  color: var(--dorian-danger, #e15241);
 }
 
 .row-menu-item.danger:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
+  background: color-mix(in srgb, var(--dorian-danger, #e15241) 14%, transparent);
+  color: var(--dorian-danger, #e15241);
 }
 
-@media (max-width: 1200px) {
-  .sites-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 1100px) {
-  .sites-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 900px) {
+  .sites-search {
+    max-width: none;
   }
 
   .sites-filter-summary {
     margin-left: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
-}
-
-@media (max-width: 640px) {
-  .sites-metrics {
-    grid-template-columns: 1fr;
   }
 }
 

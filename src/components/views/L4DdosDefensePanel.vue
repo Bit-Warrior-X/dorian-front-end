@@ -1,16 +1,16 @@
 <template>
   <div class="l4-panel edge-subpanel">
     <div class="l4-settings">
-      <header class="edge-subpanel__intro">
-        <div>
-          <p class="edge-subpanel__kicker">L4 defense</p>
-          <h4 class="info-hint-heading">
-            <span>XDP config</span>
-            <InfoHint
-              text="Tune how Sparta attaches to the NIC and reacts to L4 floods."
-              aria-label="XDP config help"
-            />
-          </h4>
+      <header class="cfg-head">
+        <div class="cfg-head__copy">
+          <span class="cfg-head__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /><path d="M13 7.5l-3 5h4l-3 5" /></svg>
+          </span>
+          <div>
+            <p class="cfg-head__kicker">L4 defense</p>
+            <h4>XDP config</h4>
+            <p class="cfg-head__desc">Tune how Sparta attaches to the NIC and reacts to L4 floods. Changes apply when you confirm.</p>
+          </div>
         </div>
       </header>
       <div class="l4-settings-body">
@@ -1365,9 +1365,15 @@
             </div>
           </div>
         </section>
-        <button type="button" class="confirm-btn" @click="confirmGlobalSettings">
-          Confirm Settings
-        </button>
+        <footer class="l4-applybar">
+          <span class="l4-applybar__copy">
+            <i aria-hidden="true" />
+            Settings are pushed to Sparta on this edge when applied.
+          </span>
+          <button type="button" class="primary-btn confirm-btn" @click="confirmGlobalSettings">
+            Apply settings
+          </button>
+        </footer>
         </div>
       </div>
     </div>
@@ -1386,7 +1392,6 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { fetchL4Config, fetchL4Options, updateL4Config } from "@/api/l4";
 import ConfirmDialog from "../ConfirmDialog.vue";
-import InfoHint from "../InfoHint.vue";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
 const L4_DDOS_TITLE = "XDP Config";
@@ -2586,4 +2591,225 @@ watch(
   color: #15803d;
   background: rgba(34, 197, 94, 0.18);
 }
+
+/* Refresh */
+.cfg-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cfg-head__copy { display: flex; gap: 12px; min-width: 0; }
+
+.cfg-head__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--dorian-l4, #6b9fd4);
+  background: color-mix(in srgb, var(--dorian-l4, #6b9fd4) 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-l4, #6b9fd4) 30%, transparent);
+}
+
+.cfg-head__icon svg { width: 18px; height: 18px; }
+
+.cfg-head__kicker {
+  margin: 0 0 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.cfg-head h4 { margin: 0; font-size: 1.1rem; font-weight: 650; letter-spacing: -0.02em; color: var(--app-heading); }
+.cfg-head__desc { margin: 3px 0 0; max-width: 44rem; font-size: 12.5px; line-height: 1.45; color: var(--app-text-muted); }
+
+.l4-panel .l4-settings {
+  height: auto;
+  overflow: visible;
+  padding: 0;
+  gap: 16px;
+  background: transparent !important;
+}
+
+.l4-panel .l4-settings-body {
+  overflow: visible;
+  padding-right: 0;
+  background: transparent !important;
+}
+
+.l4-panel .l4-config,
+.l4-panel .l4-section {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.l4-panel .l4-config-row { gap: 12px !important; }
+
+.l4-panel .l4-config-section {
+  padding: 14px 16px 16px !important;
+  border: 0.5px solid var(--app-border) !important;
+  border-radius: 12px !important;
+  background: var(--app-surface-muted) !important;
+  transition: border-color 0.15s ease;
+}
+
+.l4-panel .l4-config-section:hover { border-color: var(--app-border-strong) !important; }
+
+.l4-panel .l4-config-title {
+  margin: -2px 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 0.5px solid var(--app-border);
+}
+
+.l4-panel .l4-config-title h5,
+.l4-panel .l4-section h5 {
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  color: var(--app-heading) !important;
+}
+
+.l4-panel .l4-form,
+.l4-panel .l4-form-sections { gap: 14px; }
+
+.l4-panel .l4-form-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px 14px;
+}
+
+.l4-panel .l4-field,
+.l4-panel .l4-field--wide { max-width: none; min-width: 0; }
+
+.l4-panel .l4-field label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px !important;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.l4-panel .tooltip-btn {
+  width: 15px;
+  height: 15px;
+  margin-left: 4px;
+  font-size: 9px;
+  border: 0.5px solid var(--app-border-strong);
+  background: transparent;
+  opacity: 0.75;
+}
+
+.l4-panel .tooltip-btn:hover { opacity: 1; color: var(--app-heading); }
+
+.l4-panel .l4-input {
+  max-width: none;
+  padding: 8px 10px;
+  border-radius: 7px !important;
+  border: 1px solid var(--app-input-border);
+  background: var(--app-input-bg);
+  color: var(--app-text);
+  font-size: 12.5px;
+}
+
+.l4-panel .l4-input:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 2px var(--app-accent-soft);
+}
+
+.l4-panel .l4-input:disabled { opacity: 0.55; background: var(--app-input-bg); }
+
+.l4-panel .l4-yn {
+  padding: 2px;
+  border-radius: 999px;
+  border: 0.5px solid var(--app-border-strong);
+  background: var(--app-surface);
+}
+
+.l4-panel .l4-yn__opt {
+  min-width: 38px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+}
+
+.l4-panel .l4-inline-toggle {
+  padding: 10px 12px !important;
+  border-radius: 9px;
+  border: 0.5px solid var(--app-border) !important;
+  background: var(--app-surface) !important;
+}
+
+.l4-panel .continent-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 0.5px solid var(--app-border-strong);
+  background: transparent;
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+.l4-panel .continent-btn:hover:not(:disabled) { color: var(--app-heading); background: var(--app-surface); }
+
+.l4-panel .continent-btn.active {
+  color: var(--dorian-viper-400, #3fbd85);
+  border-color: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 45%, transparent);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 12%, transparent);
+}
+
+.l4-panel .country-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+
+.l4-panel .country-option {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+  font-size: 12.5px;
+  color: var(--app-text);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.l4-panel .country-option:hover { border-color: var(--app-border-strong); }
+
+.l4-panel .country-option:has(input:checked) {
+  color: var(--app-heading);
+  border-color: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 45%, transparent);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 9%, var(--app-surface));
+}
+
+.l4-panel .country-option input { accent-color: var(--dorian-viper-500, #2e9e6c); width: 14px; height: 14px; }
+
+.l4-panel .country-chip { border-radius: 999px; padding: 3px 10px; }
+
+.l4-applybar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-surface) 92%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.l4-applybar__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--app-text-muted);
+}
+
+.l4-applybar__copy i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dorian-l4, #6b9fd4);
+}
+
+.l4-applybar .confirm-btn { align-self: auto; }
 </style>

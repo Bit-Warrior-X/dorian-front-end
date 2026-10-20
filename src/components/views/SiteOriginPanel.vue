@@ -1,15 +1,18 @@
 <template>
   <div class="origin-panel">
-    <header class="origin-intro">
-      <div class="origin-intro__copy">
-        <p class="origin-kicker">{{ introKicker }}</p>
-        <h4 class="info-hint-heading">
-          <span>{{ introTitle }}</span>
-          <InfoHint
-            :text="introHint"
-            :aria-label="`${introTitle} help`"
-          />
-        </h4>
+    <header class="origin-intro cfg-head">
+      <div class="cfg-head__copy">
+        <span class="cfg-head__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <template v-if="focus === 'certificate'"><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" /></template>
+            <template v-else><rect x="4" y="4" width="16" height="6" rx="1.5" /><rect x="4" y="14" width="16" height="6" rx="1.5" /><path d="M8 7h.01M8 17h.01" /></template>
+          </svg>
+        </span>
+        <div>
+          <p class="cfg-head__kicker">{{ introKicker }}</p>
+          <h4>{{ introTitle }}</h4>
+          <p class="cfg-head__desc">{{ introHint }}</p>
+        </div>
       </div>
       <div v-if="siteId && !loading && !loadError" class="origin-summary">
         <div v-if="showDomain" class="summary-chip">
@@ -232,7 +235,6 @@
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { fetchSite, updateSite } from '@/api/sites'
 import { notifyError, notifySuccess } from '@/utils/notify'
-import InfoHint from '../InfoHint.vue'
 import {
   certStatusClass,
   certStatusDetail,
@@ -672,10 +674,10 @@ onUnmounted(stopCertPoll)
 
 .summary-chip {
   min-width: 112px;
-  padding: 10px 12px;
-  border-radius: var(--cfg-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-elevated, var(--app-surface));
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -715,16 +717,16 @@ onUnmounted(stopCertPoll)
 .origin-card {
   display: flex;
   flex-direction: column;
-  border-radius: var(--cfg-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-elevated, var(--app-surface));
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .origin-card--dirty {
-  border-color: rgba(46, 158, 108, 0.45);
-  box-shadow: 0 0 0 2px rgba(46, 158, 108, 0.12);
+  border-color: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 45%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 10%, transparent);
 }
 
 .origin-card__head {
@@ -732,7 +734,8 @@ onUnmounted(stopCertPoll)
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 14px 0;
+  padding: 14px 16px 12px;
+  border-bottom: 0.5px solid var(--app-border);
 }
 
 .origin-card__title-row {
@@ -747,9 +750,9 @@ onUnmounted(stopCertPoll)
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: 6px;
-  background: rgba(46, 158, 108, 0.12);
-  border: 1px solid rgba(46, 158, 108, 0.24);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 30%, transparent);
   color: var(--dorian-viper-400, var(--app-accent));
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   font-size: 11px;
@@ -774,11 +777,11 @@ onUnmounted(stopCertPoll)
 .dirty-tag {
   flex-shrink: 0;
   margin-top: 2px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(46, 158, 108, 0.12);
-  border: 1px solid rgba(46, 158, 108, 0.24);
-  color: var(--dorian-viper-400, var(--app-accent));
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--dorian-warn, #e0a83f) 13%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-warn, #e0a83f) 30%, transparent);
+  color: var(--dorian-warn, #e0a83f);
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   font-size: 10px;
   font-weight: 650;
@@ -790,7 +793,7 @@ onUnmounted(stopCertPoll)
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 14px;
+  padding: 16px;
 }
 
 .origin-card__body--ssl {
@@ -806,9 +809,9 @@ onUnmounted(stopCertPoll)
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--app-border);
-  background: color-mix(in srgb, var(--app-surface) 85%, transparent);
+  padding: 10px 16px;
+  border-top: 0.5px solid var(--app-border);
+  background: var(--app-surface);
 }
 
 .form-field {
@@ -818,7 +821,7 @@ onUnmounted(stopCertPoll)
 }
 
 .form-field label {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -829,7 +832,7 @@ onUnmounted(stopCertPoll)
   display: flex;
   align-items: stretch;
   border: 1px solid var(--app-input-border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--app-input-bg);
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -903,10 +906,10 @@ onUnmounted(stopCertPoll)
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  padding: 12px;
-  border-radius: var(--cfg-radius);
-  background: color-mix(in srgb, var(--app-surface) 80%, transparent);
-  border: 1px solid var(--app-border);
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
 }
 
 .ssl-status-bar__detail,
@@ -1014,10 +1017,10 @@ onUnmounted(stopCertPoll)
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  min-height: 84px;
-  padding: 12px;
-  border-radius: var(--cfg-radius);
-  border: 1px solid var(--app-border);
+  min-height: 76px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
   background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
@@ -1030,9 +1033,9 @@ onUnmounted(stopCertPoll)
 }
 
 .type-card.active {
-  border-color: rgba(46, 158, 108, 0.45);
-  background: rgba(46, 158, 108, 0.1);
-  box-shadow: inset 0 -2px 0 var(--dorian-viper-500, var(--app-accent));
+  border-color: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 50%, transparent);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 9%, var(--app-surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 10%, transparent);
 }
 
 .type-card:disabled {
@@ -1057,9 +1060,9 @@ onUnmounted(stopCertPoll)
 }
 
 .subpanel {
-  padding: 12px;
-  border-radius: var(--cfg-radius);
-  border: 1px solid var(--app-border);
+  padding: 14px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
   background: var(--app-surface);
 }
 
@@ -1070,26 +1073,35 @@ onUnmounted(stopCertPoll)
 }
 
 .segmented {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
 }
 
 .segmented__btn {
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
-  border-radius: 6px;
-  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--app-text-muted);
+  border-radius: 7px;
+  padding: 6px 12px;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segmented__btn:hover:not(.active):not(:disabled) {
+  color: var(--app-heading);
 }
 
 .segmented__btn.active {
-  border-color: rgba(46, 158, 108, 0.45);
-  background: rgba(46, 158, 108, 0.12);
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 14%, var(--app-surface));
   color: var(--dorian-viper-400, var(--app-accent));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 40%, transparent);
 }
 
 .segmented__btn:disabled {

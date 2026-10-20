@@ -60,97 +60,7 @@
       </button>
     </div>
 
-    <section class="dash-attacks" :class="{ live: liveAttacks.length }" aria-label="Attack alerts">
-      <div class="dash-attacks__head">
-        <h3>
-          <span class="dash-attacks__dot" :class="{ live: liveAttacks.length }" aria-hidden="true"></span>
-          Attack alerts
-        </h3>
-        <div class="dash-attacks__stats">
-          <span><b class="num">{{ attacksToday.length }}</b> {{ attacksToday.length === 1 ? 'attack' : 'attacks' }} today</span>
-          <span><b class="num">{{ formatNumber(sourcesToday) }}</b> sources blocked today</span>
-          <RouterLink class="dash-panel-link" :to="{ name: 'attack-detection' }">Detection</RouterLink>
-        </div>
-      </div>
-
-      <div v-if="liveAttacks.length" class="dash-attacks__live">
-        <button
-          v-for="period in liveAttacks"
-          :key="period.reqId"
-          type="button"
-          class="dash-live-attack"
-          @click="openAttackConsole(period.reqId)"
-        >
-          <span class="dash-live-attack__badge"><i aria-hidden="true"></i>Under attack</span>
-          <span class="dash-live-attack__main">
-            <strong>{{ attackHeadline(period) }}</strong>
-            <span>{{ period.serverName || 'Edge' }} · started {{ formatLogTime(period.startedAt) }} · {{ elapsedLabel(period.startedAt, nowMs) }} ago</span>
-          </span>
-          <span class="dash-live-attack__metric">
-            <b class="num">{{ formatNumber(period.activeIpCount || 0) }}</b>
-            <span>blocking now</span>
-          </span>
-          <span class="dash-live-attack__metric">
-            <b class="num">{{ formatNumber(period.ipCount || 0) }}</b>
-            <span>sources so far</span>
-          </span>
-          <span class="dash-live-attack__open">Open live view</span>
-        </button>
-      </div>
-      <div v-else class="dash-attacks__calm">
-        <span class="dash-attacks__calm-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-        </span>
-        <span>
-          <strong>No attack in progress</strong>
-          <template v-if="recentAttacks[0]"> · last attack {{ formatAttackDay(recentAttacks[0].startedAt) }} {{ formatLogTime(recentAttacks[0].startedAt) }} on {{ recentAttacks[0].serverName || 'an edge' }}, {{ elapsedLabel(recentAttacks[0].endedAt || recentAttacks[0].startedAt, nowMs) }} ago</template>
-          <template v-else> · no attacks recorded{{ selectedEdge === 'all' ? '' : ' on this edge' }}</template>
-        </span>
-      </div>
-
-      <div v-if="recentAttacks.length" class="dash-attack-list" role="list">
-        <div class="dash-attack-row dash-attack-row--head" aria-hidden="true">
-          <span>Status</span><span>Attack</span><span>Started</span><span>Duration</span><span>Sources</span><span>Vectors</span>
-        </div>
-        <button
-          v-for="period in recentAttacks.slice(0, 6)"
-          :key="period.reqId"
-          type="button"
-          role="listitem"
-          class="dash-attack-row"
-          @click="openAttackConsole(period.reqId)"
-        >
-          <span class="dash-attack-status" :class="period.status === 'ongoing' ? 'live' : 'ended'">
-            {{ period.status === 'ongoing' ? 'Ongoing' : 'Mitigated' }}
-          </span>
-          <span class="dash-attack-name">
-            <strong>{{ attackHeadline(period) }}</strong>
-            <span>{{ period.serverName || 'Edge' }}</span>
-          </span>
-          <span class="num dash-attack-dim">{{ formatAttackDay(period.startedAt) }} {{ formatLogTime(period.startedAt) }}</span>
-          <span class="num dash-attack-dim">{{ attackDuration(period) }}</span>
-          <span class="num">{{ formatNumber(period.ipCount || 0) }}</span>
-          <span class="dash-attack-vectors" :title="vectorTitle(period)">
-            <i v-for="part in vectorParts(period)" :key="part.label" :style="{ width: `${part.share}%`, background: part.color }"></i>
-          </span>
-        </button>
-      </div>
-
-      <div v-if="securityNotices.length" class="dash-notices">
-        <span class="dash-notices__label">Notices</span>
-        <button
-          v-for="event in securityNotices.slice(0, 3)"
-          :key="event.id"
-          type="button"
-          class="dash-notice"
-          @click="openSecurityEvent(event)"
-        >
-          <span class="num">{{ formatLogTime(event.createdAt) }}</span>
-          <span>{{ noticeLabel(event) }}</span>
-          <span v-if="event.serverName" class="dash-attack-dim">{{ event.serverName }}</span>
-        </button>
-      </div>
-    </section>
+    <AttackAlertsPanel :server-id="selectedEdge" />
 
     <section class="dash-command" aria-label="Network health">
       <div class="dash-command__health">
@@ -187,71 +97,96 @@
       </div>
     </section>
 
-    <section class="dash-grid12 dash-nic" aria-label="Edge network interfaces">
-      <div
-        v-for="nic in [
-          { key: 'rx', title: 'NIC receive', hint: 'into the edges', summary: nicRxSummary },
-          { key: 'tx', title: 'NIC send', hint: 'out of the edges', summary: nicTxSummary },
-        ]"
-        :key="nic.key"
-        class="dash-panel c-6 dash-nic-panel"
-        :class="nic.key"
-      >
-        <div class="dash-panel-head">
-          <h3>
-            <span class="dash-nic-dir" :class="nic.key" aria-hidden="true">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path v-if="nic.key === 'rx'" d="M8 3v10M4 9l4 4 4-4" />
-                <path v-else d="M8 13V3M4 7l4-4 4 4" />
-              </svg>
+    <section class="dash-panel dash-nic-fleet" aria-label="Edge NIC traffic">
+      <div class="dash-panel-head">
+        <h3>
+          <span class="dash-nic-dir rx" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 8h12M8 3v10M5 6l3-3 3 3M5 10l3 3 3-3" />
+            </svg>
+          </span>
+          NIC by edge
+          <span class="dash-nic-hint">live receive · send per host</span>
+        </h3>
+        <div class="dash-nic-fleet__totals">
+          <span class="dash-nic-fleet__total rx">
+            <b class="num">↓ {{ formatBitRate(nicFleetLive.rx) }}</b>
+            <span>receive</span>
+          </span>
+          <span class="dash-nic-fleet__total tx">
+            <b class="num">↑ {{ formatBitRate(nicFleetLive.tx) }}</b>
+            <span>send</span>
+          </span>
+          <span class="dash-count-tag">{{ nicFleetLive.count }} edges · live</span>
+        </div>
+      </div>
+
+      <p v-if="!nicEdgeCards.length" class="dash-empty">No edges match the current filter.</p>
+      <div v-else class="dash-nic-scroll" role="list">
+        <article
+          v-for="edge in nicEdgeCards"
+          :key="edge.id"
+          role="listitem"
+          class="dash-nic-card"
+          :class="edge.health"
+        >
+          <header class="dash-nic-card__head">
+            <span class="dash-nic-card__swatch" :style="{ background: edge.color }" aria-hidden="true"></span>
+            <span class="dash-nic-card__title">
+              <span class="dash-nic-card__name">{{ edge.label }}</span>
+              <span class="dash-nic-card__sub num">{{ edge.maskedIp }}<template v-if="edge.hostname"> · {{ edge.hostname }}</template></span>
             </span>
-            {{ nic.title }}
-            <span class="dash-nic-hint">{{ nic.hint }}</span>
-          </h3>
-          <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-        </div>
-
-        <div class="dash-nic-readouts">
-          <div class="dash-nic-readout now">
-            <span class="dash-nic-readout__label">Now</span>
-            <span class="dash-nic-readout__value num">{{ formatNicValue(nic.summary.now) }}</span>
-            <span class="dash-nic-readout__hint">{{ nicAsOfLabel(nic.summary) }}</span>
-          </div>
-          <div class="dash-nic-readout">
-            <span class="dash-nic-readout__label">Average</span>
-            <span class="dash-nic-readout__value num">{{ formatNicValue(nic.summary.avg) }}</span>
-            <span class="dash-nic-readout__hint">over {{ bandwidthRangeLabel }}</span>
-          </div>
-          <div class="dash-nic-readout">
-            <span class="dash-nic-readout__label">Peak</span>
-            <span class="dash-nic-readout__value num">{{ formatNicValue(nic.summary.peak) }}</span>
-            <span class="dash-nic-readout__hint">busiest minute</span>
-          </div>
-        </div>
-
-        <div class="dash-chart-wrap dash-chart-wrap--nic">
-          <div :ref="(el) => setNicChartRef(nic.key, el)"></div>
-        </div>
-
-        <div class="dash-nic-edges" role="list">
-          <button
-            v-for="row in nic.summary.rows"
-            :key="`${nic.key}-${row.id}`"
-            type="button"
-            role="listitem"
-            class="dash-nic-edge"
-            :class="{ off: row.hidden }"
-            :title="row.hidden ? `Show ${row.label}` : `Hide ${row.label}`"
-            @click="toggleServerSeries(row)"
-          >
-            <span class="dash-nic-edge__swatch" :style="{ background: row.color }" aria-hidden="true"></span>
-            <span class="dash-nic-edge__name">{{ row.label }}</span>
-            <span class="dash-nic-edge__bar" aria-hidden="true">
-              <span :style="{ width: `${row.share}%`, background: row.color }"></span>
+            <span class="dash-nic-card__health" :class="edge.health">
+              <i :class="{ live: edge.live }" aria-hidden="true"></i>{{ edge.healthLabel }}
             </span>
-            <span class="dash-nic-edge__value num">{{ row.now == null ? 'no data' : formatBandwidthValue(row.now) }}</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              class="dash-nic-card__open"
+              :aria-label="`Open ${edge.label} settings`"
+              @click="goToEdgeSettings(edge)"
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5" /></svg>
+            </button>
+          </header>
+
+          <div class="dash-nic-card__rates">
+            <div class="dash-nic-card__rate rx">
+              <span class="dash-nic-card__label">↓ Receive</span>
+              <span class="dash-nic-card__value num">{{ edge.rxLabel }}</span>
+            </div>
+            <div class="dash-nic-card__rate tx">
+              <span class="dash-nic-card__label">↑ Send</span>
+              <span class="dash-nic-card__value num">{{ edge.txLabel }}</span>
+            </div>
+            <div class="dash-nic-card__rate link">
+              <span class="dash-nic-card__label">Link</span>
+              <span class="dash-nic-card__value num">{{ edge.linkLabel }}</span>
+            </div>
+          </div>
+
+          <div class="dash-nic-card__chart">
+            <div :ref="(el) => setEdgeNicChartRef(edge.id, el)"></div>
+          </div>
+
+          <dl class="dash-nic-card__facts">
+            <div>
+              <dt>CPU</dt>
+              <dd class="num" :class="edge.cpuTone">{{ edge.cpuLabel }}</dd>
+            </div>
+            <div>
+              <dt>Temp</dt>
+              <dd class="num">{{ edge.tempLabel }}</dd>
+            </div>
+            <div>
+              <dt>Memory</dt>
+              <dd class="num">{{ edge.memLabel }}</dd>
+            </div>
+            <div>
+              <dt>Disk</dt>
+              <dd class="num">{{ edge.diskLabel }}</dd>
+            </div>
+          </dl>
+        </article>
       </div>
     </section>
 
@@ -367,17 +302,15 @@
       </div>
     </section>
 
-    <SecurityEventDialog :event="selectedSecurityEvent" @close="selectedSecurityEvent = null" />
   </div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import SecurityEventDialog from '@/components/SecurityEventDialog.vue'
-import { openAttackConsole } from '@/stores/attackAlert'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import ApexCharts from 'apexcharts'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import AttackAlertsPanel from '@/components/AttackAlertsPanel.vue'
 import {
   fetchBandwidthL7RxSeries,
   fetchBandwidthL7TxSeries,
@@ -386,7 +319,6 @@ import {
   fetchDashboardSummary,
   fetchDashboardTopDomains,
   fetchRequestResponseSeries,
-  fetchSecurityEvents,
   fetchStatusCodeSeries,
 } from '@/api/dashboard'
 import { fetchSecuritySummaryGroup } from '@/api/securityAnalytics'
@@ -417,9 +349,14 @@ const router = useRouter()
 const dashboardRoot = ref(null)
 const bandwidthNicRxChart = ref(null)
 const bandwidthNicTxChart = ref(null)
-const setNicChartRef = (key, el) => {
-  if (key === 'rx') bandwidthNicRxChart.value = el
-  else bandwidthNicTxChart.value = el
+const edgeNicChartEls = new Map()
+const edgeNicCharts = new Map()
+/** Live 5s NIC samples per edge, in bits/s. */
+const edgeNicSamples = new Map()
+const EDGE_NIC_SAMPLE_CAP = 720
+const setEdgeNicChartRef = (id, el) => {
+  if (el) edgeNicChartEls.set(id, el)
+  else edgeNicChartEls.delete(id)
 }
 const bandwidthL7RxChart = ref(null)
 const bandwidthL7TxChart = ref(null)
@@ -427,105 +364,8 @@ const bandwidthCombinedChart = ref(null)
 const bandwidthDeliveryChart = ref(null)
 const requestResponseChart = ref(null)
 const statusCodeChart = ref(null)
-
-const securityEvents = ref([])
-const selectedSecurityEvent = ref(null)
-const openSecurityEvent = (event) => {
-  if (event?.reqId) {
-    openAttackConsole(event.reqId)
-    return
-  }
-  selectedSecurityEvent.value = event
-}
 const nowMs = ref(Date.now())
-const scopedPeriods = computed(() => securityEvents.value.filter((period) => (
-  selectedEdge.value === 'all' || String(period.serverId ?? '') === String(selectedEdge.value)
-)))
-const recentAttacks = computed(() => scopedPeriods.value.filter((period) => period.reqId))
-const liveAttacks = computed(() => recentAttacks.value.filter((period) => period.status === 'ongoing'))
-const securityNotices = computed(() => scopedPeriods.value.filter((period) => !period.reqId))
-const attacksToday = computed(() => {
-  const today = new Date(nowMs.value).toDateString()
-  return recentAttacks.value.filter((period) => new Date(period.startedAt).toDateString() === today)
-})
-const sourcesToday = computed(() => attacksToday.value.reduce((sum, period) => sum + (Number(period.ipCount) || 0), 0))
 
-const VECTOR_LABELS = [
-  ['SOCKET', 'Socket'], ['XMAS', 'Socket'], ['NULL', 'Socket'], ['FIN', 'Socket'],
-  ['STOMP', 'STOMP'], ['PSH', 'STOMP'], ['HANDSHAKE', 'Handshake'],
-  ['SYN', 'SYN'], ['RST', 'RST'], ['ACK', 'ACK'],
-  ['UDP', 'UDP'], ['ICMP', 'ICMP'], ['GRE', 'GRE'],
-]
-const vectorLabel = (raw) => {
-  const tokens = new Set(String(raw || '').toUpperCase().split(/[^A-Z0-9]+/))
-  const hit = VECTOR_LABELS.find(([token]) => tokens.has(token))
-  return hit ? hit[1] : ''
-}
-const periodVectors = (period) => {
-  const totals = new Map()
-  ;(period?.vectors || []).forEach((item) => {
-    const label = vectorLabel(item.type)
-    if (label) totals.set(label, (totals.get(label) || 0) + (Number(item.count) || 0))
-  })
-  if (!totals.size) {
-    const label = vectorLabel(period?.attackType)
-    if (label) totals.set(label, Number(period?.ipCount) || 1)
-  }
-  return [...totals.entries()].sort((a, b) => b[1] - a[1])
-}
-const attackHeadline = (period) => {
-  const labels = periodVectors(period).slice(0, 2).map(([label]) => label)
-  return labels.length ? `${labels.join(' + ')} flood` : (period?.title || 'L4 attack')
-}
-const vectorColor = (label) => {
-  const colors = getApexSeriesColors()
-  return {
-    STOMP: colors.l7, Handshake: colors.warn, SYN: colors.sand, ACK: colors.warn, RST: colors.danger,
-    UDP: colors.l4, ICMP: colors.teal, GRE: colors.teal, Socket: colors.slate,
-  }[label] || colors.muted
-}
-const vectorParts = (period) => {
-  const entries = periodVectors(period)
-  const total = entries.reduce((sum, [, count]) => sum + count, 0) || 1
-  return entries.slice(0, 4).map(([label, count]) => ({
-    label,
-    share: Math.max(6, Math.round((count / total) * 100)),
-    color: vectorColor(label),
-  }))
-}
-const vectorTitle = (period) => periodVectors(period).map(([label, count]) => `${label} ${count}`).join(' · ')
-const elapsedLabel = (value, now) => {
-  const start = Date.parse(value || '')
-  if (!Number.isFinite(start)) return '—'
-  const seconds = Math.max(0, Math.round((now - start) / 1000))
-  if (seconds < 60) return `${seconds}s`
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 48) return `${hours}h ${String(minutes % 60).padStart(2, '0')}m`
-  return `${Math.floor(hours / 24)}d`
-}
-const attackDuration = (period) => {
-  const start = Date.parse(period?.startedAt || '')
-  const end = period?.status === 'ongoing' ? nowMs.value : Date.parse(period?.endedAt || '')
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return '—'
-  return elapsedLabel(period.startedAt, end)
-}
-const formatAttackDay = (value) => {
-  const date = new Date(value || '')
-  if (Number.isNaN(date.getTime())) return ''
-  const today = new Date(nowMs.value)
-  if (date.toDateString() === today.toDateString()) return ''
-  const yesterday = new Date(today)
-  yesterday.setDate(today.getDate() - 1)
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
-}
-const noticeLabel = (event) => {
-  const raw = String(event?.attackType || event?.title || '')
-  if (/CONNECTION_LIMIT/i.test(raw)) return 'TCP connection limit reached'
-  return event?.title || raw.replace(/^EVENT_/, '').replace(/_/g, ' ').toLowerCase()
-}
 const serversList = ref([])
 const edgeMetrics = ref({})
 const topUserAgentsRaw = ref([])
@@ -551,9 +391,10 @@ const dashboardStats = ref({
 })
 
 const bandwidthServers = ref([])
-const bandwidthRefreshMs = 60 * 1000
-const trafficRefreshMs = 60 * 1000
-/** Cap chart points so ApexCharts stays responsive on long ranges. */
+/** Live KPIs (site egress, cache) + charts — match Sites list cadence. */
+const liveRefreshMs = 15_000
+/** Host NIC probes — frequent so RX/TX cards feel live. */
+const nicRefreshMs = 5_000
 
 let nicRxChartInstance = null
 let nicTxChartInstance = null
@@ -563,11 +404,11 @@ let combinedChartInstance = null
 let deliveryChartInstance = null
 let requestResponseChartInstance = null
 let statusCodeChartInstance = null
-let bandwidthTimer = null
-let attackTimer = null
-const attackRefreshMs = 10000
+let liveTimer = null
+let livePollInFlight = false
+let nicTimer = null
+let nicPollInFlight = false
 let clockTimer = null
-let trafficTimer = null
 let layoutResizeObserver = null
 let resizeRaf = 0
 let loadGeneration = 0
@@ -889,14 +730,187 @@ const buildNicSummary = (meta) => {
 const nicRxSummary = computed(() => buildNicSummary(nicRxMeta.value))
 const nicTxSummary = computed(() => buildNicSummary(nicTxMeta.value))
 
-const nicAsOfLabel = (summary) => {
-  if (summary.asOf == null) return 'no recent samples'
-  const lag = Math.max(0, Math.round((nowMs.value - summary.asOf) / 60000))
-  const clock = new Date(summary.asOf).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-  return lag <= 1 ? `minute ${clock}` : `minute ${clock} · ${lag} min ago`
+const nicEdgeCards = computed(() => {
+  const chartServers = selectedEdge.value === 'all'
+    ? serversForCharts.value
+    : serversForCharts.value.filter((server) => String(server.id) === String(selectedEdge.value))
+  const fullById = new Map(serversList.value.map((server) => [server.id, server]))
+
+  return chartServers.map((server, index) => {
+    const full = fullById.get(server.id) || server
+    const metric = edgeMetrics.value[server.id]
+    const loading = !metric || metric.loading
+    const hasLive = metric != null && !metric.loading && !metric.error
+      && (metric.netRxBytesPerSec != null || metric.netTxBytesPerSec != null)
+    const rx = hasLive ? Number(metric.netRxBytesPerSec) || 0 : null
+    const tx = hasLive ? Number(metric.netTxBytesPerSec) || 0 : null
+    const dash = loading ? '…' : '—'
+    const cpu = metric?.cpuPercent
+    const temp = metric?.temperatureC
+    return {
+      id: server.id,
+      label: server.label || full.name || `Edge ${server.id}`,
+      color: server.color || linePalette()[index % linePalette().length],
+      health: edgeHealthClass(full),
+      healthLabel: edgeHealthLabel(full),
+      live: hasLive,
+      maskedIp: maskIp(full.ip),
+      hostname: metric?.hostname || '',
+      rx,
+      tx,
+      rxLabel: rx == null ? dash : formatBitRate(rx),
+      txLabel: tx == null ? dash : formatBitRate(tx),
+      linkLabel: metric?.netLinkMbps
+        ? `${formatLinkSpeed(metric.netLinkMbps)}${metric.netInterface ? ` · ${metric.netInterface}` : ''}`
+        : metric?.netInterface || dash,
+      cpuLabel: cpu == null ? dash : `${Math.round(cpu)}%${metric?.cpuCores ? ` · ${metric.cpuCores}c` : ''}`,
+      cpuTone: cpu == null ? '' : cpu >= 90 ? 'danger' : cpu >= 70 ? 'warn' : 'ok',
+      memLabel: usageLabel(metric?.memoryUsedBytes, metric?.memoryTotalBytes, dash),
+      diskLabel: usageLabel(metric?.diskUsedBytes, metric?.diskTotalBytes, dash),
+      tempLabel: temp == null ? '—' : `${Math.round(temp)}°C`,
+    }
+  })
+})
+
+const maskIp = (ip) => {
+  const raw = String(ip || '').trim()
+  if (!raw) return 'IP hidden'
+  if (raw.includes(':')) {
+    const parts = raw.split(':').filter(Boolean)
+    return `${parts.slice(0, 2).join(':')}:••••`
+  }
+  const parts = raw.split('.')
+  if (parts.length !== 4) return '••••'
+  return `${parts[0]}.${parts[1]}.•••.•••`
 }
 
-const formatNicValue = (value) => (value == null ? '—' : formatBandwidthValue(value))
+const formatBytes = (value) => {
+  const bytes = Number(value)
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const exp = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
+  const scaled = bytes / 1024 ** exp
+  return `${scaled.toFixed(scaled >= 100 || exp === 0 ? 0 : 1)} ${units[exp]}`
+}
+
+const usageLabel = (used, total, fallback) => {
+  const t = Number(total)
+  if (!Number.isFinite(t) || t <= 0) return fallback
+  const u = Number(used) || 0
+  return `${Math.round((u / t) * 100)}% · ${formatBytes(t)}`
+}
+
+const formatLinkSpeed = (mbps) => {
+  const value = Number(mbps)
+  if (!Number.isFinite(value) || value <= 0) return '—'
+  return value >= 1000 ? `${value / 1000} Gbps` : `${value} Mbps`
+}
+
+const formatBits = (bits) => formatBitRate((Number(bits) || 0) / 8)
+
+const recordEdgeNicSample = (id, rxBytes, txBytes) => {
+  const list = edgeNicSamples.get(id) || []
+  list.push({ x: Date.now(), rx: (Number(rxBytes) || 0) * 8, tx: (Number(txBytes) || 0) * 8 })
+  if (list.length > EDGE_NIC_SAMPLE_CAP) list.splice(0, list.length - EDGE_NIC_SAMPLE_CAP)
+  edgeNicSamples.set(id, list)
+}
+
+/** Minute history (stored as bits/s ÷ 1024) followed by live 5s samples. */
+const edgeNicSeries = (id, startMs) => {
+  const history = (meta) => (meta?.[id]?.points || [])
+    .filter((p) => p.x >= startMs)
+    .map((p) => ({ x: p.x, y: (Number(p.y) || 0) * 1024 }))
+  const rxHist = history(nicRxMeta.value)
+  const txHist = history(nicTxMeta.value)
+  const lastHist = Math.max(rxHist.at(-1)?.x ?? 0, txHist.at(-1)?.x ?? 0)
+  const live = (edgeNicSamples.get(id) || []).filter((s) => s.x >= startMs && s.x > lastHist)
+  return [
+    { name: 'Receive', data: [...rxHist, ...live.map((s) => ({ x: s.x, y: s.rx }))] },
+    { name: 'Send', data: [...txHist, ...live.map((s) => ({ x: s.x, y: s.tx }))] },
+  ]
+}
+
+const edgeNicChartOptions = (startMs, endMs) => {
+  const base = getApexBaseChartOptions()
+  const colors = seriesColors()
+  return {
+    ...base,
+    chart: {
+      ...base.chart,
+      type: 'area',
+      height: 200,
+      width: '100%',
+      parentHeightOffset: 0,
+      sparkline: { enabled: false },
+      toolbar: { show: false },
+      zoom: { enabled: false },
+      animations: { enabled: false },
+    },
+    colors: [colors.viper, colors.l4],
+    stroke: { curve: 'smooth', width: 1.6 },
+    fill: { type: 'gradient', gradient: { shadeIntensity: 0, opacityFrom: 0.3, opacityTo: 0.02, stops: [0, 95] } },
+    dataLabels: { enabled: false },
+    markers: { size: 0, hover: { size: 3 } },
+    legend: { show: false },
+    grid: { ...base.grid, padding: { left: 4, right: 6, top: -8, bottom: -6 } },
+    xaxis: { ...windowXaxis(startMs, endMs), labels: { show: false }, axisTicks: { show: false } },
+    yaxis: {
+      min: 0,
+      forceNiceScale: true,
+      tickAmount: 4,
+      labels: { formatter: (v) => formatBits(v), style: getApexAxisLabelStyle('10px'), offsetX: -6 },
+    },
+    tooltip: {
+      ...base.tooltip,
+      shared: true,
+      x: { formatter: (val) => new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) },
+      y: { formatter: (v) => (v == null ? '—' : formatBits(v)) },
+    },
+  }
+}
+
+const syncEdgeNicCharts = () => {
+  const now = Date.now()
+  const startMs = now - getBandwidthRangeMs(bandwidthRange.value)
+  const ids = new Set(nicEdgeCards.value.map((edge) => edge.id))
+
+  edgeNicCharts.forEach((chart, id) => {
+    const el = edgeNicChartEls.get(id)
+    if (!ids.has(id) || !el || !el.isConnected || chart.el !== el) {
+      chart.destroy()
+      edgeNicCharts.delete(id)
+    }
+  })
+
+  ids.forEach((id) => {
+    const el = edgeNicChartEls.get(id)
+    if (!el) return
+    const series = edgeNicSeries(id, startMs)
+    let chart = edgeNicCharts.get(id)
+    if (!chart) {
+      chart = new ApexCharts(el, { ...edgeNicChartOptions(startMs, now), series })
+      chart.el = el
+      chart.render()
+      edgeNicCharts.set(id, chart)
+      return
+    }
+    chart.updateOptions({ xaxis: { ...windowXaxis(startMs, now), labels: { show: false }, axisTicks: { show: false } } }, false, false)
+    chart.updateSeries(series, false)
+  })
+}
+
+const scheduleEdgeNicSync = () => {
+  void nextTick(syncEdgeNicCharts)
+}
+
+const nicFleetLive = computed(() => {
+  const cards = nicEdgeCards.value
+  return {
+    count: cards.length,
+    rx: cards.reduce((sum, row) => sum + (row.rx || 0), 0),
+    tx: cards.reduce((sum, row) => sum + (row.tx || 0), 0),
+  }
+})
 
 const l7BandwidthSeries = computed(() => [
   { name: 'Egress', data: sumSeriesPoints(bandwidthL7TxSeries.value) },
@@ -1128,30 +1142,48 @@ const cpuBarWidth = (server) => {
 }
 
 const loadEdgeMetrics = async (servers) => {
-  const list = Array.isArray(servers) ? servers.slice(0, 8) : []
+  const list = Array.isArray(servers) ? servers : []
   if (!list.length) {
     edgeMetrics.value = {}
     return
   }
 
-  const next = { ...edgeMetrics.value }
+  // Only mark first-time probes as loading so live polls do not flicker.
+  const pending = { ...edgeMetrics.value }
+  let marked = false
   list.forEach((server) => {
-    next[server.id] = { ...(next[server.id] || {}), loading: true }
+    if (!pending[server.id]) {
+      pending[server.id] = { loading: true }
+      marked = true
+    }
   })
-  edgeMetrics.value = next
+  if (marked) edgeMetrics.value = pending
 
   const results = await Promise.all(
     list.map(async (server) => {
       try {
         const payload = await fetchServerHostMetrics(server.id)
+        const rx = Number(payload?.netRxBytesPerSec) || 0
+        const tx = Number(payload?.netTxBytesPerSec) || 0
+        recordEdgeNicSample(server.id, rx, tx)
         return [server.id, {
+          ...payload,
           loading: false,
+          error: false,
           cpuPercent: payload?.cpuPercent == null ? null : Number(payload.cpuPercent),
-          netTxBytesPerSec: Number(payload?.netTxBytesPerSec) || 0,
-          netRxBytesPerSec: Number(payload?.netRxBytesPerSec) || 0,
+          netTxBytesPerSec: tx,
+          netRxBytesPerSec: rx,
         }]
       } catch {
-        return [server.id, { loading: false, cpuPercent: null }]
+        const prev = edgeMetrics.value[server.id]
+        return [server.id, {
+          ...(prev || {}),
+          loading: false,
+          error: true,
+          cpuPercent: prev?.cpuPercent ?? null,
+          netTxBytesPerSec: prev?.netTxBytesPerSec ?? null,
+          netRxBytesPerSec: prev?.netRxBytesPerSec ?? null,
+        }]
       }
     }),
   )
@@ -1161,6 +1193,7 @@ const loadEdgeMetrics = async (servers) => {
     merged[id] = metric
   })
   edgeMetrics.value = merged
+  scheduleEdgeNicSync()
 }
 
 const setRange = (value) => {
@@ -1238,15 +1271,6 @@ const loadDashboardSummary = async () => {
     }
   } catch (error) {
     console.error('Failed to load dashboard summary', error)
-  }
-}
-
-const loadSecurityEvents = async () => {
-  try {
-    const payload = await fetchSecurityEvents(30)
-    securityEvents.value = Array.isArray(payload) ? payload : []
-  } catch (error) {
-    securityEvents.value = []
   }
 }
 
@@ -1569,6 +1593,7 @@ const loadBandwidthSeries = async () => {
     if (combinedChartInstance) { combinedChartInstance.updateSeries(pad(combinedBandwidthSeries.value), false); combinedChartInstance.updateOptions(rangeOpts, false, false) }
     if (!deliveryChartInstance) createDeliveryChart()
     if (deliveryChartInstance) { deliveryChartInstance.updateSeries(pad(l7BandwidthSeries.value), false); deliveryChartInstance.updateOptions(rangeOpts, false, false) }
+    scheduleEdgeNicSync()
   } catch (error) {
     console.error('Failed to load bandwidth series', error)
   }
@@ -1683,7 +1708,6 @@ const refreshDashboard = async () => {
     // Phase 1: shell metrics + server list (paint hero quickly)
     await Promise.all([
       loadDashboardSummary(),
-      loadSecurityEvents(),
       loadSites(),
       loadBandwidthServers(),
     ])
@@ -1706,7 +1730,7 @@ const refreshDashboard = async () => {
 
 const refreshChartTheme = () => {
   const patch = getApexThemePatch()
-  ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, deliveryChartInstance, requestResponseChartInstance, statusCodeChartInstance].forEach((chart) => {
+  ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, deliveryChartInstance, requestResponseChartInstance, statusCodeChartInstance, ...edgeNicCharts.values()].forEach((chart) => {
     if (chart) chart.updateOptions(patch, false, false)
   })
 }
@@ -1719,9 +1743,48 @@ const scheduleFilterReload = () => {
   }, 120)
 }
 
-const runIfVisible = (fn) => {
+/** Silent live refresh — sites + summary were missing from the old timers. */
+const pollLiveDashboard = async () => {
   if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
-  fn()
+  if (isRefreshing.value || livePollInFlight) return
+
+  livePollInFlight = true
+  const generation = loadGeneration
+  try {
+    await Promise.all([
+      loadSites(),
+      loadDashboardSummary(),
+      bandwidthServers.value.length ? loadBandwidthSeries() : Promise.resolve(),
+      loadRequestResponseSeries(),
+      loadStatusCodeSeries(),
+      loadTopTrafficPanels(),
+    ])
+    if (generation !== loadGeneration) return
+    updatedAt.value = new Date()
+  } finally {
+    livePollInFlight = false
+  }
+}
+
+/** Fast NIC RX/TX probes for the per-edge cards. */
+const pollNicMetrics = async () => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  if (isRefreshing.value || nicPollInFlight) return
+  if (!serversList.value.length) return
+
+  nicPollInFlight = true
+  try {
+    await loadEdgeMetrics(serversList.value)
+  } finally {
+    nicPollInFlight = false
+  }
+}
+
+const onDashboardVisible = () => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    void pollLiveDashboard()
+    void pollNicMetrics()
+  }
 }
 
 let heroChartHeight = 248
@@ -1739,35 +1802,30 @@ const resizeCharts = () => {
   if (resizeRaf) cancelAnimationFrame(resizeRaf)
   resizeRaf = requestAnimationFrame(() => {
     resizeRaf = 0
-    ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, deliveryChartInstance, requestResponseChartInstance, statusCodeChartInstance].forEach((c) => c?.resize?.())
+    ;[nicRxChartInstance, nicTxChartInstance, l7RxChartInstance, l7TxChartInstance, combinedChartInstance, deliveryChartInstance, requestResponseChartInstance, statusCodeChartInstance, ...edgeNicCharts.values()].forEach((c) => c?.resize?.())
     fitHeroChart()
   })
 }
 
 onMounted(() => {
   window.addEventListener('cdnproxy-theme-change', refreshChartTheme)
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', onDashboardVisible)
+  }
   createRequestResponseChart()
   createStatusCodeChart()
   requestAnimationFrame(() => requestAnimationFrame(fitHeroChart))
   void refreshDashboard()
 
-  bandwidthTimer = window.setInterval(() => {
-    runIfVisible(() => {
-      if (bandwidthServers.value.length) void loadBandwidthSeries()
-    })
-  }, bandwidthRefreshMs)
-  attackTimer = window.setInterval(() => {
-    runIfVisible(() => void loadSecurityEvents())
-  }, attackRefreshMs)
+  liveTimer = window.setInterval(() => {
+    void pollLiveDashboard()
+  }, liveRefreshMs)
+  nicTimer = window.setInterval(() => {
+    void pollNicMetrics()
+  }, nicRefreshMs)
   clockTimer = window.setInterval(() => {
     nowMs.value = Date.now()
   }, 1000)
-  trafficTimer = window.setInterval(() => {
-    runIfVisible(() => {
-      void loadRequestResponseSeries()
-      void loadStatusCodeSeries()
-    })
-  }, trafficRefreshMs)
 
   if (typeof window !== 'undefined' && 'ResizeObserver' in window && dashboardRoot.value) {
     layoutResizeObserver = new ResizeObserver(resizeCharts)
@@ -1777,18 +1835,27 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('cdnproxy-theme-change', refreshChartTheme)
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', onDashboardVisible)
+  }
   loadGeneration += 1
-  if (bandwidthTimer) window.clearInterval(bandwidthTimer)
-  if (trafficTimer) window.clearInterval(trafficTimer)
-  if (attackTimer) window.clearInterval(attackTimer)
+  if (liveTimer) window.clearInterval(liveTimer)
+  if (nicTimer) window.clearInterval(nicTimer)
   if (clockTimer) window.clearInterval(clockTimer)
   if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
   if (resizeRaf) cancelAnimationFrame(resizeRaf)
   destroyBandwidthCharts()
+  edgeNicCharts.forEach((chart) => chart.destroy())
+  edgeNicCharts.clear()
   if (requestResponseChartInstance) requestResponseChartInstance.destroy()
   if (statusCodeChartInstance) statusCodeChartInstance.destroy()
   if (layoutResizeObserver && dashboardRoot.value) layoutResizeObserver.disconnect()
 })
+
+watch(
+  () => nicEdgeCards.value.map((edge) => edge.id).join(','),
+  scheduleEdgeNicSync,
+)
 
 watch(bandwidthRange, scheduleFilterReload)
 watch(selectedEdge, () => {
@@ -1908,329 +1975,6 @@ watch(selectedSite, scheduleFilterReload)
   color: var(--dorian-viper-400, var(--app-accent));
   border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 40%, var(--app-border));
   background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 10%, var(--app-surface));
-}
-
-.dash-attacks {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 0.5px solid var(--app-border);
-  background: var(--app-surface);
-}
-
-.dash-attacks.live {
-  border-color: color-mix(in srgb, var(--dorian-danger, #e15241) 55%, var(--app-border));
-  background:
-    radial-gradient(ellipse at 0% 0%, color-mix(in srgb, var(--dorian-danger, #e15241) 14%, transparent) 0%, transparent 60%),
-    var(--app-surface);
-}
-
-.dash-attacks__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.dash-attacks__head h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.dash-attacks__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--dorian-viper-400, var(--app-accent));
-}
-
-.dash-attacks__dot.live {
-  background: var(--dorian-danger, #e15241);
-  animation: dash-attack-pulse 1.6s ease-out infinite;
-}
-
-.dash-attacks__stats {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  color: var(--app-text-muted);
-}
-
-.dash-attacks__stats b {
-  color: var(--app-heading);
-  font-weight: 650;
-}
-
-.dash-attacks__live {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.dash-live-attack {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
-  align-items: center;
-  gap: 18px;
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--dorian-danger, #e15241) 45%, var(--app-border));
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--dorian-danger, #e15241) 10%, var(--app-surface-muted));
-  color: var(--app-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.dash-live-attack:hover {
-  border-color: var(--dorian-danger, #e15241);
-  background: color-mix(in srgb, var(--dorian-danger, #e15241) 15%, var(--app-surface-muted));
-}
-
-.dash-live-attack__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--dorian-danger, #e15241) 22%, transparent);
-  color: var(--dorian-danger, #e15241);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.dash-live-attack__badge i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: dash-attack-pulse 1.6s ease-out infinite;
-}
-
-.dash-live-attack__main {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.dash-live-attack__main strong {
-  color: var(--app-heading);
-  font-size: 16px;
-  font-weight: 650;
-}
-
-.dash-live-attack__main span,
-.dash-live-attack__metric span {
-  color: var(--app-text-muted);
-  font-size: 12px;
-}
-
-.dash-live-attack__metric {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.dash-live-attack__metric b {
-  color: var(--app-heading);
-  font-size: 20px;
-  font-weight: 650;
-  line-height: 1.1;
-}
-
-.dash-live-attack__open {
-  padding: 7px 12px;
-  border-radius: 8px;
-  background: var(--dorian-danger, #e15241);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 650;
-  white-space: nowrap;
-}
-
-.dash-attacks__calm {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 0.5px solid var(--app-border);
-  background: var(--app-surface-muted);
-  color: var(--app-text-muted);
-  font-size: 12.5px;
-}
-
-.dash-attacks__calm strong {
-  color: var(--app-heading);
-  font-weight: 600;
-}
-
-.dash-attacks__calm-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--dorian-viper-500, #2e9e6c) 18%, transparent);
-  color: var(--dorian-viper-400, var(--app-accent));
-}
-
-.dash-attacks__calm-icon svg {
-  width: 13px;
-  height: 13px;
-}
-
-.dash-attack-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.dash-attack-row {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1.6fr) minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(90px, 0.9fr);
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 44px;
-  padding: 6px 10px;
-  border: 0;
-  border-bottom: 0.5px solid var(--app-border);
-  background: transparent;
-  color: var(--app-text);
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-
-button.dash-attack-row:hover {
-  background: var(--app-surface-hover);
-}
-
-.dash-attack-row--head {
-  min-height: 0;
-  padding-top: 0;
-  padding-bottom: 8px;
-  color: var(--app-text-muted);
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: default;
-}
-
-.dash-attack-status {
-  justify-self: start;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 650;
-}
-
-.dash-attack-status.live {
-  background: color-mix(in srgb, var(--dorian-danger, #e15241) 18%, transparent);
-  color: var(--dorian-danger, #e15241);
-}
-
-.dash-attack-status.ended {
-  background: color-mix(in srgb, var(--dorian-viper-500, #2e9e6c) 14%, transparent);
-  color: var(--dorian-viper-400, var(--app-accent));
-}
-
-.dash-attack-name {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.dash-attack-name strong {
-  overflow: hidden;
-  color: var(--app-heading);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.dash-attack-name span,
-.dash-attack-dim {
-  color: var(--app-text-muted);
-  font-size: 12px;
-}
-
-.dash-attack-vectors {
-  display: flex;
-  gap: 2px;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 3px;
-  background: var(--app-border);
-}
-
-.dash-notices {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
-}
-
-.dash-notices__label {
-  color: var(--app-text-muted);
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.dash-notice {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  border: 0.5px solid var(--app-border);
-  border-radius: 999px;
-  background: var(--app-surface-muted);
-  color: var(--app-text-secondary);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.dash-notice:hover {
-  border-color: color-mix(in srgb, var(--dorian-warn, #e0a83f) 45%, var(--app-border));
-}
-
-@keyframes dash-attack-pulse {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dorian-danger, #e15241) 55%, transparent); }
-  70% { box-shadow: 0 0 0 7px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
-
-@media (max-width: 900px) {
-  .dash-live-attack { grid-template-columns: auto minmax(0, 1fr); }
-  .dash-live-attack__metric { align-items: flex-start; }
-  .dash-attack-row { grid-template-columns: 88px minmax(0, 1fr) minmax(0, 0.8fr); }
-  .dash-attack-row > :nth-child(n + 4) { display: none; }
 }
 
 .dash-command {
@@ -3404,21 +3148,21 @@ a.dash-bar-row--link:hover {
   white-space: nowrap;
 }
 
-.dash-nic-panel {
-  gap: 0;
+.dash-nic-fleet {
+  gap: 10px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--nic-tone) 7%, transparent) 0%, transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--dorian-viper-400, var(--app-accent)) 6%, transparent) 0%, transparent 40%),
     var(--app-surface);
 }
 
-.dash-nic-panel.rx { --nic-tone: var(--dorian-viper-400, var(--app-accent)); }
-.dash-nic-panel.tx { --nic-tone: var(--dorian-l4, #6b9fd4); }
-
-.dash-nic-panel .dash-panel-head {
-  margin-bottom: 10px;
+.dash-nic-fleet .dash-panel-head {
+  margin-bottom: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.dash-nic-panel .dash-panel-head h3 {
+.dash-nic-fleet .dash-panel-head h3 {
   color: var(--app-heading);
   font-weight: 600;
 }
@@ -3429,8 +3173,8 @@ a.dash-bar-row--link:hover {
   border-radius: 6px;
   display: inline-grid;
   place-items: center;
-  color: var(--nic-tone);
-  background: color-mix(in srgb, var(--nic-tone) 14%, transparent);
+  color: var(--dorian-viper-400, var(--app-accent));
+  background: color-mix(in srgb, var(--dorian-viper-400, var(--app-accent)) 14%, transparent);
 }
 
 .dash-nic-dir svg {
@@ -3444,132 +3188,241 @@ a.dash-bar-row--link:hover {
   color: var(--app-text-muted);
 }
 
-.dash-nic-readouts {
-  display: grid;
-  grid-template-columns: 1.25fr 1fr 1fr;
-  border: 0.5px solid var(--app-border);
-  border-radius: 8px;
-  background: var(--app-surface-muted);
-  margin-bottom: 8px;
+.dash-nic-fleet__totals {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
 
-.dash-nic-readout {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 9px 12px;
-  min-width: 0;
-}
-
-.dash-nic-readout + .dash-nic-readout {
-  border-left: 0.5px solid var(--app-border);
-}
-
-.dash-nic-readout__label {
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.dash-nic-fleet__total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
   color: var(--app-text-muted);
 }
 
-.dash-nic-readout__value {
-  font-size: 16px;
+.dash-nic-fleet__total b {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.dash-nic-fleet__total.rx b { color: var(--dorian-viper-400, var(--app-accent)); }
+.dash-nic-fleet__total.tx b { color: var(--dorian-l4, #6b9fd4); }
+
+.dash-nic-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 8px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-border-strong) transparent;
+}
+
+.dash-nic-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.dash-nic-scroll::-webkit-scrollbar-thumb {
+  background: var(--app-border-strong);
+  border-radius: 999px;
+}
+
+.dash-nic-card {
+  --card-tone: var(--dorian-viper-400, var(--app-accent));
+  flex: 1 0 460px;
+  max-width: 640px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 0.5px solid var(--app-border);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--card-tone) 9%, transparent) 0%, transparent 45%),
+    var(--app-surface-muted);
+  min-width: 0;
+}
+
+.dash-nic-card.warn { --card-tone: var(--dorian-warn, #e0a83f); }
+.dash-nic-card.danger { --card-tone: var(--dorian-danger, #e15241); }
+
+.dash-nic-card__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-nic-card__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.dash-nic-card__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-nic-card__name {
+  font-size: 14.5px;
   font-weight: 650;
   color: var(--app-heading);
-  line-height: 1.15;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.dash-nic-readout.now .dash-nic-readout__value {
-  font-size: 20px;
-  color: var(--nic-tone);
-}
-
-.dash-nic-readout__hint {
-  font-size: 11px;
+.dash-nic-card__sub {
+  font-size: 11.5px;
   color: var(--app-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dash-nic-edges {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 6px;
-  margin-top: 6px;
+.dash-nic-card__health {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--card-tone);
+  background: color-mix(in srgb, var(--card-tone) 13%, transparent);
+  white-space: nowrap;
 }
 
-.dash-nic-edge {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 56px auto;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 9px;
-  border-radius: 7px;
+.dash-nic-card__health i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-border-strong);
+}
+
+.dash-nic-card__health i.live {
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.dash-nic-card__open {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 6px;
   border: 0.5px solid var(--app-border);
   background: transparent;
-  color: inherit;
-  font: inherit;
+  color: var(--app-text-muted);
   cursor: pointer;
-  text-align: left;
 }
 
-.dash-nic-edge:hover {
-  background: var(--app-surface-muted);
+.dash-nic-card__open:hover {
+  color: var(--app-heading);
+  border-color: var(--app-border-strong);
 }
 
-.dash-nic-edge:focus-visible {
-  outline: 2px solid var(--app-accent);
-  outline-offset: 1px;
+.dash-nic-card__open svg {
+  width: 12px;
+  height: 12px;
 }
 
-.dash-nic-edge.off {
-  opacity: 0.45;
+.dash-nic-card__rates {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border: 0.5px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
 }
 
-.dash-nic-edge__swatch {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
+.dash-nic-card__rate {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  min-width: 0;
 }
 
-.dash-nic-edge__name {
-  font-size: 12px;
+.dash-nic-card__rate + .dash-nic-card__rate {
+  border-left: 0.5px solid var(--app-border);
+}
+
+.dash-nic-card__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.dash-nic-card__value {
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.15;
+  color: var(--app-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-nic-card__rate.rx .dash-nic-card__value { color: var(--dorian-viper-400, var(--app-accent)); }
+.dash-nic-card__rate.tx .dash-nic-card__value { color: var(--dorian-l4, #6b9fd4); }
+.dash-nic-card__rate.link .dash-nic-card__value { font-size: 14px; }
+
+.dash-nic-card__chart {
+  height: 200px;
+  margin: 0 -4px;
+}
+
+.dash-nic-card__facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--app-border);
+}
+
+.dash-nic-card__facts > div {
+  min-width: 0;
+}
+
+.dash-nic-card__facts dt {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.dash-nic-card__facts dd {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--app-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dash-nic-edge__bar {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--app-border);
-  overflow: hidden;
-}
-
-.dash-nic-edge__bar span {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-}
-
-.dash-nic-edge__value {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--app-heading);
-  white-space: nowrap;
-}
+.dash-nic-card__facts dd.ok { color: var(--dorian-viper-400, var(--app-accent)); }
+.dash-nic-card__facts dd.warn { color: var(--dorian-warn, #e0a83f); }
+.dash-nic-card__facts dd.danger { color: var(--dorian-danger, #e15241); }
 
 @media (max-width: 1300px) {
   .c-3, .c-4, .c-5, .c-6, .c-7, .c-8, .c-12, .dash-side {
     grid-column: span 12;
-  }
-
-  .dash-nic > .dash-nic-panel {
-    grid-column: span 6;
   }
 
   .dash-command {
@@ -3589,12 +3442,6 @@ a.dash-bar-row--link:hover {
   }
 }
 
-@media (max-width: 1000px) {
-  .dash-nic > .dash-nic-panel {
-    grid-column: span 12;
-  }
-}
-
 @media (max-width: 760px) {
   .dash-readout-strip {
     grid-template-columns: 1fr 1fr;
@@ -3608,17 +3455,13 @@ a.dash-bar-row--link:hover {
     border-top: 0.5px solid var(--app-border);
   }
 
-  .dash-nic-readouts {
-    grid-template-columns: 1fr 1fr;
+  .dash-nic-card {
+    flex-basis: 320px;
   }
 
-  .dash-nic-readout.now {
-    grid-column: span 2;
-  }
-
-  .dash-nic-readout + .dash-nic-readout {
-    border-left: 0;
-    border-top: 0.5px solid var(--app-border);
+  .dash-nic-fleet__totals {
+    margin-left: 0;
+    width: 100%;
   }
 
   .dash-filter-summary {
@@ -3635,9 +3478,7 @@ a.dash-bar-row--link:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dash-live-dot,
-  .dash-attacks__dot.live,
-  .dash-live-attack__badge i {
+  .dash-live-dot {
     animation: none;
   }
 }

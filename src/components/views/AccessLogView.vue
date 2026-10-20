@@ -145,9 +145,10 @@
                 <th>Timestamp</th>
                 <th>IP address</th>
                 <th>Method</th>
+                <th>Host</th>
                 <th>URL</th>
                 <th>Status</th>
-                <th>Response time</th>
+                <th>Size</th>
               </tr>
             </thead>
             <tbody>
@@ -157,14 +158,15 @@
                 <td>
                   <span :class="['badge', entry.methodClass]">{{ entry.method }}</span>
                 </td>
+                <td class="host-cell" :title="entry.host">{{ entry.host || '-' }}</td>
                 <td class="url-cell" :title="entry.url">{{ entry.url }}</td>
                 <td>
                   <span :class="['badge', entry.statusClass]">{{ entry.status }}</span>
                 </td>
-                <td class="num">{{ entry.responseTime }}</td>
+                <td class="num">{{ entry.sizeLabel }}</td>
               </tr>
               <tr v-if="!visibleLogs.length">
-                <td colspan="6" class="empty-row">No log entries yet.</td>
+                <td colspan="7" class="empty-row">No log entries yet.</td>
               </tr>
             </tbody>
           </table>
@@ -485,12 +487,11 @@ const parseLogLine = (line) => {
       host: '',
       status: '-',
       statusClass: '',
-      responseTime: '-',
+      sizeLabel: '-',
     }
   }
 
   const statusValue = parsed.status || '-'
-  const responseTimeLabel = parsed.responseTime ? `${parsed.responseTime}ms` : '-'
   return {
     id,
     rawLine: line,
@@ -503,7 +504,7 @@ const parseLogLine = (line) => {
     host: parsed.host || '',
     status: statusValue,
     statusClass: parsed.status ? statusBadgeClass(parsed.status) : '',
-    responseTime: responseTimeLabel,
+    sizeLabel: formatBytes(parsed.bytes),
   }
 }
 
@@ -517,25 +518,46 @@ const statusBadgeClass = (code) => {
   return ''
 }
 
+const formatBytes = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || value === '' || value == null) return '-'
+  if (numeric < 1000) return `${numeric} B`
+  const units = ['KB', 'MB', 'GB']
+  let current = numeric / 1000
+  let index = 0
+  while (current >= 1000 && index < units.length - 1) {
+    current /= 1000
+    index += 1
+  }
+  return `${current.toFixed(current >= 10 ? 0 : 1)} ${units[index]}`
+}
+
 const parseNginxLine = (line) => {
   const raw = String(line ?? '')
   // Optional leading $host before the usual combined format:
   // example.com 1.2.3.4 - - [time] "GET /path HTTP/1.1" 200 ...
   const withHost = raw.match(
-    /^(\S+)\s+(\S+) \S+ \S+ \[([^\]]+)\] "((?:\\.|[^"\\])*)" (\d{3})(?: \S+)?/,
+    /^(\S+)\s+(\S+) \S+ \S+ \[([^\]]+)\] "((?:\\.|[^"\\])*)" (\d{3})(?: (\d+|-))?/,
   )
-  const combined = raw.match(/^(\S+) \S+ \S+ \[([^\]]+)\] "((?:\\.|[^"\\])*)" (\d{3})(?: \S+)?/)
+  const combined = raw.match(/^(\S+) \S+ \S+ \[([^\]]+)\] "((?:\\.|[^"\\])*)" (\d{3})(?: (\d+|-))?/)
 
   let ipAddress = ''
   let timeLocal = ''
   let request = ''
   let statusCode = ''
+  let bytes = ''
   let host = ''
 
   if (withHost && !isIpLike(withHost[1]) && isIpLike(withHost[2])) {
-    ;[, host, ipAddress, timeLocal, request, statusCode] = withHost
+    ;[, host, ipAddress, timeLocal, request, statusCode, bytes] = withHost
   } else if (combined) {
-    ;[, ipAddress, timeLocal, request, statusCode] = combined
+    ;[, ipAddress, timeLocal, request, statusCode, bytes] = combined
+    // Edge format: ... "referer" "user-agent" "host"
+    const quoted = raw.match(/"((?:\\.|[^"\\])*)"/g) || []
+    if (quoted.length >= 4) {
+      const lastField = quoted[quoted.length - 1].slice(1, -1)
+      if (lastField && lastField !== '-' && lastField !== '_') host = lastField
+    }
   } else {
     return null
   }
@@ -552,7 +574,7 @@ const parseNginxLine = (line) => {
     url,
     host: normalizeHost(host),
     status: statusCode,
-    responseTime: null,
+    bytes: bytes === '-' ? '' : bytes,
     timestamp,
     timestampLabel: timestamp ? timestamp.toLocaleString() : timeLocal,
   }
@@ -707,15 +729,16 @@ const exportCsv = () => {
     return text
   }
 
-  const header = ['Timestamp', 'IP Address', 'Method', 'URL', 'Status', 'Response Time']
+  const header = ['Timestamp', 'IP Address', 'Method', 'Host', 'URL', 'Status', 'Size']
   const rows = visibleLogs.value.map((entry) =>
     [
       entry.timestampLabel,
       entry.ipAddress,
       entry.method,
+      entry.host,
       entry.url,
       entry.status,
-      entry.responseTime,
+      entry.sizeLabel,
     ]
       .map(escapeCsv)
       .join(','),
@@ -1028,6 +1051,14 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+}
+
+.host-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-text-muted);
 }
 
 .empty-row {

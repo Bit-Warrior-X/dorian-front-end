@@ -10,12 +10,12 @@
     <p v-if="loadError" class="edge-nic__empty">{{ loadError }}</p>
     <p v-else-if="!hasSamples && !loading" class="edge-nic__empty">No interface samples in this range.</p>
     <div v-show="hasSamples" class="edge-nic__grid">
-      <div>
-        <p>Receive</p>
+      <div class="edge-nic__chart">
+        <p><i class="rx" aria-hidden="true" />Receive</p>
         <div ref="rxChart"></div>
       </div>
-      <div>
-        <p>Send</p>
+      <div class="edge-nic__chart">
+        <p><i class="tx" aria-hidden="true" />Send</p>
         <div ref="txChart"></div>
       </div>
     </div>
@@ -174,57 +174,82 @@ watch(() => props.serverId, () => {
 
 <style scoped>
 .edge-nic {
-  margin-top: 16px;
-  padding: 16px 18px 8px;
+  padding: 12px 14px 6px;
   border: 0.5px solid var(--app-border);
-  border-radius: 10px;
-  background: var(--app-surface);
+  border-radius: 12px;
+  background: var(--app-surface-muted);
 }
 
 .edge-nic__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 0.5px solid var(--app-border);
 }
 
 .edge-nic__kicker {
-  margin: 0 0 4px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  margin: 0 0 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--app-text-muted);
 }
 
 .edge-nic__head h4 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--app-heading);
 }
 
 .edge-nic__range {
+  padding: 3px 8px;
+  border-radius: 999px;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 11px;
+  font-size: 10.5px;
+  font-weight: 650;
   color: var(--app-text-muted);
+  background: var(--app-surface);
+  border: 0.5px solid var(--app-border);
 }
 
 .edge-nic__empty {
-  margin: 14px 0 10px;
+  margin: 0;
+  padding: 28px 0;
+  text-align: center;
   color: var(--app-text-muted);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .edge-nic__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
-.edge-nic__grid p {
+.edge-nic__chart p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 12px 0 0;
-  font-size: 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--app-text-muted);
 }
+
+.edge-nic__chart p i {
+  width: 8px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.edge-nic__chart p i.rx { background: var(--dorian-l4, #6b9fd4); }
+.edge-nic__chart p i.tx { background: var(--dorian-viper-400, #3fbd85); }
 
 @media (max-width: 860px) {
   .edge-nic__grid {
