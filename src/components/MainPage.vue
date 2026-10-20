@@ -104,31 +104,18 @@
               </span>
             </a>
             <ul v-show="isDataAnalyticsOpen" class="nav-submenu">
-              <li :class="['nav-subitem', isRouteActive('attack-detection') ? 'active' : '']">
-                <RouterLink to="/app/analytics/detection">
-                  <span>Detection</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('layer4-attack-analytics') ? 'active' : '']">
-                <RouterLink to="/app/analytics/layer4-attack-analytics">
-                  <span>L4 attacks</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('security-analytics-detail') ? 'active' : '']">
-                <RouterLink to="/app/analytics/security-analytics-detail">
-                  <span>L7 attacks</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('security-analytics') ? 'active' : '']">
-                <RouterLink to="/app/analytics/security-analytics">
-                  <span>Traffic</span>
-                </RouterLink>
-              </li>
-              <li :class="['nav-subitem', isRouteActive('access-log') ? 'active' : '']">
-                <RouterLink to="/app/analytics/access-log">
-                  <span>Access logs</span>
-                </RouterLink>
-              </li>
+              <template v-for="group in analyticsNavGroups" :key="group.id">
+                <li class="nav-subgroup-label" aria-hidden="true">{{ group.label }}</li>
+                <li
+                  v-for="item in group.items"
+                  :key="item.name"
+                  :class="['nav-subitem', isRouteActive(item.name) ? 'active' : '']"
+                >
+                  <RouterLink :to="{ name: item.name }">
+                    <span>{{ item.label }}</span>
+                  </RouterLink>
+                </li>
+              </template>
             </ul>
           </li>
 
@@ -271,6 +258,7 @@ import AttackAlertHost from './AttackAlertHost.vue'
 import DorianBrandMark from './DorianBrandMark.vue'
 import InfoHint from './InfoHint.vue'
 import NotificationToastStack from './NotificationToastStack.vue'
+import { analyticsNavGroups } from '@/utils/analyticsNav'
 
 const auth = useAuth()
 const route = useRoute()
@@ -310,6 +298,12 @@ const hideShellTopbar = computed(
       'security-analytics',
       'security-analytics-detail',
       'layer4-attack-analytics',
+      'cache-analytics',
+      'performance-analytics',
+      'server-license',
+      'users-information',
+      'users',
+      'users-history',
     ].includes(route.name) ||
     isDocsRoute.value
 )

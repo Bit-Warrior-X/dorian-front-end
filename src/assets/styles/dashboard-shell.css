@@ -20,9 +20,10 @@
   flex-wrap: wrap;
 }
 
-.dash-topbar__left h2 {
+.dash-topbar__left h2,
+.main-view .view-content .dash-topbar__left h2 {
   margin: 0 0 3px;
-  font-size: var(--type-page-title);
+  font-size: var(--type-page-title) !important;
   font-weight: 600;
   color: var(--app-heading);
 }

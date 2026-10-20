@@ -19,6 +19,15 @@ const routes = [
     }
   },
   {
+    path: '/login/set-password',
+    name: 'set-password',
+    component: LoginPage,
+    meta: {
+      public: true,
+      title: 'Set password'
+    }
+  },
+  {
     path: '/login/oauth/callback',
     name: 'oauth-callback',
     component: () => import('@/components/OAuthCallbackPage.vue'),
@@ -181,7 +190,7 @@ const routes = [
               title: 'Insights',
               section: 'docs',
               hideShellTopbar: true,
-              description: 'Traffic, security, logs, and L4 attacks.',
+              description: 'Traffic, cache, performance, security, and logs.',
             },
           },
           {
@@ -203,7 +212,40 @@ const routes = [
               title: 'Account & team',
               section: 'docs',
               hideShellTopbar: true,
-              description: 'Profile, API tokens, admins, and audit log.',
+              description: 'Sign-in, sessions, 2FA, members, API tokens, and audit log.',
+            },
+          },
+          {
+            path: 'api',
+            name: 'docs-api',
+            component: () => import('@/components/views/docs/DocsApiPage.vue'),
+            meta: {
+              title: 'API reference',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Endpoints, scopes, and errors for automation.',
+            },
+          },
+          {
+            path: 'metrics',
+            name: 'docs-metrics',
+            component: () => import('@/components/views/docs/DocsMetricsPage.vue'),
+            meta: {
+              title: 'Metric definitions',
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'What every analytics number counts.',
+            },
+          },
+          {
+            path: 'changelog',
+            name: 'docs-changelog',
+            component: () => import('@/components/views/docs/DocsChangelogPage.vue'),
+            meta: {
+              title: "What's new",
+              section: 'docs',
+              hideShellTopbar: true,
+              description: 'Recent changes to the console.',
             },
           },
           {
@@ -267,23 +309,73 @@ const routes = [
         redirect: { name: 'server-blacklist' }
       },
       {
-        path: 'analytics/detection',
-        name: 'attack-detection',
-        component: () => import('@/components/views/DetectionAnalyticsView.vue'),
+        path: 'analytics/traffic',
+        name: 'security-analytics',
+        component: () => import('@/components/views/Analytics.vue'),
         meta: {
-          title: 'Detection',
+          title: 'Traffic',
           section: 'analytics',
-          description: 'L4 floods and L7 blocks for the selected window.',
+          description: 'Requests, bandwidth, status codes, HTTP versions, and visitors served by your edges.',
         }
       },
       {
-        path: 'analytics/access-log',
+        path: 'analytics/cache',
+        name: 'cache-analytics',
+        component: () => import('@/components/views/CacheAnalyticsView.vue'),
+        meta: {
+          title: 'Cache',
+          section: 'analytics',
+          description: 'Cache hit ratio, bandwidth served from cache, origin offload, and the URLs that miss most.',
+        }
+      },
+      {
+        path: 'analytics/performance',
+        name: 'performance-analytics',
+        component: () => import('@/components/views/PerformanceAnalyticsView.vue'),
+        meta: {
+          title: 'Performance',
+          section: 'analytics',
+          description: 'Edge and origin response times (p50/p95/p99), origin errors, and timeouts.',
+        }
+      },
+      {
+        path: 'analytics/security-events',
+        name: 'attack-detection',
+        component: () => import('@/components/views/DetectionAnalyticsView.vue'),
+        meta: {
+          title: 'Security events',
+          section: 'analytics',
+          description: 'Timeline of L4 floods and L7 block bursts detected in the selected window.',
+        }
+      },
+      {
+        path: 'analytics/firewall',
+        name: 'security-analytics-detail',
+        component: () => import('@/components/views/SecurityAnalyticsView.vue'),
+        meta: {
+          title: 'Firewall (L7)',
+          section: 'analytics',
+          description: 'HTTP requests blocked by WAF rules, rate limits, and IP/geo blocks, with where they came from.',
+        }
+      },
+      {
+        path: 'analytics/ddos',
+        name: 'layer4-attack-analytics',
+        component: () => import('@/components/views/Layer4AttackAnalyticsView.vue'),
+        meta: {
+          title: 'DDoS (L4)',
+          section: 'analytics',
+          description: 'Network-layer flood volume, allowed vs dropped packets, and attacking sources.',
+        }
+      },
+      {
+        path: 'analytics/logs',
         name: 'access-log',
         component: () => import('@/components/views/AccessLogView.vue'),
         meta: {
           title: 'Access logs',
           section: 'analytics',
-          description: 'Recent HTTP access events across the fleet.',
+          description: 'Raw HTTP access log lines streamed from your edges.',
         }
       },
       {
@@ -296,36 +388,11 @@ const routes = [
           description: 'Export historical logs for offline analysis.',
         }
       },
-      {
-        path: 'analytics/security-analytics',
-        name: 'security-analytics',
-        component: () => import('@/components/views/Analytics.vue'),
-        meta: {
-          title: 'Traffic',
-          section: 'analytics',
-          description: 'Bandwidth, requests, and protocol trends for selected edges.',
-        }
-      },
-      {
-        path: 'analytics/security-analytics-detail',
-        name: 'security-analytics-detail',
-        component: () => import('@/components/views/SecurityAnalyticsView.vue'),
-        meta: {
-          title: 'L7 attacks',
-          section: 'analytics',
-          description: 'Layer-7 blocks, geography, and top attack sources.',
-        }
-      },
-      {
-        path: 'analytics/layer4-attack-analytics',
-        name: 'layer4-attack-analytics',
-        component: () => import('@/components/views/Layer4AttackAnalyticsView.vue'),
-        meta: {
-          title: 'L4 attacks',
-          section: 'analytics',
-          description: 'Layer-4 flood volume and protocol mix over the selected range.',
-        }
-      },
+      { path: 'analytics/security-analytics', redirect: { name: 'security-analytics' } },
+      { path: 'analytics/security-analytics-detail', redirect: { name: 'security-analytics-detail' } },
+      { path: 'analytics/layer4-attack-analytics', redirect: { name: 'layer4-attack-analytics' } },
+      { path: 'analytics/detection', redirect: { name: 'attack-detection' } },
+      { path: 'analytics/access-log', redirect: { name: 'access-log' } },
       {
         path: 'users',
         redirect: { name: 'users-information' }
@@ -407,6 +474,10 @@ router.beforeEach((to) => {
 
   if (requiresAuth && !isLoggedIn) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (requiresAuth && auth.state.mfaSetupRequired && to.name !== 'users-information') {
+    return { name: 'users-information', query: { setup2fa: '1' } }
   }
 
   if (requiresAdmin && !isAdmin) {

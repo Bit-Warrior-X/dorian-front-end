@@ -8,7 +8,7 @@
       <div class="dash-attacks__stats">
         <span><b class="num">{{ attacksToday.length }}</b> {{ attacksToday.length === 1 ? 'attack' : 'attacks' }} today</span>
         <span><b class="num">{{ formatNumber(sourcesToday) }}</b> sources blocked today</span>
-        <RouterLink class="dash-panel-link" :to="{ name: detectionRoute }">Detection</RouterLink>
+        <RouterLink class="dash-panel-link" :to="{ name: detectionRoute }">Security events</RouterLink>
       </div>
     </div>
 

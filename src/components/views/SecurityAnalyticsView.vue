@@ -2,15 +2,15 @@
   <div class="dashboard-view security-analytics-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>L7 attacks</h2>
-        <p>Blocked requests, geography, and top threat sources across edges and sites.</p>
+        <h2>Firewall (L7)</h2>
+        <p>HTTP requests blocked by WAF rules, rate limits, and IP/geo blocks, and where they came from.</p>
       </div>
       <div class="dash-topbar__right">
         <AppTopbarActions />
       </div>
     </header>
 
-    <DetectionNav />
+    <AnalyticsSectionNav />
 
     <div class="dash-filterbar">
       <div class="dash-filter-field">
@@ -106,14 +106,14 @@
         <div class="dash-panel c-12 dash-chart-panel dash-chart-panel--danger">
           <div class="dash-panel-head">
             <div>
-              <h3>Block count by time</h3>
-              <p class="dash-panel-desc">Blocked requests over {{ selectedRangeLabel }}</p>
+              <h3>Blocked requests over time</h3>
+              <p class="dash-panel-desc">HTTP requests rejected at the edge · {{ selectedRangeLabel }}</p>
             </div>
             <div class="dash-chart-readouts">
               <div class="dash-chart-readout">
                 <span class="dash-chart-readout__swatch dash-chart-readout__swatch--danger"></span>
                 <div>
-                  <div class="dash-chart-readout__label">Latest blocks</div>
+                  <div class="dash-chart-readout__label">Latest interval</div>
                   <div class="dash-chart-readout__value num danger">{{ latestBlockCountLabel }}</div>
                 </div>
               </div>
@@ -129,6 +129,32 @@
             <div ref="blockCountChart"></div>
           </div>
         </div>
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Blocks by rule</h3>
+              <p class="dash-panel-desc">Which WAF rule category rejected the request</p>
+            </div>
+            <PreviewDataBadge v-if="ruleTypesPreview" />
+          </div>
+          <div class="url-bars">
+            <div v-for="row in ruleTypeRows" :key="row.ruleType" class="url-bar-row">
+              <div class="url-bar-label">{{ row.label }}</div>
+              <div class="url-bar-line">
+                <div class="url-bar-track">
+                  <div
+                    class="url-bar-fill url-bar-fill--danger"
+                    :style="{ width: `${ruleTypeBarWidth(row.count)}%` }"
+                    :title="`${row.label} — ${row.count}`"
+                  ></div>
+                </div>
+                <div class="url-bar-value num">{{ formatNumber(row.count) }}</div>
+                <div class="url-bar-share num">{{ ruleTypeShare(row.count) }}</div>
+              </div>
+            </div>
+            <p v-if="!ruleTypeRows.length || !ruleTypeTotal" class="empty-row">No blocked requests in this window</p>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -138,7 +164,7 @@
           <div class="dash-panel-head">
             <div>
               <h3>Requests by country</h3>
-              <p class="dash-panel-desc">Geographic distribution of request volume</p>
+              <p class="dash-panel-desc">All HTTP requests by client country, allowed and blocked</p>
             </div>
           </div>
           <div class="world-map">
@@ -155,16 +181,16 @@
         <div class="dash-panel c-6">
           <div class="dash-panel-head">
             <div>
-              <h3>Requests Top 30</h3>
-              <p class="dash-panel-desc">Highest request volume by area</p>
+              <h3>Top countries by requests</h3>
+              <p class="dash-panel-desc">All requests, top 30</p>
             </div>
           </div>
           <div class="table-wrap">
             <table class="ip-table">
               <thead>
                 <tr>
-                  <th>Area</th>
-                  <th>Request counts</th>
+                  <th>Country</th>
+                  <th>Requests</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,16 +208,16 @@
         <div class="dash-panel c-6">
           <div class="dash-panel-head">
             <div>
-              <h3>Block counts Top 30</h3>
-              <p class="dash-panel-desc">Highest blocked volume by area</p>
+              <h3>Top countries by blocks</h3>
+              <p class="dash-panel-desc">Blocked requests, top 30</p>
             </div>
           </div>
           <div class="table-wrap">
             <table class="ip-table">
               <thead>
                 <tr>
-                  <th>Area</th>
-                  <th>Block counts</th>
+                  <th>Country</th>
+                  <th>Blocked</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,8 +240,8 @@
         <div class="dash-panel c-12">
           <div class="dash-panel-head">
             <div>
-              <h3>URL requests Top 10</h3>
-              <p class="dash-panel-desc">Most requested URLs in the selected window</p>
+              <h3>Top URLs</h3>
+              <p class="dash-panel-desc">Most requested URLs across all traffic, allowed and blocked</p>
             </div>
           </div>
           <div class="url-bars">
@@ -238,8 +264,8 @@
         <div class="dash-panel c-12">
           <div class="dash-panel-head">
             <div>
-              <h3>Referer Top 10</h3>
-              <p class="dash-panel-desc">Top referers driving traffic</p>
+              <h3>Top referers</h3>
+              <p class="dash-panel-desc">Across all traffic, allowed and blocked</p>
             </div>
           </div>
           <div class="url-bars">
@@ -262,8 +288,8 @@
         <div class="dash-panel c-12">
           <div class="dash-panel-head">
             <div>
-              <h3>User agent Top 10</h3>
-              <p class="dash-panel-desc">Most common user agents</p>
+              <h3>Top user agents</h3>
+              <p class="dash-panel-desc">Across all traffic, allowed and blocked</p>
             </div>
           </div>
           <div class="url-bars">
@@ -332,13 +358,15 @@ import ApexCharts from 'apexcharts'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import DetectionNav from '@/components/views/DetectionNav.vue'
+import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
+import PreviewDataBadge from '@/components/views/analytics/PreviewDataBadge.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import {
   fetchSecuritySummary,
   fetchSecuritySeries,
   fetchSecuritySummaryGroup,
+  fetchSecurityRuleTypes,
 } from '@/api/securityAnalytics'
 import {
   formatApexTimeTick,
@@ -372,7 +400,7 @@ const activeTab = ref('overview')
 const securityTabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'geography', label: 'Geography' },
-  { id: 'toplists', label: 'Top lists' },
+  { id: 'toplists', label: 'Request context' },
 ]
 
 const selectedServer = ref('all')
@@ -412,6 +440,8 @@ const topBlockRows = ref([])
 const topUrlRows = ref([])
 const topRefererRows = ref([])
 const topUserAgentRows = ref([])
+const ruleTypeRows = ref([])
+const ruleTypesPreview = ref(false)
 
 const formatNumber = (value) => {
   const numeric = Number(value)
@@ -445,21 +475,21 @@ const metricCards = computed(() => {
       tone: 'total',
     },
     {
-      label: 'Block requests',
+      label: 'Blocked requests',
       value: formatNumber(blocked),
       hint: rate > 0 ? `${rate.toFixed(rate >= 10 ? 0 : 1)}% of traffic` : 'blocked in range',
       tone: 'danger',
     },
     {
-      label: 'Total IPs',
+      label: 'Source IPs',
       value: formatNumber(securityStats.value.totalIps),
-      hint: 'unique sources',
+      hint: 'unique per interval, summed',
       tone: 'info',
     },
     {
-      label: 'Blacklisted IPs',
+      label: 'Blocked IPs',
       value: formatNumber(securityStats.value.blacklistedIps),
-      hint: 'on deny list',
+      hint: 'unique per interval, summed',
       tone: 'warn',
     },
   ]
@@ -553,6 +583,17 @@ const userAgentMaxCount = computed(() => {
   const values = topUserAgentRows.value.map((row) => Number(row.count) || 0)
   return Math.max(...values, 1)
 })
+const ruleTypeTotal = computed(() => ruleTypeRows.value.reduce((sum, row) => sum + (Number(row.count) || 0), 0))
+const ruleTypeBarWidth = (count) => {
+  const max = Math.max(...ruleTypeRows.value.map((row) => Number(row.count) || 0), 1)
+  return Math.round(((Number(count) || 0) / max) * 100)
+}
+const ruleTypeShare = (count) => {
+  if (!ruleTypeTotal.value) return '0%'
+  const share = ((Number(count) || 0) / ruleTypeTotal.value) * 100
+  return `${share.toFixed(share >= 10 ? 0 : 1)}%`
+}
+
 const userAgentBarWidth = (count) =>
   Math.round(((Number(count) || 0) / userAgentMaxCount.value) * 100)
 
@@ -819,6 +860,10 @@ const loadSecurityAnalytics = async () => {
     }))
     topUserAgentRows.value = Array.isArray(topUserAgents) ? topUserAgents : []
 
+    const ruleTypes = await fetchSecurityRuleTypes(params, securityStats.value.blockRequestCounts)
+    ruleTypeRows.value = (Array.isArray(ruleTypes.data) ? ruleTypes.data : []).filter((row) => Number(row.count) > 0)
+    ruleTypesPreview.value = ruleTypes.preview
+
     nextTick(() => renderBlockCountChart())
   } catch (error) {
     console.error('Failed to load security analytics', error)
@@ -1014,6 +1059,17 @@ onBeforeUnmount(() => {
 
 .url-bar-fill--l7 {
   background: linear-gradient(90deg, #8fa3b8 0%, #6b7c8f 100%);
+}
+
+.url-bar-fill--danger {
+  background: linear-gradient(90deg, #ef7a6c 0%, #e15241 100%);
+}
+
+.url-bar-share {
+  min-width: 40px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--app-text-muted);
 }
 
 .url-bar-value {

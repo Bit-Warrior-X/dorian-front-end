@@ -2,13 +2,15 @@
   <div class="dashboard-view analytics-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Traffic analytics</h2>
-        <p>Edge and server traffic metrics across bandwidth, requests, audience, and HTTP breakdowns.</p>
+        <h2>Traffic</h2>
+        <p>Requests, bandwidth, status codes, HTTP versions, and visitors served by your edges.</p>
       </div>
       <div class="dash-topbar__right">
         <AppTopbarActions />
       </div>
     </header>
+
+    <AnalyticsSectionNav />
 
     <div class="dash-filterbar">
       <div class="dash-filter-field">
@@ -566,6 +568,7 @@ import ApexCharts from 'apexcharts'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
 import AttackAlertsPanel from '@/components/AttackAlertsPanel.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'

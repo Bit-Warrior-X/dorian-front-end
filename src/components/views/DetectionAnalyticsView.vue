@@ -2,7 +2,7 @@
   <div class="dashboard-view detection-view">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Attack detection</h2>
+        <h2>Security events</h2>
         <p>{{ detectionDetail }}</p>
       </div>
       <div class="dash-topbar__right">
@@ -10,7 +10,7 @@
       </div>
     </header>
 
-    <DetectionNav />
+    <AnalyticsSectionNav />
 
     <div class="dash-filterbar">
       <div class="dash-filter-field">
@@ -154,7 +154,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import ApexCharts from 'apexcharts'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import DetectionNav from '@/components/views/DetectionNav.vue'
+import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
 import SecurityEventDialog from '@/components/SecurityEventDialog.vue'
 import { openAttackConsole } from '@/stores/attackAlert'
 import { l4AttackLabel } from '@/utils/l4AttackType'

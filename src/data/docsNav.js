@@ -68,13 +68,27 @@ export const docsNav = [
         name: 'docs-account',
         title: 'Account & team',
         description: 'Profile, API tokens, admins, and audit log',
-        keywords: 'profile team audit api token admin',
+        keywords: 'profile team audit api token admin session 2fa invite password reset',
       },
     ],
   },
   {
     group: 'Reference',
     items: [
+      {
+        slug: 'api',
+        name: 'docs-api',
+        title: 'API reference',
+        description: 'Endpoints, scopes, and errors for automation',
+        keywords: 'api rest token curl endpoint scope automation ci',
+      },
+      {
+        slug: 'metrics',
+        name: 'docs-metrics',
+        title: 'Metric definitions',
+        description: 'What every analytics number counts',
+        keywords: 'metrics hit ratio bandwidth p95 latency nic l7 dropped blocked',
+      },
       {
         slug: 'troubleshooting',
         name: 'docs-troubleshooting',
@@ -102,6 +116,13 @@ export const docsNav = [
         title: 'Route cheat sheet',
         description: 'Jump to any console path',
         keywords: 'routes paths navigation',
+      },
+      {
+        slug: 'changelog',
+        name: 'docs-changelog',
+        title: "What's new",
+        description: 'Recent changes to the console',
+        keywords: 'changelog release new updates',
       },
     ],
   },

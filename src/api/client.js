@@ -2,7 +2,6 @@ import { getApiConfig } from './config'
 import router from '@/router'
 import { auth } from '@/stores/auth'
 import { readStoredAuth } from '@/stores/authStorage'
-import { touchSessionActivity } from '@/stores/sessionIdle'
 
 const getStoredAuth = () => readStoredAuth()
 
@@ -18,19 +17,32 @@ const isLoginRequestPath = (path) => {
   )
 }
 
-const handleUnauthorized = (path) => {
+const UNAUTHORIZED_REASONS = {
+  session_ended: 'ended',
+  account_inactive: 'inactive',
+}
+
+const handleUnauthorized = (path, payload) => {
   if (isLoginRequestPath(path)) return
+  if (!auth.isAuthenticated.value) return
 
   auth.clearSession()
 
   const current = router.currentRoute?.value
-  if (!current || current.name === 'login') return
+  if (!current || current.meta?.public) return
 
-  const redirect = current.fullPath && current.fullPath !== '/login' ? current.fullPath : undefined
-  void router.replace({
-    name: 'login',
-    query: redirect ? { redirect } : {},
-  })
+  const query = {}
+  const reason = UNAUTHORIZED_REASONS[payload?.error]
+  if (reason) query.reason = reason
+  if (current.fullPath && current.fullPath !== '/login') query.redirect = current.fullPath
+  void router.replace({ name: 'login', query })
+}
+
+const handleMFASetupRequired = () => {
+  auth.setMFASetupRequired(true)
+  const current = router.currentRoute?.value
+  if (current?.name === 'users-information') return
+  void router.replace({ name: 'users-information', query: { setup2fa: '1' } })
 }
 
 const parseJson = async (response) => {
@@ -171,7 +183,6 @@ export const apiRequest = async (path, options = {}) => {
   const token = getStoredToken()
   if (token) {
     headers.Authorization = `Bearer ${token}`
-    touchSessionActivity(false)
   }
 
   const t0 = performance.now?.() ?? Date.now()
@@ -186,7 +197,9 @@ export const apiRequest = async (path, options = {}) => {
 
   if (!response.ok) {
     if (response.status === 401) {
-      handleUnauthorized(path)
+      handleUnauthorized(path, payload)
+    } else if (response.status === 403 && payload?.error === 'mfa_setup_required') {
+      handleMFASetupRequired()
     }
     const message = extractApiErrorMessage(payload, response)
     const error = new Error(message)

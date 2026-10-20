@@ -1,4 +1,4 @@
-import { ACTIVITY_STORAGE_KEY, getActivityStorage } from './authStorage'
+import { ACTIVITY_STORAGE_KEY, getActivityStorage, isRememberMeEnabled } from './authStorage'
 
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000
 const CHECK_INTERVAL_MS = 15_000
@@ -61,8 +61,11 @@ export const touchSessionActivity = (force = false) => {
   writeLastActivity(timestamp)
 }
 
+// "Remember me" keeps the session for its full server-side lifetime, so the idle
+// sign-out only applies to regular sessions.
 export const isSessionIdleExpired = () => {
   if (!getIsAuthenticated()) return false
+  if (isRememberMeEnabled()) return false
   const lastActivity = readLastActivity()
   if (!lastActivity) {
     // No activity stamp yet — treat as active and seed one.

@@ -56,6 +56,14 @@
           for upgrades — Dorian applies a license-only update when possible (no full reinstall).
         </li>
         <li>
+          Only Admins can change a paid tier. Licensing asks for confirmation first, because applying a tier
+          redeploys the license on that edge.
+        </li>
+        <li>
+          The <strong>All edges</strong> table on Licensing lists every edge's tier and days left, soonest expiry
+          first. Click a row to manage that edge.
+        </li>
+        <li>
           During New Edge you can also attach a paid tier immediately, or load an existing
           license file for non-Trial tiers.
         </li>

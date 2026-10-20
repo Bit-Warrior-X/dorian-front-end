@@ -2,8 +2,8 @@
   <div class="dashboard-view access-log-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Access log</h2>
-        <p>Live edge request stream with status breakdown and export.</p>
+        <h2>Access logs</h2>
+        <p>Raw HTTP access log lines streamed from your edges, with status breakdown and CSV export.</p>
       </div>
       <div class="dash-topbar__right">
         <div class="status-indicator" :class="statusClass">
@@ -13,6 +13,8 @@
         <AppTopbarActions />
       </div>
     </header>
+
+    <AnalyticsSectionNav />
 
     <div class="dash-filterbar">
       <div class="dash-filter-field">
@@ -207,6 +209,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { resolveApiBaseUrl } from '@/api/client'

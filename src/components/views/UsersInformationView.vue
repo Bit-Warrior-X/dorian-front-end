@@ -1,417 +1,511 @@
 <template>
-  <div class="users-information-view">
-    <div class="content-card account-overview">
-      <div class="section-head">
-          <h3>Account overview</h3>
-          <p>Your panel identity and account status.</p>
+  <div class="dashboard-view acct-view">
+    <header class="dash-topbar">
+      <div class="dash-topbar__left">
+        <p class="acct-kicker">Account</p>
+        <h2>Profile</h2>
+        <p>Your identity, sign-in security, active sessions, and API tokens.</p>
       </div>
+      <div class="dash-topbar__right">
+        <AppTopbarActions />
+      </div>
+    </header>
 
-      <div class="overview-grid">
-          <div class="overview-item">
-            <span class="overview-label">Display name</span>
-            <span class="overview-value">{{ displayName || '—' }}</span>
-          </div>
-          <div class="overview-item">
-            <span class="overview-label">Email</span>
-            <span class="overview-value">{{ profile.email || '—' }}</span>
-          </div>
-          <div class="overview-item">
-            <span class="overview-label">Role</span>
-            <span class="overview-value">
-              <span v-if="profile.role" class="badge" :class="profile.role === 'Admin' ? 'admin' : 'user'">
-                {{ profile.role }}
-              </span>
-              <span v-else>—</span>
-            </span>
-          </div>
-          <div class="overview-item">
-            <span class="overview-label">Status</span>
-            <span class="overview-value">
-              <span
-                v-if="profile.status"
-                class="badge"
-                :class="profile.status === 'Active' ? 'active' : profile.status === 'Waiting' ? 'pending' : 'blocked'"
-              >
-                {{ profile.status }}
-              </span>
-              <span v-else>—</span>
-            </span>
-          </div>
-        </div>
+    <div v-if="mfaRequiredNow" class="acct-banner" role="alert">
+      <span>
+        <strong>Two-factor authentication is required.</strong>
+        Your organization requires it for {{ requireMfa === 'admins' ? 'Admins' : 'every account' }}.
+        Set it up below to continue using the console.
+      </span>
     </div>
 
-    <div class="info-layout">
-      <aside class="content-card history-panel">
-        <div class="history-panel__head">
-          <div class="section-head section-head--compact">
-            <h3>Activity history</h3>
-            <p>Sign-ins, password, 2FA, API token, and license events for your account.</p>
-          </div>
-          <button
-            class="ghost-btn history-panel__refresh"
-            type="button"
-            :disabled="historyLoading || !profile.id"
-            @click="loadUserHistory"
-          >
-            {{ historyLoading ? 'Refreshing...' : 'Refresh' }}
-          </button>
+    <section class="acct-hero" aria-label="Account summary">
+      <div class="acct-hero__identity">
+        <span class="acct-avatar" aria-hidden="true">{{ initials }}</span>
+        <div class="acct-hero__copy">
+          <p class="acct-kicker">Signed in as</p>
+          <h3>{{ profile.name || profile.email || '—' }}</h3>
+          <p>{{ profile.email || '—' }}</p>
         </div>
+      </div>
+      <div class="acct-kpis" role="list">
+        <div class="acct-kpi tone-signal" role="listitem">
+          <span class="acct-kpi__label">Role</span>
+          <span class="acct-kpi__value">{{ profile.role || '—' }}</span>
+          <span class="acct-kpi__hint">{{ profile.role === 'Admin' ? 'full workspace access' : 'assigned edges only' }}</span>
+        </div>
+        <div class="acct-kpi" :class="mfaStatus.enabled ? 'tone-signal' : 'tone-warn'" role="listitem">
+          <span class="acct-kpi__label">Two-factor</span>
+          <span class="acct-kpi__value">{{ mfaStatus.enabled ? 'On' : 'Off' }}</span>
+          <span class="acct-kpi__hint">
+            {{ mfaStatus.enabled ? `${mfaStatus.recoveryCodesRemaining} recovery codes left` : 'not protecting sign-in' }}
+          </span>
+        </div>
+        <div class="acct-kpi tone-info" role="listitem">
+          <span class="acct-kpi__label">Sessions</span>
+          <span class="acct-kpi__value num">{{ sessions.length || '—' }}</span>
+          <span class="acct-kpi__hint">{{ sessions.length === 1 ? 'this device only' : 'signed-in devices' }}</span>
+        </div>
+        <div class="acct-kpi" :class="profile.status === 'Active' ? 'tone-signal' : 'tone-warn'" role="listitem">
+          <span class="acct-kpi__label">Status</span>
+          <span class="acct-kpi__value">{{ profile.status || '—' }}</span>
+          <span class="acct-kpi__hint">{{ currentSessionHint }}</span>
+        </div>
+      </div>
+    </section>
 
-        <p v-if="historyError" class="helper-text error-text">{{ historyError }}</p>
-        <p v-else-if="historyLoading && !historyEntries.length" class="helper-text">Loading activity...</p>
-        <p v-else-if="!historyEntries.length" class="helper-text">No sign-in, security, or license activity recorded yet.</p>
-
-        <ul v-else class="history-list">
-          <li v-for="entry in historyEntries" :key="entry.id" class="history-item">
-            <div class="history-item__head">
-              <span class="badge action" :class="auditActionClass(entry.action)">{{ formatAuditAction(entry.action) }}</span>
-              <span
-                class="history-item__kind"
-                :class="isLicenseHistoryEntry(entry) && !isAuthHistoryEntry(entry) ? 'history-item__kind--license' : 'history-item__kind--auth'"
-              >
-                {{ historyKindLabel(entry) }}
+    <div class="acct-grid">
+      <div class="acct-stack">
+        <section class="dash-panel" aria-label="Profile details">
+          <div class="dash-panel-head">
+            <h3 class="acct-panel-title">
+              <span class="acct-panel-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5.5" r="2.5" /><path d="M3 13.5c.8-2.4 2.7-3.5 5-3.5s4.2 1.1 5 3.5" /></svg>
               </span>
-              <time class="history-item__time">{{ formatHistoryTime(entry.createdAt) }}</time>
-            </div>
-            <p class="history-item__summary">{{ historySummary(entry) }}</p>
-            <ul v-if="splitAuditDetails(entry.details).changes.length" class="history-item__changes">
-              <li v-for="(change, index) in splitAuditDetails(entry.details).changes" :key="index">{{ change }}</li>
-            </ul>
-            <div v-if="entry.ipAddress || entry.userAgent" class="history-item__meta">
-              <span v-if="entry.ipAddress">{{ entry.ipAddress }}</span>
-              <span v-if="entry.userAgent">{{ describeUserAgent(entry.userAgent) }}</span>
-            </div>
-          </li>
-        </ul>
-      </aside>
-
-      <div class="content-card info-card">
-      <div class="card-header">
-        <div>
-          <h2>Information</h2>
-          <p class="card-subtitle">Update profile details, email, and password for this account.</p>
-        </div>
-      </div>
-
-      <p v-if="loading" class="helper-text">Loading your information...</p>
-      <p v-else-if="loadError" class="helper-text error-text">{{ loadError }}</p>
-
-      <form v-else class="info-form" @submit.prevent="saveProfile">
-        <section class="info-section">
-          <div class="section-head section-head--compact">
-            <h3>Profile</h3>
-            <p>Your name as shown across the operator console.</p>
+              Details
+              <span class="acct-panel-hint">shown across the console</span>
+            </h3>
           </div>
-          <div class="form-grid">
-            <div class="form-field">
-              <label for="info-first-name">First Name</label>
-              <input
-                id="info-first-name"
-                v-model="form.firstName"
-                type="text"
-                autocomplete="given-name"
-                placeholder="First name"
-                :disabled="saving"
-              />
-            </div>
-            <div class="form-field">
-              <label for="info-second-name">Second Name</label>
-              <input
-                id="info-second-name"
-                v-model="form.secondName"
-                type="text"
-                autocomplete="family-name"
-                placeholder="Second name"
-                :disabled="saving"
-              />
-            </div>
-          </div>
-        </section>
 
-        <section ref="emailSectionRef" class="info-section">
-          <div class="section-head section-head--compact">
-            <h3>Email address</h3>
-            <p>Used for sign-in and account notifications.</p>
-          </div>
-          <div class="form-field form-field--full email-field">
-            <div class="field-label-row">
-              <label for="info-email">Email</label>
-              <button
-                v-if="!isEditingEmail"
-                class="secondary-btn field-action-btn"
-                type="button"
-                :disabled="saving"
-                @click="startEmailChange"
-              >
-                Change email
-              </button>
-              <button
-                v-else
-                class="ghost-btn field-action-btn"
-                type="button"
-                :disabled="saving"
-                @click="cancelEmailEdit"
-              >
-                Cancel
-              </button>
-            </div>
-            <input
-              id="info-email"
-              v-model="form.email"
-              type="email"
-              autocomplete="email"
-              placeholder="you@example.com"
-              :readonly="!isEditingEmail"
-              :disabled="saving"
-              :class="{ 'input-readonly': !isEditingEmail }"
-            />
-            <p v-if="!isEditingEmail" class="field-hint">Select Change email to update your sign-in address.</p>
-            <p v-else class="field-hint">Save changes to apply the new email address.</p>
-          </div>
-        </section>
-
-        <section ref="securitySectionRef" class="info-section">
-          <div class="section-head section-head--compact">
-            <h3>Security</h3>
-            <p v-if="profile.hasPassword">Enter your current password before setting a new one.</p>
-            <p v-else>
-              You signed up with Google, GitHub, or SSO. Set a password to also sign in with your email address.
-            </p>
-          </div>
-          <div class="form-grid">
-            <div v-if="profile.hasPassword" class="form-field form-field--full">
-              <label for="info-current-password">Current password</label>
-              <input
-                id="info-current-password"
-                v-model="form.currentPassword"
-                type="password"
-                autocomplete="current-password"
-                placeholder="Required to change password"
-                :disabled="saving"
-                :class="{ 'input-invalid': showCurrentPasswordError }"
-              />
-              <p v-if="showCurrentPasswordError" class="field-hint field-hint--error">Current password is incorrect.</p>
-            </div>
-            <div class="form-field">
-              <label for="info-password">New password</label>
-              <input
-                id="info-password"
-                v-model="form.password"
-                type="password"
-                autocomplete="new-password"
-                :placeholder="profile.hasPassword ? 'Leave blank to keep current' : 'Choose a password'"
-                :disabled="saving"
-              />
-            </div>
-            <div class="form-field">
-              <label for="info-confirm-password">Confirm new password</label>
-              <input
-                id="info-confirm-password"
-                v-model="form.confirmPassword"
-                type="password"
-                autocomplete="new-password"
-                placeholder="Re-enter new password"
-                :disabled="saving"
-                :class="{ 'input-invalid': showPasswordMismatch }"
-              />
-              <p v-if="showPasswordMismatch" class="field-hint field-hint--error">New passwords do not match.</p>
-            </div>
-          </div>
-        </section>
-
-        <div class="form-actions">
-          <button class="ghost-btn" type="button" :disabled="!isDirty || saving" @click="resetForm">
-            Discard
-          </button>
-          <button class="primary-btn" type="submit" :disabled="!canSave">
-            {{ saving ? 'Saving...' : 'Save changes' }}
-          </button>
-        </div>
-      </form>
-      </div>
-    </div>
-
-    <div class="content-card mfa-card">
-      <div class="section-head">
-        <h3>Two-factor authentication</h3>
-        <p>Require a code from an authenticator app (Google Authenticator, 1Password, Authy…) when you sign in.</p>
-      </div>
-
-      <p v-if="mfaError" class="helper-text error-text">{{ mfaError }}</p>
-      <p v-else-if="mfaLoading" class="helper-text">Loading two-factor status...</p>
-
-      <template v-else-if="recoveryCodes.length">
-        <p class="field-hint">
-          Save these recovery codes somewhere safe. Each one works once if you lose your authenticator. They will not be shown again.
-        </p>
-        <ul class="mfa-recovery-codes">
-          <li v-for="code in recoveryCodes" :key="code"><code>{{ code }}</code></li>
-        </ul>
-        <div class="mfa-actions">
-          <button class="ghost-btn" type="button" @click="copyRecoveryCodes">
-            {{ recoveryCopied ? 'Copied' : 'Copy codes' }}
-          </button>
-          <button class="primary-btn" type="button" @click="recoveryCodes = []">I saved them</button>
-        </div>
-      </template>
-
-      <template v-else-if="mfaStatus.enabled">
-        <p class="helper-text">
-          <span class="mfa-badge">Enabled</span>
-          {{ mfaStatus.recoveryCodesRemaining }} unused recovery code(s) left.
-        </p>
-        <form class="api-token-create" @submit.prevent>
-          <div class="form-field form-field--grow">
-            <label for="mfa-action-code">Authenticator or recovery code</label>
-            <input
-              id="mfa-action-code"
-              v-model="mfaActionCode"
-              type="text"
-              autocomplete="one-time-code"
-              placeholder="Required to disable or regenerate codes"
-              :disabled="mfaBusy"
-            />
-          </div>
-          <button class="ghost-btn" type="button" :disabled="mfaBusy || !mfaActionCode.trim()" @click="regenerateCodes">
-            New recovery codes
-          </button>
-          <button class="ghost-btn" type="button" :disabled="mfaBusy || !mfaActionCode.trim()" @click="turnOffMFA">
-            Disable
-          </button>
-        </form>
-      </template>
-
-      <template v-else-if="mfaSetup">
-        <div class="mfa-setup">
-          <img v-if="mfaSetup.qrDataUrl" :src="mfaSetup.qrDataUrl" alt="Authenticator QR code" class="mfa-qr" width="180" height="180" />
-          <div class="mfa-setup__steps">
-            <p class="field-hint">1. Scan the QR code with your authenticator app, or enter this key manually:</p>
-            <code class="api-token-secret__value">{{ mfaSetup.secret }}</code>
-            <form class="api-token-create" @submit.prevent="confirmMFASetup">
-              <div class="form-field form-field--grow">
-                <label for="mfa-setup-code">2. Enter the 6-digit code it shows</label>
+          <p v-if="loading" class="acct-hint">Loading your information…</p>
+          <p v-else-if="loadError" class="acct-error">{{ loadError }}</p>
+          <form v-else class="acct-form" @submit.prevent="saveDetails">
+            <div class="acct-form-grid">
+              <div class="acct-field">
+                <label for="info-first-name">First name</label>
+                <input id="info-first-name" v-model="form.firstName" class="acct-input" type="text" autocomplete="given-name" :disabled="saving" />
+              </div>
+              <div class="acct-field">
+                <label for="info-second-name">Last name</label>
+                <input id="info-second-name" v-model="form.secondName" class="acct-input" type="text" autocomplete="family-name" :disabled="saving" />
+              </div>
+              <div class="acct-field acct-field--full">
+                <div class="acct-field__row">
+                  <label for="info-email" class="acct-field__label">Email</label>
+                  <button v-if="!isEditingEmail" class="acct-btn acct-btn--sm" type="button" :disabled="saving" @click="startEmailChange">Change</button>
+                  <button v-else class="acct-btn acct-btn--sm" type="button" :disabled="saving" @click="cancelEmailEdit">Cancel</button>
+                </div>
                 <input
-                  id="mfa-setup-code"
-                  v-model="mfaSetupCode"
-                  type="text"
-                  inputmode="numeric"
-                  autocomplete="one-time-code"
-                  maxlength="6"
-                  placeholder="123456"
-                  :disabled="mfaBusy"
+                  id="info-email"
+                  v-model="form.email"
+                  class="acct-input"
+                  type="email"
+                  autocomplete="email"
+                  :readonly="!isEditingEmail"
+                  :disabled="saving"
+                />
+                <p class="acct-hint">Used to sign in and for invite and reset emails.</p>
+              </div>
+            </div>
+            <div class="acct-form-actions">
+              <button class="acct-btn" type="button" :disabled="!detailsDirty || saving" @click="resetForm">Discard</button>
+              <button class="acct-btn acct-btn--primary" type="submit" :disabled="!detailsDirty || saving">
+                {{ saving === 'details' ? 'Saving…' : 'Save details' }}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section ref="passwordSectionRef" class="dash-panel" aria-label="Password">
+          <div class="dash-panel-head">
+            <h3 class="acct-panel-title">
+              <span class="acct-panel-icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>
+              </span>
+              Password
+              <span class="acct-panel-hint">{{ profile.hasPassword ? 'changing it signs out your other sessions' : 'not set yet' }}</span>
+            </h3>
+          </div>
+          <p v-if="!profile.hasPassword" class="acct-hint">
+            You signed up with Google, GitHub, or SSO. Set a password to also sign in with your email address.
+          </p>
+          <form class="acct-form" @submit.prevent="savePassword">
+            <div class="acct-form-grid">
+              <div v-if="profile.hasPassword" class="acct-field acct-field--full">
+                <label for="info-current-password">Current password</label>
+                <input
+                  id="info-current-password"
+                  v-model="form.currentPassword"
+                  class="acct-input"
+                  :class="{ 'is-invalid': currentPasswordRejected }"
+                  type="password"
+                  autocomplete="current-password"
+                  :disabled="saving"
+                />
+                <p v-if="currentPasswordRejected" class="acct-hint acct-hint--error">Current password is incorrect.</p>
+              </div>
+              <div class="acct-field">
+                <label for="info-password">New password</label>
+                <input id="info-password" v-model="form.password" class="acct-input" type="password" autocomplete="new-password" minlength="8" maxlength="72" :disabled="saving" />
+              </div>
+              <div class="acct-field">
+                <label for="info-confirm-password">Confirm</label>
+                <input
+                  id="info-confirm-password"
+                  v-model="form.confirmPassword"
+                  class="acct-input"
+                  :class="{ 'is-invalid': showPasswordMismatch }"
+                  type="password"
+                  autocomplete="new-password"
+                  :disabled="saving"
                 />
               </div>
-              <button class="primary-btn" type="submit" :disabled="mfaBusy || mfaSetupCode.trim().length !== 6">
-                {{ mfaBusy ? 'Verifying...' : 'Turn on' }}
+            </div>
+            <div class="acct-form-actions">
+              <p class="acct-hint" :class="{ 'acct-hint--error': showPasswordMismatch }">
+                {{ showPasswordMismatch ? 'The two passwords do not match.' : 'At least 8 characters.' }}
+              </p>
+              <button class="acct-btn acct-btn--primary" type="submit" :disabled="!passwordReady || saving">
+                {{ saving === 'password' ? 'Saving…' : profile.hasPassword ? 'Change password' : 'Set password' }}
               </button>
-              <button class="ghost-btn" type="button" :disabled="mfaBusy" @click="mfaSetup = null">Cancel</button>
-            </form>
-          </div>
-        </div>
-      </template>
+            </div>
+          </form>
+        </section>
+      </div>
 
-      <div v-else class="mfa-actions">
-        <button class="primary-btn" type="button" :disabled="mfaBusy" @click="beginMFASetup">
-          {{ mfaBusy ? 'Starting...' : 'Set up two-factor authentication' }}
-        </button>
+      <div class="acct-stack">
+        <section ref="mfaSectionRef" class="dash-panel" aria-label="Two-factor authentication">
+          <div class="dash-panel-head">
+            <h3 class="acct-panel-title">
+              <span class="acct-panel-icon" :class="{ 'tone-warn': !mfaStatus.enabled }" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5l5 2v4c0 3.3-2.2 5.8-5 6.9-2.8-1.1-5-3.6-5-6.9v-4l5-2z" /><path d="M6 8l1.5 1.5L10.5 6.5" /></svg>
+              </span>
+              Two-factor authentication
+            </h3>
+            <span class="acct-badge" :class="mfaStatus.enabled ? 'tone-signal' : 'tone-warn'"><i />{{ mfaStatus.enabled ? 'On' : 'Off' }}</span>
+          </div>
+
+          <p v-if="mfaError" class="acct-error">{{ mfaError }}</p>
+          <p v-else-if="mfaLoading" class="acct-hint">Loading two-factor status…</p>
+
+          <template v-else-if="recoveryCodes.length">
+            <p class="acct-hint">
+              Save these recovery codes somewhere safe. Each one works once if you lose your authenticator. They will not be shown again.
+            </p>
+            <ul class="mfa-codes">
+              <li v-for="code in recoveryCodes" :key="code"><code>{{ code }}</code></li>
+            </ul>
+            <div class="acct-form-actions">
+              <button class="acct-btn" type="button" @click="copyRecoveryCodes">{{ recoveryCopied ? 'Copied' : 'Copy codes' }}</button>
+              <button class="acct-btn acct-btn--primary" type="button" @click="recoveryCodes = []">I saved them</button>
+            </div>
+          </template>
+
+          <template v-else-if="mfaStatus.enabled">
+            <p class="acct-hint">
+              Sign-in asks for a code from your authenticator app. Enter a current code to create new recovery codes or turn 2FA off.
+            </p>
+            <form class="acct-form" @submit.prevent>
+              <div class="acct-field">
+                <label for="mfa-action-code">Authenticator or recovery code</label>
+                <input id="mfa-action-code" v-model="mfaActionCode" class="acct-input" type="text" autocomplete="one-time-code" :disabled="mfaBusy" />
+              </div>
+              <div class="acct-form-actions">
+                <p v-if="mfaPolicyLocks" class="acct-hint">Your organization requires 2FA, so it cannot be turned off.</p>
+                <button class="acct-btn" type="button" :disabled="mfaBusy || !mfaActionCode.trim()" @click="regenerateCodes">New recovery codes</button>
+                <button v-if="!mfaPolicyLocks" class="acct-btn acct-btn--danger" type="button" :disabled="mfaBusy || !mfaActionCode.trim()" @click="turnOffMFA">Turn off</button>
+              </div>
+            </form>
+          </template>
+
+          <template v-else-if="mfaSetup">
+            <div class="mfa-setup">
+              <img v-if="mfaSetup.qrDataUrl" :src="mfaSetup.qrDataUrl" alt="Authenticator QR code" class="mfa-qr" width="160" height="160" />
+              <form class="acct-form mfa-setup__steps" @submit.prevent="confirmMFASetup">
+                <p class="acct-hint">1. Scan the QR code with your authenticator app, or enter this key:</p>
+                <code class="acct-code">{{ mfaSetup.secret }}</code>
+                <div class="acct-field">
+                  <label for="mfa-setup-code">2. Enter the 6-digit code it shows</label>
+                  <input id="mfa-setup-code" v-model="mfaSetupCode" class="acct-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" :disabled="mfaBusy" />
+                </div>
+                <div class="acct-form-actions">
+                  <button class="acct-btn" type="button" :disabled="mfaBusy" @click="mfaSetup = null">Cancel</button>
+                  <button class="acct-btn acct-btn--primary" type="submit" :disabled="mfaBusy || mfaSetupCode.trim().length !== 6">
+                    {{ mfaBusy ? 'Verifying…' : 'Turn on' }}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </template>
+
+          <template v-else>
+            <p class="acct-hint">
+              Ask for a code from an authenticator app (Google Authenticator, 1Password, Authy…) each time you sign in.
+            </p>
+            <div class="acct-form-actions">
+              <button class="acct-btn acct-btn--primary" type="button" :disabled="mfaBusy" @click="beginMFASetup">
+                {{ mfaBusy ? 'Starting…' : 'Set up two-factor' }}
+              </button>
+            </div>
+          </template>
+        </section>
+
+        <section class="dash-panel" aria-label="Active sessions">
+          <div class="dash-panel-head">
+            <h3 class="acct-panel-title">
+              <span class="acct-panel-icon tone-info" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="8.5" rx="1.2" /><path d="M5.5 14h5" /></svg>
+              </span>
+              Active sessions
+              <span class="acct-panel-hint">devices signed in to your account</span>
+            </h3>
+            <button
+              v-if="otherSessions.length"
+              class="acct-btn acct-btn--sm acct-btn--danger"
+              type="button"
+              :disabled="sessionsBusy"
+              @click="signOutOthers"
+            >
+              Sign out other sessions
+            </button>
+          </div>
+
+          <p v-if="sessionsError" class="acct-error">{{ sessionsError }}</p>
+          <p v-else-if="sessionsLoading && !sessions.length" class="acct-hint">Loading sessions…</p>
+          <p v-else-if="!sessions.length" class="acct-empty">No active sessions found.</p>
+          <ul v-else class="acct-list">
+            <li v-for="item in sessions" :key="item.id" class="acct-list__item">
+              <span class="acct-list__icon" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="8.5" rx="1.2" /><path d="M5.5 14h5" /></svg>
+              </span>
+              <div class="acct-list__main">
+                <span class="acct-cell-main">
+                  {{ describeUserAgent(item.userAgent) || 'Unknown device' }}
+                  <span v-if="item.current" class="acct-badge tone-signal">This device</span>
+                </span>
+                <span class="acct-cell-sub">
+                  {{ describeSignInMethod(item.method) }} · <span class="num">{{ maskIp(item.ipAddress) }}</span> ·
+                  signed in {{ formatDateTime24(item.createdAt) }} · active {{ formatRelativeTime(item.lastSeenAt) }}
+                  <template v-if="item.remember"> · kept signed in</template>
+                </span>
+              </div>
+              <button
+                v-if="!item.current"
+                class="acct-btn acct-btn--sm"
+                type="button"
+                :disabled="sessionsBusy"
+                @click="signOutSession(item)"
+              >
+                Sign out
+              </button>
+            </li>
+          </ul>
+        </section>
       </div>
     </div>
 
-    <div class="content-card api-tokens-card">
-      <div class="section-head">
-        <h3>API tokens</h3>
-        <p>Personal access tokens for automation. Secrets are shown only once at creation.</p>
+    <section class="dash-panel" aria-label="API tokens">
+      <div class="dash-panel-head">
+        <h3 class="acct-panel-title">
+          <span class="acct-panel-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="8" r="2.5" /><path d="M7.5 8H14M11.5 8v2.5M13.5 8v1.5" /></svg>
+          </span>
+          API tokens
+          <span class="acct-panel-hint">personal access tokens for scripts and CI · secrets are shown once</span>
+        </h3>
+        <RouterLink class="dash-panel-link" :to="{ name: 'docs-account', hash: '#api-tokens' }">How to use tokens</RouterLink>
       </div>
 
-      <form class="api-token-create" @submit.prevent="createToken">
-        <div class="form-field form-field--grow">
-          <label for="api-token-name">Token name</label>
-          <input
-            id="api-token-name"
-            v-model="tokenForm.name"
-            type="text"
-            maxlength="80"
-            placeholder="e.g. CI deploy"
-            :disabled="tokenCreating"
-          />
+      <form class="acct-form token-form" @submit.prevent="createToken">
+        <div class="token-form__row">
+          <div class="acct-field token-form__name">
+            <label for="api-token-name">Name</label>
+            <input id="api-token-name" v-model="tokenForm.name" class="acct-input" type="text" maxlength="80" placeholder="e.g. CI deploy" :disabled="tokenCreating" />
+          </div>
+          <div class="acct-field">
+            <span class="acct-field__label">Access</span>
+            <div class="acct-segment" role="radiogroup" aria-label="Token access">
+              <button
+                v-for="option in ACCESS_OPTIONS"
+                :key="option.id"
+                type="button"
+                role="radio"
+                :aria-checked="tokenForm.access === option.id"
+                :class="{ active: tokenForm.access === option.id }"
+                :disabled="tokenCreating"
+                @click="tokenForm.access = option.id"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+          <div class="acct-field">
+            <label for="api-token-expiry">Expires</label>
+            <select id="api-token-expiry" v-model="tokenForm.expiry" class="acct-select" :disabled="tokenCreating">
+              <option v-for="option in EXPIRY_OPTIONS" :key="option.id" :value="option.id">{{ option.label }}</option>
+            </select>
+          </div>
+          <button class="acct-btn acct-btn--primary token-form__submit" type="submit" :disabled="!canCreateToken">
+            {{ tokenCreating ? 'Creating…' : 'Create token' }}
+          </button>
         </div>
-        <button class="primary-btn" type="submit" :disabled="!canCreateToken">
-          {{ tokenCreating ? 'Creating...' : 'Create token' }}
-        </button>
+        <div v-if="tokenForm.access === 'custom'" class="acct-checks">
+          <label v-for="scope in customScopes" :key="scope.id" class="acct-check">
+            <input v-model="tokenForm.scopes" type="checkbox" :value="scope.id" :disabled="tokenCreating" />
+            <span>{{ scope.label }}<small>{{ scope.description }}</small></span>
+          </label>
+        </div>
+        <p class="acct-hint">{{ accessHint }}</p>
       </form>
 
-      <div v-if="createdSecret" class="api-token-secret">
-        <p class="field-hint">Copy this token now. You will not be able to see it again.</p>
-        <code class="api-token-secret__value">{{ createdSecret }}</code>
-        <button class="ghost-btn" type="button" @click="copyCreatedSecret">
-          {{ secretCopied ? 'Copied' : 'Copy' }}
+      <div v-if="createdSecret" class="acct-secret">
+        <p class="acct-hint">Copy this token now. It will not be shown again.</p>
+        <div class="acct-secret__row">
+          <code class="acct-code">{{ createdSecret }}</code>
+          <button class="acct-btn" type="button" @click="copyCreatedSecret">{{ secretCopied ? 'Copied' : 'Copy' }}</button>
+          <button class="acct-btn" type="button" @click="createdSecret = ''">Done</button>
+        </div>
+      </div>
+
+      <p v-if="tokensError" class="acct-error">{{ tokensError }}</p>
+      <p v-else-if="tokensLoading && !apiTokens.length" class="acct-hint">Loading tokens…</p>
+      <p v-else-if="!apiTokens.length" class="acct-empty">No API tokens yet.</p>
+      <div v-else class="acct-table-wrap">
+        <table class="acct-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Access</th>
+              <th scope="col">Created</th>
+              <th scope="col">Last used</th>
+              <th scope="col">Expires</th>
+              <th scope="col" class="right"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in apiTokens" :key="item.id">
+              <td>
+                <span class="acct-cell-main">{{ item.name }}</span>
+                <span class="acct-cell-sub num">{{ item.tokenPrefix }}…</span>
+              </td>
+              <td>
+                <span class="token-scopes">
+                  <span v-for="scope in item.scopes" :key="scope" class="acct-badge" :class="scope === '*' ? 'tone-warn' : 'tone-info'">
+                    {{ scopeLabel(scope) }}
+                  </span>
+                </span>
+              </td>
+              <td class="nowrap num">{{ formatDateTime24(item.createdAt) }}</td>
+              <td class="nowrap muted">{{ item.lastUsedAt ? formatRelativeTime(item.lastUsedAt) : 'Never' }}</td>
+              <td class="nowrap">
+                <span v-if="!item.expiresAt" class="muted">Never</span>
+                <span v-else-if="isExpired(item.expiresAt)" class="acct-badge tone-danger">Expired</span>
+                <span v-else class="num">{{ formatDate24(item.expiresAt) }}</span>
+              </td>
+              <td class="right">
+                <button class="acct-btn acct-btn--sm acct-btn--danger" type="button" :disabled="tokenRevokingId === item.id" @click="revokeToken(item)">
+                  {{ tokenRevokingId === item.id ? 'Revoking…' : 'Revoke' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="dash-panel" aria-label="Recent activity">
+      <div class="dash-panel-head">
+        <h3 class="acct-panel-title">
+          <span class="acct-panel-icon tone-info" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6" /><path d="M8 4.5V8l2.5 1.5" /></svg>
+          </span>
+          Recent activity
+          <span class="acct-panel-hint">sign-ins, password, 2FA, tokens, and license changes</span>
+        </h3>
+        <button class="acct-btn acct-btn--sm" type="button" :disabled="historyLoading || !profile.id" @click="loadUserHistory">
+          {{ historyLoading ? 'Refreshing…' : 'Refresh' }}
         </button>
       </div>
 
-      <p v-if="tokensError" class="helper-text error-text">{{ tokensError }}</p>
-      <p v-else-if="tokensLoading && !apiTokens.length" class="helper-text">Loading tokens...</p>
-      <p v-else-if="!apiTokens.length" class="helper-text">No API tokens yet.</p>
-
-      <ul v-else class="api-token-list">
-        <li v-for="item in apiTokens" :key="item.id" class="api-token-item">
-          <div class="api-token-item__main">
-            <strong>{{ item.name }}</strong>
-            <span class="api-token-item__prefix">{{ item.tokenPrefix }}…</span>
-            <span class="api-token-item__meta">Created {{ formatHistoryTime(item.createdAt) }}</span>
-            <span v-if="item.lastUsedAt" class="api-token-item__meta">Last used {{ formatHistoryTime(item.lastUsedAt) }}</span>
-          </div>
-          <button
-            class="ghost-btn"
-            type="button"
-            :disabled="tokenRevokingId === item.id"
-            @click="revokeToken(item)"
-          >
-            {{ tokenRevokingId === item.id ? 'Revoking...' : 'Revoke' }}
-          </button>
-        </li>
-      </ul>
-    </div>
+      <p v-if="historyError" class="acct-error">{{ historyError }}</p>
+      <p v-else-if="historyLoading && !historyEntries.length" class="acct-hint">Loading activity…</p>
+      <p v-else-if="!historyEntries.length" class="acct-empty">No sign-in, security, or license activity recorded yet.</p>
+      <div v-else class="acct-table-wrap activity-wrap">
+        <table class="acct-table">
+          <thead>
+            <tr>
+              <th scope="col">Time</th>
+              <th scope="col">Event</th>
+              <th scope="col">Details</th>
+              <th scope="col">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="entry in historyEntries" :key="entry.id">
+              <td class="nowrap num">{{ formatDateTime24(entry.createdAt) }}</td>
+              <td class="nowrap">
+                <span class="audit-pill" :class="auditActionClass(entry.action)">{{ formatAuditAction(entry.action) }}</span>
+              </td>
+              <td>
+                <span class="activity-summary">{{ historySummary(entry) }}</span>
+                <span v-if="!auditSucceeded(entry)" class="acct-badge tone-danger">{{ auditResultLabel(entry) }}</span>
+              </td>
+              <td class="nowrap muted">
+                <span v-if="entry.ipAddress" class="num">{{ maskIp(entry.ipAddress) }}</span>
+                <template v-if="entry.userAgent"> · {{ describeUserAgent(entry.userAgent) }}</template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { createApiToken, listApiTokens, revokeApiToken } from '@/api/apiTokens'
+import QRCode from 'qrcode'
+import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import { createApiToken, fetchApiTokenScopes, listApiTokens, revokeApiToken } from '@/api/apiTokens'
 import { fetchAuditLogs } from '@/api/auditLogs'
-import { auditActionClass, describeUserAgent, formatAuditAction, splitAuditDetails } from '@/utils/auditFormat'
+import { fetchMe, listSessions, revokeOtherSessions, revokeSession } from '@/api/auth'
 import { fetchUser, updateUser } from '@/api/users'
 import { disableMFA, enableMFA, fetchMFAStatus, regenerateRecoveryCodes, startMFASetup } from '@/api/mfa'
-import QRCode from 'qrcode'
 import { useAuth } from '@/stores/auth'
+import {
+  auditActionClass,
+  auditResultLabel,
+  auditSucceeded,
+  describeSignInMethod,
+  describeUserAgent,
+  formatAuditAction,
+  formatDate24,
+  formatDateTime24,
+  formatRelativeTime,
+  splitAuditDetails,
+} from '@/utils/auditFormat'
+import { maskIp } from '@/utils/maskIp'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { joinDisplayName, splitDisplayName } from '@/utils/userName'
 
-const INFO_TITLE = 'Information'
+const TITLE = 'Profile'
+const MFA_TITLE = 'Two-factor authentication'
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const ACCESS_OPTIONS = [
+  { id: 'read', label: 'Read only' },
+  { id: 'custom', label: 'Custom' },
+  { id: 'full', label: 'Full access' },
+]
+
+const EXPIRY_OPTIONS = [
+  { id: '30', label: '30 days', days: 30 },
+  { id: '90', label: '90 days', days: 90 },
+  { id: '365', label: '1 year', days: 365 },
+  { id: 'never', label: 'Never', days: 0 },
+]
 
 const auth = useAuth()
 const route = useRoute()
 
 const loading = ref(false)
-const saving = ref(false)
+const saving = ref('')
 const loadError = ref('')
-const historyLoading = ref(false)
-const historyError = ref('')
-const historyEntries = ref([])
 const isEditingEmail = ref(false)
-const emailSectionRef = ref(null)
-const securitySectionRef = ref(null)
-
-const apiTokens = ref([])
-const tokensLoading = ref(false)
-const tokensError = ref('')
-const tokenCreating = ref(false)
-const tokenRevokingId = ref(null)
-const createdSecret = ref('')
-const secretCopied = ref(false)
-const tokenForm = reactive({
-  name: '',
-})
+const passwordSectionRef = ref(null)
+const mfaSectionRef = ref(null)
+const currentPasswordRejected = ref(false)
 
 const profile = reactive({
   id: null,
@@ -423,102 +517,6 @@ const profile = reactive({
   serverIds: [],
 })
 
-const currentPasswordRejected = ref(false)
-
-const MFA_TITLE = 'Two-factor authentication'
-const mfaLoading = ref(false)
-const mfaBusy = ref(false)
-const mfaError = ref('')
-const mfaStatus = reactive({ enabled: false, recoveryCodesRemaining: 0 })
-const mfaSetup = ref(null)
-const mfaSetupCode = ref('')
-const mfaActionCode = ref('')
-const recoveryCodes = ref([])
-const recoveryCopied = ref(false)
-
-const loadMFAStatus = async () => {
-  mfaLoading.value = true
-  mfaError.value = ''
-  try {
-    const status = await fetchMFAStatus()
-    mfaStatus.enabled = Boolean(status?.enabled)
-    mfaStatus.recoveryCodesRemaining = Number(status?.recoveryCodesRemaining) || 0
-  } catch (error) {
-    mfaError.value = error?.message || 'Could not load two-factor status.'
-  } finally {
-    mfaLoading.value = false
-  }
-}
-
-const beginMFASetup = async () => {
-  mfaBusy.value = true
-  try {
-    const result = await startMFASetup()
-    const qrDataUrl = await QRCode.toDataURL(result.otpauthUrl, { margin: 1, width: 180 })
-    mfaSetup.value = { secret: result.secret, qrDataUrl }
-    mfaSetupCode.value = ''
-  } catch (error) {
-    notifyError(MFA_TITLE, error?.message || 'Could not start two-factor setup.')
-  } finally {
-    mfaBusy.value = false
-  }
-}
-
-const confirmMFASetup = async () => {
-  mfaBusy.value = true
-  try {
-    const result = await enableMFA(mfaSetupCode.value.trim())
-    recoveryCodes.value = Array.isArray(result?.recoveryCodes) ? result.recoveryCodes : []
-    recoveryCopied.value = false
-    mfaSetup.value = null
-    mfaSetupCode.value = ''
-    await loadMFAStatus()
-    notifySuccess(MFA_TITLE, 'Two-factor authentication is on.')
-  } catch (error) {
-    notifyError(MFA_TITLE, error?.message || 'Could not verify that code.')
-  } finally {
-    mfaBusy.value = false
-  }
-}
-
-const turnOffMFA = async () => {
-  mfaBusy.value = true
-  try {
-    await disableMFA(mfaActionCode.value.trim())
-    mfaActionCode.value = ''
-    await loadMFAStatus()
-    notifySuccess(MFA_TITLE, 'Two-factor authentication is off.')
-  } catch (error) {
-    notifyError(MFA_TITLE, error?.message || 'Could not disable two-factor authentication.')
-  } finally {
-    mfaBusy.value = false
-  }
-}
-
-const regenerateCodes = async () => {
-  mfaBusy.value = true
-  try {
-    const result = await regenerateRecoveryCodes(mfaActionCode.value.trim())
-    recoveryCodes.value = Array.isArray(result?.recoveryCodes) ? result.recoveryCodes : []
-    recoveryCopied.value = false
-    mfaActionCode.value = ''
-    await loadMFAStatus()
-  } catch (error) {
-    notifyError(MFA_TITLE, error?.message || 'Could not regenerate recovery codes.')
-  } finally {
-    mfaBusy.value = false
-  }
-}
-
-const copyRecoveryCodes = async () => {
-  try {
-    await navigator.clipboard.writeText(recoveryCodes.value.join('\n'))
-    recoveryCopied.value = true
-  } catch {
-    notifyError(MFA_TITLE, 'Copy failed. Please copy the codes manually.')
-  }
-}
-
 const form = reactive({
   firstName: '',
   secondName: '',
@@ -528,27 +526,41 @@ const form = reactive({
   confirmPassword: '',
 })
 
+const requireMfa = ref('off')
+const currentSession = ref(null)
+
+const initials = computed(() => {
+  const source = profile.name || profile.email || ''
+  const parts = source.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean)
+  return (parts[0]?.[0] || '?').toUpperCase() + (parts[1]?.[0] || '').toUpperCase()
+})
+
+const currentSessionHint = computed(() => {
+  if (!currentSession.value) return 'account state'
+  const expires = new Date(currentSession.value.expiresAt)
+  if (Number.isNaN(expires.getTime())) return 'account state'
+  return `session ends ${formatDateTime24(expires)}`
+})
+
 const profileNames = computed(() => splitDisplayName(profile.name))
 
-const displayName = computed(() => joinDisplayName(form.firstName.trim(), form.secondName.trim()) || profile.name)
-
-const isChangingPassword = computed(
-  () =>
-    form.password.trim() !== '' ||
-    form.confirmPassword.trim() !== '' ||
-    form.currentPassword.trim() !== ''
-)
+const detailsDirty = computed(() => {
+  const nameChanged =
+    form.firstName.trim() !== profileNames.value.firstName || form.secondName.trim() !== profileNames.value.secondName
+  const emailChanged =
+    isEditingEmail.value && form.email.trim().toLowerCase() !== String(profile.email || '').trim().toLowerCase()
+  return nameChanged || emailChanged
+})
 
 const showPasswordMismatch = computed(
-  () =>
-    (form.password.trim() !== '' || form.confirmPassword.trim() !== '') &&
-    form.confirmPassword !== '' &&
-    form.password !== form.confirmPassword
+  () => form.confirmPassword !== '' && form.password !== form.confirmPassword
 )
 
-const showCurrentPasswordError = computed(
-  () => isChangingPassword.value && currentPasswordRejected.value
-)
+const passwordReady = computed(() => {
+  if (profile.hasPassword && !form.currentPassword.trim()) return false
+  if (form.password.trim().length < 8) return false
+  return form.password === form.confirmPassword
+})
 
 watch(
   () => form.currentPassword,
@@ -557,105 +569,7 @@ watch(
   }
 )
 
-const passwordsValid = computed(() => {
-  if (!isChangingPassword.value) return true
-  if (profile.hasPassword && (!form.currentPassword.trim() || currentPasswordRejected.value)) return false
-  if (!form.password.trim() || !form.confirmPassword.trim()) return false
-  return form.password === form.confirmPassword
-})
-
-const emailChanged = computed(
-  () => isEditingEmail.value && form.email.trim().toLowerCase() !== String(profile.email || '').trim().toLowerCase()
-)
-
-const isDirty = computed(() => {
-  const nameChanged =
-    form.firstName.trim() !== profileNames.value.firstName ||
-    form.secondName.trim() !== profileNames.value.secondName
-  return nameChanged || emailChanged.value || isChangingPassword.value
-})
-
-const canSave = computed(() => isDirty.value && passwordsValid.value && !saving.value)
-
-const AUTH_ACTIONS = new Set([
-  'login',
-  'logout',
-  'login_failed',
-  'password_change',
-  'mfa_enable',
-  'mfa_disable',
-  'mfa_reset',
-  'recovery_codes',
-  'token_create',
-  'token_revoke',
-])
-
-const isAuthHistoryEntry = (entry) =>
-  entry?.category === 'auth' ||
-  entry?.category === 'api_token' ||
-  AUTH_ACTIONS.has(String(entry?.action || '').toLowerCase())
-
-const isLicenseHistoryEntry = (entry) => {
-  const path = String(entry?.path || '').toLowerCase()
-  const details = String(entry?.details || '').toLowerCase()
-  const resource = String(entry?.resourceName || '').toLowerCase()
-  if (path.includes('license') || path.includes('upgrade-license')) return true
-  if (details.includes('license') || resource.includes('license')) return true
-  if (path === '/servers' && entry?.action === 'create' && entry?.category === 'edge') return true
-  return /\/servers\/\d+\/upgrade-license/.test(path)
-}
-
-const isRelevantHistoryEntry = (entry) => isAuthHistoryEntry(entry) || isLicenseHistoryEntry(entry)
-
-const formatHistoryTime = (value) => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-const historyKindLabel = (entry) => {
-  if (isLicenseHistoryEntry(entry) && !isAuthHistoryEntry(entry)) return 'License'
-  const action = String(entry?.action || '').toLowerCase()
-  if (action === 'login' || action === 'logout' || action === 'login_failed') return 'Authentication'
-  return 'Security'
-}
-
-const historySummary = (entry) => {
-  const { summary } = splitAuditDetails(entry?.details)
-  if (summary) return summary
-  if (entry?.resourceName) return entry.resourceName
-  if (entry?.path) return entry.path
-  return 'Account activity'
-}
-
-const loadUserHistory = async () => {
-  if (!profile.id) {
-    historyEntries.value = []
-    return
-  }
-
-  historyLoading.value = true
-  historyError.value = ''
-  try {
-    const data = await fetchAuditLogs({
-      limit: 200,
-      actorUserId: profile.id,
-    })
-    const list = Array.isArray(data) ? data : []
-    historyEntries.value = list.filter(isRelevantHistoryEntry)
-  } catch (error) {
-    historyEntries.value = []
-    historyError.value = error?.message || 'Could not load activity history.'
-  } finally {
-    historyLoading.value = false
-  }
-}
+// --- profile ----------------------------------------------------------------
 
 const applyProfile = (user) => {
   profile.id = user?.id ?? null
@@ -680,25 +594,15 @@ const resetForm = () => {
   isEditingEmail.value = false
 }
 
-const scrollToSection = async (sectionRef) => {
-  await nextTick()
-  sectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
 const startEmailChange = async () => {
   isEditingEmail.value = true
-  await scrollToSection(emailSectionRef)
+  await nextTick()
   document.getElementById('info-email')?.focus()
 }
 
 const cancelEmailEdit = () => {
   form.email = profile.email
   isEditingEmail.value = false
-}
-
-const startPasswordChange = async () => {
-  await scrollToSection(securitySectionRef)
-  document.getElementById('info-current-password')?.focus()
 }
 
 const loadProfile = async () => {
@@ -708,12 +612,10 @@ const loadProfile = async () => {
     applyProfile({})
     return
   }
-
   loading.value = true
   loadError.value = ''
   try {
-    const match = await fetchUser(sessionUser.id)
-    applyProfile(match || sessionUser)
+    applyProfile((await fetchUser(sessionUser.id)) || sessionUser)
   } catch (error) {
     applyProfile(sessionUser)
     if (!sessionUser.name && !sessionUser.email) {
@@ -721,85 +623,272 @@ const loadProfile = async () => {
     }
   } finally {
     loading.value = false
-    if (profile.id) {
-      void loadUserHistory()
-    }
   }
 }
 
-const saveProfile = async () => {
-  if (!profile.id || saving.value || !canSave.value) return
+const basePayload = () => ({
+  name: joinDisplayName(form.firstName.trim(), form.secondName.trim()) || profile.name,
+  email: (isEditingEmail.value ? form.email : profile.email).trim().toLowerCase(),
+  role: profile.role || 'User',
+  status: profile.status || 'Active',
+  serverIds: profile.role === 'User' ? [...profile.serverIds] : [],
+})
 
-  const firstName = form.firstName.trim()
-  const secondName = form.secondName.trim()
-  const name = joinDisplayName(firstName, secondName)
-  const email = (isEditingEmail.value ? form.email : profile.email).trim().toLowerCase()
+const syncSessionUser = () => {
+  auth.updateUser({ id: profile.id, name: profile.name, email: profile.email, role: profile.role })
+}
 
-  if (!firstName || !email) {
-    notifyError(INFO_TITLE, 'First name and email are required.')
+const saveDetails = async () => {
+  if (!profile.id || saving.value || !detailsDirty.value) return
+  const payload = basePayload()
+  if (!form.firstName.trim() || !payload.email) {
+    notifyError(TITLE, 'First name and email are required.')
     return
   }
-
-  const newPassword = form.password.trim()
-  if (isChangingPassword.value) {
-    if (profile.hasPassword && !form.currentPassword.trim()) {
-      notifyError(INFO_TITLE, 'Enter your current password to change it.')
-      return
-    }
-    if (!newPassword) {
-      notifyError(INFO_TITLE, 'Enter a new password to complete the change.')
-      return
-    }
-    if (newPassword !== form.confirmPassword) {
-      notifyError(INFO_TITLE, 'New password and confirm password must match.')
-      return
-    }
+  saving.value = 'details'
+  try {
+    applyProfile((await updateUser(profile.id, payload)) || { ...profile, ...payload })
+    syncSessionUser()
+    notifySuccess(TITLE, 'Your details were updated.')
+    void loadUserHistory()
+  } catch (error) {
+    notifyError(TITLE, error?.message || 'Could not update your details.')
+  } finally {
+    saving.value = ''
   }
+}
 
+const savePassword = async () => {
+  if (!profile.id || saving.value || !passwordReady.value) return
   const payload = {
-    name,
-    email,
+    name: profile.name,
+    email: profile.email,
     role: profile.role || 'User',
     status: profile.status || 'Active',
     serverIds: profile.role === 'User' ? [...profile.serverIds] : [],
+    password: form.password,
   }
-  if (isChangingPassword.value) {
-    payload.password = newPassword
-    if (profile.hasPassword) {
-      payload.currentPassword = form.currentPassword
-    }
-  }
-
-  saving.value = true
+  if (profile.hasPassword) payload.currentPassword = form.currentPassword
+  saving.value = 'password'
   try {
-    const updated = await updateUser(profile.id, payload)
-    applyProfile(updated || { ...profile, ...payload })
-    auth.setSession({
-      user: {
-        ...(auth.state.user || {}),
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        role: profile.role,
-      },
-      token: auth.state.token,
-      rememberMe: auth.state.rememberMe,
-    })
-    notifySuccess(INFO_TITLE, 'Your information was updated.')
+    applyProfile((await updateUser(profile.id, payload)) || { ...profile, hasPassword: true })
+    profile.hasPassword = true
+    notifySuccess(TITLE, 'Password changed. Your other sessions were signed out.')
+    void loadUserHistory()
+    void loadSessions()
     void loadUserHistory()
   } catch (error) {
-    if (error?.payload?.error === 'invalid_current_password') {
-      currentPasswordRejected.value = true
-    }
-    notifyError(INFO_TITLE, error?.message || 'Could not update your information.')
+    if (error?.payload?.error === 'invalid_current_password') currentPasswordRejected.value = true
+    notifyError(TITLE, error?.message || 'Could not change your password.')
   } finally {
-    saving.value = false
+    saving.value = ''
   }
 }
 
-const canCreateToken = computed(
-  () => Boolean(tokenForm.name.trim()) && !tokenCreating.value
+// --- two-factor ---------------------------------------------------------------
+
+const mfaLoading = ref(false)
+const mfaBusy = ref(false)
+const mfaError = ref('')
+const mfaStatus = reactive({ enabled: false, recoveryCodesRemaining: 0 })
+const mfaSetup = ref(null)
+const mfaSetupCode = ref('')
+const mfaActionCode = ref('')
+const recoveryCodes = ref([])
+const recoveryCopied = ref(false)
+
+const policyAppliesToMe = computed(
+  () => requireMfa.value === 'all' || (requireMfa.value === 'admins' && profile.role === 'Admin')
 )
+const mfaPolicyLocks = computed(() => policyAppliesToMe.value && mfaStatus.enabled)
+const mfaRequiredNow = computed(() => auth.state.mfaSetupRequired || (policyAppliesToMe.value && !mfaStatus.enabled && !mfaLoading.value && !mfaError.value))
+
+const loadMFAStatus = async () => {
+  mfaLoading.value = true
+  mfaError.value = ''
+  try {
+    const status = await fetchMFAStatus()
+    mfaStatus.enabled = Boolean(status?.enabled)
+    mfaStatus.recoveryCodesRemaining = Number(status?.recoveryCodesRemaining) || 0
+  } catch (error) {
+    mfaError.value = error?.message || 'Could not load two-factor status.'
+  } finally {
+    mfaLoading.value = false
+  }
+}
+
+const beginMFASetup = async () => {
+  mfaBusy.value = true
+  try {
+    const result = await startMFASetup()
+    const qrDataUrl = await QRCode.toDataURL(result.otpauthUrl, { margin: 1, width: 160 })
+    mfaSetup.value = { secret: result.secret, qrDataUrl }
+    mfaSetupCode.value = ''
+  } catch (error) {
+    notifyError(MFA_TITLE, error?.message || 'Could not start two-factor setup.')
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const confirmMFASetup = async () => {
+  mfaBusy.value = true
+  try {
+    const result = await enableMFA(mfaSetupCode.value.trim())
+    recoveryCodes.value = Array.isArray(result?.recoveryCodes) ? result.recoveryCodes : []
+    recoveryCopied.value = false
+    mfaSetup.value = null
+    mfaSetupCode.value = ''
+    auth.setMFASetupRequired(false)
+    await loadMFAStatus()
+    notifySuccess(MFA_TITLE, 'Two-factor authentication is on.')
+    void loadUserHistory()
+  } catch (error) {
+    notifyError(MFA_TITLE, error?.message || 'Could not verify that code.')
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const turnOffMFA = async () => {
+  mfaBusy.value = true
+  try {
+    await disableMFA(mfaActionCode.value.trim())
+    mfaActionCode.value = ''
+    await loadMFAStatus()
+    notifySuccess(MFA_TITLE, 'Two-factor authentication is off.')
+    void loadUserHistory()
+  } catch (error) {
+    notifyError(MFA_TITLE, error?.message || 'Could not turn off two-factor authentication.')
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const regenerateCodes = async () => {
+  mfaBusy.value = true
+  try {
+    const result = await regenerateRecoveryCodes(mfaActionCode.value.trim())
+    recoveryCodes.value = Array.isArray(result?.recoveryCodes) ? result.recoveryCodes : []
+    recoveryCopied.value = false
+    mfaActionCode.value = ''
+    await loadMFAStatus()
+  } catch (error) {
+    notifyError(MFA_TITLE, error?.message || 'Could not create new recovery codes.')
+  } finally {
+    mfaBusy.value = false
+  }
+}
+
+const copyRecoveryCodes = async () => {
+  try {
+    await navigator.clipboard.writeText(recoveryCodes.value.join('\n'))
+    recoveryCopied.value = true
+  } catch {
+    notifyError(MFA_TITLE, 'Copy failed. Please copy the codes manually.')
+  }
+}
+
+// --- sessions -------------------------------------------------------------------
+
+const sessions = ref([])
+const sessionsLoading = ref(false)
+const sessionsBusy = ref(false)
+const sessionsError = ref('')
+const otherSessions = computed(() => sessions.value.filter((item) => !item.current))
+
+const loadSessions = async () => {
+  sessionsLoading.value = true
+  sessionsError.value = ''
+  try {
+    const data = await listSessions()
+    sessions.value = (Array.isArray(data) ? data : []).sort(
+      (a, b) => Number(b.current) - Number(a.current) || new Date(b.lastSeenAt) - new Date(a.lastSeenAt)
+    )
+  } catch (error) {
+    sessions.value = []
+    sessionsError.value = error?.message || 'Could not load sessions.'
+  } finally {
+    sessionsLoading.value = false
+  }
+}
+
+const signOutSession = async (item) => {
+  sessionsBusy.value = true
+  try {
+    await revokeSession(item.id)
+    notifySuccess(TITLE, 'That session was signed out.')
+    void loadUserHistory()
+    await loadSessions()
+  } catch (error) {
+    notifyError(TITLE, error?.message || 'Could not sign out that session.')
+  } finally {
+    sessionsBusy.value = false
+  }
+}
+
+const signOutOthers = async () => {
+  sessionsBusy.value = true
+  try {
+    const result = await revokeOtherSessions()
+    const count = Number(result?.revoked) || 0
+    notifySuccess(TITLE, count === 1 ? 'Signed out 1 other session.' : `Signed out ${count} other sessions.`)
+    void loadUserHistory()
+    await loadSessions()
+  } catch (error) {
+    notifyError(TITLE, error?.message || 'Could not sign out other sessions.')
+  } finally {
+    sessionsBusy.value = false
+  }
+}
+
+const loadMe = async () => {
+  try {
+    const me = await fetchMe()
+    requireMfa.value = me?.requireMfa || 'off'
+    currentSession.value = me?.session || null
+    auth.setMFASetupRequired(Boolean(me?.mfaSetupRequired))
+    if (me?.user) auth.updateUser(me.user)
+  } catch {
+    // keep defaults
+  }
+}
+
+// --- API tokens -------------------------------------------------------------------
+
+const apiTokens = ref([])
+const tokensLoading = ref(false)
+const tokensError = ref('')
+const tokenCreating = ref(false)
+const tokenRevokingId = ref(null)
+const createdSecret = ref('')
+const secretCopied = ref(false)
+const scopeCatalog = ref([])
+const tokenForm = reactive({ name: '', access: 'read', expiry: '90', scopes: [] })
+
+const customScopes = computed(() => scopeCatalog.value.filter((item) => item.id !== '*' && item.id !== 'read'))
+
+const scopeLabel = (id) => scopeCatalog.value.find((item) => item.id === id)?.label || id
+
+const tokenScopes = computed(() => {
+  if (tokenForm.access === 'full') return ['*']
+  if (tokenForm.access === 'read') return ['read']
+  return [...tokenForm.scopes]
+})
+
+const accessHint = computed(() => {
+  if (tokenForm.access === 'full') {
+    return 'Full access can do anything your account can, including managing users, tokens, and settings. Prefer narrower access for automation.'
+  }
+  if (tokenForm.access === 'read') return 'Read only can list and view edges, sites, WAF rules, and analytics. It cannot change anything.'
+  return 'Write access to an area includes read access to it. Account endpoints always need Full access.'
+})
+
+const canCreateToken = computed(
+  () => Boolean(tokenForm.name.trim()) && tokenScopes.value.length > 0 && !tokenCreating.value
+)
+
+const isExpired = (value) => new Date(value).getTime() <= Date.now()
 
 const loadApiTokens = async () => {
   tokensLoading.value = true
@@ -818,16 +907,19 @@ const loadApiTokens = async () => {
 const createToken = async () => {
   if (!canCreateToken.value) return
   tokenCreating.value = true
-  tokensError.value = ''
   secretCopied.value = false
   try {
-    const result = await createApiToken({ name: tokenForm.name.trim(), scopes: ['*'] })
+    const days = EXPIRY_OPTIONS.find((option) => option.id === tokenForm.expiry)?.days || 0
+    const expiresAt = days ? new Date(Date.now() + days * DAY_MS).toISOString() : undefined
+    const result = await createApiToken({ name: tokenForm.name.trim(), scopes: tokenScopes.value, expiresAt })
     createdSecret.value = result?.secret || ''
     tokenForm.name = ''
-    notifySuccess(INFO_TITLE, 'API token created.')
+    tokenForm.scopes = []
+    notifySuccess(TITLE, 'API token created.')
+    void loadUserHistory()
     await loadApiTokens()
   } catch (error) {
-    notifyError(INFO_TITLE, error?.message || 'Could not create API token.')
+    notifyError(TITLE, error?.message || 'Could not create API token.')
   } finally {
     tokenCreating.value = false
   }
@@ -838,46 +930,102 @@ const revokeToken = async (item) => {
   tokenRevokingId.value = item.id
   try {
     await revokeApiToken(item.id)
-    if (createdSecret.value && String(createdSecret.value).startsWith(String(item.tokenPrefix || ''))) {
-      createdSecret.value = ''
-    }
-    notifySuccess(INFO_TITLE, 'API token revoked.')
+    if (createdSecret.value && createdSecret.value.startsWith(String(item.tokenPrefix || ''))) createdSecret.value = ''
+    notifySuccess(TITLE, 'API token revoked.')
+    void loadUserHistory()
     await loadApiTokens()
   } catch (error) {
-    notifyError(INFO_TITLE, error?.message || 'Could not revoke API token.')
+    notifyError(TITLE, error?.message || 'Could not revoke API token.')
   } finally {
     tokenRevokingId.value = null
   }
 }
 
 const copyCreatedSecret = async () => {
-  if (!createdSecret.value) return
   try {
     await navigator.clipboard.writeText(createdSecret.value)
     secretCopied.value = true
-    notifySuccess(INFO_TITLE, 'Token copied to clipboard.')
   } catch {
-    notifyError(INFO_TITLE, 'Could not copy token. Select and copy it manually.')
+    notifyError(TITLE, 'Could not copy the token. Select and copy it manually.')
   }
 }
 
-const focusPasswordIfRequested = () => {
-  if (String(route.query.focus || '').toLowerCase() !== 'password') return
-  startPasswordChange()
+// --- activity -------------------------------------------------------------------------
+
+const historyLoading = ref(false)
+const historyError = ref('')
+const historyEntries = ref([])
+
+const AUTH_ACTIONS = new Set([
+  'login',
+  'logout',
+  'login_failed',
+  'password_change',
+  'password_reset',
+  'invite_accept',
+  'mfa_enable',
+  'mfa_disable',
+  'mfa_reset',
+  'recovery_codes',
+  'token_create',
+  'token_revoke',
+  'session_revoke',
+])
+
+const isRelevantHistoryEntry = (entry) => {
+  if (entry?.category === 'auth' || entry?.category === 'api_token') return true
+  if (AUTH_ACTIONS.has(String(entry?.action || '').toLowerCase())) return true
+  const path = String(entry?.path || '').toLowerCase()
+  return path.includes('license') || String(entry?.details || '').toLowerCase().includes('license')
 }
 
-watch(
-  () => route.query.focus,
-  () => {
-    focusPasswordIfRequested()
+const historySummary = (entry) => {
+  const { summary } = splitAuditDetails(entry?.details)
+  return summary || entry?.resourceName || entry?.path || 'Account activity'
+}
+
+const loadUserHistory = async () => {
+  if (!profile.id) return
+  historyLoading.value = true
+  historyError.value = ''
+  try {
+    const data = await fetchAuditLogs({ limit: 200, actorUserId: profile.id })
+    historyEntries.value = (Array.isArray(data) ? data : []).filter(isRelevantHistoryEntry).slice(0, 40)
+  } catch (error) {
+    historyEntries.value = []
+    historyError.value = error?.message || 'Could not load activity.'
+  } finally {
+    historyLoading.value = false
   }
-)
+}
+
+// --- deep links ---------------------------------------------------------------------------
+
+const applyRouteFocus = async () => {
+  await nextTick()
+  if (String(route.query.focus || '').toLowerCase() === 'password') {
+    passwordSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.getElementById(profile.hasPassword ? 'info-current-password' : 'info-password')?.focus()
+  } else if (route.query.setup2fa) {
+    mfaSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+watch(() => [route.query.focus, route.query.setup2fa], applyRouteFocus)
 
 onMounted(async () => {
-  await loadProfile()
-  void loadApiTokens()
+  void loadMe()
   void loadMFAStatus()
-  focusPasswordIfRequested()
+  void loadSessions()
+  void loadApiTokens()
+  void fetchApiTokenScopes()
+    .then((data) => {
+      scopeCatalog.value = Array.isArray(data) ? data : []
+    })
+    .catch(() => {})
+  await loadProfile()
+  void loadUserHistory()
+  void applyRouteFocus()
 })
 </script>
 
@@ -885,15 +1033,12 @@ onMounted(async () => {
 .mfa-setup {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-gap-lg);
+  gap: 16px;
   align-items: flex-start;
 }
 
 .mfa-setup__steps {
-  flex: 1 1 280px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex: 1 1 260px;
 }
 
 .mfa-qr {
@@ -902,504 +1047,79 @@ onMounted(async () => {
   padding: 6px;
 }
 
-.mfa-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.mfa-recovery-codes {
+.mfa-codes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-  margin: 12px 0;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  margin: 0;
   padding: 0;
   list-style: none;
-  font-family: var(--font-mono);
 }
 
-.mfa-badge {
-  display: inline-block;
-  margin-right: 6px;
-  padding: 2px 8px;
-  border-radius: var(--badge-radius, 4px);
-  font-size: var(--type-caption);
-  background: var(--dorian-viper-dim);
-  color: var(--dorian-viper-400);
-}
-
-.users-information-view {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-gap-lg);
-}
-
-.account-overview,
-.info-card,
-.history-panel,
-.api-tokens-card {
-  width: 100%;
-}
-
-.info-layout {
-  display: grid;
-  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.35fr);
-  gap: var(--space-gap-lg);
-  align-items: start;
-}
-
-.history-panel {
-  min-height: 420px;
-  display: flex;
-  flex-direction: column;
-}
-
-.history-panel__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.history-panel__refresh {
-  flex-shrink: 0;
-}
-
-.history-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  max-height: min(68vh, 720px);
-}
-
-.history-item {
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 0.5px solid var(--app-border);
-  background: var(--app-surface-elevated);
-}
-
-.history-item__head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 6px;
-}
-
-.history-item__kind {
-  font-family: var(--font-mono);
-  font-size: var(--type-caption);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.history-item__kind--license {
-  color: var(--dorian-gold-500);
-}
-
-.history-item__kind--auth {
-  color: var(--dorian-viper-400);
-}
-
-.history-item__time {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: var(--type-caption);
-  color: var(--app-text-muted);
-}
-
-.history-item__summary {
-  margin: 0;
-  font-size: var(--type-base);
-  color: var(--app-text);
-  line-height: 1.45;
-}
-
-.history-item__changes {
-  margin: 4px 0 0;
-  padding-left: 16px;
-  font-size: var(--type-caption);
-  line-height: 1.5;
-  color: var(--app-text-secondary);
-  word-break: break-word;
-}
-
-.history-item__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 6px;
-  font-size: var(--type-caption);
-  color: var(--app-text-muted);
-}
-
-.badge.action {
-  padding: 4px 8px;
-  border-radius: var(--badge-radius, 4px);
-  font-size: var(--type-caption);
-  font-weight: 700;
-}
-
-.badge.action.is-login {
-  background: rgba(79, 189, 122, 0.14);
-  color: var(--dorian-success);
-}
-
-.badge.action.is-logout {
-  background: rgba(91, 157, 240, 0.14);
-  color: var(--dorian-l4);
-}
-
-.badge.action.is-failed,
-.badge.action.is-delete {
-  background: rgba(225, 82, 65, 0.14);
-  color: var(--dorian-danger);
-}
-
-.badge.action.is-operate {
-  background: rgba(91, 157, 240, 0.14);
-  color: var(--dorian-l4);
-}
-
-.badge.action.is-security {
-  background: rgba(219, 39, 119, 0.12);
-  color: #be185d;
-}
-
-.badge.action.is-create {
-  background: var(--dorian-viper-dim);
-  color: var(--dorian-viper-400);
-}
-
-.badge.action.is-update {
-  background: var(--dorian-gold-dim);
-  color: var(--dorian-gold-500);
-}
-
-.info-card {
-  max-width: none;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: var(--space-gap-lg);
-}
-
-.card-header h2,
-.section-head h3 {
-  margin: 0 0 3px;
-  font-size: var(--type-section-title);
-  font-weight: 600;
-  color: var(--app-heading);
-}
-
-.card-subtitle,
-.section-head p {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: var(--type-page-subtitle);
-  line-height: 1.45;
-}
-
-.section-head {
-  margin-bottom: var(--space-gap-lg);
-}
-
-.section-head--compact {
-  margin-bottom: 12px;
-}
-
-.helper-text {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: var(--type-base);
-}
-
-.error-text {
-  color: var(--dorian-danger);
-}
-
-.info-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-gap-lg);
-}
-
-.info-section {
-  padding-top: 4px;
-}
-
-.info-section + .info-section {
-  border-top: 0.5px solid var(--app-border);
-  padding-top: var(--space-gap-lg);
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-gap-lg);
-}
-
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.form-field--full {
-  grid-column: 1 / -1;
-}
-
-.field-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.field-action-btn {
-  min-height: var(--btn-height-sm);
-  height: var(--btn-height-sm);
-  padding: 0 var(--btn-padding-x-sm);
-  font-size: var(--btn-font-size-sm);
-}
-
-.form-field label,
-.overview-label {
-  font-family: var(--font-mono);
-  font-size: var(--type-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-  font-weight: 500;
-}
-
-.form-field input {
-  border: 0.5px solid var(--app-input-border);
+.mfa-codes code {
+  display: block;
+  padding: 6px 8px;
   border-radius: 6px;
-  padding: 7px 10px;
-  font-size: var(--type-base);
-  color: var(--app-text);
-  background: var(--app-input-bg);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.form-field input:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.form-field input.input-readonly {
-  background: var(--app-surface-muted);
-  color: var(--app-text-secondary);
-  cursor: default;
-}
-
-.form-field input:focus {
-  border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
-}
-
-.form-field input.input-readonly:focus {
-  box-shadow: none;
-  border-color: var(--app-input-border);
-}
-
-.form-field input.input-invalid {
-  border-color: var(--dorian-danger);
-}
-
-.form-field input.input-invalid:focus {
-  box-shadow: 0 0 0 3px rgba(225, 82, 65, 0.18);
-}
-
-.field-hint {
-  margin: 0;
-  font-size: var(--type-caption);
-  color: var(--app-text-muted);
-}
-
-.field-hint--error {
-  color: var(--dorian-danger);
-}
-
-.overview-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-gap);
-}
-
-.overview-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 12px 14px;
-  border-radius: 10px;
+  background: var(--app-bg);
   border: 0.5px solid var(--app-border);
-  background: var(--app-surface-elevated);
-}
-
-.overview-value {
-  font-size: var(--type-base);
-  font-weight: 600;
-  color: var(--app-heading);
-  word-break: break-word;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-gap);
-  padding-top: 2px;
-}
-
-.badge {
-  padding: 5px 11px;
-  border-radius: 20px;
   font-family: var(--font-mono);
-  font-size: var(--type-caption);
-  font-weight: 600;
-  display: inline-block;
+  font-size: 12px;
+  color: var(--app-heading);
 }
 
-.badge.admin,
-.badge.active {
-  background: var(--dorian-viper-dim);
-  color: var(--dorian-viper-400);
-}
-
-.badge.user {
-  background: var(--app-surface-muted);
-  color: var(--app-text-secondary);
-  border: 0.5px solid var(--app-border);
-}
-
-.badge.pending {
-  background: var(--dorian-gold-dim);
-  color: var(--dorian-gold-500);
-}
-
-.badge.blocked {
-  background: rgba(225, 82, 65, 0.15);
-  color: var(--dorian-danger);
-}
-
-.api-token-create {
+.token-form__row {
   display: flex;
   align-items: flex-end;
-  gap: var(--space-gap);
-  margin-bottom: var(--space-gap-lg);
-}
-
-.form-field--grow {
-  flex: 1;
-  min-width: 0;
-}
-
-.api-token-secret {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: var(--space-gap-lg);
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 0.5px solid var(--app-border);
-  background: var(--app-surface-muted);
-}
-
-.api-token-secret__value {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--font-mono);
-  font-size: var(--type-caption);
-  word-break: break-all;
-  color: var(--app-heading);
-}
-
-.api-token-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.api-token-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 0.5px solid var(--app-border);
-  background: var(--app-surface-elevated);
+  flex-wrap: wrap;
 }
 
-.api-token-item__main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.token-form__name {
+  flex: 1 1 220px;
 }
 
-.api-token-item__prefix {
-  font-family: var(--font-mono);
-  font-size: var(--type-caption);
-  color: var(--app-text-secondary);
+.token-form__submit {
+  height: 34px;
 }
 
-.api-token-item__meta {
-  font-size: var(--type-caption);
-  color: var(--app-text-muted);
+.token-scopes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-@media (max-width: 960px) {
-  .info-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .history-list {
-    max-height: 360px;
-  }
+.activity-wrap {
+  max-height: 420px;
+  overflow-y: auto;
 }
 
-@media (max-width: 720px) {
-  .form-grid,
-  .overview-grid {
-    grid-template-columns: 1fr;
-  }
+.activity-summary {
+  margin-right: 6px;
+}
 
-  .form-actions {
-    flex-direction: column-reverse;
-  }
+.audit-pill {
+  --pill-tone: var(--dorian-l4, #6b9fd4);
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: var(--badge-radius, 999px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pill-tone);
+  background: color-mix(in srgb, var(--pill-tone) 12%, transparent);
+}
 
-  .form-actions .ghost-btn,
-  .form-actions .primary-btn {
-    width: 100%;
-  }
+.audit-pill.is-login,
+.audit-pill.is-create { --pill-tone: var(--dorian-viper-400, var(--app-accent)); }
+.audit-pill.is-logout { --pill-tone: var(--app-text-muted); }
+.audit-pill.is-delete { --pill-tone: var(--dorian-danger, #e15241); }
+.audit-pill.is-security,
+.audit-pill.is-operate { --pill-tone: var(--dorian-warn, #e0a83f); }
 
-  .api-token-create {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .api-token-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 </style>

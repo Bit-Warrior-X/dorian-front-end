@@ -1,3 +1,5 @@
+import { analyticsNavGroups } from '@/utils/analyticsNav'
+
 /** Shared copy for multi-page Docs articles. */
 
 export const startSteps = [
@@ -80,24 +82,34 @@ export const concepts = [
 
 export const insightRows = [
   {
-    title: 'Detection',
-    body: 'L4 floods and L7 blocks together for the selected window',
+    title: 'Traffic',
+    body: 'Requests, bandwidth, status codes, HTTP methods/versions, countries, ISPs, referers',
+    to: { name: 'security-analytics' },
+  },
+  {
+    title: 'Cache',
+    body: 'Hit ratio, byte hit ratio, cache status mix, origin offload, top uncached URLs',
+    to: { name: 'cache-analytics' },
+  },
+  {
+    title: 'Performance',
+    body: 'Edge and origin response time (p50/p95/p99), origin 5xx and timeouts, per edge and per site',
+    to: { name: 'performance-analytics' },
+  },
+  {
+    title: 'Security events',
+    body: 'Timeline of L4 floods and L7 block bursts for the selected window',
     to: { name: 'attack-detection' },
   },
   {
-    title: 'L4 attacks',
-    body: 'Allowed vs blocked volume, protocol mix, recent attempts, top attacking IPs',
-    to: { name: 'layer4-attack-analytics' },
-  },
-  {
-    title: 'L7 attacks',
-    body: 'Block counts, geography, top URLs / referers / user agents',
+    title: 'Firewall (L7)',
+    body: 'Blocked HTTP requests over time, blocks by rule, geography, request context',
     to: { name: 'security-analytics-detail' },
   },
   {
-    title: 'Traffic',
-    body: 'Bandwidth & traffic, requests & status, audience, HTTP methods/protocols',
-    to: { name: 'security-analytics' },
+    title: 'DDoS (L4)',
+    body: 'Allowed vs dropped volume, protocol mix, recent attempts, top attacking IPs',
+    to: { name: 'layer4-attack-analytics' },
   },
   {
     title: 'Access logs',
@@ -151,10 +163,10 @@ export const troubleshooting = [
     steps: [
       'Traffic must hairpin through the edge (DNS / routing), not bypass it.',
       'Configure edges → XDP: enable relevant flood checks and set block duration.',
-      'Use L4 Attacks analytics to identify top sources, then Block IP / Temporary blocks.',
+      'Use DDoS (L4) analytics to identify top sources, then Block IP / Temporary blocks.',
     ],
     to: { name: 'layer4-attack-analytics' },
-    cta: 'Open L4 attacks',
+    cta: 'Open DDoS (L4)',
   },
 ]
 
@@ -173,7 +185,7 @@ export const faq = [
   },
   {
     q: 'Who can manage team users?',
-    a: 'Admins see Team and Audit log under Account. Regular users manage their own Profile and API tokens.',
+    a: 'Admins see Team and Audit log under Account, where they add members by invite link, create reset links, and set the sign-in policy. Regular users manage their own Profile, sessions, and API tokens.',
   },
   {
     q: 'Why is Trial not under Monthly / Annual?',
@@ -183,8 +195,16 @@ export const faq = [
 
 export const glossary = [
   {
+    t: 'API token',
+    d: 'A personal access token (dorian_pat_…) that lets scripts call the API as you, limited to the access you pick.',
+  },
+  {
     t: 'Attach mode',
-    d: 'How Sparta binds XDP to a NIC (e.g. native, skb, drv) — chosen under Configure edges → XDP.',
+    d: 'Where Sparta runs its XDP program. Native (drv) runs inside the network driver and is fastest; skb (generic) works on any NIC but is slower. Chosen under Configure edges → XDP.',
+  },
+  {
+    t: 'Byte hit ratio',
+    d: 'Share of response bytes served from the edge cache instead of the origin.',
   },
   {
     t: 'Control plane',
@@ -196,16 +216,44 @@ export const glossary = [
   },
   { t: 'Edge', d: 'A deployed protection host registered in All edges.' },
   {
+    t: 'Hit ratio',
+    d: 'Share of requests answered from the edge cache (HIT, STALE, UPDATING, or REVALIDATED).',
+  },
+  {
+    t: 'Invite link',
+    d: 'A one-time link, valid 7 days, that lets a new member set their password and activate their account.',
+  },
+  {
     t: 'Origin',
     d: 'Your backend server (IP:port) that Athens proxies to after inspection.',
+  },
+  {
+    t: 'p95',
+    d: '95% of requests finished within this time; the slowest 5% took longer.',
   },
   {
     t: 'PoP / edge node',
     d: 'Same as Edge in this console — one licensed host in your network.',
   },
   {
+    t: 'Scope',
+    d: 'What an API token may do: read, per-area read or write (edges, sites, WAF, analytics), or * for full access.',
+  },
+  {
+    t: 'Session',
+    d: 'One signed-in device. Lasts 24 hours, or 30 days with Keep me signed in; listed and revocable under Profile.',
+  },
+  {
+    t: 'Sign-in policy',
+    d: 'Team setting that makes two-factor authentication optional, required for Admins, or required for everyone.',
+  },
+  {
     t: 'WAF pack',
-    d: 'Named Layer-7 rule collection assigned to one or more sites.',
+    d: 'Named Layer-7 rule collection assigned to one or more sites. Also called a WAF rule set.',
+  },
+  {
+    t: 'XDP',
+    d: 'eXpress Data Path: a Linux feature that lets Sparta inspect and drop packets at the network card, before the kernel network stack.',
   },
 ]
 
@@ -218,28 +266,9 @@ export const cheatSheet = [
   { label: 'Configure sites', path: '/app/sites/settings', to: { name: 'site-settings' } },
   { label: 'WAF rules', path: '/app/waf', to: { name: 'waf-rules' } },
   { label: 'Temporary blocks', path: '/app/blacklist', to: { name: 'server-blacklist' } },
-  {
-    label: 'Detection',
-    path: '/app/analytics/detection',
-    to: { name: 'attack-detection' },
-  },
-  {
-    label: 'L4 attacks',
-    path: '/app/analytics/layer4-attack-analytics',
-    to: { name: 'layer4-attack-analytics' },
-  },
-  {
-    label: 'L7 attacks',
-    path: '/app/analytics/security-analytics-detail',
-    to: { name: 'security-analytics-detail' },
-  },
-  {
-    label: 'Traffic',
-    path: '/app/analytics/security-analytics',
-    to: { name: 'security-analytics' },
-  },
-  { label: 'Access logs', path: '/app/analytics/access-log', to: { name: 'access-log' } },
-  { label: 'Log export', path: '/app/analytics/log-export', to: { name: 'log-export' } },
+  ...analyticsNavGroups.flatMap((group) =>
+    group.items.map((item) => ({ label: item.label, path: item.path, to: { name: item.name } })),
+  ),
   { label: 'Licensing', path: '/app/license', to: { name: 'server-license' } },
   { label: 'Profile', path: '/app/users/information', to: { name: 'users-information' } },
   { label: 'Team', path: '/app/users/list', to: { name: 'users' } },

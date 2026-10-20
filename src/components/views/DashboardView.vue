@@ -306,6 +306,7 @@
 </template>
 
 <script setup>
+import { maskIp } from '@/utils/maskIp'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import ApexCharts from 'apexcharts'
@@ -771,18 +772,6 @@ const nicEdgeCards = computed(() => {
     }
   })
 })
-
-const maskIp = (ip) => {
-  const raw = String(ip || '').trim()
-  if (!raw) return 'IP hidden'
-  if (raw.includes(':')) {
-    const parts = raw.split(':').filter(Boolean)
-    return `${parts.slice(0, 2).join(':')}:••••`
-  }
-  const parts = raw.split('.')
-  if (parts.length !== 4) return '••••'
-  return `${parts[0]}.${parts[1]}.•••.•••`
-}
 
 const formatBytes = (value) => {
   const bytes = Number(value)

@@ -8,7 +8,16 @@
         </div>
 
         <header class="login-panel__header">
-          <template v-if="mfaToken">
+          <template v-if="isSetPasswordRoute">
+            <h1>{{ linkPurpose === 'invite' ? 'Activate your account' : 'Choose a new password' }}</h1>
+            <p v-if="linkPurpose === 'invite'">Set a password to finish joining the Dorian console.</p>
+            <p v-else>Your new password replaces the old one and signs out your other sessions.</p>
+          </template>
+          <template v-else-if="forgotMode">
+            <h1>Reset your password</h1>
+            <p>We'll send a one-time link to the email address on your account.</p>
+          </template>
+          <template v-else-if="mfaToken">
             <h1>Two-factor verification</h1>
             <p v-if="useRecoveryCode">Enter one of your unused recovery codes.</p>
             <p v-else>Enter the 6-digit code from your authenticator app.</p>
@@ -19,7 +28,139 @@
           </template>
         </header>
 
-        <form v-if="mfaToken" class="login-form" @submit.prevent="handleMFA">
+        <p v-if="noticeMessage && !errorMessage" class="login-alert login-alert--info" role="status">
+          {{ noticeMessage }}
+        </p>
+
+        <template v-if="isSetPasswordRoute">
+          <p v-if="linkState === 'loading'" class="login-note">Checking your link…</p>
+
+          <div v-else-if="linkState === 'invalid'" class="login-form">
+            <p class="login-alert login-alert--error" role="alert">{{ linkError }}</p>
+            <button type="button" class="login-button" @click="goToSignIn()">
+              <span class="login-button__label">Back to sign in</span>
+            </button>
+          </div>
+
+          <div v-else-if="linkState === 'done'" class="login-form">
+            <p class="login-alert login-alert--success" role="status">
+              {{ linkPurpose === 'invite' ? 'Your account is active.' : 'Your password was changed.' }}
+              Sign in with your new password.
+            </p>
+            <button type="button" class="login-button" @click="goToSignIn(linkInfo?.email)">
+              <span class="login-button__label">Continue to sign in</span>
+            </button>
+          </div>
+
+          <form v-else class="login-form" @submit.prevent="handleSetPassword">
+            <div class="form-field">
+              <label for="link-email">Account</label>
+              <div class="input-wrap">
+                <input id="link-email" :value="linkInfo?.email || ''" type="email" autocomplete="username" readonly class="form-input form-input--plain" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="new-password">New password</label>
+              <div class="input-wrap">
+                <input
+                  id="new-password"
+                  v-model="newPassword"
+                  :type="showPassword ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  minlength="8"
+                  maxlength="72"
+                  required
+                  class="form-input form-input--plain"
+                />
+              </div>
+              <span class="login-field-hint">At least 8 characters.</span>
+            </div>
+            <div class="form-field">
+              <label for="confirm-password">Confirm password</label>
+              <div class="input-wrap">
+                <input
+                  id="confirm-password"
+                  v-model="confirmPassword"
+                  :type="showPassword ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  required
+                  class="form-input form-input--plain"
+                />
+              </div>
+            </div>
+            <label class="remember-row">
+              <input v-model="showPassword" type="checkbox" />
+              <span>Show passwords</span>
+            </label>
+            <button
+              type="submit"
+              class="login-button"
+              :class="{ 'login-button--loading': isLoading }"
+              :disabled="isLoading"
+            >
+              <span class="login-button__spinner" aria-hidden="true" />
+              <span class="login-button__label">
+                {{ isLoading ? 'Saving…' : linkPurpose === 'invite' ? 'Activate account' : 'Save new password' }}
+              </span>
+            </button>
+          </form>
+        </template>
+
+        <template v-else-if="forgotMode">
+          <div v-if="!emailDelivery" class="login-form">
+            <p class="login-note">
+              Email isn't set up on this console yet. Ask an administrator to create a password reset
+              link for you from <strong>Team</strong>. The link works once and expires after 24 hours.
+            </p>
+            <button type="button" class="login-button" @click="closeForgot">
+              <span class="login-button__label">Back to sign in</span>
+            </button>
+          </div>
+
+          <div v-else-if="forgotSent" class="login-form">
+            <p class="login-alert login-alert--success" role="status">
+              If an account exists for {{ forgotEmail }}, a reset link is on its way. It expires in 1 hour.
+            </p>
+            <button type="button" class="login-button" @click="closeForgot">
+              <span class="login-button__label">Back to sign in</span>
+            </button>
+          </div>
+
+          <form v-else class="login-form" @submit.prevent="handleForgot">
+            <div class="form-field">
+              <label for="forgot-email">Email address</label>
+              <div class="input-wrap">
+                <svg class="input-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 6h18v12H3z" />
+                  <path d="M3 7l9 6 9-6" />
+                </svg>
+                <input
+                  id="forgot-email"
+                  v-model="forgotEmail"
+                  type="email"
+                  autocomplete="username"
+                  placeholder="you@company.com"
+                  required
+                  class="form-input"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              class="login-button"
+              :class="{ 'login-button--loading': isLoading }"
+              :disabled="isLoading"
+            >
+              <span class="login-button__spinner" aria-hidden="true" />
+              <span class="login-button__label">{{ isLoading ? 'Sending…' : 'Send reset link' }}</span>
+            </button>
+            <p class="login-help">
+              <a href="#" class="forgot-link" @click.prevent="closeForgot">Back to sign in</a>
+            </p>
+          </form>
+        </template>
+
+        <form v-else-if="mfaToken" class="login-form" @submit.prevent="handleMFA">
           <div class="form-field">
             <label for="mfa-code">{{ useRecoveryCode ? 'Recovery code' : 'Authentication code' }}</label>
             <div class="input-wrap">
@@ -83,7 +224,7 @@
           <div class="form-field">
             <div class="form-field__row">
               <label for="password">Password</label>
-              <a href="#" class="forgot-link" tabindex="-1" @click.prevent>Forgot password?</a>
+              <a href="#" class="forgot-link" @click.prevent="openForgot">Forgot password?</a>
             </div>
             <div class="input-wrap">
               <svg class="input-icon" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -121,7 +262,7 @@
 
           <label class="remember-row">
             <input v-model="rememberMe" type="checkbox" />
-            <span>Remember me for 30 days</span>
+            <span>Keep me signed in for {{ rememberDays }} days</span>
           </label>
 
           <button
@@ -139,9 +280,9 @@
           {{ errorMessage }}
         </p>
 
-        <div v-if="!mfaToken" class="login-divider" aria-hidden="true">OR CONTINUE WITH</div>
+        <div v-if="showSignInExtras" class="login-divider" aria-hidden="true">OR CONTINUE WITH</div>
 
-        <div v-if="!mfaToken" class="login-sso">
+        <div v-if="showSignInExtras" class="login-sso">
           <button
             type="button"
             class="login-sso__btn"
@@ -179,19 +320,15 @@
             {{ ssoLoading ? 'Redirecting…' : 'SSO' }}
           </button>
         </div>
-        <p v-if="ssoHint && !mfaToken" class="login-sso-hint">{{ ssoHint }}</p>
+        <p v-if="ssoHint && showSignInExtras" class="login-sso-hint">{{ ssoHint }}</p>
 
-        <p class="login-help">
-          New to Dorian?
-          <a href="#" class="forgot-link" @click.prevent>Request access →</a>
+        <p v-if="showSignInExtras" class="login-help">
+          New to Dorian? Accounts are created by an administrator. Ask yours to send you an invite.
         </p>
       </div>
 
       <footer class="login-legal">
         <span>© {{ currentYear }} Dorian</span>
-        <a href="#" @click.prevent>Status</a>
-        <a href="#" @click.prevent>Terms</a>
-        <a href="#" @click.prevent>Privacy</a>
       </footer>
     </main>
 
@@ -415,9 +552,16 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { login, loginWithMFA } from '@/api/auth'
+import {
+  completePasswordLink,
+  fetchAuthOptions,
+  login,
+  loginWithMFA,
+  peekPasswordLink,
+  requestPasswordReset,
+} from '@/api/auth'
 import { buildGitHubOAuthStartURL, buildGoogleOAuthStartURL, buildSSOOAuthStartURL, fetchOAuthProviders } from '@/api/oauth'
 import { useAuth } from '@/stores/auth'
 import { takeMFAHandoff } from '@/stores/mfaHandoff'
@@ -450,6 +594,134 @@ const providers = reactive({
 const oauthBusy = computed(
   () => isLoading.value || googleLoading.value || githubLoading.value || ssoLoading.value
 )
+
+const rememberDays = ref(30)
+const emailDelivery = ref(false)
+const forgotMode = ref(false)
+const forgotEmail = ref('')
+const forgotSent = ref(false)
+
+const isSetPasswordRoute = computed(() => route.name === 'set-password')
+const linkToken = ref('')
+const linkPurpose = ref('reset')
+const linkInfo = ref(null)
+const linkState = ref('loading')
+const linkError = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+
+const showSignInExtras = computed(() => !mfaToken.value && !forgotMode.value && !isSetPasswordRoute.value)
+
+const NOTICES = {
+  idle: 'You were signed out after 15 minutes without activity.',
+  ended: 'Your session has ended. Please sign in again.',
+  inactive: 'Your account is no longer active. Contact an administrator.',
+}
+const noticeMessage = computed(() => {
+  if (isSetPasswordRoute.value || forgotMode.value || mfaToken.value) return ''
+  return NOTICES[String(route.query.reason || '')] || ''
+})
+
+const openForgot = () => {
+  errorMessage.value = ''
+  forgotEmail.value = email.value
+  forgotSent.value = false
+  forgotMode.value = true
+}
+
+const closeForgot = () => {
+  errorMessage.value = ''
+  forgotMode.value = false
+}
+
+const handleForgot = async () => {
+  errorMessage.value = ''
+  const value = forgotEmail.value.trim()
+  if (!value) {
+    errorMessage.value = 'Enter your email address.'
+    return
+  }
+  isLoading.value = true
+  try {
+    const result = await requestPasswordReset(value)
+    if (result && result.emailDelivery === false) {
+      emailDelivery.value = false
+      return
+    }
+    forgotSent.value = true
+  } catch (error) {
+    errorMessage.value = error?.message || 'Could not send a reset link. Please try again.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const LINK_INVALID = 'This link has expired or was already used. Ask an administrator for a new one.'
+
+const loadPasswordLink = async () => {
+  errorMessage.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+  linkPurpose.value = route.query.purpose === 'invite' ? 'invite' : 'reset'
+  const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+  const fromHash = hash.get('token')
+  if (fromHash) {
+    linkToken.value = fromHash
+    window.history.replaceState(window.history.state, document.title, `${window.location.pathname}${window.location.search}`)
+  }
+  if (!linkToken.value) {
+    linkState.value = 'invalid'
+    linkError.value = LINK_INVALID
+    return
+  }
+  linkState.value = 'loading'
+  try {
+    linkInfo.value = await peekPasswordLink({ token: linkToken.value, purpose: linkPurpose.value })
+    linkState.value = 'ready'
+  } catch (error) {
+    linkState.value = 'invalid'
+    linkError.value = error?.status === 410 ? LINK_INVALID : error?.message || LINK_INVALID
+  }
+}
+
+const handleSetPassword = async () => {
+  errorMessage.value = ''
+  if (newPassword.value.trim().length < 8) {
+    errorMessage.value = 'Use at least 8 characters.'
+    return
+  }
+  if (newPassword.value !== confirmPassword.value) {
+    errorMessage.value = 'The two passwords do not match.'
+    return
+  }
+  isLoading.value = true
+  try {
+    await completePasswordLink({ token: linkToken.value, purpose: linkPurpose.value, password: newPassword.value })
+    linkToken.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+    linkState.value = 'done'
+  } catch (error) {
+    if (error?.status === 410) {
+      linkState.value = 'invalid'
+      linkError.value = LINK_INVALID
+    } else {
+      errorMessage.value = error?.message || 'Could not save your password.'
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const goToSignIn = async (prefillEmail) => {
+  if (prefillEmail) email.value = prefillEmail
+  errorMessage.value = ''
+  await router.replace({ name: 'login' })
+}
+
+watch(isSetPasswordRoute, (value) => {
+  if (value) void loadPasswordLink()
+})
 
 const ssoHint = computed(() => {
   if (providers.sso) return ''
@@ -658,6 +930,15 @@ onMounted(async () => {
     void beginMFA(handoff.mfaToken)
   }
 
+  if (isSetPasswordRoute.value) void loadPasswordLink()
+
+  void fetchAuthOptions()
+    .then((options) => {
+      emailDelivery.value = Boolean(options?.emailDelivery)
+      if (Number(options?.rememberMeDays) > 0) rememberDays.value = Number(options.rememberMeDays)
+    })
+    .catch(() => {})
+
   void fetchOAuthProviders().then((result) => {
     providers.google = Boolean(result?.google)
     providers.github = Boolean(result?.github)
@@ -785,7 +1066,7 @@ const handleLogin = async () => {
       name: email.value.split('@')[0],
       email: result?.email || email.value,
     }
-    await completeSignIn(user, result?.token || null)
+    await completeSignIn(user, result?.token || null, result)
   } catch (error) {
     errorMessage.value = error?.message || 'Sign in failed. Check your credentials and try again.'
   } finally {
@@ -793,12 +1074,22 @@ const handleLogin = async () => {
   }
 }
 
-const completeSignIn = async (user, token) => {
-  auth.setSession({ user, token, rememberMe: rememberMe.value })
+const completeSignIn = async (user, token, result = {}) => {
+  auth.setSession({
+    user,
+    token,
+    rememberMe: typeof result?.remember === 'boolean' ? result.remember : rememberMe.value,
+    expiresAt: result?.expiresAt || null,
+    mfaSetupRequired: Boolean(result?.mfaSetupRequired),
+  })
 
-  const fallback = mfaRedirect.value && mfaRedirect.value.startsWith('/') ? mfaRedirect.value : '/app'
-  const redirectTo = route.query.redirect ? String(route.query.redirect) : fallback
-  await router.replace(redirectTo)
+  if (result?.mfaSetupRequired) {
+    await router.replace({ name: 'users-information', query: { setup2fa: '1' } })
+  } else {
+    const fallback = mfaRedirect.value && mfaRedirect.value.startsWith('/') ? mfaRedirect.value : '/app'
+    const redirectTo = route.query.redirect ? String(route.query.redirect) : fallback
+    await router.replace(redirectTo)
+  }
 
   email.value = ''
   password.value = ''
@@ -844,7 +1135,7 @@ const handleMFA = async () => {
   isLoading.value = true
   try {
     const result = await loginWithMFA({ mfaToken: mfaToken.value, code })
-    await completeSignIn(result.user, result.token)
+    await completeSignIn(result.user, result.token, result)
   } catch (error) {
     mfaCode.value = ''
     if (error?.payload?.error === 'mfa_challenge_expired') {

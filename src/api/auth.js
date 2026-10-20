@@ -51,7 +51,7 @@ const mockLogin = async ({ email, password }) => {
   }
 }
 
-export const login = async ({ email, password }) => {
+export const login = async ({ email, password, rememberMe = false }) => {
   const { useMocks } = await getApiConfig()
   if (useMocks) {
     return mockLogin({ email, password })
@@ -59,9 +59,47 @@ export const login = async ({ email, password }) => {
 
   return apiRequest('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, remember: Boolean(rememberMe) }),
   })
 }
+
+export const fetchAuthOptions = () => apiRequest('/auth/options')
+
+export const fetchMe = () => apiRequest('/auth/me')
+
+export const listSessions = () => apiRequest('/auth/sessions')
+
+export const revokeSession = (id) =>
+  apiRequest(`/auth/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' })
+
+export const revokeOtherSessions = () =>
+  apiRequest('/auth/sessions/revoke-others', { method: 'POST' })
+
+export const requestPasswordReset = (email) =>
+  apiRequest('/auth/password/forgot', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+
+export const peekPasswordLink = ({ token, purpose }) =>
+  apiRequest('/auth/password/token', {
+    method: 'POST',
+    body: JSON.stringify({ token, purpose }),
+  })
+
+export const completePasswordLink = ({ token, purpose, password }) =>
+  apiRequest('/auth/password/complete', {
+    method: 'POST',
+    body: JSON.stringify({ token, purpose, password }),
+  })
+
+export const fetchSecuritySettings = () => apiRequest('/settings/security')
+
+export const updateSecuritySettings = (payload) =>
+  apiRequest('/settings/security', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
 
 export const loginWithMFA = async ({ mfaToken, code }) =>
   apiRequest('/auth/login/mfa', {

@@ -2,11 +2,14 @@
   <div class="license-tier-panel">
     <p v-if="intro" class="intro">{{ intro }}</p>
     <p v-if="errorMessage" class="error-banner" role="alert">{{ errorMessage }}</p>
+    <p v-if="!canManage" class="readonly-note">
+      Only an Admin can change the license tier. Ask an Admin on your team to switch or renew this edge.
+    </p>
     <LicenseTierSelector
       v-model="selectedTier"
       v-model:billing-period="billingPeriod"
       :current-tier="initialTier"
-      :disabled="isSubmitting"
+      :disabled="isSubmitting || !canManage"
       :aria-label="'License type for ' + (server?.name || 'server')"
     />
     <p v-if="isSubmitting" class="status-line" role="status">
@@ -31,20 +34,29 @@
         <button
           type="button"
           class="btn-primary"
-          :disabled="isSubmitting || !canSubmit"
-          @click="submit"
+          :disabled="isSubmitting || !canSubmit || !canManage"
+          @click="confirmOpen = true"
         >
           {{ okLabel }}
         </button>
       </div>
     </div>
+    <ConfirmDialog
+      v-model="confirmOpen"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      confirm-text="Apply and deploy"
+      @confirm="submit"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { upgradeServerLicense } from '@/api/servers'
-import { normalizeLicenseTier, BILLING_PERIODS } from '@/data/licensePlans'
+import { normalizeLicenseTier, BILLING_PERIODS, licenseDurationLabel } from '@/data/licensePlans'
+import { useAuth } from '@/stores/auth'
+import ConfirmDialog from './ConfirmDialog.vue'
 import LicenseTierSelector from './LicenseTierSelector.vue'
 
 const props = defineProps({
@@ -72,6 +84,22 @@ const selectedTier = ref(normalizeLicenseTier(props.server?.license))
 const billingPeriod = ref(BILLING_PERIODS.ANNUAL)
 const isSubmitting = ref(false)
 const errorMessage = ref('')
+const confirmOpen = ref(false)
+const auth = useAuth()
+const canManage = computed(() => auth.state.user?.role === 'Admin')
+
+const confirmTitle = computed(() =>
+  selectedTier.value === initialTier.value ? `Renew ${selectedTier.value}?` : `Switch to ${selectedTier.value}?`
+)
+
+const confirmMessage = computed(() => {
+  const edge = props.server?.name || props.server?.ip || 'this edge'
+  const change =
+    selectedTier.value === initialTier.value
+      ? `Renew ${edge} on ${selectedTier.value}`
+      : `Move ${edge} from ${initialTier.value} to ${selectedTier.value}`
+  return `${change} with ${billingPeriod.value} billing (${licenseDurationLabel(selectedTier.value, billingPeriod.value)}). A new license is generated and pushed with a license-only deploy, which can take several minutes. Protection services on the edge may restart while it applies.`
+})
 
 watch(
   () => [props.server?.id, props.server?.license],
@@ -105,7 +133,7 @@ const actionHint = computed(() => {
 })
 
 const submit = async () => {
-  if (!props.server?.id || !canSubmit.value) return
+  if (!props.server?.id || !canSubmit.value || !canManage.value) return
   errorMessage.value = ''
   isSubmitting.value = true
   let updated = null
@@ -149,6 +177,17 @@ const submit = async () => {
   color: var(--dorian-danger, #e15241);
   font-size: var(--type-base);
   font-weight: 600;
+}
+
+.readonly-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .status-line {

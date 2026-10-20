@@ -2,15 +2,15 @@
   <div class="dashboard-view layer4-attack-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Layer 4 attack analytics</h2>
-        <p>Edge DDoS traffic, protocol mix, and attacking IP activity.</p>
+        <h2>DDoS (L4)</h2>
+        <p>Network-layer flood volume, allowed vs dropped traffic, protocol mix, and attacking IPs.</p>
       </div>
       <div class="dash-topbar__right">
         <AppTopbarActions />
       </div>
     </header>
 
-    <DetectionNav />
+    <AnalyticsSectionNav />
 
     <div class="dash-filterbar">
       <div class="dash-filter-field">
@@ -163,43 +163,74 @@
     </div>
 
     <div v-show="activeTab === 'attacks'" class="analytics-tab-panel">
+      <section class="l4-attack-summary" aria-label="Attack summary">
+        <article class="l4-attack-summary__card">
+          <span class="l4-attack-summary__label">Attempts</span>
+          <span class="l4-attack-summary__value num">{{ formatNumber(attackSummary.attempts) }}</span>
+          <span class="l4-attack-summary__hint">in {{ selectedRangeLabel }}</span>
+        </article>
+        <article class="l4-attack-summary__card">
+          <span class="l4-attack-summary__label">Unique sources</span>
+          <span class="l4-attack-summary__value num">{{ formatNumber(attackSummary.sources) }}</span>
+          <span class="l4-attack-summary__hint">across listed edges</span>
+        </article>
+        <article class="l4-attack-summary__card">
+          <span class="l4-attack-summary__label">Edges hit</span>
+          <span class="l4-attack-summary__value num">{{ formatNumber(attackSummary.edges) }}</span>
+          <span class="l4-attack-summary__hint">{{ attackSummary.topType || 'no dominant type' }}</span>
+        </article>
+      </section>
+
       <section class="dash-grid12">
-        <div class="dash-panel c-6">
+        <div class="dash-panel c-6 l4-attack-panel">
           <div class="dash-panel-head">
-            <h3>Recent attack attempts</h3>
+            <div>
+              <h3>Recent attack attempts</h3>
+              <p class="dash-panel-desc">Newest L4 blocks reported by Sparta on each edge</p>
+            </div>
+            <span class="dash-count-tag">{{ formatNumber(recentAttackRows.length) }} shown</span>
           </div>
-          <div class="table-wrap">
-            <table class="ip-table">
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Source IP</th>
-                  <th>Attack type</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in recentAttackRows" :key="`${row.sourceIp}-${row.timestamp}`">
-                  <td>{{ formatDateTime(row.timestamp) }}</td>
-                  <td class="num">{{ row.sourceIp }}</td>
-                  <td>
-                    <span :class="['badge', attackBadgeClass(row.attackType)]">{{ attackTypeLabel(row.attackType) }}</span>
-                  </td>
-                </tr>
-                <tr v-if="!recentAttackRows.length">
-                  <td colspan="3" class="empty-row">No recent attacks</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <p v-if="!recentAttackRows.length" class="dash-empty">No attack attempts in this range.</p>
+          <ul v-else class="l4-attack-list" aria-label="Recent attacks">
+            <li v-for="row in recentAttackRows" :key="`${row.serverId}-${row.sourceIp}-${row.timestamp}-${row.reqId || ''}`" class="l4-attack-row">
+              <div class="l4-attack-row__time">
+                <span class="l4-attack-row__clock num">{{ formatClock(row.timestamp) }}</span>
+                <span class="l4-attack-row__rel">{{ formatRelativeTime(row.timestamp) }}</span>
+              </div>
+              <div class="l4-attack-row__body">
+                <div class="l4-attack-row__main">
+                  <span class="l4-attack-row__ip num">{{ row.sourceIp }}</span>
+                  <span :class="['badge', attackBadgeClass(row.attackType)]">{{ attackTypeLabel(row.attackType) }}</span>
+                </div>
+                <div class="l4-attack-row__meta">
+                  <span class="l4-edge-chip" :title="row.serverIp || ''">
+                    <span class="l4-edge-chip__dot" aria-hidden="true"></span>
+                    {{ edgeLabel(row) }}
+                  </span>
+                  <span v-if="row.serverIp" class="l4-attack-row__edge-ip num">{{ maskIp(row.serverIp) }}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="ip-blacklist-btn"
+                :disabled="!row.serverId"
+                @click="openBlacklistDialog(row.sourceIp, row.serverId)"
+              >
+                Block
+              </button>
+            </li>
+          </ul>
         </div>
-        <div class="dash-panel c-6">
+
+        <div class="dash-panel c-6 l4-attack-panel">
           <div class="dash-panel-head">
             <div>
               <h3>Top attacking IPs</h3>
+              <p class="dash-panel-desc">Sources ranked by attempts, per target edge</p>
             </div>
             <div class="table-controls">
               <span>Show</span>
-              <select v-model="seenIpLimit" class="dash-select dash-select--sm">
+              <select v-model="seenIpLimit" class="dash-select dash-select--sm" aria-label="Rows to show">
                 <option value="10">10</option>
                 <option value="20">20</option>
                 <option value="30">30</option>
@@ -207,33 +238,66 @@
               </select>
             </div>
           </div>
-          <div class="table-wrap">
-            <table class="ip-table">
+          <p v-if="!visibleSeenIps.length" class="dash-empty">No attacking IPs in this range.</p>
+          <div v-else class="table-wrap">
+            <table class="ip-table l4-top-table">
               <thead>
                 <tr>
-                  <th>IP address</th>
-                  <th>Seen count</th>
+                  <th class="col-rank">#</th>
+                  <th>Source</th>
+                  <th>Target edge</th>
+                  <th>Types</th>
+                  <th class="is-num">Attempts</th>
                   <th>Last seen</th>
-                  <th>Action</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in visibleSeenIps" :key="row.ip">
-                  <td class="num">{{ row.ip }}</td>
-                  <td class="num">{{ formatNumber(row.count) }}</td>
-                  <td>{{ formatDateTime(row.lastSeen) }}</td>
+                <tr v-for="(row, index) in visibleSeenIps" :key="`${row.serverId}-${row.ip}`">
+                  <td class="col-rank num">{{ index + 1 }}</td>
+                  <td>
+                    <span class="l4-top-ip num">{{ row.ip }}</span>
+                    <span v-if="row.firstSeen" class="l4-top-sub">First {{ formatRelativeTime(row.firstSeen) }}</span>
+                  </td>
+                  <td>
+                    <span class="l4-edge-chip" :title="row.serverIp || ''">
+                      <span class="l4-edge-chip__dot" aria-hidden="true"></span>
+                      {{ edgeLabel(row) }}
+                    </span>
+                    <span v-if="row.serverIp" class="l4-top-sub num">{{ maskIp(row.serverIp) }}</span>
+                  </td>
+                  <td>
+                    <div class="l4-type-stack">
+                      <span
+                        v-for="type in (row.attackTypes || []).slice(0, 3)"
+                        :key="type"
+                        :class="['badge', 'badge--sm', attackBadgeClass(type)]"
+                      >{{ attackTypeLabel(type) }}</span>
+                      <span v-if="(row.attackTypes || []).length > 3" class="l4-type-more">+{{ row.attackTypes.length - 3 }}</span>
+                    </div>
+                  </td>
+                  <td class="is-num">
+                    <div class="l4-count-cell">
+                      <span class="num">{{ formatNumber(row.count) }}</span>
+                      <span class="l4-count-bar" aria-hidden="true">
+                        <span class="l4-count-bar__fill" :style="{ width: `${countBarWidth(row.count)}%` }"></span>
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <span>{{ formatDateTime24(row.lastSeen) }}</span>
+                    <span class="l4-top-sub">{{ formatRelativeTime(row.lastSeen) }}</span>
+                  </td>
                   <td>
                     <button
                       type="button"
                       class="ip-blacklist-btn"
-                      @click="openBlacklistDialog(row.ip)"
+                      :disabled="!row.serverId"
+                      @click="openBlacklistDialog(row.ip, row.serverId)"
                     >
-                      Blacklist
+                      Block
                     </button>
                   </td>
-                </tr>
-                <tr v-if="!visibleSeenIps.length">
-                  <td colspan="4" class="empty-row">No attacking IPs</td>
                 </tr>
               </tbody>
             </table>
@@ -323,13 +387,15 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ApexCharts from 'apexcharts'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import DetectionNav from '@/components/views/DetectionNav.vue'
+import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
 import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { l4AttackKind, l4AttackLabel } from '@/utils/l4AttackType'
+import { formatDateTime24, formatRelativeTime } from '@/utils/auditFormat'
+import { maskIp } from '@/utils/maskIp'
 import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
 import {
   formatApexTimeTick,
@@ -490,6 +556,65 @@ const visibleSeenIps = computed(() => {
   return seenIpRows.value.slice(0, limit)
 })
 
+const attackSummary = computed(() => {
+  const rows = recentAttackRows.value
+  const tops = seenIpRows.value
+  const sources = new Set()
+  const edges = new Set()
+  const typeCounts = new Map()
+  for (const row of tops) {
+    if (row.ip) sources.add(row.ip)
+    if (row.serverId) edges.add(row.serverId)
+    for (const type of row.attackTypes || []) {
+      typeCounts.set(type, (typeCounts.get(type) || 0) + 1)
+    }
+  }
+  for (const row of rows) {
+    if (row.sourceIp) sources.add(row.sourceIp)
+    if (row.serverId) edges.add(row.serverId)
+    if (row.attackType) typeCounts.set(row.attackType, (typeCounts.get(row.attackType) || 0) + 1)
+  }
+  let topType = ''
+  let topCount = 0
+  for (const [type, count] of typeCounts) {
+    if (count > topCount) {
+      topType = attackTypeLabel(type)
+      topCount = count
+    }
+  }
+  const attempts = tops.reduce((sum, row) => sum + (Number(row.count) || 0), 0) || rows.length
+  return {
+    attempts,
+    sources: sources.size,
+    edges: edges.size,
+    topType: topType ? `Mostly ${topType}` : '',
+  }
+})
+
+const maxSeenCount = computed(() =>
+  visibleSeenIps.value.reduce((max, row) => Math.max(max, Number(row.count) || 0), 0),
+)
+
+const countBarWidth = (count) => {
+  const max = maxSeenCount.value
+  if (!max) return 0
+  return Math.max(6, Math.round((Number(count) / max) * 100))
+}
+
+const edgeLabel = (row) => {
+  if (row?.serverName) return row.serverName
+  if (row?.serverId) return `Edge ${row.serverId}`
+  return 'Unknown edge'
+}
+
+const formatClock = (value) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
 const metricCards = computed(() => {
   const total = Number(l4Summary.value.totalTraffic) || 0
   const allowed = Number(l4Summary.value.allowedTraffic) || 0
@@ -549,11 +674,12 @@ const protocolLegend = computed(() => {
   }))
 })
 
-const openBlacklistDialog = (ip) => {
+const openBlacklistDialog = (ip, serverId) => {
+  const edgeId = serverId || (selectedServer.value !== 'all' ? selectedServer.value : 'all')
   blacklistForm.value = {
     ip,
-    reason: '',
-    serverId: selectedServer.value !== 'all' ? selectedServer.value : 'all',
+    reason: 'L4 attacking source',
+    serverId: edgeId,
   }
   showBlacklistDialog.value = true
 }
@@ -629,8 +755,7 @@ const attackTypeLabel = (value) => l4AttackLabel(value)
 
 const attackBadgeClass = (value) => {
   const kind = l4AttackKind(value)
-  if (['socket', 'stomp', 'syn', 'udp', 'icmp'].includes(kind)) return `attack-${kind}`
-  return 'attack-other'
+  return `attack-${kind}`
 }
 
 const mapSeriesPoints = (points, field) =>
@@ -682,7 +807,7 @@ const loadL4Analytics = async () => {
       fetchL4Summary(params),
       fetchL4Series('traffic', params),
       fetchL4Series('protocols', params),
-      fetchL4Attacks('recent', { ...params, limit: 10 }),
+      fetchL4Attacks('recent', { ...params, limit: 40 }),
       fetchL4Attacks('top-ips', { ...params, limit: 50 }),
     ])
 
@@ -1114,6 +1239,147 @@ onBeforeUnmount(() => {
   padding: 4px 8px;
 }
 
+.l4-attack-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.l4-attack-summary__card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--dorian-danger, #e15241) 6%, transparent) 0%, transparent 70%),
+    var(--app-surface);
+}
+
+.l4-attack-summary__label {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.l4-attack-summary__value {
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.1;
+}
+
+.l4-attack-summary__hint {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.l4-attack-panel {
+  min-height: 0;
+}
+
+.l4-attack-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 480px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.l4-attack-row {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 4px;
+  border-bottom: 0.5px solid var(--app-border);
+}
+
+.l4-attack-row:last-child {
+  border-bottom: 0;
+}
+
+.l4-attack-row__time {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.l4-attack-row__clock {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.l4-attack-row__rel {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.l4-attack-row__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.l4-attack-row__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.l4-attack-row__ip {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.l4-attack-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.l4-attack-row__edge-ip {
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.l4-edge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  border: 0.5px solid color-mix(in srgb, var(--dorian-l4, #6b9fd4) 28%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-l4, #6b9fd4) 10%, transparent);
+  color: var(--app-text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.l4-edge-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dorian-l4, #6b9fd4);
+  flex-shrink: 0;
+}
+
 .table-controls {
   display: flex;
   align-items: center;
@@ -1123,7 +1389,7 @@ onBeforeUnmount(() => {
 }
 
 .table-wrap {
-  max-height: 420px;
+  max-height: 480px;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -1136,9 +1402,10 @@ onBeforeUnmount(() => {
 
 .ip-table th,
 .ip-table td {
-  padding: 8px 10px;
+  padding: 10px 10px;
   text-align: left;
-  border-bottom: 1px solid var(--app-border);
+  border-bottom: 0.5px solid var(--app-border);
+  vertical-align: top;
 }
 
 .ip-table th {
@@ -1157,6 +1424,66 @@ onBeforeUnmount(() => {
   color: var(--app-text);
 }
 
+.ip-table .is-num,
+.ip-table th.is-num {
+  text-align: right;
+}
+
+.l4-top-table .col-rank {
+  width: 36px;
+  color: var(--app-text-muted);
+}
+
+.l4-top-ip {
+  display: block;
+  font-weight: 650;
+  color: var(--app-heading);
+}
+
+.l4-top-sub {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.l4-type-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 180px;
+}
+
+.l4-type-more {
+  font-size: 11px;
+  color: var(--app-text-muted);
+  align-self: center;
+}
+
+.l4-count-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 64px;
+}
+
+.l4-count-bar {
+  display: block;
+  width: 64px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--app-surface-muted, var(--app-border));
+  overflow: hidden;
+}
+
+.l4-count-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dorian-danger, #e15241);
+}
+
 .empty-row {
   color: var(--app-text-muted);
   text-align: center;
@@ -1170,9 +1497,17 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
-.attack-socket {
+.badge--sm {
+  padding: 1px 6px;
+  font-size: 10px;
+}
+
+.attack-socket,
+.attack-other,
+.attack-conn-limit {
   background: rgba(143, 163, 184, 0.16);
   color: #8fa3b8;
 }
@@ -1182,9 +1517,17 @@ onBeforeUnmount(() => {
   color: #e07a5f;
 }
 
-.attack-syn {
+.attack-syn,
+.attack-ack,
+.attack-handshake {
   background: rgba(107, 159, 212, 0.16);
   color: #6b9fd4;
+}
+
+.attack-rst,
+.attack-frag {
+  background: rgba(176, 120, 196, 0.16);
+  color: #b078c4;
 }
 
 .attack-udp {
@@ -1192,14 +1535,10 @@ onBeforeUnmount(() => {
   color: #d4a24a;
 }
 
-.attack-icmp {
+.attack-icmp,
+.attack-gre {
   background: rgba(63, 189, 133, 0.16);
   color: #3fbd85;
-}
-
-.attack-other {
-  background: rgba(143, 163, 184, 0.16);
-  color: #8fa3b8;
 }
 
 .ip-blacklist-btn {
@@ -1235,19 +1574,26 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1100px) {
-  .l4-kpi-strip {
+  .l4-kpi-strip,
+  .l4-attack-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 720px) {
-  .l4-kpi-strip {
+  .l4-kpi-strip,
+  .l4-attack-summary {
     grid-template-columns: 1fr;
   }
 
   .l4-chart-readouts,
   .l4-proto-legend {
     justify-content: flex-start;
+  }
+
+  .l4-attack-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 }
 

@@ -54,3 +54,9 @@ export const revokeApiToken = async (id) => {
     method: 'DELETE',
   })
 }
+
+export const fetchApiTokenScopes = async () => {
+  const { useMocks } = await getApiConfig()
+  if (useMocks) return [{ id: '*', label: 'Full access', description: '' }]
+  return apiRequest('/auth/api-token-scopes')
+}

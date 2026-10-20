@@ -25,3 +25,14 @@ export const resetUserMFA = async (id) =>
   apiRequest(`/users/${id}/mfa`, {
     method: 'DELETE',
   })
+
+export const sendUserInvite = async (id) =>
+  apiRequest(`/users/${id}/invite`, { method: 'POST' })
+
+export const createUserResetLink = async (id) =>
+  apiRequest(`/users/${id}/password-reset`, { method: 'POST' })
+
+export const listUserSessions = async (id) => apiRequest(`/users/${id}/sessions`)
+
+export const revokeUserSessions = async (id) =>
+  apiRequest(`/users/${id}/sessions/revoke`, { method: 'POST' })

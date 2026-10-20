@@ -3,8 +3,8 @@
     <header class="dash-topbar">
       <div class="dash-topbar__left">
         <p class="dash-kicker">Billing</p>
-        <h2>License</h2>
-        <p>Pick a tier for this edge. Apply regenerates the license and runs a license-only deploy.</p>
+        <h2>Licensing</h2>
+        <p>Each edge carries its own license. Changing a tier regenerates the license and runs a license-only deploy.</p>
       </div>
       <div class="dash-topbar__right">
         <AppTopbarActions />
@@ -48,14 +48,14 @@
         </div>
 
         <div class="license-kpi-strip" role="list">
-          <div class="license-kpi tone-signal" role="listitem">
-            <span class="license-kpi__label">Edge</span>
-            <span class="license-kpi__value">{{ selectedServerData.name || '—' }}</span>
-            <span class="license-kpi__hint">{{ selectedServerData.ip || 'host bound' }}</span>
+          <div class="license-kpi" :class="`tone-${selectedExpiry.tone}`" role="listitem">
+            <span class="license-kpi__label">Expires</span>
+            <span class="license-kpi__value">{{ selectedExpiry.dateLabel }}</span>
+            <span class="license-kpi__hint">{{ selectedExpiry.daysLabel }}</span>
           </div>
           <div class="license-kpi tone-l4" role="listitem">
             <span class="license-kpi__label">L4</span>
-            <span class="license-kpi__value">{{ layerDotTitle(selectedServerData, 'l4') }}</span>
+            <span class="license-kpi__value">{{ runtimeStatusLabel(resolveLayerStatus(selectedServerData, 'l4')) }}</span>
             <span class="license-kpi__hint">
               <LayerStatusDot
                 layer="l4"
@@ -67,7 +67,7 @@
           </div>
           <div class="license-kpi tone-l7" role="listitem">
             <span class="license-kpi__label">L7</span>
-            <span class="license-kpi__value">{{ layerDotTitle(selectedServerData, 'l7') }}</span>
+            <span class="license-kpi__value">{{ runtimeStatusLabel(resolveLayerStatus(selectedServerData, 'l7')) }}</span>
             <span class="license-kpi__hint">
               <LayerStatusDot
                 layer="l7"
@@ -77,10 +77,10 @@
               application security
             </span>
           </div>
-          <div class="license-kpi tone-warn" role="listitem">
+          <div class="license-kpi tone-signal" role="listitem">
             <span class="license-kpi__label">Angelos</span>
             <span class="license-kpi__value">{{ angelosStatusLabel(selectedServerData) }}</span>
-            <span class="license-kpi__hint">{{ expiryLabel }}</span>
+            <span class="license-kpi__hint">edge agent</span>
           </div>
         </div>
       </section>
@@ -107,6 +107,7 @@
       </section>
     </template>
 
+
     <section v-else class="dash-panel license-empty">
       <span class="license-empty__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -115,6 +116,64 @@
       </span>
       <h3>Select an edge</h3>
       <p>Choose a target edge above to review pricing and change its license tier.</p>
+    </section>
+
+    <section v-if="fleetRows.length" class="dash-panel license-fleet" aria-label="Licenses across edges">
+      <div class="dash-panel-head">
+        <h3>
+          <span class="license-panel-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="12" height="4" rx="1" />
+              <rect x="2" y="9" width="12" height="4" rx="1" />
+            </svg>
+          </span>
+          All edges
+          <span class="license-panel-hint">sorted by expiry · select a row to manage it</span>
+        </h3>
+        <div class="license-fleet__totals">
+          <span v-if="fleetSummary.expired" class="license-chip tone-danger">{{ fleetSummary.expired }} expired</span>
+          <span v-if="fleetSummary.soon" class="license-chip tone-warn">{{ fleetSummary.soon }} within 14 days</span>
+          <span class="dash-count-tag">{{ fleetRows.length }} edges</span>
+        </div>
+      </div>
+      <div class="license-fleet__scroll">
+        <table class="license-fleet__table">
+          <thead>
+            <tr>
+              <th scope="col">Edge</th>
+              <th scope="col">Tier</th>
+              <th scope="col">Expires</th>
+              <th scope="col" class="num-col">Days left</th>
+              <th scope="col">L4</th>
+              <th scope="col">L7</th>
+              <th scope="col">Angelos</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in fleetRows"
+              :key="row.id"
+              :class="{ selected: row.id === selectedServer }"
+              tabindex="0"
+              @click="selectedServer = row.id"
+              @keydown.enter="selectedServer = row.id"
+            >
+              <td>
+                <span class="license-fleet__name">{{ row.name }}</span>
+                <span class="license-fleet__ip num">{{ row.maskedIp }}</span>
+              </td>
+              <td><span class="license-tier-tag" :class="row.tierAccent">{{ row.tier }}</span></td>
+              <td class="num">{{ row.expiry.dateLabel }}</td>
+              <td class="num num-col">
+                <span class="license-chip" :class="`tone-${row.expiry.tone}`">{{ row.expiry.shortLabel }}</span>
+              </td>
+              <td>{{ row.l4 }}</td>
+              <td>{{ row.l7 }}</td>
+              <td>{{ row.angelos }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </div>
 </template>
@@ -131,9 +190,38 @@ import LayerStatusDot from '../LayerStatusDot.vue'
 import {
   angelosStatusLabel,
   layerDotDescription,
-  layerDotTitle,
   resolveLayerStatus,
+  runtimeStatusLabel,
 } from '@/utils/serverLayerStatus'
+import { maskIp } from '@/utils/maskIp'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const SOON_DAYS = 14
+
+const tierAccent = (tier) => {
+  if (tier === 'L4') return 'l4'
+  if (tier === 'L7') return 'l7'
+  if (tier === 'Unified') return 'unified'
+  return 'trial'
+}
+
+const describeExpiry = (server) => {
+  const raw = server?.expiredDate || server?.expired || ''
+  const time = raw ? Date.parse(raw) : NaN
+  if (!Number.isFinite(time)) {
+    return { time: Number.POSITIVE_INFINITY, dateLabel: 'Not set', daysLabel: 'no expiry recorded', shortLabel: '—', tone: 'muted' }
+  }
+  const date = new Date(time)
+  const dateLabel = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const endOfDay = time + DAY_MS
+  const days = Math.ceil((endOfDay - Date.now()) / DAY_MS)
+  if (days <= 0) {
+    return { time, dateLabel, daysLabel: 'expired', shortLabel: 'Expired', tone: 'danger' }
+  }
+  const tone = days <= SOON_DAYS ? 'warn' : 'signal'
+  const unit = days === 1 ? 'day' : 'days'
+  return { time, dateLabel, daysLabel: `${days} ${unit} left`, shortLabel: `${days}`, tone }
+}
 
 const route = useRoute()
 const serverOptions = ref([])
@@ -152,13 +240,7 @@ const currentTierLabel = computed(() => {
   return tier
 })
 
-const currentTierAccent = computed(() => {
-  const tier = currentTier.value
-  if (tier === 'L4') return 'l4'
-  if (tier === 'L7') return 'l7'
-  if (tier === 'Unified') return 'unified'
-  return 'trial'
-})
+const currentTierAccent = computed(() => tierAccent(currentTier.value))
 
 const currentTierHint = computed(() => {
   switch (currentTier.value) {
@@ -173,17 +255,31 @@ const currentTierHint = computed(() => {
   }
 })
 
-const expiryLabel = computed(() => {
-  const raw =
-    selectedServerData.value?.expired ||
-    selectedServerData.value?.expireDate ||
-    selectedServerData.value?.expiresAt ||
-    ''
-  if (!raw) return 'license bound to this host'
-  const date = new Date(raw)
-  if (Number.isNaN(date.getTime())) return String(raw)
-  return `expires ${date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}`
-})
+const selectedExpiry = computed(() => describeExpiry(selectedServerData.value))
+
+const fleetRows = computed(() =>
+  serverOptions.value
+    .map((server) => {
+      const tier = normalizeLicenseTier(server.license)
+      return {
+        id: server.id,
+        name: server.name || `Edge #${server.id}`,
+        maskedIp: maskIp(server.ip),
+        tier,
+        tierAccent: tierAccent(tier),
+        expiry: describeExpiry(server),
+        l4: runtimeStatusLabel(resolveLayerStatus(server, 'l4')),
+        l7: runtimeStatusLabel(resolveLayerStatus(server, 'l7')),
+        angelos: angelosStatusLabel(server),
+      }
+    })
+    .sort((a, b) => a.expiry.time - b.expiry.time || a.name.localeCompare(b.name)),
+)
+
+const fleetSummary = computed(() => ({
+  expired: fleetRows.value.filter((row) => row.expiry.tone === 'danger').length,
+  soon: fleetRows.value.filter((row) => row.expiry.tone === 'warn').length,
+}))
 
 const loadServers = async () => {
   try {
@@ -359,6 +455,129 @@ onMounted(() => {
 .license-kpi.tone-l4 { --kpi-tone: var(--dorian-l4, #6b9fd4); }
 .license-kpi.tone-l7 { --kpi-tone: var(--dorian-l7, #8fa3b8); }
 .license-kpi.tone-warn { --kpi-tone: var(--dorian-warn, #e0a83f); }
+.license-kpi.tone-danger { --kpi-tone: var(--dorian-danger, #e15241); }
+.license-kpi.tone-muted { --kpi-tone: var(--app-border-strong); }
+
+.license-fleet .dash-panel-head {
+  margin-bottom: 10px;
+}
+
+.license-fleet .dash-panel-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--app-heading);
+  font-weight: 600;
+}
+
+.license-fleet__totals {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.license-fleet__scroll {
+  overflow-x: auto;
+}
+
+.license-fleet__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.license-fleet__table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  border-bottom: 0.5px solid var(--app-border);
+  white-space: nowrap;
+}
+
+.license-fleet__table td {
+  padding: 9px 10px;
+  color: var(--app-text);
+  border-bottom: 0.5px solid var(--app-border);
+  white-space: nowrap;
+}
+
+.license-fleet__table tbody tr {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.license-fleet__table tbody tr:hover {
+  background: var(--app-surface-hover, var(--app-surface-muted));
+}
+
+.license-fleet__table tbody tr.selected {
+  background: color-mix(in srgb, var(--dorian-viper-400, var(--app-accent)) 8%, transparent);
+}
+
+.license-fleet__table tbody tr.selected td:first-child {
+  box-shadow: inset 2px 0 0 var(--dorian-viper-400, var(--app-accent));
+}
+
+.license-fleet__table tbody tr:focus-visible {
+  outline: 1px solid var(--dorian-viper-400, var(--app-accent));
+  outline-offset: -1px;
+}
+
+.license-fleet__table .num-col {
+  text-align: right;
+}
+
+.license-fleet__name {
+  display: block;
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.license-fleet__ip {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+
+.license-tier-tag {
+  --tag-tone: var(--dorian-warn, #e0a83f);
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: var(--badge-radius, 999px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tag-tone);
+  background: color-mix(in srgb, var(--tag-tone) 12%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--tag-tone) 30%, transparent);
+}
+
+.license-tier-tag.l4 { --tag-tone: var(--dorian-l4, #6b9fd4); }
+.license-tier-tag.l7 { --tag-tone: var(--dorian-l7, #8fa3b8); }
+.license-tier-tag.unified { --tag-tone: var(--dorian-viper-400, var(--app-accent)); }
+
+.license-chip {
+  --chip-tone: var(--app-text-muted);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--badge-radius, 999px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--chip-tone);
+  background: color-mix(in srgb, var(--chip-tone) 12%, transparent);
+}
+
+.license-chip.tone-signal { --chip-tone: var(--dorian-viper-400, var(--app-accent)); }
+.license-chip.tone-warn { --chip-tone: var(--dorian-warn, #e0a83f); }
+.license-chip.tone-danger { --chip-tone: var(--dorian-danger, #e15241); }
+.license-chip.tone-muted { --chip-tone: var(--app-text-muted); }
 
 .license-kpi__label {
   display: block;

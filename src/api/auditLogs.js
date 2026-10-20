@@ -8,6 +8,8 @@ export const fetchAuditLogs = async (params = {}) => {
   if (params.search) search.set('search', params.search)
   if (params.ip) search.set('ip', params.ip)
   if (params.actorUserId) search.set('actorUserId', String(params.actorUserId))
+  if (params.from) search.set('from', params.from)
+  if (params.to) search.set('to', params.to)
 
   const query = search.toString()
   return apiRequest(`/api/v1/audit-logs${query ? `?${query}` : ''}`)

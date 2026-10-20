@@ -1,135 +1,181 @@
 <template>
-  <div class="history-view">
-    <div class="history-card">
-      <div class="card-header">
-        <div>
-          <h2>Audit History</h2>
-          <p class="card-subtitle">
-            Who did what, to which resource, and from where — sign-ins, users, 2FA and API tokens, edges,
-            sites, WAF rules, and blocked lists. Changes show the old and new values; secrets are never recorded.
-          </p>
-        </div>
-        <button class="ghost-btn" type="button" :disabled="isLoading" @click="loadHistory">
-          {{ isLoading ? 'Refreshing...' : 'Refresh' }}
-        </button>
+  <div class="dashboard-view acct-view">
+    <header class="dash-topbar">
+      <div class="dash-topbar__left">
+        <p class="acct-kicker">Account</p>
+        <h2>Audit log</h2>
+        <p>Who did what, to which resource, and from where. Changes show old and new values; secrets are never recorded.</p>
       </div>
-
-      <div class="filters">
-        <div class="filter-field">
-          <label for="history-search">Search</label>
-          <input
-            id="history-search"
-            v-model="filters.search"
-            type="search"
-            placeholder="User, email, resource, details..."
-            @keyup.enter="loadHistory"
-          />
-        </div>
-        <div class="filter-field">
-          <label for="history-ip">IP</label>
-          <input
-            id="history-ip"
-            v-model="filters.ip"
-            type="search"
-            placeholder="e.g. 192.168.1.10"
-            @keyup.enter="loadHistory"
-          />
-        </div>
-        <div class="filter-field">
-          <label for="history-category">Category</label>
-          <select id="history-category" v-model="filters.category" @change="loadHistory">
-            <option value="">All categories</option>
-            <option v-for="option in categoryOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </div>
-        <div class="filter-field">
-          <label for="history-action">Action</label>
-          <select id="history-action" v-model="filters.action" @change="loadHistory">
-            <option value="">All actions</option>
-            <option v-for="option in actionOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </div>
-        <div class="filter-field">
-          <label for="history-result">Result</label>
-          <select id="history-result" v-model="filters.result">
-            <option value="">All results</option>
-            <option value="success">Success</option>
-            <option value="failed">Failed / denied</option>
-          </select>
-        </div>
-        <button class="primary-btn filter-btn" type="button" :disabled="isLoading" @click="loadHistory">
-          Apply
+      <div class="dash-topbar__right">
+        <button class="acct-btn" type="button" :disabled="!entries.length" @click="exportCsv">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v8M4.5 7.5L8 11l3.5-3.5M3 13.5h10" /></svg>
+          Export CSV
         </button>
+        <AppTopbarActions />
       </div>
+    </header>
 
-      <div class="history-table">
-        <table>
+    <div class="dash-filterbar audit-filters">
+      <div class="dash-filter-field">
+        <label>Range</label>
+        <div class="dash-range-pills" role="radiogroup" aria-label="Time range">
+          <button
+            v-for="option in RANGE_OPTIONS"
+            :key="option.id"
+            type="button"
+            class="dash-range-pill"
+            :class="{ active: filters.range === option.id }"
+            role="radio"
+            :aria-checked="filters.range === option.id"
+            @click="setRange(option.id)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
+      <template v-if="filters.range === 'custom'">
+        <div class="dash-filter-field">
+          <label for="audit-from">From</label>
+          <input id="audit-from" v-model="filters.from" class="dash-select audit-date" type="date" :max="filters.to || todayIso" @change="loadHistory" />
+        </div>
+        <div class="dash-filter-field">
+          <label for="audit-to">To</label>
+          <input id="audit-to" v-model="filters.to" class="dash-select audit-date" type="date" :min="filters.from" :max="todayIso" @change="loadHistory" />
+        </div>
+      </template>
+      <div class="dash-filter-field audit-filters__search">
+        <label for="audit-search">Search</label>
+        <input id="audit-search" v-model="filters.search" class="dash-select" type="search" placeholder="User, resource, details, IP…" @keyup.enter="loadHistory" @search="loadHistory" />
+      </div>
+      <div class="dash-filter-field">
+        <label for="audit-category">Category</label>
+        <select id="audit-category" v-model="filters.category" class="dash-select" @change="loadHistory">
+          <option value="">All</option>
+          <option v-for="option in AUDIT_CATEGORIES" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </div>
+      <div class="dash-filter-field">
+        <label for="audit-action">Action</label>
+        <select id="audit-action" v-model="filters.action" class="dash-select" @change="loadHistory">
+          <option value="">All</option>
+          <option v-for="option in AUDIT_ACTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </div>
+      <div class="dash-filter-field">
+        <label for="audit-result">Result</label>
+        <select id="audit-result" v-model="filters.result" class="dash-select">
+          <option value="">All</option>
+          <option value="success">Success</option>
+          <option value="failed">Failed or denied</option>
+        </select>
+      </div>
+      <label class="audit-ip-toggle">
+        <input v-model="showFullIps" type="checkbox" />
+        Show full IPs
+      </label>
+      <button class="acct-btn audit-filters__refresh" type="button" :disabled="isLoading" @click="loadHistory">
+        {{ isLoading ? 'Loading…' : 'Refresh' }}
+      </button>
+    </div>
+
+    <section class="acct-kpis audit-kpis" aria-label="Summary">
+      <div class="acct-kpi tone-signal">
+        <span class="acct-kpi__label">Events</span>
+        <span class="acct-kpi__value num">{{ entries.length.toLocaleString() }}</span>
+        <span class="acct-kpi__hint">{{ rangeLabel }}{{ allEntries.length >= FETCH_LIMIT ? ' · newest 1,000' : '' }}</span>
+      </div>
+      <div class="acct-kpi tone-info">
+        <span class="acct-kpi__label">People</span>
+        <span class="acct-kpi__value num">{{ summary.actors }}</span>
+        <span class="acct-kpi__hint">distinct actors</span>
+      </div>
+      <div class="acct-kpi" :class="summary.failedSignIns ? 'tone-warn' : 'tone-signal'">
+        <span class="acct-kpi__label">Failed sign-ins</span>
+        <span class="acct-kpi__value num">{{ summary.failedSignIns }}</span>
+        <span class="acct-kpi__hint">wrong password or 2FA code</span>
+      </div>
+      <div class="acct-kpi" :class="summary.denied ? 'tone-danger' : 'tone-signal'">
+        <span class="acct-kpi__label">Failed or denied</span>
+        <span class="acct-kpi__value num">{{ summary.denied }}</span>
+        <span class="acct-kpi__hint">requests that did not succeed</span>
+      </div>
+    </section>
+
+    <section class="dash-panel" aria-label="Events">
+      <p v-if="loadError" class="acct-error">{{ loadError }}</p>
+      <p v-else-if="isLoading && !entries.length" class="acct-hint">Loading audit log…</p>
+      <p v-else-if="!entries.length" class="acct-empty">No events match these filters.</p>
+      <div v-else class="audit-table-wrap">
+        <table class="acct-table audit-table">
+          <colgroup>
+            <col class="col-time" />
+            <col class="col-actor" />
+            <col />
+            <col class="col-target" />
+            <col class="col-source" />
+            <col class="col-result" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Actor</th>
-              <th>Activity</th>
-              <th>Target</th>
-              <th>Source</th>
-              <th>Result</th>
+              <th scope="col">Time</th>
+              <th scope="col">Actor</th>
+              <th scope="col">Activity</th>
+              <th scope="col">Target</th>
+              <th scope="col">Source</th>
+              <th scope="col">Result</th>
             </tr>
           </thead>
           <tbody>
             <template v-for="entry in paginatedEntries" :key="entry.id">
               <tr
-                class="entry-row"
-                :class="{ 'is-expanded': expandedId === entry.id, 'is-failed': !auditSucceeded(entry) }"
+                class="audit-row"
+                :class="{ 'is-expanded': expandedId === entry.id }"
+                tabindex="0"
                 @click="toggleExpanded(entry.id)"
+                @keydown.enter="toggleExpanded(entry.id)"
               >
-                <td class="time-cell">{{ formatTime(entry.createdAt) }}</td>
-                <td>
-                  <div class="actor-cell">
-                    <strong>{{ actorLabel(entry) }}</strong>
-                    <span v-if="entry.actorName && entry.actorEmail" class="actor-email">{{ entry.actorEmail }}</span>
-                    <span v-if="entry.actorRole" class="actor-role">{{ entry.actorRole }}</span>
-                  </div>
+                <td class="nowrap num">
+                  {{ formatDateTime24(entry.createdAt, { seconds: true }) }}
                 </td>
-                <td class="activity-cell">
-                  <span class="badge action" :class="auditActionClass(entry.action)">
-                    {{ formatAuditAction(entry.action) }}
+                <td>
+                  <span class="acct-cell-main audit-ellipsis">{{ actorLabel(entry) }}</span>
+                  <span class="acct-cell-sub audit-ellipsis">
+                    <template v-if="entry.actorName && entry.actorEmail">{{ entry.actorEmail }}</template>
+                    <template v-else>{{ entry.actorRole || '' }}</template>
                   </span>
-                  <p class="activity-summary">{{ detailsOf(entry).summary || '—' }}</p>
-                  <ul v-if="detailsOf(entry).changes.length" class="activity-changes">
-                    <li v-for="(change, index) in detailsOf(entry).changes" :key="index">{{ change }}</li>
-                  </ul>
                 </td>
                 <td>
-                  <div class="resource-cell">
-                    <strong>{{ entry.resourceName || '—' }}</strong>
-                    <span class="badge category">{{ formatAuditCategory(entry.category) }}</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="source-cell">
-                    <strong>{{ entry.ipAddress || '—' }}</strong>
-                    <span v-if="entry.userAgent" class="source-agent">{{ describeUserAgent(entry.userAgent) }}</span>
-                  </div>
-                </td>
-                <td>
-                  <span class="badge result" :class="auditSucceeded(entry) ? 'is-success' : 'is-failure'">
-                    {{ auditResultLabel(entry) }}
+                  <span class="audit-pill" :class="auditActionClass(entry.action)">{{ formatAuditAction(entry.action) }}</span>
+                  <span class="audit-summary">{{ detailsOf(entry).summary || '—' }}</span>
+                  <span v-if="detailsOf(entry).changes.length" class="audit-change-count">
+                    {{ detailsOf(entry).changes.length }} {{ detailsOf(entry).changes.length === 1 ? 'change' : 'changes' }}
                   </span>
+                </td>
+                <td>
+                  <span class="acct-cell-main audit-ellipsis">{{ entry.resourceName || '—' }}</span>
+                  <span class="acct-cell-sub">{{ formatAuditCategory(entry.category) }}</span>
+                </td>
+                <td>
+                  <span class="acct-cell-main num nowrap audit-ip">{{ entry.ipAddress ? (showFullIps ? entry.ipAddress : maskIp(entry.ipAddress)) : '—' }}</span>
+                  <span v-if="entry.userAgent" class="acct-cell-sub audit-ellipsis">{{ describeUserAgent(entry.userAgent) }}</span>
+                </td>
+                <td>
+                  <span class="acct-badge" :class="auditSucceeded(entry) ? 'tone-signal' : 'tone-danger'">{{ auditResultLabel(entry) }}</span>
                 </td>
               </tr>
-              <tr v-if="expandedId === entry.id" class="entry-detail-row">
+              <tr v-if="expandedId === entry.id" class="audit-detail-row">
                 <td colspan="6">
-                  <dl class="entry-detail">
+                  <ul v-if="detailsOf(entry).changes.length" class="audit-changes">
+                    <li v-for="(change, index) in detailsOf(entry).changes" :key="index">{{ change }}</li>
+                  </ul>
+                  <dl class="audit-detail">
                     <div>
                       <dt>Request</dt>
                       <dd><code>{{ entry.httpMethod || '—' }} {{ entry.path || '' }}</code></dd>
                     </div>
                     <div>
                       <dt>Status</dt>
-                      <dd>{{ entry.statusCode || '—' }}</dd>
+                      <dd class="num">{{ entry.statusCode || '—' }}</dd>
                     </div>
                     <div v-if="entry.resourceType || entry.resourceId">
                       <dt>Resource</dt>
@@ -137,9 +183,9 @@
                     </div>
                     <div v-if="entry.actorUserId">
                       <dt>Actor ID</dt>
-                      <dd>#{{ entry.actorUserId }}</dd>
+                      <dd class="num">#{{ entry.actorUserId }}</dd>
                     </div>
-                    <div class="entry-detail__wide">
+                    <div class="audit-detail__wide">
                       <dt>User agent</dt>
                       <dd>{{ entry.userAgent || '—' }}</dd>
                     </div>
@@ -149,41 +195,29 @@
             </template>
           </tbody>
         </table>
-        <div v-if="!isLoading && !entries.length" class="empty-state">
-          No audit history matches the current filters.
-        </div>
-        <div v-else-if="isLoading && !entries.length" class="empty-state">
-          Loading audit history...
-        </div>
       </div>
 
-      <div v-if="entries.length" class="table-footer">
-        <span class="pagination-info">
-          Showing {{ pageStart }}-{{ pageEnd }} of {{ entries.length }}
-        </span>
-        <div class="pagination-controls">
-          <button class="pagination-btn" type="button" :disabled="currentPage === 1" @click="prevPage">
-            Prev
-          </button>
-          <span class="pagination-page">Page {{ currentPage }} of {{ totalPages }}</span>
-          <button
-            class="pagination-btn"
-            type="button"
-            :disabled="currentPage === totalPages"
-            @click="nextPage"
-          >
-            Next
-          </button>
+      <div v-if="entries.length" class="audit-footer">
+        <span class="acct-hint">Showing {{ pageStart }}–{{ pageEnd }} of {{ entries.length.toLocaleString() }}</span>
+        <div class="audit-footer__pager">
+          <select v-model.number="pageSize" class="dash-select audit-page-size" aria-label="Rows per page">
+            <option :value="25">25 rows</option>
+            <option :value="50">50 rows</option>
+            <option :value="100">100 rows</option>
+          </select>
+          <button class="acct-btn acct-btn--sm" type="button" :disabled="currentPage === 1" @click="currentPage -= 1">Prev</button>
+          <span class="acct-hint num">{{ currentPage }} / {{ totalPages }}</span>
+          <button class="acct-btn acct-btn--sm" type="button" :disabled="currentPage === totalPages" @click="currentPage += 1">Next</button>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { fetchAuditLogs } from '@/api/auditLogs'
-import { notifyError } from '@/utils/notify'
 import {
   AUDIT_ACTIONS,
   AUDIT_CATEGORIES,
@@ -193,29 +227,85 @@ import {
   describeUserAgent,
   formatAuditAction,
   formatAuditCategory,
+  formatDateTime24,
   splitAuditDetails,
 } from '@/utils/auditFormat'
+import { maskIp } from '@/utils/maskIp'
+import { notifyError } from '@/utils/notify'
 
-const HISTORY_TITLE = 'Audit History'
+const FETCH_LIMIT = 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const RANGE_OPTIONS = [
+  { id: '24h', label: '24h', days: 1 },
+  { id: '7d', label: '7d', days: 7 },
+  { id: '30d', label: '30d', days: 30 },
+  { id: '90d', label: '90d', days: 90 },
+  { id: 'all', label: 'All' },
+  { id: 'custom', label: 'Custom' },
+]
+
+const pad2 = (value) => String(value).padStart(2, '0')
+const toIsoDate = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`
+const todayIso = toIsoDate(new Date())
 
 const allEntries = ref([])
 const isLoading = ref(false)
-const pageSize = 10
+const loadError = ref('')
+const pageSize = ref(25)
 const currentPage = ref(1)
 const expandedId = ref(null)
+const showFullIps = ref(false)
 
 const filters = reactive({
+  range: '7d',
+  from: toIsoDate(new Date(Date.now() - 6 * DAY_MS)),
+  to: todayIso,
   search: '',
-  ip: '',
   category: '',
   action: '',
   result: '',
 })
 
+const rangeBounds = () => {
+  if (filters.range === 'all') return {}
+  if (filters.range === 'custom') {
+    const out = {}
+    if (filters.from) out.from = new Date(`${filters.from}T00:00:00`).toISOString()
+    if (filters.to) out.to = new Date(new Date(`${filters.to}T00:00:00`).getTime() + DAY_MS).toISOString()
+    return out
+  }
+  const days = RANGE_OPTIONS.find((option) => option.id === filters.range)?.days || 7
+  return { from: new Date(Date.now() - days * DAY_MS).toISOString() }
+}
+
+const rangeLabel = computed(() => {
+  if (filters.range === 'all') return 'all time'
+  if (filters.range === 'custom') return `${filters.from || '…'} to ${filters.to || 'today'}`
+  return `last ${RANGE_OPTIONS.find((option) => option.id === filters.range)?.label || '7d'}`
+})
+
+const setRange = (id) => {
+  filters.range = id
+  if (id !== 'custom') void loadHistory()
+}
+
 const entries = computed(() => {
   if (filters.result === 'success') return allEntries.value.filter(auditSucceeded)
   if (filters.result === 'failed') return allEntries.value.filter((entry) => !auditSucceeded(entry))
   return allEntries.value
+})
+
+const summary = computed(() => {
+  const actors = new Set()
+  let failedSignIns = 0
+  let denied = 0
+  for (const entry of entries.value) {
+    if (entry.actorUserId || entry.actorEmail) actors.add(entry.actorUserId || entry.actorEmail)
+    if (String(entry.action).toLowerCase() === 'login_failed') failedSignIns += 1
+    if (!auditSucceeded(entry)) denied += 1
+  }
+  return { actors: actors.size, failedSignIns, denied }
 })
 
 const detailsCache = new WeakMap()
@@ -234,397 +324,290 @@ const toggleExpanded = (id) => {
   expandedId.value = expandedId.value === id ? null : id
 }
 
-const totalPages = computed(() => Math.max(1, Math.ceil(entries.value.length / pageSize)))
-
-const pageStart = computed(() => {
-  if (!entries.value.length) return 0
-  return (currentPage.value - 1) * pageSize + 1
-})
-
-const pageEnd = computed(() => Math.min(currentPage.value * pageSize, entries.value.length))
-
+const totalPages = computed(() => Math.max(1, Math.ceil(entries.value.length / pageSize.value)))
+const pageStart = computed(() => (entries.value.length ? (currentPage.value - 1) * pageSize.value + 1 : 0))
+const pageEnd = computed(() => Math.min(currentPage.value * pageSize.value, entries.value.length))
 const paginatedEntries = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return entries.value.slice(start, start + pageSize)
+  const start = (currentPage.value - 1) * pageSize.value
+  return entries.value.slice(start, start + pageSize.value)
 })
 
-const prevPage = () => {
-  if (currentPage.value > 1) currentPage.value -= 1
-}
+watch([() => filters.result, pageSize], () => {
+  currentPage.value = 1
+})
 
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) currentPage.value += 1
-}
-
-watch(
-  () => entries.value.length,
-  () => {
-    if (currentPage.value > totalPages.value) {
-      currentPage.value = totalPages.value
-    }
-  },
-)
-
-watch(
-  () => filters.result,
-  () => {
-    currentPage.value = 1
-  },
-)
-
-const categoryOptions = AUDIT_CATEGORIES
-const actionOptions = AUDIT_ACTIONS
-
-const formatTime = (value) => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-}
+watch(totalPages, (pages) => {
+  if (currentPage.value > pages) currentPage.value = pages
+})
 
 const loadHistory = async () => {
   isLoading.value = true
+  loadError.value = ''
   try {
     const data = await fetchAuditLogs({
-      limit: 300,
+      limit: FETCH_LIMIT,
       category: filters.category,
       action: filters.action,
       search: filters.search.trim(),
-      ip: filters.ip.trim(),
+      ...rangeBounds(),
     })
     allEntries.value = Array.isArray(data) ? data : []
     currentPage.value = 1
     expandedId.value = null
   } catch (error) {
     allEntries.value = []
-    currentPage.value = 1
-    notifyError(HISTORY_TITLE, error?.message || 'Could not load audit history.')
+    loadError.value = error?.message || 'Could not load the audit log.'
   } finally {
     isLoading.value = false
   }
 }
 
+const csvCell = (value) => {
+  let text = value == null ? '' : String(value)
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+
+const exportCsv = () => {
+  const header = [
+    'time_utc',
+    'actor',
+    'actor_email',
+    'actor_role',
+    'action',
+    'category',
+    'summary',
+    'changes',
+    'resource',
+    'resource_type',
+    'resource_id',
+    'ip_address',
+    'user_agent',
+    'method',
+    'path',
+    'status',
+    'result',
+  ]
+  const rows = entries.value.map((entry) => {
+    const details = detailsOf(entry)
+    return [
+      entry.createdAt ? new Date(entry.createdAt).toISOString() : '',
+      actorLabel(entry),
+      entry.actorEmail,
+      entry.actorRole,
+      entry.action,
+      entry.category,
+      details.summary,
+      details.changes.join(' | '),
+      entry.resourceName,
+      entry.resourceType,
+      entry.resourceId,
+      entry.ipAddress,
+      entry.userAgent,
+      entry.httpMethod,
+      entry.path,
+      entry.statusCode,
+      auditResultLabel(entry),
+    ]
+  })
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+  const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `dorian-audit-log-${todayIso}.csv`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 onMounted(() => {
-  void loadHistory()
+  void loadHistory().catch((error) => notifyError('Audit log', error?.message || 'Could not load the audit log.'))
 })
 </script>
 
 <style scoped>
-.history-view {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-gap-lg, 14px);
+.audit-filters__search {
+  flex: 1 1 220px;
 }
 
-.history-card {
-  background: var(--app-surface);
-  backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: var(--space-card, 14px 16px);
-  box-shadow: 0 4px 20px var(--app-shadow);
-  border: 1px solid var(--app-border);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.card-header h2 {
-  font-size: var(--type-section-title);
-  font-weight: 700;
-  color: var(--app-heading);
-  margin: 0 0 4px;
-  letter-spacing: -0.5px;
-}
-
-.card-subtitle {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: var(--type-base);
-  max-width: 46rem;
-  line-height: 1.45;
-}
-
-.filters {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.6fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(120px, 0.8fr) auto;
-  gap: 12px;
-  align-items: end;
-  margin-bottom: 16px;
-}
-
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.filter-field label {
-  font-size: var(--type-caption);
-  font-weight: 600;
-  color: var(--app-text-muted);
-}
-
-.filter-field input,
-.filter-field select {
-  border: 1px solid var(--app-input-border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: var(--type-base);
-  color: var(--app-text);
-  background: var(--app-input-bg);
-}
-
-.filter-btn {
-  min-height: 42px;
-}
-
-.history-table {
-  overflow-x: auto;
-}
-
-table {
+.audit-filters__search .dash-select {
   width: 100%;
-  border-collapse: collapse;
-  min-width: 980px;
 }
 
-thead {
-  background: var(--app-surface-muted);
+.audit-filters__refresh {
+  margin-left: auto;
 }
 
-th {
-  padding: 12px 14px;
-  text-align: left;
-  font-size: var(--type-caption);
-  font-weight: 600;
+.audit-ip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-end;
+  height: 34px;
+  font-size: 12px;
   color: var(--app-text-muted);
-  border-bottom: 2px solid var(--app-border-strong);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--app-border-strong);
-  color: var(--app-text);
-  vertical-align: top;
-}
-
-tbody tr:hover {
-  background: var(--app-surface-hover);
-}
-
-.time-cell {
-  white-space: nowrap;
-  font-size: var(--type-base);
-}
-
-.entry-row {
   cursor: pointer;
 }
 
-.entry-row.is-failed td:first-child {
-  box-shadow: inset 3px 0 0 #dc2626;
+.audit-ip-toggle input {
+  accent-color: var(--dorian-viper-400, var(--app-accent));
 }
 
-.entry-row.is-expanded,
-.entry-row.is-expanded + .entry-detail-row {
-  background: var(--app-surface-hover);
+.audit-date {
+  min-width: 140px;
+  color-scheme: dark;
 }
 
-.actor-cell,
-.resource-cell,
-.source-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+.audit-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.actor-cell strong,
-.resource-cell strong,
-.source-cell strong {
-  font-size: var(--type-base);
-  color: var(--app-heading);
-  word-break: break-word;
+.audit-table-wrap {
+  overflow-x: auto;
 }
 
-.actor-email,
-.actor-role,
-.source-agent {
-  font-size: var(--type-caption);
-  color: var(--app-text-muted);
+.audit-table {
+  table-layout: fixed;
+  min-width: 860px;
 }
 
-.activity-cell {
-  min-width: 300px;
-  max-width: 460px;
+.audit-table .col-time { width: 136px; }
+.audit-table .col-actor { width: 170px; }
+.audit-table .col-target { width: 140px; }
+.audit-table .col-source { width: 150px; }
+.audit-table .col-result { width: 92px; }
+
+.audit-table td {
+  vertical-align: top;
 }
 
-.activity-summary {
-  margin: 6px 0 0;
-  font-size: var(--type-base);
-  line-height: 1.4;
-  color: var(--app-heading);
-  word-break: break-word;
+.audit-row {
+  cursor: pointer;
 }
 
-.activity-changes {
-  margin: 6px 0 0;
-  padding-left: 16px;
-  font-size: var(--type-caption);
-  line-height: 1.5;
-  color: var(--app-text-secondary);
-  word-break: break-word;
+.audit-row.is-expanded {
+  background: color-mix(in srgb, var(--dorian-viper-400, var(--app-accent)) 6%, transparent);
 }
 
-.entry-detail-row td {
-  padding-top: 0;
+.audit-row:focus-visible {
+  outline: 1px solid var(--dorian-viper-400, var(--app-accent));
+  outline-offset: -1px;
 }
 
-.entry-detail {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px 20px;
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--app-surface-muted);
-}
-
-.entry-detail__wide {
-  grid-column: 1 / -1;
-}
-
-.entry-detail dt {
-  font-size: var(--type-caption);
-  font-weight: 600;
-  color: var(--app-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.entry-detail dd {
-  margin: 2px 0 0;
-  font-size: var(--type-base);
-  color: var(--app-text);
-  word-break: break-all;
-}
-
-.badge {
-  padding: 5px 10px;
-  border-radius: var(--badge-radius, 4px);
-  font-size: var(--type-caption);
-  font-weight: 700;
-  display: inline-block;
+.audit-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.badge.action.is-login {
-  background: rgba(22, 163, 74, 0.12);
-  color: #15803d;
+.audit-ip {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.badge.action.is-logout {
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
+.audit-summary {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.4;
+  color: var(--app-text);
+  overflow-wrap: anywhere;
 }
 
-.badge.action.is-failed {
-  background: rgba(220, 38, 38, 0.12);
-  color: #b91c1c;
-}
-
-.badge.action.is-create {
-  background: rgba(124, 58, 237, 0.12);
-  color: var(--app-accent);
-}
-
-.badge.action.is-update {
-  background: rgba(217, 119, 6, 0.14);
-  color: #b45309;
-}
-
-.badge.action.is-delete {
-  background: rgba(220, 38, 38, 0.12);
-  color: #b91c1c;
-}
-
-.badge.action.is-operate {
-  background: rgba(14, 165, 233, 0.12);
-  color: #0369a1;
-}
-
-.badge.action.is-security {
-  background: rgba(219, 39, 119, 0.12);
-  color: #be185d;
-}
-
-.badge.category {
-  background: var(--app-surface-muted);
-  color: var(--app-text-secondary);
-  font-weight: 600;
-}
-
-.badge.result.is-success {
-  background: rgba(22, 163, 74, 0.12);
-  color: #15803d;
-}
-
-.badge.result.is-failure {
-  background: rgba(220, 38, 38, 0.12);
-  color: #b91c1c;
-}
-
-.empty-state {
-  padding: 36px 16px;
-  text-align: center;
+.audit-change-count {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 11px;
   color: var(--app-text-muted);
-  font-size: var(--type-base);
 }
 
-.table-footer {
+.audit-pill {
+  --pill-tone: var(--dorian-l4, #6b9fd4);
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: var(--badge-radius, 999px);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--pill-tone);
+  background: color-mix(in srgb, var(--pill-tone) 12%, transparent);
+}
+
+.audit-pill.is-login,
+.audit-pill.is-create { --pill-tone: var(--dorian-viper-400, var(--app-accent)); }
+.audit-pill.is-logout { --pill-tone: var(--app-text-muted); }
+.audit-pill.is-delete { --pill-tone: var(--dorian-danger, #e15241); }
+.audit-pill.is-security,
+.audit-pill.is-operate { --pill-tone: var(--dorian-warn, #e0a83f); }
+
+.audit-detail-row td {
+  background: var(--app-surface-muted);
+  padding: 12px 14px;
+}
+
+.audit-changes {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--app-text);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.audit-detail {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+.audit-detail dt {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  margin-bottom: 2px;
+}
+
+.audit-detail dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--app-text);
+  overflow-wrap: anywhere;
+}
+
+.audit-detail__wide {
+  grid-column: 1 / -1;
+}
+
+.audit-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.pagination-info {
-  color: var(--app-text-muted);
-  font-size: var(--type-base);
-}
-
-.pagination-controls {
+.audit-footer__pager {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.pagination-page {
-  color: var(--app-text-muted);
-  font-size: var(--type-caption);
-  font-variant-numeric: tabular-nums;
+.audit-page-size {
+  min-width: 0;
 }
 
-@media (max-width: 900px) {
-  .filters {
-    grid-template-columns: 1fr;
+@media (max-width: 760px) {
+  .audit-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .audit-detail {
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

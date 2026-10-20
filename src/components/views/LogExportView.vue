@@ -10,6 +10,8 @@
       </div>
     </header>
 
+    <AnalyticsSectionNav />
+
     <section class="dash-grid12">
       <div class="dash-panel c-8 dash-chart-panel dash-chart-panel--info">
         <div class="dash-panel-head">
@@ -55,9 +57,14 @@
           </div>
 
           <div class="export-actions">
-            <button type="submit" class="dash-filter-apply" :disabled="!canExport">
-              Export logs
+            <button type="submit" class="dash-filter-apply" :disabled="!canExport || isExporting">
+              {{ isExporting ? 'Preparing…' : 'Export logs' }}
             </button>
+            <PreviewDataBadge
+              v-if="lastExportPreview"
+              label="Sample file"
+              title="The export service is not available yet, so a sample file with generated rows was downloaded."
+            />
           </div>
         </form>
       </div>
@@ -92,7 +99,10 @@
 <script setup>
 import { computed, ref } from 'vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
 import { notifyError, notifySuccess } from '@/utils/notify'
+import PreviewDataBadge from '@/components/views/analytics/PreviewDataBadge.vue'
+import { requestLogExport } from '@/api/logExport'
 
 const EXPORT_TITLE = 'Log Export'
 
@@ -129,15 +139,50 @@ const rangeHint = computed(() =>
   canExport.value ? 'Ready to export' : 'Select start and end dates',
 )
 
-const handleExport = () => {
+const isExporting = ref(false)
+const lastExportPreview = ref(false)
+
+const downloadBlob = (blob, fileName) => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+const handleExport = async () => {
   if (!canExport.value) {
     notifyError(EXPORT_TITLE, 'Select both a start and end date.')
     return
   }
-  notifySuccess(
-    EXPORT_TITLE,
-    `Export queued for ${logTypeLabel.value.toLowerCase()} logs (${format.value.toUpperCase()}).`,
-  )
+  if (startDate.value > endDate.value) {
+    notifyError(EXPORT_TITLE, 'The start date must be on or before the end date.')
+    return
+  }
+  isExporting.value = true
+  try {
+    const { data, preview } = await requestLogExport({
+      start: startDate.value,
+      end: endDate.value,
+      type: logType.value,
+      format: format.value,
+    })
+    lastExportPreview.value = preview
+    if (data?.blob) {
+      downloadBlob(data.blob, data.fileName)
+      notifySuccess(EXPORT_TITLE, `Downloaded a sample ${format.value.toUpperCase()} file (${data.rows} generated rows).`)
+    } else if (data?.downloadUrl) {
+      window.open(data.downloadUrl, '_blank', 'noopener')
+      notifySuccess(EXPORT_TITLE, 'Export ready. The download has started.')
+    } else {
+      notifySuccess(EXPORT_TITLE, `Export queued for ${logTypeLabel.value.toLowerCase()} logs (${format.value.toUpperCase()}).`)
+    }
+  } catch (error) {
+    notifyError(EXPORT_TITLE, error?.message || 'Log export could not be started.')
+  } finally {
+    isExporting.value = false
+  }
 }
 </script>
 

@@ -71,7 +71,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { docsAdjacent, docsNav } from '@/data/docsNav'
@@ -98,14 +98,25 @@ const adjacent = computed(() => docsAdjacent(route.name))
 const prev = computed(() => adjacent.value.prev)
 const next = computed(() => adjacent.value.next)
 
-watch(
-  () => route.fullPath,
-  () => {
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' })
-    }
-  },
-)
+const scrollToHash = async () => {
+  if (typeof window === 'undefined') return
+  await nextTick()
+  const id = route.hash ? decodeURIComponent(route.hash.slice(1)) : ''
+  let target = id ? document.getElementById(id) : null
+  for (let attempt = 0; id && !target && attempt < 20; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    target = document.getElementById(id)
+  }
+  if (target) {
+    target.scrollIntoView({ block: 'start' })
+    return
+  }
+  document.querySelector('.view-content')?.scrollTo({ top: 0 })
+  window.scrollTo({ top: 0 })
+}
+
+watch(() => route.fullPath, scrollToHash)
+onMounted(scrollToHash)
 </script>
 
 <style scoped>
