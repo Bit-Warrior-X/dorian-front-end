@@ -350,40 +350,47 @@ const formatTimestamp = (value) => {
 
 const isBlockExpired = (entry) => formatRemainingTime(entry) === "Expired";
 
-const formatRemainingTime = (entry) => {
-  if (!entry || !entry.ttl || !entry.createdAt) return "-";
+const formatDurationSeconds = (totalSeconds) => {
+  const safe = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const days = Math.floor(safe / 86400);
+  const hours = Math.floor((safe % 86400) / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = safe % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+};
+
+const remainingSecondsFor = (entry) => {
+  if (!entry) return null;
+
+  // Prefer server-anchored expiry captured at fetch time so browser clock skew
+  // cannot make Remaining exceed TTL.
+  const expiresAtMs = Number(entry.expiresAtMs);
+  if (Number.isFinite(expiresAtMs) && expiresAtMs > 0) {
+    return Math.ceil((expiresAtMs - now.value) / 1000);
+  }
 
   const ttlSeconds = Number.parseInt(entry.ttl, 10);
-  if (!Number.isFinite(ttlSeconds) || ttlSeconds <= 0) {
-    return "-";
-  }
+  if (!Number.isFinite(ttlSeconds) || ttlSeconds <= 0) return null;
 
   const created = new Date(entry.createdAt);
-  if (Number.isNaN(created.getTime())) {
-    return "-";
-  }
+  if (Number.isNaN(created.getTime())) return null;
+  return Math.ceil((created.getTime() + ttlSeconds * 1000 - now.value) / 1000);
+};
 
-  const remainingMs = created.getTime() + ttlSeconds * 1000 - now.value;
-  if (remainingMs <= 0) {
-    return "Expired";
-  }
+const formatRemainingTime = (entry) => {
+  const remaining = remainingSecondsFor(entry);
+  if (remaining == null) return "-";
+  if (remaining <= 0) return "Expired";
 
-  const totalSeconds = Math.floor(remainingMs / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (days > 0) {
-    return `${days}d ${hours}h`;
-  }
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  if (minutes > 0) {
-    return `${minutes}m ${seconds}s`;
-  }
-  return `${seconds}s`;
+  const ttlSeconds = Number.parseInt(entry?.ttl, 10);
+  const capped =
+    Number.isFinite(ttlSeconds) && ttlSeconds > 0
+      ? Math.min(remaining, ttlSeconds)
+      : remaining;
+  return formatDurationSeconds(capped);
 };
 
 const loadServers = async () => {
@@ -409,17 +416,36 @@ const loadBlacklist = async () => {
     const serverId = serverFilter.value ? Number(serverFilter.value) : undefined;
     const list = await fetchBlacklistEntries(serverId);
     const entries = Array.isArray(list) ? list : [];
-    blacklistEntries.value = entries.map((entry) => ({
-      ...entry,
-      siteId: Number(entry.siteId) || 0,
-      ipAddress: entry.ipAddress || "",
-      geolocation: entry.geolocation || (entry.triggerRule === "l4ddos" ? "-" : "Manual"),
-      reason: entry.reason || "",
-      url: entry.url || "",
-      server: entry.server || "",
-      ttl: entry.ttl || "",
-      triggerRule: entry.triggerRule || ""
-    }));
+    const fetchedAt = Date.now();
+    blacklistEntries.value = entries.map((entry) => {
+      const ttlSeconds = Number.parseInt(entry.ttl, 10);
+      let remainingSeconds = Number(entry.remainingSeconds);
+      if (!Number.isFinite(remainingSeconds) || remainingSeconds < 0) {
+        const created = new Date(entry.createdAt || entry.expireAt || "");
+        if (Number.isFinite(ttlSeconds) && ttlSeconds > 0 && !Number.isNaN(created.getTime())) {
+          remainingSeconds = Math.ceil((created.getTime() + ttlSeconds * 1000 - fetchedAt) / 1000);
+        } else {
+          remainingSeconds = 0;
+        }
+      }
+      if (Number.isFinite(ttlSeconds) && ttlSeconds > 0) {
+        remainingSeconds = Math.min(remainingSeconds, ttlSeconds);
+      }
+      return {
+        ...entry,
+        siteId: Number(entry.siteId) || 0,
+        ipAddress: entry.ipAddress || "",
+        geolocation: entry.geolocation || (entry.triggerRule === "l4ddos" ? "-" : "Manual"),
+        reason: entry.reason || "",
+        url: entry.url || "",
+        server: entry.server || "",
+        ttl: entry.ttl || "",
+        triggerRule: entry.triggerRule || "",
+        remainingSeconds,
+        // Anchor countdown to local receipt time using server-reported remaining.
+        expiresAtMs: fetchedAt + Math.max(0, remainingSeconds) * 1000,
+      };
+    });
   } catch (error) {
     notifyError(BLACKLIST_TITLE, error?.message || "The temporary blocks could not be loaded.");
   }
