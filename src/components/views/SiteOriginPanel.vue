@@ -218,13 +218,18 @@
           <div class="origin-card__title-row">
             <span class="step-badge" aria-hidden="true">{{ showDomain ? '2' : '1' }}</span>
             <div>
-              <h5>Origin servers</h5>
-              <p>Backend hosts the CDN contacts for uncached or dynamic content.</p>
+              <h5 class="info-hint-heading">
+                <span>Origin routing</span>
+                <InfoHint
+                  text="Add origin backends, then map each HTTP/HTTPS edge listen port to the origins that should serve it. Hover the info icons in the editor for details."
+                  aria-label="Origin routing section help"
+                />
+              </h5>
             </div>
           </div>
         </div>
         <div class="origin-card__body origin-card__body--flush">
-          <UpstreamServersPanel :site-id="siteId" embedded />
+          <SiteOriginRoutesPanel :site-id="siteId" @updated="emit('updated')" />
         </div>
       </section>
     </template>
@@ -233,6 +238,7 @@
 
 <script setup>
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
+import InfoHint from '@/components/InfoHint.vue'
 import { fetchSite, updateSite } from '@/api/sites'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import {
@@ -243,7 +249,7 @@ import {
   isCertIssuing,
 } from '@/utils/certificate'
 import { notifySiteEdgeSync } from '@/utils/siteEdgeSync'
-import UpstreamServersPanel from './UpstreamServersPanel.vue'
+import SiteOriginRoutesPanel from './SiteOriginRoutesPanel.vue'
 
 const DOMAIN_TITLE = 'Domain'
 const SSL_TITLE = 'SSL settings'
@@ -266,17 +272,17 @@ const showServers = computed(() => props.focus !== 'certificate')
 const introKicker = computed(() => (props.focus === 'certificate' ? 'HTTPS' : 'Site origin'))
 const introTitle = computed(() => {
   if (props.focus === 'certificate') return 'Certificates'
-  if (props.focus === 'origin') return 'Hostname and backends'
-  return 'Domain, SSL & backends'
+  if (props.focus === 'origin') return 'Hostname and origin routing'
+  return 'Domain, SSL & origin routing'
 })
 const introHint = computed(() => {
   if (props.focus === 'certificate') {
     return 'Choose how this domain presents HTTPS: automatic issuance or a certificate you upload.'
   }
   if (props.focus === 'origin') {
-    return 'Set the public hostname, then attach the origin servers that serve uncached responses.'
+    return 'Use one hostname, then map each HTTP/HTTPS listen port to its origin pool.'
   }
-  return 'Point traffic at this site’s hostname, choose how HTTPS is terminated, then attach the origin servers that serve responses.'
+  return 'Point traffic at this site’s hostname, choose how HTTPS is terminated, then map listen ports to origin backends.'
 })
 
 const emit = defineEmits(['updated'])

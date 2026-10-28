@@ -5,7 +5,7 @@
         <h4 class="info-hint-heading">
           <span>Ports</span>
           <InfoHint
-            text="Choose which HTTP and HTTPS listening ports this site uses on each edge server."
+            text="Enable edge listen sockets for this site. Prefer Site Settings → Origin to map those ports to origin pools; saving origin routes also selects the required listeners."
             aria-label="Ports help"
           />
         </h4>

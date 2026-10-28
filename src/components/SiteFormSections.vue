@@ -183,150 +183,101 @@
       </div>
     </section>
 
-    <section v-show="isStepVisible('origins')" class="site-form__section">
+    <section v-show="isStepVisible('ports') && !siteId" class="site-form__section">
       <div class="site-form__section-head">
         <div class="site-form__section-identity">
           <span class="site-form__section-icon" aria-hidden="true">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
+              <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+              <path d="M7 8h10M7 12h6M7 16h8"></path>
             </svg>
           </span>
           <div class="site-form__section-copy">
             <h4 class="info-hint-heading">
-              <span>Origin Servers</span>
+              <span>Listen ports</span>
               <InfoHint
-                text="Backend hosts that receive traffic after it passes through Dorian."
-                aria-label="Origin Servers help"
+                text="Choose which HTTP and HTTPS edge listen ports this site will use. Ports come from the edges you selected. Next you will map each port to origin backends."
+                aria-label="Listen ports help"
               />
             </h4>
           </div>
         </div>
-        <div class="site-form__section-actions">
-          <span class="site-form__section-tag">{{ originServers.length }} configured</span>
-          <button class="primary-add-btn" type="button" @click="addOriginServer">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Add Origin
-          </button>
-        </div>
+        <span class="site-form__section-tag">
+          {{ selectedHttpPortCount }} HTTP · {{ selectedHttpsPortCount }} HTTPS
+        </span>
       </div>
 
-      <p class="origin-hint">
-        Configure one or more origin servers. Each origin can use HTTP or HTTPS with its own weight and fail settings.
+      <p v-if="!selectedServerIds.length" class="origin-hint">
+        Select at least one edge first so available listen ports can be loaded.
       </p>
-
-      <div v-if="originServers.length" class="origin-list">
-        <article
-          v-for="(origin, index) in originServers"
-          :key="origin.key"
-          class="origin-card"
-        >
-          <div class="origin-card__head">
-            <span class="origin-card__title">Origin #{{ index + 1 }}</span>
+      <p v-else-if="portsLoading" class="origin-hint">Loading listen ports from selected edges…</p>
+      <p v-else-if="portsError" class="origin-hint origin-hint--error">{{ portsError }}</p>
+      <template v-else>
+        <div class="ports-block">
+          <div class="ports-block__head">
+            <h5 class="info-hint-heading">
+              <span>HTTP</span>
+              <InfoHint text="Client → edge plain HTTP listeners available on your selected edges." aria-label="HTTP ports help" />
+            </h5>
+            <span class="ports-block__meta">{{ availableHttpPorts.length }} available</span>
+          </div>
+          <div v-if="!availableHttpPorts.length" class="ports-empty">
+            No HTTP listening ports on the selected edges. Add them under Edge settings → Listening ports.
+          </div>
+          <div v-else class="ports-chips" role="group" aria-label="HTTP listen ports">
             <button
-              class="origin-remove-btn"
+              v-for="port in availableHttpPorts"
+              :key="`http-port-${port}`"
               type="button"
-              :disabled="originServers.length <= 1"
-              :title="originServers.length <= 1 ? 'At least one origin server is required' : 'Remove this origin'"
-              aria-label="Remove origin server"
-              @click="removeOriginServer(index)"
+              class="port-chip"
+              :class="{ active: isPortSelected('http', port) }"
+              @click="togglePort('http', port)"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6l-1 14H6L5 6"></path>
-                <path d="M10 11v6"></path>
-                <path d="M14 11v6"></path>
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
-              </svg>
-              Remove
+              <span class="port-chip__proto">HTTP</span>
+              <strong class="mono">:{{ port }}</strong>
             </button>
           </div>
+        </div>
 
-          <div class="origin-grid">
-            <div class="site-form__field">
-              <label :for="`${fieldPrefix}-origin-ip-${index}`">IP</label>
-              <input
-                :id="`${fieldPrefix}-origin-ip-${index}`"
-                v-model="origin.ip"
-                type="text"
-                placeholder="192.168.1.10"
-              />
-            </div>
-            <div class="site-form__field">
-              <label :for="`${fieldPrefix}-origin-port-${index}`">Port</label>
-              <input
-                :id="`${fieldPrefix}-origin-port-${index}`"
-                v-model="origin.port"
-                type="number"
-                min="1"
-                max="65535"
-                placeholder="80"
-              />
-            </div>
-            <div class="site-form__field">
-              <label :for="`${fieldPrefix}-origin-weight-${index}`">Weight</label>
-              <input
-                :id="`${fieldPrefix}-origin-weight-${index}`"
-                v-model="origin.weight"
-                type="number"
-                min="1"
-                placeholder="4"
-              />
-            </div>
-            <div class="site-form__field">
-              <label>Protocol</label>
-              <div class="segmented" role="radiogroup" :aria-label="`Origin ${index + 1} protocol`">
-                <button
-                  v-for="protocol in originProtocolOptions"
-                  :key="protocol"
-                  type="button"
-                  class="segmented__btn"
-                  :class="{ active: origin.protocol === protocol }"
-                  role="radio"
-                  :aria-checked="origin.protocol === protocol"
-                  @click="origin.protocol = protocol"
-                >
-                  {{ protocol }}
-                </button>
-              </div>
-            </div>
-            <div class="site-form__field">
-              <label :for="`${fieldPrefix}-origin-max-fails-${index}`">Max Fails</label>
-              <input
-                :id="`${fieldPrefix}-origin-max-fails-${index}`"
-                v-model="origin.maxFails"
-                type="number"
-                min="1"
-                placeholder="3"
-              />
-            </div>
-            <div class="site-form__field">
-              <label :for="`${fieldPrefix}-origin-fail-timeout-${index}`">Fail Timeout (s)</label>
-              <input
-                :id="`${fieldPrefix}-origin-fail-timeout-${index}`"
-                v-model="origin.failTimeout"
-                type="number"
-                min="1"
-                placeholder="30"
-              />
-            </div>
+        <div class="ports-block">
+          <div class="ports-block__head">
+            <h5 class="info-hint-heading">
+              <span>HTTPS</span>
+              <InfoHint text="Client → edge TLS listeners available on your selected edges." aria-label="HTTPS ports help" />
+            </h5>
+            <span class="ports-block__meta">{{ availableHttpsPorts.length }} available</span>
           </div>
-        </article>
-      </div>
+          <div v-if="!availableHttpsPorts.length" class="ports-empty">
+            No HTTPS listening ports on the selected edges. Add them under Edge settings → Listening ports.
+          </div>
+          <div v-else class="ports-chips" role="group" aria-label="HTTPS listen ports">
+            <button
+              v-for="port in availableHttpsPorts"
+              :key="`https-port-${port}`"
+              type="button"
+              class="port-chip port-chip--https"
+              :class="{ active: isPortSelected('https', port) }"
+              @click="togglePort('https', port)"
+            >
+              <span class="port-chip__proto">HTTPS</span>
+              <strong class="mono">:{{ port }}</strong>
+            </button>
+          </div>
+        </div>
+      </template>
+    </section>
 
-      <div class="origin-footer">
-        <button class="secondary-add-btn" type="button" @click="addOriginServer">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          Add another origin server
-        </button>
-      </div>
+    <section v-show="isStepVisible('origins')" class="site-form__section" :class="{ 'site-form__section--routes': true }">
+      <template v-if="siteId">
+        <SiteOriginRoutesPanel
+          ref="originRoutesRef"
+          :site-id="siteId"
+          defer-save
+          @dirty-change="onOriginRoutesDirtyChange"
+          @updated="$emit('origin-routes-updated')"
+        />
+      </template>
+      <SiteWizardOriginPanel v-else :form="form" />
     </section>
 
     <section v-show="isStepVisible('edges')" class="site-form__section">
@@ -442,7 +393,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import InfoHint from './InfoHint.vue'
-import { createEmptyOriginServer } from '@/utils/originServers'
+import SiteOriginRoutesPanel from './views/SiteOriginRoutesPanel.vue'
+import SiteWizardOriginPanel from './SiteWizardOriginPanel.vue'
 
 const automaticProviders = [
   { value: 'letsencrypt', label: "Let's Encrypt" },
@@ -501,44 +453,95 @@ const props = defineProps({
   activeStep: {
     type: String,
     default: '',
-    validator: (value) => !value || ['basic', 'ssl', 'origins', 'edges'].includes(value),
+    validator: (value) => !value || ['basic', 'ssl', 'edges', 'ports', 'origins'].includes(value),
+  },
+  /** Existing site id — shows live origin inventory + port routing instead of the create-time form. */
+  siteId: {
+    type: [Number, String],
+    default: '',
+  },
+  availableHttpPorts: {
+    type: Array,
+    default: () => [],
+  },
+  availableHttpsPorts: {
+    type: Array,
+    default: () => [],
+  },
+  portsLoading: {
+    type: Boolean,
+    default: false,
+  },
+  portsError: {
+    type: String,
+    default: '',
   },
 })
 
-defineEmits([
+const emit = defineEmits([
   'toggle-server-dropdown',
   'open-server-dropdown',
   'update:server-search',
   'add-server',
   'remove-server',
+  'origin-routes-dirty',
+  'origin-routes-updated',
 ])
 
 const isWizard = computed(() => Boolean(props.activeStep))
 
 const isStepVisible = (stepId) => !props.activeStep || props.activeStep === stepId
 
-const originProtocolOptions = ['HTTP', 'HTTPS']
-
 const isWafDropdownOpen = ref(false)
 const wafComboboxRef = ref(null)
+const originRoutesRef = ref(null)
 
-const ensureOriginServersArray = () => {
-  if (!Array.isArray(props.form.originServers)) {
-    props.form.originServers = []
-  }
-  return props.form.originServers
+const onOriginRoutesDirtyChange = (value) => {
+  emit('origin-routes-dirty', Boolean(value))
 }
 
-const originServers = computed(() => ensureOriginServersArray())
-
-const addOriginServer = () => {
-  ensureOriginServersArray().push(createEmptyOriginServer())
+const saveOriginRoutes = async (options) => {
+  if (!originRoutesRef.value?.save) return null
+  return originRoutesRef.value.save(options)
 }
 
-const removeOriginServer = (index) => {
-  const list = ensureOriginServersArray()
-  if (list.length <= 1) return
-  list.splice(index, 1)
+const isOriginRoutesDirty = () => Boolean(originRoutesRef.value?.dirty)
+
+defineExpose({
+  saveOriginRoutes,
+  isOriginRoutesDirty,
+  originRoutesRef,
+})
+
+const ensurePortArrays = () => {
+  if (!Array.isArray(props.form.httpPorts)) props.form.httpPorts = []
+  if (!Array.isArray(props.form.httpsPorts)) props.form.httpsPorts = []
+}
+
+const selectedHttpPortCount = computed(() => {
+  ensurePortArrays()
+  return props.form.httpPorts.length
+})
+
+const selectedHttpsPortCount = computed(() => {
+  ensurePortArrays()
+  return props.form.httpsPorts.length
+})
+
+const isPortSelected = (scheme, port) => {
+  ensurePortArrays()
+  const list = scheme === 'https' ? props.form.httpsPorts : props.form.httpPorts
+  return list.map(Number).includes(Number(port))
+}
+
+const togglePort = (scheme, port) => {
+  ensurePortArrays()
+  const key = scheme === 'https' ? 'httpsPorts' : 'httpPorts'
+  const value = Number(port)
+  const current = props.form[key].map(Number)
+  props.form[key] = current.includes(value)
+    ? current.filter((item) => item !== value)
+    : [...current, value].sort((a, b) => a - b)
 }
 
 const formatWafRole = (role) =>
@@ -652,6 +655,12 @@ const getServerLabelById = (serverId) => {
   padding: 16px;
 }
 
+.site-form--wizard .site-form__section--routes {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 .site-form__section {
   display: flex;
   flex-direction: column;
@@ -660,6 +669,106 @@ const getServerLabelById = (serverId) => {
   border: 1px solid var(--app-border);
   border-radius: 10px;
   background: var(--app-surface-muted);
+}
+
+.site-form__section--routes {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.origin-hint--error {
+  color: var(--dorian-danger, #e35d5d);
+}
+
+.ports-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface-solid);
+}
+
+.ports-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ports-block__head h5 {
+  margin: 0;
+  color: var(--app-heading);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.ports-block__meta {
+  color: var(--app-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.ports-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.port-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: 12px;
+  background: var(--app-surface-muted);
+  color: var(--app-heading);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.port-chip__proto {
+  color: var(--app-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.port-chip strong {
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+
+.port-chip.active {
+  border-color: color-mix(in srgb, var(--dorian-viper-500, #2e9e6c) 55%, var(--app-border));
+  background: var(--app-accent-soft);
+}
+
+.port-chip.active .port-chip__proto {
+  color: var(--dorian-viper-400, #3fbd85);
+}
+
+.port-chip--https.active {
+  border-color: color-mix(in srgb, var(--dorian-viper-400, #6ee7b7) 50%, var(--app-border));
+}
+
+.ports-empty {
+  padding: 12px;
+  border: 1px dashed var(--app-border);
+  border-radius: 10px;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
 }
 
 .site-form__section--status {

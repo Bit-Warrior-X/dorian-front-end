@@ -10,11 +10,15 @@
     <div class="docs-article__body">
       <h2 class="docs-subhead">New Site wizard</h2>
       <ul class="docs-bullets">
-        <li><strong>Basics</strong> — domain and identity.</li>
+        <li><strong>Basics</strong> — hostname only (not <code>host:port</code>).</li>
         <li><strong>SSL</strong> — not configured, automatic (ACME), or manual PEM.</li>
-        <li><strong>Origins</strong> — upstream servers (IP:port + protocol).</li>
+        <li><strong>Origins</strong> — upstream inventory (<code>ip:port</code> + protocol).</li>
         <li><strong>Edges</strong> — which protection nodes terminate this site.</li>
       </ul>
+      <p class="docs-lead">
+        After create, open <strong>Origin</strong> to map HTTP/HTTPS listen ports to origin pools
+        (for example port 80 → origin1/origin2, port 443 → origin8).
+      </p>
 
       <h2 class="docs-subhead">Configure sites</h2>
       <p class="docs-lead">
@@ -39,7 +43,8 @@
               <td>Origin</td>
               <td>
                 Domain; SSL modes Not configured / Automatic / Manual; Automatic providers Let’s
-                Encrypt, ZeroSSL, Google Trust; upstream origin servers
+                Encrypt, ZeroSSL, Google Trust; <strong>origin routing</strong> (HTTP/HTTPS
+                listen-port → origin <code>ip:port</code> rules) plus shared origin inventory
               </td>
             </tr>
             <tr>

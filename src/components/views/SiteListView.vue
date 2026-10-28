@@ -319,6 +319,10 @@
           :server-options="serverOptions"
           :server-search="serverSearch"
           :is-server-dropdown-open="isServerDropdownOpen"
+          :available-http-ports="availableHttpPorts"
+          :available-https-ports="availableHttpsPorts"
+          :ports-loading="portsLoading"
+          :ports-error="portsError"
           @toggle-server-dropdown="toggleServerDropdown"
           @open-server-dropdown="openServerDropdown"
           @update:server-search="serverSearch = $event"
@@ -367,7 +371,7 @@
     v-if="isEditSiteDialogOpen"
     class="dialog-backdrop"
   >
-    <div class="dialog-card dialog-card--site" @click.stop>
+    <div class="dialog-card dialog-card--site dialog-card--site-edit" @click.stop>
       <div class="dialog-header">
         <div class="dialog-header__copy">
           <h3>Edit Site</h3>
@@ -380,9 +384,14 @@
           </svg>
         </button>
       </div>
+      <div v-if="editHasChanges" class="edit-dirty-banner" role="status">
+        Unsaved changes — press Confirm to apply them.
+      </div>
       <div class="dialog-body">
         <SiteFormSections
+          ref="editFormSectionsRef"
           :form="editSite"
+          :site-id="editSiteId"
           :waf-rule-options="wafRuleOptions"
           :selected-server-ids="selectedServers"
           :server-options="serverOptions"
@@ -393,11 +402,23 @@
           @update:server-search="serverSearch = $event"
           @add-server="addServer"
           @remove-server="removeServer"
+          @origin-routes-dirty="editOriginRoutesDirty = $event"
         />
       </div>
-      <div class="dialog-footer">
-        <button class="secondary-btn" type="button" @click="closeEditSiteDialog">Cancel</button>
-        <button class="primary-btn" type="button" @click="requestEditConfirm">Confirm</button>
+      <div class="dialog-footer dialog-footer--edit">
+        <span v-if="editHasChanges" class="edit-dirty-footer">Unsaved changes</span>
+        <span v-else class="edit-dirty-footer edit-dirty-footer--muted">No changes yet</span>
+        <div class="dialog-footer__actions">
+          <button class="secondary-btn" type="button" @click="closeEditSiteDialog">Cancel</button>
+          <button
+            class="primary-btn"
+            type="button"
+            :disabled="!editHasChanges || isEditSaving"
+            @click="requestEditConfirm"
+          >
+            {{ isEditSaving ? 'Applying…' : 'Confirm' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -442,15 +463,16 @@ import SiteFormSections from '../SiteFormSections.vue'
 import { createSite, deleteSite, fetchSites, renewSiteCertificate, updateSite } from '@/api/sites'
 import { fetchServers } from '@/api/servers'
 import { fetchWafRules } from '@/api/wafRules'
+import { fetchListeningPorts } from '@/api/listeningPorts'
+import { updateOriginRoutes } from '@/api/originRoutes'
 import {
   createUpstreamServer,
   deleteUpstreamServers,
-  fetchUpstreamServers,
   updateUpstreamServer,
 } from '@/api/upstreamServers'
 import {
   createEmptyOriginServer,
-  mapUpstreamToOriginServer,
+  getFilledOriginServers,
   normalizeOriginId,
   planOriginServerSync,
   validateOriginServers,
@@ -510,18 +532,6 @@ const newSiteSteps = [
     ],
   },
   {
-    id: 'origins',
-    label: 'Origins',
-    title: 'Connect your backend servers',
-    description:
-      'Origin servers are the real hosts that store your website. Dorian receives visitor requests on the edge, then forwards them here.',
-    tips: [
-      'Add at least one origin with a reachable IP (or hostname) and port.',
-      'Use HTTP or HTTPS for the origin connection, and set weight if you have more than one server.',
-      'Max fails and fail timeout control how quickly an unhealthy origin is taken out of rotation.',
-    ],
-  },
-  {
     id: 'edges',
     label: 'Edges',
     title: 'Choose where the site is served',
@@ -531,6 +541,30 @@ const newSiteSteps = [
       'Search and select the edge nodes that should handle this site.',
       'You can assign multiple edges for redundancy across regions.',
       'Leave Status On to start serving traffic after create; turn it Off to keep the site ready but inactive.',
+    ],
+  },
+  {
+    id: 'ports',
+    label: 'Ports',
+    title: 'Pick listen ports',
+    description:
+      'Choose which HTTP and HTTPS ports on your edges will accept traffic for this hostname. These come from each edge’s listening-port catalog.',
+    tips: [
+      'Select every client-facing port this site should use (for example 80 and 443).',
+      'A port must exist on every selected edge before you can route it.',
+      'Next you will map each selected port to one or more origin backends.',
+    ],
+  },
+  {
+    id: 'origins',
+    label: 'Origins',
+    title: 'Connect backends and route ports',
+    description:
+      'Add origin servers, then map each listen port to the backends that should receive that traffic.',
+    tips: [
+      'Add at least one origin with a reachable IP (or hostname) and port.',
+      'Set weight, max fails, and fail timeout for load balancing and health checks.',
+      'Assign origins to the HTTP/HTTPS listen ports you selected in the previous step.',
     ],
   },
 ]
@@ -570,13 +604,35 @@ const emptySiteForm = () => ({
   sslCertKey: '',
   hasSslCertKey: false,
   originServers: [createEmptyOriginServer()],
+  httpPorts: [],
+  httpsPorts: [],
+  originRoutes: { http: {}, https: {} },
 })
 
 const newSite = reactive(emptySiteForm())
 const editSite = reactive(emptySiteForm())
-const editOriginInitialIds = ref([])
 const editSiteInitialWafId = ref('')
-let originLoadToken = 0
+const editFormSectionsRef = ref(null)
+const editOriginRoutesDirty = ref(false)
+const editFormBaseline = ref('')
+const isEditSaving = ref(false)
+const availableHttpPorts = ref([])
+const availableHttpsPorts = ref([])
+const portsLoading = ref(false)
+const portsError = ref('')
+let portsLoadToken = 0
+
+const editFormSignature = () => JSON.stringify({
+  payload: buildPayload(editSite),
+  servers: [...selectedServers.value].map(Number).sort((a, b) => a - b),
+})
+
+const editFormDirty = computed(() => {
+  if (!editFormBaseline.value) return false
+  return editFormSignature() !== editFormBaseline.value
+})
+
+const editHasChanges = computed(() => editFormDirty.value || editOriginRoutesDirty.value)
 
 const isSiteEnabled = (site) => String(site?.status || '').toUpperCase() === 'ENABLE'
 
@@ -659,6 +715,12 @@ const confirmTitle = computed(() => {
 
 const confirmMessage = computed(() => {
   if (confirmAction.value === 'edit') {
+    if (editFormDirty.value && editOriginRoutesDirty.value) {
+      return 'Apply site settings and origin routing changes?'
+    }
+    if (editOriginRoutesDirty.value) {
+      return 'Apply origin routing changes for this site?'
+    }
     return 'Are you sure you want to apply these changes to the site?'
   }
   return 'Are you sure you want to continue?'
@@ -867,6 +929,10 @@ const resetNewSiteForm = () => {
   serverSearch.value = ''
   isServerDropdownOpen.value = false
   newSiteStepIndex.value = 0
+  availableHttpPorts.value = []
+  availableHttpsPorts.value = []
+  portsError.value = ''
+  portsLoading.value = false
 }
 
 const validateNewSiteStep = (stepId) => {
@@ -886,8 +952,28 @@ const validateNewSiteStep = (stepId) => {
     return ''
   }
 
+  if (stepId === 'edges') {
+    if (!selectedServers.value.length) {
+      return 'Select at least one edge before continuing.'
+    }
+    return ''
+  }
+
+  if (stepId === 'ports') {
+    if (portsLoading.value) {
+      return 'Still loading listen ports from the selected edges.'
+    }
+    if (portsError.value) {
+      return portsError.value
+    }
+    if (!newSite.httpPorts.length && !newSite.httpsPorts.length) {
+      return 'Select at least one HTTP or HTTPS listen port.'
+    }
+    return ''
+  }
+
   if (stepId === 'origins') {
-    return validateOriginServers(newSite.originServers) || ''
+    return validateOriginServers(newSite.originServers) || validateOriginRouting(newSite) || ''
   }
 
   return ''
@@ -911,27 +997,6 @@ const goToNextNewSiteStep = () => {
   }
   if (newSiteStepIndex.value >= newSiteSteps.length - 1) return
   newSiteStepIndex.value += 1
-}
-
-const loadOriginServersForEdit = async (siteId) => {
-  const token = ++originLoadToken
-  editOriginInitialIds.value = []
-  editSite.originServers = [createEmptyOriginServer()]
-  if (!siteId) return
-  try {
-    const data = await fetchUpstreamServers(siteId)
-    if (token !== originLoadToken || editSiteId.value !== siteId) return
-    const origins = Array.isArray(data) ? data.map(mapUpstreamToOriginServer) : []
-    editSite.originServers = origins.length ? origins : [createEmptyOriginServer()]
-    editOriginInitialIds.value = origins
-      .map((origin) => normalizeOriginId(origin.id))
-      .filter((id) => id != null)
-  } catch (error) {
-    if (token !== originLoadToken || editSiteId.value !== siteId) return
-    editSite.originServers = [createEmptyOriginServer()]
-    editOriginInitialIds.value = []
-    notifyError(SITES_TITLE, error?.message || 'Origin servers could not be loaded.')
-  }
 }
 
 const syncOriginServers = async (siteId, origins, initialIds = []) => {
@@ -1087,6 +1152,141 @@ const removeServer = (serverId) => {
   selectedServers.value = selectedServers.value.filter((item) => item !== serverId)
 }
 
+const normalizeProtocol = (value) =>
+  String(value || '').toUpperCase() === 'HTTPS' ? 'HTTPS' : 'HTTP'
+
+const pruneSelectedPortsToCatalog = () => {
+  const httpSet = new Set(availableHttpPorts.value)
+  const httpsSet = new Set(availableHttpsPorts.value)
+  newSite.httpPorts = (newSite.httpPorts || []).map(Number).filter((port) => httpSet.has(port))
+  newSite.httpsPorts = (newSite.httpsPorts || []).map(Number).filter((port) => httpsSet.has(port))
+}
+
+const maybeAutoselectCommonPorts = () => {
+  if (!newSite.httpPorts.length && availableHttpPorts.value.includes(80)) {
+    newSite.httpPorts = [80]
+  }
+  if (!newSite.httpsPorts.length && availableHttpsPorts.value.includes(443)) {
+    newSite.httpsPorts = [443]
+  }
+}
+
+const loadEdgePortCatalog = async () => {
+  const token = ++portsLoadToken
+  const ids = [...selectedServers.value]
+  if (!ids.length) {
+    availableHttpPorts.value = []
+    availableHttpsPorts.value = []
+    portsError.value = ''
+    portsLoading.value = false
+    pruneSelectedPortsToCatalog()
+    return
+  }
+
+  portsLoading.value = true
+  portsError.value = ''
+  try {
+    const lists = await Promise.all(ids.map((serverId) => fetchListeningPorts(serverId)))
+    if (token !== portsLoadToken) return
+
+    const http = new Set()
+    const https = new Set()
+    // A listen port is usable only if every selected edge exposes it.
+    const perEdge = lists.map((list) => {
+      const edgeHttp = new Set()
+      const edgeHttps = new Set()
+      for (const entry of Array.isArray(list) ? list : []) {
+        const port = Number(entry?.port)
+        if (!Number.isInteger(port) || port < 1) continue
+        if (normalizeProtocol(entry?.protocol) === 'HTTPS') edgeHttps.add(port)
+        else edgeHttp.add(port)
+      }
+      return { http: edgeHttp, https: edgeHttps }
+    })
+
+    if (perEdge.length) {
+      for (const port of perEdge[0].http) {
+        if (perEdge.every((edge) => edge.http.has(port))) http.add(port)
+      }
+      for (const port of perEdge[0].https) {
+        if (perEdge.every((edge) => edge.https.has(port))) https.add(port)
+      }
+    }
+
+    availableHttpPorts.value = [...http].sort((a, b) => a - b)
+    availableHttpsPorts.value = [...https].sort((a, b) => a - b)
+    pruneSelectedPortsToCatalog()
+    maybeAutoselectCommonPorts()
+  } catch (error) {
+    if (token !== portsLoadToken) return
+    availableHttpPorts.value = []
+    availableHttpsPorts.value = []
+    portsError.value = error?.message || 'Listen ports could not be loaded from the selected edges.'
+    pruneSelectedPortsToCatalog()
+  } finally {
+    if (token === portsLoadToken) portsLoading.value = false
+  }
+}
+
+watch(
+  selectedServers,
+  () => {
+    void loadEdgePortCatalog()
+  },
+  { deep: true },
+)
+
+const buildOriginRoutesPayload = (form) => {
+  const keyToId = new Map()
+  for (const origin of getFilledOriginServers(form.originServers)) {
+    const id = normalizeOriginId(origin.id)
+    if (id != null) keyToId.set(origin.key, id)
+  }
+
+  const build = (scheme, ports) => {
+    const groups = new Map()
+    for (const port of ports || []) {
+      const keys = form.originRoutes?.[scheme]?.[port] || []
+      const upstreamIds = [...new Set(keys.map((key) => keyToId.get(key)).filter((id) => id != null))]
+        .sort((a, b) => a - b)
+      if (!upstreamIds.length) continue
+      const groupKey = upstreamIds.join(',')
+      if (!groups.has(groupKey)) groups.set(groupKey, { ports: [], upstreamIds })
+      groups.get(groupKey).ports.push(Number(port))
+    }
+    return [...groups.values()].map((group) => ({
+      ports: [...group.ports].sort((a, b) => a - b),
+      upstreamIds: group.upstreamIds,
+    }))
+  }
+
+  return {
+    http: build('http', form.httpPorts),
+    https: build('https', form.httpsPorts),
+  }
+}
+
+const validateOriginRouting = (form) => {
+  const httpPorts = (form.httpPorts || []).map(Number)
+  const httpsPorts = (form.httpsPorts || []).map(Number)
+  const filled = getFilledOriginServers(form.originServers)
+  if (!filled.length) return 'At least one origin server is required.'
+
+  let routed = 0
+  for (const port of httpPorts) {
+    const keys = form.originRoutes?.http?.[port] || []
+    if (keys.length) routed += 1
+  }
+  for (const port of httpsPorts) {
+    const keys = form.originRoutes?.https?.[port] || []
+    if (keys.length) routed += 1
+  }
+  if (!routed) {
+    return 'Assign at least one origin to a listen port before creating the site.'
+  }
+  return ''
+}
+
 const openNewSiteDialog = () => {
   resetNewSiteForm()
   isNewSiteDialogOpen.value = true
@@ -1100,18 +1300,23 @@ const closeNewSiteDialog = () => {
 const openEditSite = async (site) => {
   editSiteId.value = site.id
   applyFormValues(editSite, site)
+  editSite.originServers = [createEmptyOriginServer()]
   editSiteInitialWafId.value = site.wafId != null ? String(site.wafId) : ''
+  editOriginRoutesDirty.value = false
+  isEditSaving.value = false
   serverSearch.value = ''
   isServerDropdownOpen.value = false
   activeRowMenu.value = null
-  await loadOriginServersForEdit(site.id)
   isEditSiteDialogOpen.value = true
+  editFormBaseline.value = editFormSignature()
 }
 
 const closeEditSiteDialog = () => {
   isEditSiteDialogOpen.value = false
-  editOriginInitialIds.value = []
   editSiteInitialWafId.value = ''
+  editOriginRoutesDirty.value = false
+  editFormBaseline.value = ''
+  isEditSaving.value = false
 }
 
 const openSiteSettings = (site) => {
@@ -1164,17 +1369,22 @@ const renewCert = async (site) => {
   }
 }
 
-const validateSiteForm = (form) => {
+const validateSiteForm = (form, { requireOrigins = true } = {}) => {
   if (!form.domain.trim()) {
     return 'Domain is required.'
+  }
+  if (/:\d+\s*$/.test(form.domain.trim())) {
+    return 'Use a hostname only (for example xstream.wtf). Map listen ports to origins under Site Settings → Origin.'
   }
   if (String(form.sslType || '').toLowerCase() === 'custom') {
     if (!String(form.sslCert || '').trim() || (!String(form.sslCertKey || '').trim() && !form.hasSslCertKey)) {
       return 'Manual SSL configuration requires both certificate and private key.'
     }
   }
-  const originError = validateOriginServers(form.originServers)
-  if (originError) return originError
+  if (requireOrigins) {
+    const originError = validateOriginServers(form.originServers)
+    if (originError) return originError
+  }
   return ''
 }
 
@@ -1184,6 +1394,10 @@ const performCreateSite = async () => {
     const created = await createSite(buildPayload(newSite))
     if (created?.id) {
       await syncOriginServers(created.id, newSite.originServers, [])
+      const routes = buildOriginRoutesPayload(newSite)
+      if ((routes.http || []).length || (routes.https || []).length) {
+        await updateOriginRoutes(created.id, routes)
+      }
     }
     notifySiteEdgeSync(SITES_TITLE, created?.edgeSync, {
       fallbackSuccess: String(newSite.sslType || '').toLowerCase() === 'letsencrypt'
@@ -1221,7 +1435,9 @@ const submitNewSite = async () => {
 }
 
 const requestEditConfirm = () => {
-  const validationError = validateSiteForm(editSite)
+  if (!editHasChanges.value || isEditSaving.value) return
+
+  const validationError = validateSiteForm(editSite, { requireOrigins: false })
   if (validationError) {
     notifyError(SITES_TITLE, validationError)
     return
@@ -1249,10 +1465,18 @@ const clearDeleteConfirm = () => {
 }
 
 const applyEditSite = async () => {
-  if (!editSiteId.value) return
+  if (!editSiteId.value || isEditSaving.value) return
+  isEditSaving.value = true
   try {
-    const updated = await updateSite(editSiteId.value, buildPayload(editSite))
-    await syncOriginServers(editSiteId.value, editSite.originServers, editOriginInitialIds.value)
+    let updated = null
+    if (editFormDirty.value) {
+      updated = await updateSite(editSiteId.value, buildPayload(editSite))
+    }
+
+    if (editOriginRoutesDirty.value || editFormSectionsRef.value?.isOriginRoutesDirty?.()) {
+      await editFormSectionsRef.value.saveOriginRoutes({ notify: false })
+    }
+
     notifySiteEdgeSync(SITES_TITLE, updated?.edgeSync, {
       fallbackSuccess: 'The site is successfully updated.',
     })
@@ -1261,6 +1485,8 @@ const applyEditSite = async () => {
     notifySitesChanged()
   } catch (error) {
     notifyError(SITES_TITLE, error?.message || 'The site could not be updated.')
+  } finally {
+    isEditSaving.value = false
   }
 }
 
@@ -1956,8 +2182,43 @@ onBeforeUnmount(() => {
   padding: 18px;
 }
 
+.dialog-card--site-edit {
+  max-width: min(960px, 96vw);
+  max-height: min(92vh, 980px);
+}
+
+.edit-dirty-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--dorian-warn, #e0a83f) 40%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-warn, #e0a83f) 12%, transparent);
+  color: var(--app-heading);
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.dialog-footer--edit {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.edit-dirty-footer {
+  color: var(--dorian-warn, #e0a83f);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.edit-dirty-footer--muted {
+  color: var(--app-text-muted);
+  font-weight: 500;
+}
+
 .dialog-card--wizard {
-  max-width: 720px;
+  width: min(920px, 96vw);
+  max-width: min(920px, 96vw);
+  max-height: min(92vh, 980px);
 }
 
 .dialog-card--busy {
@@ -1993,8 +2254,8 @@ onBeforeUnmount(() => {
 
 .site-wizard-steps {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
   margin-bottom: 14px;
   flex-shrink: 0;
 }
@@ -2002,9 +2263,9 @@ onBeforeUnmount(() => {
 .site-wizard-step {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  padding: 8px 10px;
+  padding: 7px 8px;
   border-radius: 8px;
   border: 1px solid var(--app-border);
   background: var(--app-surface-muted);
@@ -2223,7 +2484,15 @@ onBeforeUnmount(() => {
   }
 
   .site-wizard-steps {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .site-wizard-step {
+    flex: 1 0 auto;
+    min-width: 92px;
   }
 
   .dialog-footer--wizard {

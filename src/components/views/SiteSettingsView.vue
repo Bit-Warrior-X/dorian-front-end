@@ -338,7 +338,7 @@ const tabs = [
   { id: 'general', label: 'Overview', hint: 'Live traffic and status' },
   { id: 'traffic', label: 'Delivery', hint: 'Cache, compression, and ports' },
   { id: 'waf', label: 'Security', hint: 'Firewall rules for this site' },
-  { id: 'origin', label: 'Origin', hint: 'Hostname and backend servers' },
+  { id: 'origin', label: 'Origin', hint: 'Hostname and port → origin routing' },
   { id: 'certificate', label: 'Certificates', hint: 'HTTPS for this domain' },
 ]
 
