@@ -194,6 +194,29 @@ export const fetchSpartaLog = async (serverId) => {
   return apiRequest(`/servers/${serverId}/sparta-log`, opts)
 }
 
+const mockHostMetrics = {
+  cpuPercent: 37.4,
+  memoryUsedBytes: 6_442_450_944,
+  memoryTotalBytes: 17_179_869_184,
+  diskUsedBytes: 128_849_018_880,
+  diskTotalBytes: 536_870_912_000,
+  swapUsedBytes: 268_435_456,
+  swapTotalBytes: 8_589_934_592,
+  load1: 0.84,
+  load5: 0.62,
+  load15: 0.41,
+  uptimeSeconds: 1_234_567,
+  cpuCores: 8,
+  temperatureC: 46.5,
+  temperatureLabel: 'Package id 0',
+  netRxBytesPerSec: 15_728_640,
+  netTxBytesPerSec: 2_097_152,
+  netLinkMbps: 10000,
+  netInterface: 'eth0',
+  hostname: 'edge-01',
+  kernel: '6.8.0-45-generic',
+}
+
 /** SSH probe for remote host CPU, memory, disk, network, and thermal state (GET /servers/:id/host-metrics). */
 export const fetchServerHostMetrics = async (serverId) => {
   const opts = {}
@@ -203,30 +226,34 @@ export const fetchServerHostMetrics = async (serverId) => {
   const { useMocks } = await getApiConfig()
   if (useMocks) {
     await new Promise((resolve) => setTimeout(resolve, 350))
-    return {
-      cpuPercent: 37.4,
-      memoryUsedBytes: 6_442_450_944,
-      memoryTotalBytes: 17_179_869_184,
-      diskUsedBytes: 128_849_018_880,
-      diskTotalBytes: 536_870_912_000,
-      swapUsedBytes: 268_435_456,
-      swapTotalBytes: 8_589_934_592,
-      load1: 0.84,
-      load5: 0.62,
-      load15: 0.41,
-      uptimeSeconds: 1_234_567,
-      cpuCores: 8,
-      temperatureC: 46.5,
-      temperatureLabel: 'Package id 0',
-      netRxBytesPerSec: 15_728_640,
-      netTxBytesPerSec: 2_097_152,
-      netLinkMbps: 10000,
-      netInterface: 'eth0',
-      hostname: 'edge-01',
-      kernel: '6.8.0-45-generic',
-    }
+    return { ...mockHostMetrics }
   }
   return apiRequest(`/servers/${serverId}/host-metrics`, opts)
+}
+
+/**
+ * Batch SSH host-metrics for many edges (GET /servers/host-metrics?ids=1,2).
+ * Returns `{ [serverId]: metrics | { error: string } }`.
+ */
+export const fetchServersHostMetrics = async (serverIds = []) => {
+  const ids = (Array.isArray(serverIds) ? serverIds : [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0)
+  const opts = {}
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    opts.signal = AbortSignal.timeout(90_000)
+  }
+  const { useMocks } = await getApiConfig()
+  if (useMocks) {
+    await new Promise((resolve) => setTimeout(resolve, 350))
+    const out = {}
+    ids.forEach((id) => {
+      out[String(id)] = { ...mockHostMetrics, hostname: `edge-${id}` }
+    })
+    return out
+  }
+  const query = ids.length ? `?ids=${ids.join(',')}` : ''
+  return apiRequest(`/servers/host-metrics${query}`, opts)
 }
 
 /** Power off or restart the remote host (POST /servers/:id/host-power). */

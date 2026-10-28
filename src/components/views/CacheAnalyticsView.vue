@@ -11,8 +11,6 @@
       </div>
     </header>
 
-    <AnalyticsSectionNav />
-
     <AnalyticsFilterBar :filters="filters" :loading="isLoading" id-prefix="cache" />
 
     <p v-if="loadError" class="analytics-error" role="alert">{{ loadError }}</p>
@@ -30,7 +28,7 @@
         <div class="dash-panel-head">
           <div>
             <h3>Requests by cache result</h3>
-            <p class="dash-panel-desc">Served from cache, fetched from origin, or never cacheable · {{ filters.rangeLabel }}</p>
+            <p class="dash-panel-desc">Stored statuses only: HIT, MISS, BYPASS · {{ filters.rangeLabel }}</p>
           </div>
           <div class="dash-chart-readouts">
             <div class="dash-chart-readout">
@@ -43,8 +41,15 @@
             <div class="dash-chart-readout">
               <span class="dash-chart-readout__swatch" :style="{ background: palette.miss }"></span>
               <div>
-                <div class="dash-chart-readout__label">Miss ratio</div>
+                <div class="dash-chart-readout__label">MISS</div>
                 <div class="dash-chart-readout__value num warn">{{ formatPercent(missRatio, 1) }}</div>
+              </div>
+            </div>
+            <div class="dash-chart-readout">
+              <span class="dash-chart-readout__swatch" :style="{ background: palette.uncacheable }"></span>
+              <div>
+                <div class="dash-chart-readout__label">BYPASS</div>
+                <div class="dash-chart-readout__value num">{{ formatPercent(bypassRatio, 1) }}</div>
               </div>
             </div>
           </div>
@@ -64,13 +69,13 @@
       <div class="dash-panel c-8 dash-chart-panel">
         <div class="dash-panel-head">
           <div>
-            <h3>Bandwidth: cache vs origin</h3>
-            <p class="dash-panel-desc">Bytes sent to clients, split by where the response came from</p>
+            <h3>Egress: cache vs origin</h3>
+            <p class="dash-panel-desc">Bytes sent to clients per chart interval, split by each interval's request hit share (estimate)</p>
           </div>
           <div class="dash-chart-readouts">
             <div class="dash-chart-readout">
               <div>
-                <div class="dash-chart-readout__label">Byte hit ratio</div>
+                <div class="dash-chart-readout__label">Byte hit ratio (est.)</div>
                 <div class="dash-chart-readout__value num signal">{{ formatPercent(byteHitRatio, 1) }}</div>
               </div>
             </div>
@@ -102,13 +107,13 @@
               <span :style="{ width: `${barWidth(row.requests, maxStatusRequests)}%` }" :class="`cache-status-fill--${statusTone(row.status)}`"></span>
             </span>
             <span class="cache-status-value num">{{ formatCompact(row.requests) }}</span>
-            <span class="cache-status-share num">{{ formatPercent(ratioPercent(row.requests, summary.requests), 1) }}</span>
+            <span class="cache-status-share num">{{ formatPercent(ratioPercent(row.requests, statusTotal), 1) }}</span>
           </li>
           <li v-if="!statusRows.length" class="empty-row">No data</li>
         </ul>
         <p class="cache-legend">
-          <strong>HIT</strong>, <strong>STALE</strong>, <strong>UPDATING</strong> and <strong>REVALIDATED</strong> count as served from cache.
-          <strong>BYPASS</strong> and <strong>DYNAMIC</strong> were never cacheable.
+          <strong>HIT</strong> was served from cache. <strong>MISS</strong> was fetched from origin and may be cached.
+          <strong>BYPASS</strong> skipped the cache and went to origin. Shares are of all cache lookups.
         </p>
       </div>
 
@@ -151,7 +156,7 @@
         <div class="dash-panel-head">
           <div>
             <h3>Top uncached URLs</h3>
-            <p class="dash-panel-desc">URLs that send the most requests to origin (MISS + EXPIRED)</p>
+            <p class="dash-panel-desc">URLs that send the most requests to origin (stored as MISS)</p>
           </div>
         </div>
         <div class="analytics-table-wrap">
@@ -181,7 +186,7 @@
         <div class="dash-panel-head">
           <div>
             <h3>Cache by site</h3>
-            <p class="dash-panel-desc">Request and byte hit ratio per site, with bandwidth the origin did not have to serve</p>
+            <p class="dash-panel-desc">Request hit ratio and estimated byte hit ratio per site, with egress the origin did not have to serve</p>
           </div>
         </div>
         <div class="analytics-table-wrap">
@@ -191,8 +196,8 @@
                 <th>Site</th>
                 <th class="is-num">Requests</th>
                 <th>Hit ratio</th>
-                <th>Byte hit ratio</th>
-                <th class="is-num">Saved bandwidth</th>
+                <th>Byte hit ratio (est.)</th>
+                <th class="is-num">Saved egress (est.)</th>
               </tr>
             </thead>
             <tbody>
@@ -225,7 +230,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
 import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'
 import AnalyticsTimeChart from '@/components/views/analytics/AnalyticsTimeChart.vue'
 import PreviewDataBadge from '@/components/views/analytics/PreviewDataBadge.vue'
@@ -294,21 +298,31 @@ const palette = computed(() => {
   return { cached: colors.viper, miss: colors.warn, uncacheable: colors.slate, origin: colors.l4 }
 })
 
-const hitRatio = computed(() => ratioPercent(summary.value.cachedRequests, summary.value.requests))
+const cacheLookups = computed(() =>
+  (Number(summary.value.cachedRequests) || 0) + (Number(summary.value.originRequests) || 0),
+)
+const statusTotal = computed(() => statusRows.value.reduce((sum, row) => sum + (Number(row.requests) || 0), 0))
+const hitRatio = computed(() => ratioPercent(summary.value.cachedRequests, cacheLookups.value))
 const byteHitRatio = computed(() => ratioPercent(summary.value.cachedBytes, summary.value.bytes))
 const missRatio = computed(() => {
   const misses = statusRows.value
     .filter((row) => ['MISS', 'EXPIRED'].includes(String(row.status).toUpperCase()))
     .reduce((sum, row) => sum + (Number(row.requests) || 0), 0)
-  return ratioPercent(misses, summary.value.requests)
+  return ratioPercent(misses, cacheLookups.value)
+})
+const bypassRatio = computed(() => {
+  const bypass = statusRows.value
+    .filter((row) => ['BYPASS', 'DYNAMIC'].includes(String(row.status).toUpperCase()))
+    .reduce((sum, row) => sum + (Number(row.requests) || 0), 0)
+  return ratioPercent(bypass, cacheLookups.value)
 })
 
 const kpiCards = computed(() => [
-  { label: 'Cache hit ratio', value: formatPercent(hitRatio.value, 1), hint: 'requests served from cache', tone: 'ok' },
-  { label: 'Byte hit ratio', value: formatPercent(byteHitRatio.value, 1), hint: 'bytes served from cache', tone: 'ok' },
-  { label: 'Served from cache', value: formatBytes(summary.value.cachedBytes), hint: `of ${formatBytes(summary.value.bytes)} total`, tone: 'info' },
-  { label: 'Origin requests', value: formatCompact(summary.value.originRequests), hint: `${formatBytes(summary.value.originBytes)} pulled from origin`, tone: 'warn' },
-  { label: 'Total requests', value: formatCompact(summary.value.requests), hint: filters.rangeLabel, tone: 'total' },
+  { label: 'Cache hit ratio', value: formatPercent(hitRatio.value, 1), hint: 'HIT ÷ (HIT + MISS + BYPASS). STALE/EXPIRED/DYNAMIC are not stored.', tone: 'ok' },
+  { label: 'Byte hit ratio (est.)', value: formatPercent(byteHitRatio.value, 1), hint: 'egress split by request share', tone: 'ok' },
+  { label: 'Served from cache (est.)', value: formatBytes(summary.value.cachedBytes), hint: `of ${formatBytes(summary.value.bytes)} sent to clients`, tone: 'info' },
+  { label: 'Origin requests', value: formatCompact(summary.value.originRequests), hint: `MISS + BYPASS · ~${formatBytes(summary.value.originBytes)}`, tone: 'warn' },
+  { label: 'Total requests', value: formatCompact(summary.value.requests), hint: `all L7 requests incl. blocked · ${filters.rangeLabel}`, tone: 'total' },
 ])
 
 const toPoints = (rows, pickValue) =>
@@ -320,9 +334,9 @@ const resultSeries = computed(() => {
   const rows = statusSeriesRaw.value
   const n = (value) => Number(value) || 0
   return [
-    { name: 'From cache', color: palette.value.cached, data: toPoints(rows, (r) => n(r.hit) + n(r.stale) + n(r.updating) + n(r.revalidated)) },
-    { name: 'Miss / expired', color: palette.value.miss, data: toPoints(rows, (r) => n(r.miss) + n(r.expired)) },
-    { name: 'Not cacheable', color: palette.value.uncacheable, data: toPoints(rows, (r) => n(r.bypass) + n(r.dynamic)) },
+    { name: 'HIT', color: palette.value.cached, data: toPoints(rows, (r) => n(r.hit) + n(r.stale) + n(r.updating) + n(r.revalidated)) },
+    { name: 'MISS', color: palette.value.miss, data: toPoints(rows, (r) => n(r.miss) + n(r.expired)) },
+    { name: 'BYPASS', color: palette.value.uncacheable, data: toPoints(rows, (r) => n(r.bypass) + n(r.dynamic)) },
   ]
 })
 

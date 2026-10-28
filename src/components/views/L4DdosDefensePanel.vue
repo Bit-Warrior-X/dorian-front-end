@@ -8,8 +8,17 @@
           </span>
           <div>
             <p class="cfg-head__kicker">L4 defense</p>
-            <h4>XDP config</h4>
-            <p class="cfg-head__desc">Tune how Sparta attaches to the NIC and reacts to L4 floods. Changes apply when you confirm.</p>
+            <h4 class="info-hint-heading">
+              <span>XDP config</span>
+              <InfoHint
+                text="Sparta detects Attack with adaptive shadow statistics (EWMA / CUSUM), not fixed host-wide flood thresholds.
+Detection Level (1–10) sets how quickly those signals raise Attack. Alert Hold delays episode START so short spikes do not flap.
+While under Attack, per-class burst and fixed limits mitigate floods, and blocked sources use Block Initial TTL that can double up to Block Max TTL.
+NULL and XMAS scans are dropped immediately; other unusual TCP flags use the SOCKET limits."
+                aria-label="XDP config help"
+              />
+            </h4>
+            <p class="cfg-head__desc">Tune how Sparta attaches to the NIC and reacts under Attack. Changes apply when you confirm.</p>
           </div>
         </div>
       </header>
@@ -25,15 +34,12 @@
                   <div class="l4-section">
                     <div class="l4-form-grid">
                       <div class="l4-field">
-                        <label for="global-protection-mode">
+                        <label for="global-protection-mode" class="info-hint-heading">
                           Protection Mode
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Defines how L4 defense reacts to detected traffic."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="Always On applies mitigation when Sparta is in Attack. Monitor watches and can raise alerts with lighter enforcement. Use Always On on production edges."
+                            aria-label="Protection Mode help"
+                          />
                         </label>
                         <select
                           id="global-protection-mode"
@@ -46,25 +52,27 @@
                         </select>
                       </div>
                       <div class="l4-field">
-                        <label for="global-sensitivity">
-                          Sensitivity
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Controls how aggressively the system detects threats."
-                          >
-                            i
-                          </button>
+                        <label for="global-detection-level" class="info-hint-heading">
+                          Detection Level
+                          <InfoHint
+                            text="Main detection knob (1–10). Lower values tolerate more traffic variance before Attack; higher values enter Attack sooner.
+1 Minimal · 5 Normal (default) · 10 Max."
+                            aria-label="Detection Level help"
+                          />
                         </label>
                         <select
-                          id="global-sensitivity"
-                          v-model="globalForm.sensitivity"
+                          id="global-detection-level"
+                          v-model.number="globalForm.detectionLevel"
                           class="l4-input"
                           :disabled="!globalForm.enabled"
                         >
-                          <option value="Low">Low</option>
-                          <option value="Medium">Medium</option>
-                          <option value="High">High</option>
+                          <option
+                            v-for="opt in detectionLevelOptions"
+                            :key="opt.value"
+                            :value="opt.value"
+                          >
+                            {{ opt.value }} — {{ opt.label }}
+                          </option>
                         </select>
                       </div>
                     </div>
@@ -72,15 +80,13 @@
                   <div class="l4-section">
                     <div class="l4-form-grid">
                       <div class="l4-field">
-                        <label for="global-eth-interface">
+                        <label for="global-eth-interface" class="info-hint-heading">
                           Eth Interface
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Network interface that L4 protection attaches to."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="NIC or bond the XDP program attaches to (for example eth0 or bond0).
+Changing the interface usually restarts the edge firewall."
+                            aria-label="Eth Interface help"
+                          />
                         </label>
                         <select
                           id="global-eth-interface"
@@ -101,15 +107,13 @@
                         </select>
                       </div>
                       <div class="l4-field">
-                        <label for="global-attach-mode">
+                        <label for="global-attach-mode" class="info-hint-heading">
                           Attach Mode
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="How the XDP/eBPF hook is attached to the interface."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="How XDP/eBPF hooks the NIC: native (driver path), skb/generic (broader compatibility), or other modes the NIC reports.
+Pick a mode listed for the selected interface."
+                            aria-label="Attach Mode help"
+                          />
                         </label>
                         <select
                           id="global-attach-mode"
@@ -130,23 +134,103 @@
                         </select>
                       </div>
                       <div class="l4-field">
-                        <label for="global-block-duration">
-                          Block Duration
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="How long detected IPs remain blocked."
-                          >
-                            i
-                          </button>
+                        <label for="global-block-initial" class="info-hint-heading">
+                          Block Initial TTL (s)
+                          <InfoHint
+                            text="First block length in seconds after a source is blacklisted (suggested 60–600).
+Repeat offenses can double this duration up to Block Max TTL."
+                            aria-label="Block Initial TTL help"
+                          />
                         </label>
                         <input
-                          id="global-block-duration"
-                          v-model="globalForm.blockDuration"
-                          type="text"
+                          id="global-block-initial"
+                          v-model="globalForm.blockInitialSeconds"
+                          type="number"
+                          min="60"
+                          max="600"
                           class="l4-input"
                           :disabled="!globalForm.enabled"
                         />
+                      </div>
+                      <div class="l4-field">
+                        <label for="global-block-max" class="info-hint-heading">
+                          Block Max TTL (s)
+                          <InfoHint
+                            text="Maximum escalating block length in seconds (suggested ≤ 7200).
+Must be greater than or equal to Block Initial TTL."
+                            aria-label="Block Max TTL help"
+                          />
+                        </label>
+                        <input
+                          id="global-block-max"
+                          v-model="globalForm.blockMaxSeconds"
+                          type="number"
+                          min="60"
+                          max="7200"
+                          class="l4-input"
+                          :disabled="!globalForm.enabled"
+                        />
+                      </div>
+                      <div class="l4-field">
+                        <label for="global-alert-hold" class="info-hint-heading">
+                          Alert Hold (s)
+                          <InfoHint
+                            text="Seconds the Attack condition must stay true before panel/episode START is raised.
+Dampens short spikes. Recommended range 3–10."
+                            aria-label="Alert Hold help"
+                          />
+                        </label>
+                        <input
+                          id="global-alert-hold"
+                          v-model="globalForm.alertHoldWindows"
+                          type="number"
+                          min="1"
+                          class="l4-input"
+                          :disabled="!globalForm.enabled"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="l4-section">
+                    <div class="l4-form-grid">
+                      <div class="l4-field l4-inline-toggle">
+                        <h5 class="info-hint-heading">
+                          <span>HTTP/3</span>
+                          <InfoHint
+                            text="Service profile: treat HTTP/3 (QUIC) as expected legitimate traffic so adaptive baselines are less likely to treat it as Attack noise."
+                            aria-label="HTTP/3 help"
+                          />
+                        </h5>
+                        <div class="l4-yn" role="group" aria-label="HTTP/3">
+                          <button type="button" class="l4-yn__opt" :class="{ active: globalForm.serviceHttp3 }" :aria-pressed="globalForm.serviceHttp3" :disabled="!globalForm.enabled" @click="globalForm.serviceHttp3 = true">Yes</button>
+                          <button type="button" class="l4-yn__opt l4-yn__opt--no" :class="{ active: !globalForm.serviceHttp3 }" :aria-pressed="!globalForm.serviceHttp3" :disabled="!globalForm.enabled" @click="globalForm.serviceHttp3 = false">No</button>
+                        </div>
+                      </div>
+                      <div class="l4-field l4-inline-toggle">
+                        <h5 class="info-hint-heading">
+                          <span>DNS</span>
+                          <InfoHint
+                            text="Service profile: treat DNS traffic patterns as expected on this edge."
+                            aria-label="DNS help"
+                          />
+                        </h5>
+                        <div class="l4-yn" role="group" aria-label="DNS">
+                          <button type="button" class="l4-yn__opt" :class="{ active: globalForm.serviceDns }" :aria-pressed="globalForm.serviceDns" :disabled="!globalForm.enabled" @click="globalForm.serviceDns = true">Yes</button>
+                          <button type="button" class="l4-yn__opt l4-yn__opt--no" :class="{ active: !globalForm.serviceDns }" :aria-pressed="!globalForm.serviceDns" :disabled="!globalForm.enabled" @click="globalForm.serviceDns = false">No</button>
+                        </div>
+                      </div>
+                      <div class="l4-field l4-inline-toggle">
+                        <h5 class="info-hint-heading">
+                          <span>GRE Tunnels</span>
+                          <InfoHint
+                            text="Service profile: treat GRE tunnel traffic as expected on this edge."
+                            aria-label="GRE Tunnels help"
+                          />
+                        </h5>
+                        <div class="l4-yn" role="group" aria-label="GRE tunnels">
+                          <button type="button" class="l4-yn__opt" :class="{ active: globalForm.serviceGreTunnels }" :aria-pressed="globalForm.serviceGreTunnels" :disabled="!globalForm.enabled" @click="globalForm.serviceGreTunnels = true">Yes</button>
+                          <button type="button" class="l4-yn__opt l4-yn__opt--no" :class="{ active: !globalForm.serviceGreTunnels }" :aria-pressed="!globalForm.serviceGreTunnels" :disabled="!globalForm.enabled" @click="globalForm.serviceGreTunnels = false">No</button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -181,15 +265,13 @@
                     </div>
                     <div class="l4-form-grid">
                       <div class="l4-field">
-                        <label for="tcp-connection-limit">
+                        <label for="tcp-connection-limit" class="info-hint-heading">
                           Connection Limit Count
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Caps concurrent TCP connections per source to prevent resource exhaustion attacks."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="Maximum concurrent TCP connections allowed from a single source IP when the connection-limit check is enabled.
+Helps stop slow connection exhaustion."
+                            aria-label="Connection Limit Count help"
+                          />
                         </label>
                         <input
                           id="tcp-connection-limit"
@@ -203,16 +285,13 @@
                     </div>
                   </div>
                   <div class="l4-section l4-inline-toggle">
-                    <h5>
-                      TCP Segmentation Check
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Validates TCP segment patterns to detect malformed or abusive traffic often used in evasion attempts."
-                      >
-                        i
-                      </button>
-                    </h5>
+                    <h5 class="info-hint-heading">
+                          <span>TCP Segmentation Check</span>
+                          <InfoHint
+                            text="Validates TCP segment patterns to catch malformed or abusive segmentation often used to evade filters."
+                            aria-label="TCP Segmentation Check help"
+                          />
+                        </h5>
                     <div class="l4-yn" role="group" aria-label="Enable">
                         <button
                           type="button"
@@ -237,7 +316,7 @@
           <div class="l4-config-row l4-config-row--tcp-floods">
             <section class="l4-config-section">
               <div class="l4-config-title">
-                <h5>TCP SYN Flood</h5>
+                <h5>SYN — Limits while under Attack</h5>
                 <div class="l4-yn" role="group" aria-label="Enable">
                     <button
                       type="button"
@@ -260,38 +339,12 @@
                   <div class="l4-section">
                     <div class="l4-form-grid">
                       <div class="l4-field">
-                        <label for="syn-threshold">
-                          Threshold
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Packets per second to trigger SYN flood defense."
-                          >
-                            i
-                          </button>
-                        </label>
-                        <input
-                          id="syn-threshold"
-                          v-model="synForm.threshold"
-                          type="text"
-                          class="l4-input"
-                          :disabled="!synForm.enabled"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div class="l4-section">
-                    <div class="l4-form-grid">
-                      <div class="l4-field">
-                        <label for="syn-burst-pkt">
+                        <label for="syn-burst-pkt" class="info-hint-heading">
                           Burst Pkt
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="While under Attack: packets allowed in one short burst window before a burst event is counted for SYN."
+                            aria-label="SYN Burst Pkt help"
+                          />
                         </label>
                         <input
                           id="syn-burst-pkt"
@@ -302,15 +355,12 @@
                         />
                       </div>
                       <div class="l4-field">
-                        <label for="syn-burst-counter">
+                        <label for="syn-burst-counter" class="info-hint-heading">
                           Burst Counter
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Burst Counter: Maximum burst events per second before the source is blacklisted."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="While under Attack: burst events per second allowed before the source IP is blacklisted for SYN abuse."
+                            aria-label="SYN Burst Counter help"
+                          />
                         </label>
                         <input
                           id="syn-burst-counter"
@@ -325,15 +375,12 @@
                   <div class="l4-section">
                     <div class="l4-form-grid">
                       <div class="l4-field">
-                        <label for="syn-fixed-duration">
+                        <label for="syn-fixed-duration" class="info-hint-heading">
                           Fixed Duration
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="While under Attack: length of the sustained-rate window in seconds for SYN."
+                            aria-label="SYN Fixed Duration help"
+                          />
                         </label>
                         <input
                           id="syn-fixed-duration"
@@ -344,15 +391,12 @@
                         />
                       </div>
                       <div class="l4-field">
-                        <label for="syn-fixed-threshold">
+                        <label for="syn-fixed-threshold" class="info-hint-heading">
                           Fixed Threshold
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="While under Attack: packet count allowed inside the fixed window for SYN. Excess blacklists the source."
+                            aria-label="SYN Fixed Threshold help"
+                          />
                         </label>
                         <input
                           id="syn-fixed-threshold"
@@ -367,15 +411,13 @@
                   <div class="l4-section">
                     <div class="l4-form-grid">
                       <div class="l4-field">
-                        <label for="syn-challenge-timeout">
+                        <label for="syn-challenge-timeout" class="info-hint-heading">
                           Challenge Timeout
-                          <button
-                            type="button"
-                            class="tooltip-btn"
-                            title="Time allowed for SYN challenge response."
-                          >
-                            i
-                          </button>
+                          <InfoHint
+                            text="Seconds allowed for a SYN cookie / challenge handshake to complete.
+Incomplete handshakes are dropped after this timeout."
+                            aria-label="Challenge Timeout help"
+                          />
                         </label>
                         <input
                           id="syn-challenge-timeout"
@@ -392,7 +434,7 @@
             </section>
             <section class="l4-config-section">
           <div class="l4-config-title">
-            <h5>TCP ACK Flood</h5>
+            <h5>ACK — Limits while under Attack</h5>
             <div class="l4-yn" role="group" aria-label="Enable">
                 <button
                   type="button"
@@ -415,39 +457,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="ack-threshold">
-                      Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Packets per second to trigger ACK flood defense."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="ack-threshold"
-                      v-model="ackForm.threshold"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!ackForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="ack-burst-pkt">
-                      Burst Pkt
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="ack-burst-pkt" class="info-hint-heading">
+                          Burst Pkt
+                          <InfoHint
+                            text="While under Attack: packets allowed in one short burst window before a burst event is counted for ACK."
+                            aria-label="ACK Burst Pkt help"
+                          />
+                        </label>
                     <input
                       id="ack-burst-pkt"
                       v-model="ackForm.burstPkt"
@@ -457,16 +473,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="ack-burst-counter">
-                      Burst Counter
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="ack-burst-counter" class="info-hint-heading">
+                          Burst Counter
+                          <InfoHint
+                            text="While under Attack: burst events per second allowed before the source is blacklisted for ACK abuse."
+                            aria-label="ACK Burst Counter help"
+                          />
+                        </label>
                     <input
                       id="ack-burst-counter"
                       v-model="ackForm.burstCounter"
@@ -480,16 +493,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="ack-fixed-duration">
-                      Fixed Duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="ack-fixed-duration" class="info-hint-heading">
+                          Fixed Duration
+                          <InfoHint
+                            text="While under Attack: length of the sustained-rate window in seconds for ACK."
+                            aria-label="ACK Fixed Duration help"
+                          />
+                        </label>
                     <input
                       id="ack-fixed-duration"
                       v-model="ackForm.fixedDuration"
@@ -499,16 +509,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="ack-fixed-threshold">
-                      Fixed Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="ack-fixed-threshold" class="info-hint-heading">
+                          Fixed Threshold
+                          <InfoHint
+                            text="While under Attack: packet count allowed inside the fixed window for ACK. Excess blacklists the source."
+                            aria-label="ACK Fixed Threshold help"
+                          />
+                        </label>
                     <input
                       id="ack-fixed-threshold"
                       v-model="ackForm.fixedThreshold"
@@ -524,7 +531,7 @@
         </section>
         <section class="l4-config-section">
           <div class="l4-config-title">
-            <h5>TCP RST Flood</h5>
+            <h5>RST — Limits while under Attack</h5>
             <div class="l4-yn" role="group" aria-label="Enable">
                 <button
                   type="button"
@@ -547,39 +554,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="rst-threshold">
-                      Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Packets per second to trigger RST flood defense."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="rst-threshold"
-                      v-model="rstForm.threshold"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!rstForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="rst-burst-pkt">
-                      Burst Pkt
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="rst-burst-pkt" class="info-hint-heading">
+                          Burst Pkt
+                          <InfoHint
+                            text="While under Attack: packets allowed in one short burst window before a burst event is counted for RST."
+                            aria-label="RST Burst Pkt help"
+                          />
+                        </label>
                     <input
                       id="rst-burst-pkt"
                       v-model="rstForm.burstPkt"
@@ -589,16 +570,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="rst-burst-counter">
-                      Burst Counter
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="rst-burst-counter" class="info-hint-heading">
+                          Burst Counter
+                          <InfoHint
+                            text="While under Attack: burst events per second allowed before the source is blacklisted for RST abuse."
+                            aria-label="RST Burst Counter help"
+                          />
+                        </label>
                     <input
                       id="rst-burst-counter"
                       v-model="rstForm.burstCounter"
@@ -612,16 +590,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="rst-fixed-duration">
-                      Fixed Duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="rst-fixed-duration" class="info-hint-heading">
+                          Fixed Duration
+                          <InfoHint
+                            text="While under Attack: length of the sustained-rate window in seconds for RST."
+                            aria-label="RST Fixed Duration help"
+                          />
+                        </label>
                     <input
                       id="rst-fixed-duration"
                       v-model="rstForm.fixedDuration"
@@ -631,16 +606,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="rst-fixed-threshold">
-                      Fixed Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="rst-fixed-threshold" class="info-hint-heading">
+                          Fixed Threshold
+                          <InfoHint
+                            text="While under Attack: packet count allowed inside the fixed window for RST. Excess blacklists the source."
+                            aria-label="RST Fixed Threshold help"
+                          />
+                        </label>
                     <input
                       id="rst-fixed-threshold"
                       v-model="rstForm.fixedThreshold"
@@ -656,7 +628,7 @@
         </section>
         <section class="l4-config-section">
           <div class="l4-config-title">
-            <h5>STOMP Flood</h5>
+            <h5>STOMP — Limits while under Attack</h5>
             <div class="l4-yn" role="group" aria-label="Enable">
                 <button
                   type="button"
@@ -679,39 +651,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="stomp-threshold">
-                      Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Packets per second of TCP PSH+ACK to trigger STOMP flood defense."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="stomp-threshold"
-                      v-model="stompForm.threshold"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!stompForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="stomp-burst-pkt">
-                      Burst Pkt
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="stomp-burst-pkt" class="info-hint-heading">
+                          Burst Pkt
+                          <InfoHint
+                            text="While under Attack: packets allowed in one short burst window before a burst event is counted for STOMP (PSH+ACK)."
+                            aria-label="STOMP Burst Pkt help"
+                          />
+                        </label>
                     <input
                       id="stomp-burst-pkt"
                       v-model="stompForm.burstPkt"
@@ -721,16 +667,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="stomp-burst-counter">
-                      Burst Counter
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="stomp-burst-counter" class="info-hint-heading">
+                          Burst Counter
+                          <InfoHint
+                            text="While under Attack: burst events per second allowed before the source is blacklisted for STOMP abuse."
+                            aria-label="STOMP Burst Counter help"
+                          />
+                        </label>
                     <input
                       id="stomp-burst-counter"
                       v-model="stompForm.burstCounter"
@@ -744,16 +687,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="stomp-fixed-duration">
-                      Fixed Duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="stomp-fixed-duration" class="info-hint-heading">
+                          Fixed Duration
+                          <InfoHint
+                            text="While under Attack: length of the sustained-rate window in seconds for STOMP."
+                            aria-label="STOMP Fixed Duration help"
+                          />
+                        </label>
                     <input
                       id="stomp-fixed-duration"
                       v-model="stompForm.fixedDuration"
@@ -763,16 +703,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="stomp-fixed-threshold">
-                      Fixed Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="stomp-fixed-threshold" class="info-hint-heading">
+                          Fixed Threshold
+                          <InfoHint
+                            text="While under Attack: packet count allowed inside the fixed window for STOMP. Excess blacklists the source."
+                            aria-label="STOMP Fixed Threshold help"
+                          />
+                        </label>
                     <input
                       id="stomp-fixed-threshold"
                       v-model="stompForm.fixedThreshold"
@@ -788,7 +725,15 @@
         </section>
         <section class="l4-config-section">
           <div class="l4-config-title">
-            <h5>SOCKET</h5>
+            <h5 class="info-hint-heading">
+              <span>SOCKET</span>
+              <InfoHint
+                text="NULL and XMAS scans are dropped immediately.
+FIN without acknowledgement on a non-established flow blocks above the FIN threshold.
+Every other unusual flag combination blocks above the fixed threshold in the same window."
+                aria-label="SOCKET help"
+              />
+            </h5>
             <div class="l4-yn" role="group" aria-label="Enable">
                 <button
                   type="button"
@@ -806,24 +751,19 @@
                 >No</button>
               </div>
           </div>
-          <p class="l4-config-note">
-            NULL scans and XMAS scans are dropped immediately. A FIN without acknowledgement, from a flow that is not established, blocks above the FIN threshold. Every other unusual flag combination blocks above the fixed threshold in the same window.
-          </p>
           <div class="l4-form">
             <div class="l4-form-sections">
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="socket-fin-threshold">
-                      FIN threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="FIN without acknowledgement, on a flow that is not established, blocks above this count."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="socket-fin-threshold" class="info-hint-heading">
+                          FIN threshold
+                          <InfoHint
+                            text="FIN without acknowledgement on a flow that is not established. Sources above this count in the window are blocked.
+NULL and XMAS scans are always dropped immediately and do not use this threshold."
+                            aria-label="FIN Threshold help"
+                          />
+                        </label>
                     <input
                       id="socket-fin-threshold"
                       v-model="socketForm.finThreshold"
@@ -833,16 +773,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="socket-fixed-threshold">
-                      Fixed threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Other unusual flag combinations block above this count in the fixed window."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="socket-fixed-threshold" class="info-hint-heading">
+                          Fixed threshold
+                          <InfoHint
+                            text="Every unusual TCP flag combination other than FIN-without-ACK (and excluding NULL/XMAS, which are dropped immediately) blocks when the count in the fixed window exceeds this threshold."
+                            aria-label="Socket Fixed Threshold help"
+                          />
+                        </label>
                     <input
                       id="socket-fixed-threshold"
                       v-model="socketForm.fixedThreshold"
@@ -852,16 +789,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="socket-fixed-duration">
-                      Fixed duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Seconds in the window used for unusual flag combinations."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="socket-fixed-duration" class="info-hint-heading">
+                          Fixed duration
+                          <InfoHint
+                            text="Window length in seconds used for both the FIN threshold and the fixed threshold for other unusual flag combinations."
+                            aria-label="Socket Fixed Duration help"
+                          />
+                        </label>
                     <input
                       id="socket-fixed-duration"
                       v-model="socketForm.fixedDuration"
@@ -878,7 +812,7 @@
         <div class="l4-config-row">
         <section class="l4-config-section">
           <div class="l4-config-title">
-            <h5>ICMP Flood</h5>
+            <h5>ICMP — Limits while under Attack</h5>
             <div class="l4-yn" role="group" aria-label="Enable">
                 <button
                   type="button"
@@ -901,39 +835,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="icmp-threshold">
-                      Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Packets per second to trigger ICMP flood defense."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="icmp-threshold"
-                      v-model="icmpForm.threshold"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!icmpForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="icmp-burst-pkt">
-                      Burst Pkt
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="icmp-burst-pkt" class="info-hint-heading">
+                          Burst Pkt
+                          <InfoHint
+                            text="While under Attack: packets allowed in one short burst window before a burst event is counted for ICMP."
+                            aria-label="ICMP Burst Pkt help"
+                          />
+                        </label>
                     <input
                       id="icmp-burst-pkt"
                       v-model="icmpForm.burstPkt"
@@ -943,16 +851,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="icmp-burst-counter">
-                      Burst Counter
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="icmp-burst-counter" class="info-hint-heading">
+                          Burst Counter
+                          <InfoHint
+                            text="While under Attack: burst events per second allowed before the source is blacklisted for ICMP abuse."
+                            aria-label="ICMP Burst Counter help"
+                          />
+                        </label>
                     <input
                       id="icmp-burst-counter"
                       v-model="icmpForm.burstCounter"
@@ -966,16 +871,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="icmp-fixed-duration">
-                      Fixed Duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="icmp-fixed-duration" class="info-hint-heading">
+                          Fixed Duration
+                          <InfoHint
+                            text="While under Attack: length of the sustained-rate window in seconds for ICMP."
+                            aria-label="ICMP Fixed Duration help"
+                          />
+                        </label>
                     <input
                       id="icmp-fixed-duration"
                       v-model="icmpForm.fixedDuration"
@@ -985,16 +887,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="icmp-fixed-threshold">
-                      Fixed Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="icmp-fixed-threshold" class="info-hint-heading">
+                          Fixed Threshold
+                          <InfoHint
+                            text="While under Attack: packet count allowed inside the fixed window for ICMP. Excess blacklists the source."
+                            aria-label="ICMP Fixed Threshold help"
+                          />
+                        </label>
                     <input
                       id="icmp-fixed-threshold"
                       v-model="icmpForm.fixedThreshold"
@@ -1011,7 +910,7 @@
         </div>
         <section class="l4-config-section">
           <div class="l4-config-title">
-            <h5>UDP Flood</h5>
+            <h5>UDP — Limits while under Attack</h5>
             <div class="l4-yn" role="group" aria-label="Enable">
                 <button
                   type="button"
@@ -1034,39 +933,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="udp-threshold">
-                      Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Packets per second to trigger UDP flood defense."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="udp-threshold"
-                      v-model="udpForm.threshold"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!udpForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="udp-burst-pkt">
-                      Burst Pkt
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="udp-burst-pkt" class="info-hint-heading">
+                          Burst Pkt
+                          <InfoHint
+                            text="While under Attack: packets allowed in one short burst window before a burst event is counted for UDP."
+                            aria-label="UDP Burst Pkt help"
+                          />
+                        </label>
                     <input
                       id="udp-burst-pkt"
                       v-model="udpForm.burstPkt"
@@ -1076,16 +949,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="udp-burst-counter">
-                      Burst Counter
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="udp-burst-counter" class="info-hint-heading">
+                          Burst Counter
+                          <InfoHint
+                            text="While under Attack: burst events per second allowed before the source is blacklisted for UDP abuse."
+                            aria-label="UDP Burst Counter help"
+                          />
+                        </label>
                     <input
                       id="udp-burst-counter"
                       v-model="udpForm.burstCounter"
@@ -1099,16 +969,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="udp-fixed-duration">
-                      Fixed Duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="udp-fixed-duration" class="info-hint-heading">
+                          Fixed Duration
+                          <InfoHint
+                            text="While under Attack: length of the sustained-rate window in seconds for UDP."
+                            aria-label="UDP Fixed Duration help"
+                          />
+                        </label>
                     <input
                       id="udp-fixed-duration"
                       v-model="udpForm.fixedDuration"
@@ -1118,16 +985,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="udp-fixed-threshold">
-                      Fixed Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="udp-fixed-threshold" class="info-hint-heading">
+                          Fixed Threshold
+                          <InfoHint
+                            text="While under Attack: packet count allowed inside the fixed window for UDP. Excess blacklists the source."
+                            aria-label="UDP Fixed Threshold help"
+                          />
+                        </label>
                     <input
                       id="udp-fixed-threshold"
                       v-model="udpForm.fixedThreshold"
@@ -1143,7 +1007,7 @@
         </section>
         <section class="l4-config-section">
           <div class="l4-config-title">
-            <h5>GRE Flood</h5>
+            <h5>GRE — Limits while under Attack</h5>
             <div class="l4-yn" role="group" aria-label="Enable">
                 <button
                   type="button"
@@ -1166,39 +1030,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="gre-threshold">
-                      Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Packets per second to trigger GRE flood defense."
-                      >
-                        i
-                      </button>
-                    </label>
-                    <input
-                      id="gre-threshold"
-                      v-model="greForm.threshold"
-                      type="text"
-                      class="l4-input"
-                      :disabled="!greForm.enabled"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div class="l4-section">
-                <div class="l4-form-grid">
-                  <div class="l4-field">
-                    <label for="gre-burst-pkt">
-                      Burst Pkt
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Pkt: Maximum packets allowed in a single burst window before a burst is counted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="gre-burst-pkt" class="info-hint-heading">
+                          Burst Pkt
+                          <InfoHint
+                            text="While under Attack: packets allowed in one short burst window before a burst event is counted for GRE."
+                            aria-label="GRE Burst Pkt help"
+                          />
+                        </label>
                     <input
                       id="gre-burst-pkt"
                       v-model="greForm.burstPkt"
@@ -1208,16 +1046,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="gre-burst-counter">
-                      Burst Counter
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Burst Counter: Maximum burst events per second before the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="gre-burst-counter" class="info-hint-heading">
+                          Burst Counter
+                          <InfoHint
+                            text="While under Attack: burst events per second allowed before the source is blacklisted for GRE abuse."
+                            aria-label="GRE Burst Counter help"
+                          />
+                        </label>
                     <input
                       id="gre-burst-counter"
                       v-model="greForm.burstCounter"
@@ -1231,16 +1066,13 @@
               <div class="l4-section">
                 <div class="l4-form-grid">
                   <div class="l4-field">
-                    <label for="gre-fixed-duration">
-                      Fixed Duration
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="gre-fixed-duration" class="info-hint-heading">
+                          Fixed Duration
+                          <InfoHint
+                            text="While under Attack: length of the sustained-rate window in seconds for GRE."
+                            aria-label="GRE Fixed Duration help"
+                          />
+                        </label>
                     <input
                       id="gre-fixed-duration"
                       v-model="greForm.fixedDuration"
@@ -1250,16 +1082,13 @@
                     />
                   </div>
                   <div class="l4-field">
-                    <label for="gre-fixed-threshold">
-                      Fixed Threshold
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Fixed Mode: Captures sustained traffic over a fixed window. If packet count exceeds the fixed threshold, the source is blacklisted."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="gre-fixed-threshold" class="info-hint-heading">
+                          Fixed Threshold
+                          <InfoHint
+                            text="While under Attack: packet count allowed inside the fixed window for GRE. Excess blacklists the source."
+                            aria-label="GRE Fixed Threshold help"
+                          />
+                        </label>
                     <input
                       id="gre-fixed-threshold"
                       v-model="greForm.fixedThreshold"
@@ -1299,16 +1128,14 @@
               <div class="l4-section">
                 <div class="l4-form-grid l4-geo-mode-row">
                   <div class="l4-field l4-field--wide">
-                    <label for="geo-country-list-mode">
-                      Allowed / blocked countries
-                      <button
-                        type="button"
-                        class="tooltip-btn"
-                        title="Choose whether traffic from the selected countries is allowed (allowlist) or blocked (blocklist). Other regions follow the opposite rule."
-                      >
-                        i
-                      </button>
-                    </label>
+                    <label for="geo-country-list-mode" class="info-hint-heading">
+                          Allowed / blocked countries
+                          <InfoHint
+                            text="Allowlist: only listed countries may pass when geo check is on.
+Blocklist: listed countries are denied; others follow the opposite rule."
+                            aria-label="Geo Country Mode help"
+                          />
+                        </label>
                     <select
                       id="geo-country-list-mode"
                       v-model="geoIpForm.countryListMode"
@@ -1392,6 +1219,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { fetchL4Config, fetchL4Options, updateL4Config } from "@/api/l4";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import InfoHint from "../InfoHint.vue";
 import { notifyError, notifySuccess } from "@/utils/notify";
 
 const L4_DDOS_TITLE = "XDP Config";
@@ -1420,13 +1248,49 @@ const availableAttachModes = computed(() => {
   return l4Options.value.attachModes;
 });
 
+const detectionLevelOptions = [
+  { value: 1, label: "Minimal" },
+  { value: 2, label: "Very low" },
+  { value: 3, label: "Low" },
+  { value: 4, label: "Moderate low" },
+  { value: 5, label: "Normal" },
+  { value: 6, label: "Moderate high" },
+  { value: 7, label: "Elevated" },
+  { value: 8, label: "High" },
+  { value: 9, label: "Very high" },
+  { value: 10, label: "Max" }
+];
+
+const sensitivityFromDetectionLevel = (level) => {
+  const n = Number(level) || 5;
+  if (n <= 3) return "Low";
+  if (n <= 6) return "Medium";
+  return "High";
+};
+
+const detectionLevelFromSensitivity = (value) => {
+  switch (String(value || "").toLowerCase()) {
+    case "low":
+      return 3;
+    case "high":
+      return 8;
+    default:
+      return 5;
+  }
+};
+
 const globalForm = ref({
   enabled: true,
   protectionMode: "Always On",
-  sensitivity: "Medium",
+  detectionLevel: 5,
+  alertHoldWindows: 5,
+  blockInitialSeconds: 60,
+  blockMaxSeconds: 3600,
+  serviceHttp3: false,
+  serviceDns: false,
+  serviceGreTunnels: false,
   ethInterface: "eth0",
-  attachMode: "skb",
-  blockDuration: "3600s"
+  attachMode: "skb"
 });
 const synForm = ref({
   enabled: true,
@@ -1810,9 +1674,26 @@ const applyConfig = (config) => {
   if (!config) return;
   globalForm.value.ethInterface = config.dev || "eth0";
   globalForm.value.attachMode = config.attachMode || "skb";
-  globalForm.value.sensitivity = config.sensitivity || "Medium";
   globalForm.value.protectionMode = config.protectionMode || "Always On";
-  globalForm.value.blockDuration = String(config.blackIpDuration ?? "3600");
+  const detectionLevel =
+    Number(config.detectionLevel) > 0
+      ? Number(config.detectionLevel)
+      : detectionLevelFromSensitivity(config.sensitivity);
+  globalForm.value.detectionLevel = Math.min(10, Math.max(1, detectionLevel));
+  globalForm.value.alertHoldWindows = Number(config.alertHoldWindows) > 0
+    ? Number(config.alertHoldWindows)
+    : 5;
+  globalForm.value.blockInitialSeconds = Number(config.blockInitialSeconds) > 0
+    ? Number(config.blockInitialSeconds)
+    : 60;
+  globalForm.value.blockMaxSeconds = Number(config.blockMaxSeconds) > 0
+    ? Number(config.blockMaxSeconds)
+    : Number(config.blackIpDuration) > 0
+      ? Number(config.blackIpDuration)
+      : 3600;
+  globalForm.value.serviceHttp3 = Boolean(config.serviceHttp3);
+  globalForm.value.serviceDns = Boolean(config.serviceDns);
+  globalForm.value.serviceGreTunnels = Boolean(config.serviceGreTunnels);
 
   synForm.value.enabled = Boolean(config.synValid);
   synForm.value.threshold = String(config.synThreshold ?? "");
@@ -1929,76 +1810,94 @@ const handleConfirmDialog = async () => {
   pendingConfirmAction = null;
 };
 
-const buildPayload = () => ({
-  dev: globalForm.value.ethInterface,
-  attachMode: globalForm.value.attachMode,
-  sensitivity: globalForm.value.sensitivity,
-  protectionMode: globalForm.value.protectionMode,
-  blackIpDuration: parseNumber(globalForm.value.blockDuration, 3600),
-  synValid: Boolean(synForm.value.enabled),
-  synThreshold: parseNumber(synForm.value.threshold, 0),
-  synBurstPkt: parseNumber(synForm.value.burstPkt, 0),
-  synBurstCountPerSec: parseNumber(synForm.value.burstCounter, 0),
-  synFixedThreshold: parseNumber(synForm.value.fixedThreshold, 0),
-  synFixedCheckDuration: parseNumber(synForm.value.fixedDuration, 0),
-  challengeTimeout: parseNumber(synForm.value.challengeTimeout, 0),
-  synProtectionDuration: parseNumber(synForm.value.blockDuration, 0),
-  ackValid: Boolean(ackForm.value.enabled),
-  ackThreshold: parseNumber(ackForm.value.threshold, 0),
-  ackBurstPkt: parseNumber(ackForm.value.burstPkt, 0),
-  ackBurstCountPerSec: parseNumber(ackForm.value.burstCounter, 0),
-  ackFixedThreshold: parseNumber(ackForm.value.fixedThreshold, 0),
-  ackFixedCheckDuration: parseNumber(ackForm.value.fixedDuration, 0),
-  ackProtectionDuration: parseNumber(ackForm.value.blockDuration, 0),
-  rstValid: Boolean(rstForm.value.enabled),
-  rstThreshold: parseNumber(rstForm.value.threshold, 0),
-  rstBurstPkt: parseNumber(rstForm.value.burstPkt, 0),
-  rstBurstCountPerSec: parseNumber(rstForm.value.burstCounter, 0),
-  rstFixedThreshold: parseNumber(rstForm.value.fixedThreshold, 0),
-  rstFixedCheckDuration: parseNumber(rstForm.value.fixedDuration, 0),
-  rstProtectionDuration: parseNumber(rstForm.value.blockDuration, 0),
-  stompValid: Boolean(stompForm.value.enabled),
-  stompThreshold: parseNumber(stompForm.value.threshold, 0),
-  stompBurstPkt: parseNumber(stompForm.value.burstPkt, 0),
-  stompBurstCountPerSec: parseNumber(stompForm.value.burstCounter, 0),
-  stompFixedThreshold: parseNumber(stompForm.value.fixedThreshold, 0),
-  stompFixedCheckDuration: parseNumber(stompForm.value.fixedDuration, 0),
-  stompProtectionDuration:
-    parseNumber(stompForm.value.blockDuration, 0) || parseNumber(rstForm.value.blockDuration, 120),
-  socketValid: Boolean(socketForm.value.enabled),
-  socketFinThreshold: parseNumber(socketForm.value.finThreshold, 0),
-  socketFixedThreshold: parseNumber(socketForm.value.fixedThreshold, 0),
-  socketFixedCheckDuration: parseNumber(socketForm.value.fixedDuration, 0),
-  icmpValid: Boolean(icmpForm.value.enabled),
-  icmpThreshold: parseNumber(icmpForm.value.threshold, 0),
-  icmpBurstPkt: parseNumber(icmpForm.value.burstPkt, 0),
-  icmpBurstCountPerSec: parseNumber(icmpForm.value.burstCounter, 0),
-  icmpFixedThreshold: parseNumber(icmpForm.value.fixedThreshold, 0),
-  icmpFixedCheckDuration: parseNumber(icmpForm.value.fixedDuration, 0),
-  icmpProtectionDuration: parseNumber(icmpForm.value.blockDuration, 0),
-  udpValid: Boolean(udpForm.value.enabled),
-  udpThreshold: parseNumber(udpForm.value.threshold, 0),
-  udpBurstPkt: parseNumber(udpForm.value.burstPkt, 0),
-  udpBurstCountPerSec: parseNumber(udpForm.value.burstCounter, 0),
-  udpFixedThreshold: parseNumber(udpForm.value.fixedThreshold, 0),
-  udpFixedCheckDuration: parseNumber(udpForm.value.fixedDuration, 0),
-  udpProtectionDuration: parseNumber(udpForm.value.blockDuration, 0),
-  greValid: Boolean(greForm.value.enabled),
-  greThreshold: parseNumber(greForm.value.threshold, 0),
-  greBurstPkt: parseNumber(greForm.value.burstPkt, 0),
-  greBurstCountPerSec: parseNumber(greForm.value.burstCounter, 0),
-  greFixedThreshold: parseNumber(greForm.value.fixedThreshold, 0),
-  greFixedCheckDuration: parseNumber(greForm.value.fixedDuration, 0),
-  greProtectionDuration: parseNumber(greForm.value.blockDuration, 0),
-  tcpSegCheck: Boolean(tcpDetailedForm.value.segmentationCheck),
-  geoCheck: Boolean(geoIpForm.value.enabled),
-  geoDbIpv4Path: geoIpForm.value.geoDbIpv4Path,
-  geoDbLocationPath: geoIpForm.value.geoDbLocationPath,
-  geoAllowCountries: [...geoIpForm.value.selectedCountries],
-  geoCountriesBlockMode: geoIpForm.value.countryListMode === "block",
-  tcpConnectionLimitCheck: Boolean(tcpDetailedForm.value.connectionLimitEnabled),
-  tcpConnectionLimitCnt: parseNumber(tcpDetailedForm.value.connectionLimit, 0)
-});
+const buildPayload = () => {
+  let detectionLevel = Number(globalForm.value.detectionLevel) || 5;
+  detectionLevel = Math.min(10, Math.max(1, detectionLevel));
+  let blockInitial = parseNumber(globalForm.value.blockInitialSeconds, 60);
+  let blockMax = parseNumber(globalForm.value.blockMaxSeconds, 3600);
+  if (blockMax < blockInitial) blockMax = blockInitial;
+  const alertHold = Math.max(1, parseNumber(globalForm.value.alertHoldWindows, 5));
+
+  return {
+    dev: globalForm.value.ethInterface,
+    attachMode: globalForm.value.attachMode,
+    sensitivity: sensitivityFromDetectionLevel(detectionLevel),
+    protectionMode: globalForm.value.protectionMode,
+    blackIpDuration: blockMax,
+    preferAdaptive: true,
+    enforceDropInvalid: true,
+    detectionLevel,
+    alertHoldWindows: alertHold,
+    blockInitialSeconds: blockInitial,
+    blockMaxSeconds: blockMax,
+    serviceHttp3: Boolean(globalForm.value.serviceHttp3),
+    serviceDns: Boolean(globalForm.value.serviceDns),
+    serviceGreTunnels: Boolean(globalForm.value.serviceGreTunnels),
+    synValid: Boolean(synForm.value.enabled),
+    synThreshold: parseNumber(synForm.value.threshold, 0),
+    synBurstPkt: parseNumber(synForm.value.burstPkt, 0),
+    synBurstCountPerSec: parseNumber(synForm.value.burstCounter, 0),
+    synFixedThreshold: parseNumber(synForm.value.fixedThreshold, 0),
+    synFixedCheckDuration: parseNumber(synForm.value.fixedDuration, 0),
+    challengeTimeout: parseNumber(synForm.value.challengeTimeout, 0),
+    synProtectionDuration: parseNumber(synForm.value.blockDuration, 0),
+    ackValid: Boolean(ackForm.value.enabled),
+    ackThreshold: parseNumber(ackForm.value.threshold, 0),
+    ackBurstPkt: parseNumber(ackForm.value.burstPkt, 0),
+    ackBurstCountPerSec: parseNumber(ackForm.value.burstCounter, 0),
+    ackFixedThreshold: parseNumber(ackForm.value.fixedThreshold, 0),
+    ackFixedCheckDuration: parseNumber(ackForm.value.fixedDuration, 0),
+    ackProtectionDuration: parseNumber(ackForm.value.blockDuration, 0),
+    rstValid: Boolean(rstForm.value.enabled),
+    rstThreshold: parseNumber(rstForm.value.threshold, 0),
+    rstBurstPkt: parseNumber(rstForm.value.burstPkt, 0),
+    rstBurstCountPerSec: parseNumber(rstForm.value.burstCounter, 0),
+    rstFixedThreshold: parseNumber(rstForm.value.fixedThreshold, 0),
+    rstFixedCheckDuration: parseNumber(rstForm.value.fixedDuration, 0),
+    rstProtectionDuration: parseNumber(rstForm.value.blockDuration, 0),
+    stompValid: Boolean(stompForm.value.enabled),
+    stompThreshold: parseNumber(stompForm.value.threshold, 0),
+    stompBurstPkt: parseNumber(stompForm.value.burstPkt, 0),
+    stompBurstCountPerSec: parseNumber(stompForm.value.burstCounter, 0),
+    stompFixedThreshold: parseNumber(stompForm.value.fixedThreshold, 0),
+    stompFixedCheckDuration: parseNumber(stompForm.value.fixedDuration, 0),
+    stompProtectionDuration:
+      parseNumber(stompForm.value.blockDuration, 0) || parseNumber(rstForm.value.blockDuration, 120),
+    socketValid: Boolean(socketForm.value.enabled),
+    socketFinThreshold: parseNumber(socketForm.value.finThreshold, 0),
+    socketFixedThreshold: parseNumber(socketForm.value.fixedThreshold, 0),
+    socketFixedCheckDuration: parseNumber(socketForm.value.fixedDuration, 0),
+    icmpValid: Boolean(icmpForm.value.enabled),
+    icmpThreshold: parseNumber(icmpForm.value.threshold, 0),
+    icmpBurstPkt: parseNumber(icmpForm.value.burstPkt, 0),
+    icmpBurstCountPerSec: parseNumber(icmpForm.value.burstCounter, 0),
+    icmpFixedThreshold: parseNumber(icmpForm.value.fixedThreshold, 0),
+    icmpFixedCheckDuration: parseNumber(icmpForm.value.fixedDuration, 0),
+    icmpProtectionDuration: parseNumber(icmpForm.value.blockDuration, 0),
+    udpValid: Boolean(udpForm.value.enabled),
+    udpThreshold: parseNumber(udpForm.value.threshold, 0),
+    udpBurstPkt: parseNumber(udpForm.value.burstPkt, 0),
+    udpBurstCountPerSec: parseNumber(udpForm.value.burstCounter, 0),
+    udpFixedThreshold: parseNumber(udpForm.value.fixedThreshold, 0),
+    udpFixedCheckDuration: parseNumber(udpForm.value.fixedDuration, 0),
+    udpProtectionDuration: parseNumber(udpForm.value.blockDuration, 0),
+    greValid: Boolean(greForm.value.enabled),
+    greThreshold: parseNumber(greForm.value.threshold, 0),
+    greBurstPkt: parseNumber(greForm.value.burstPkt, 0),
+    greBurstCountPerSec: parseNumber(greForm.value.burstCounter, 0),
+    greFixedThreshold: parseNumber(greForm.value.fixedThreshold, 0),
+    greFixedCheckDuration: parseNumber(greForm.value.fixedDuration, 0),
+    greProtectionDuration: parseNumber(greForm.value.blockDuration, 0),
+    tcpSegCheck: Boolean(tcpDetailedForm.value.segmentationCheck),
+    geoCheck: Boolean(geoIpForm.value.enabled),
+    geoDbIpv4Path: geoIpForm.value.geoDbIpv4Path,
+    geoDbLocationPath: geoIpForm.value.geoDbLocationPath,
+    geoAllowCountries: [...geoIpForm.value.selectedCountries],
+    geoCountriesBlockMode: geoIpForm.value.countryListMode === "block",
+    tcpConnectionLimitCheck: Boolean(tcpDetailedForm.value.connectionLimitEnabled),
+    tcpConnectionLimitCnt: parseNumber(tcpDetailedForm.value.connectionLimit, 0)
+  };
+};
 
 const parseNumber = (value, fallback) => {
   if (value === null || value === undefined) return fallback;
@@ -2265,13 +2164,6 @@ watch(
   color: var(--app-heading);
 }
 
-.l4-config-note {
-  margin: -4px 0 12px;
-  color: var(--app-text-muted);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
 .l4-settings-header {
   display: flex;
   align-items: center;
@@ -2451,28 +2343,6 @@ watch(
   letter-spacing: 0.04em;
 }
 
-.tooltip-btn {
-  margin-left: 6px;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  border: 1px solid var(--app-border-strong);
-  background: var(--app-surface-solid);
-  color: var(--app-text-muted);
-  font-size: var(--type-small);
-  font-weight: 700;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  cursor: help;
-}
-
-.tooltip-btn:focus {
-  outline: 2px solid rgba(59, 130, 246, 0.35);
-  outline-offset: 2px;
-}
 
 .l4-input {
   border: 1px solid var(--app-border-strong);
@@ -2687,18 +2557,6 @@ watch(
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
-
-.l4-panel .tooltip-btn {
-  width: 15px;
-  height: 15px;
-  margin-left: 4px;
-  font-size: 9px;
-  border: 0.5px solid var(--app-border-strong);
-  background: transparent;
-  opacity: 0.75;
-}
-
-.l4-panel .tooltip-btn:hover { opacity: 1; color: var(--app-heading); }
 
 .l4-panel .l4-input {
   max-width: none;

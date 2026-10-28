@@ -5,7 +5,7 @@
         <h1 class="docs-article__title">Metric definitions</h1>
         <p class="docs-article__lead">What each number on Overview and Analytics counts, and where it comes from.</p>
       </div>
-      <RouterLink class="docs-panel-link" :to="{ name: 'security-analytics' }">Open Analytics</RouterLink>
+      <RouterLink class="docs-panel-link" :to="{ name: 'l7-traffic-analytics' }">Open Analytics</RouterLink>
     </div>
     <div class="docs-article__body">
       <div class="docs-callout docs-callout--info">
@@ -50,15 +50,22 @@ import { RouterLink } from 'vue-router'
 
 const SECTIONS = [
   {
-    id: 'traffic',
-    title: 'Traffic',
+    id: 'l7-traffic',
+    title: 'L7 Traffic',
     rows: [
       { name: 'Requests', body: 'HTTP requests Athens received for your sites.' },
-      { name: 'NIC bandwidth (RX / TX)', body: 'Everything crossing the edge network card, in and out: HTTP, L4 floods, SSH, and system traffic. Use it to see attack volume.' },
-      { name: 'L7 bandwidth (RX / TX)', body: 'Only the bytes of HTTP requests received from clients and responses sent to them. Use it for site usage.' },
+      { name: 'L7 bandwidth (RX / TX)', body: 'Bytes of HTTP requests received from clients and responses sent to them. Use it for site usage.' },
       { name: 'Unique IPs', body: 'Distinct client IP addresses seen in the interval.' },
       { name: 'Status codes', body: 'The status sent to the client, grouped as 2xx, 3xx, 4xx, and 5xx.' },
       { name: 'Countries, ISPs, referers', body: 'Requests grouped by the client IP location and network, and by the Referer header.' },
+    ],
+  },
+  {
+    id: 'l4-traffic',
+    title: 'L4 Traffic',
+    rows: [
+      { name: 'NIC bandwidth (RX / TX)', body: 'Everything crossing the edge network card, in and out: HTTP, L4 floods, SSH, and system traffic. Use it for overall link load and attack volume.' },
+      { name: 'NIC volume', body: 'Total bytes received and transmitted on the NIC over the selected range.' },
     ],
   },
   {

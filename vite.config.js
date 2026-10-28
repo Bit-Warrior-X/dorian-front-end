@@ -15,6 +15,17 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          apexcharts: ['apexcharts'],
+          'svg-maps': ['@svg-maps/world', 'vue-svg-map'],
+          flatpickr: ['flatpickr', 'vue-flatpickr-component'],
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     allowedHosts: ['panel.dorian.center', '.dorian.center'],

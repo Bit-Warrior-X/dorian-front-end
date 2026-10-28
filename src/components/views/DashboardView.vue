@@ -60,8 +60,6 @@
       </button>
     </div>
 
-    <AttackAlertsPanel :server-id="selectedEdge" />
-
     <section class="dash-command" aria-label="Network health">
       <div class="dash-command__health">
         <div class="dash-hero__ring" :class="fleetHealthTone" :style="{ '--health': `${edgeHealthPercent}%` }">
@@ -96,6 +94,8 @@
         </RouterLink>
       </div>
     </section>
+
+    <AttackAlertsPanel :server-id="selectedEdge" />
 
     <section class="dash-panel dash-nic-fleet" aria-label="Edge NIC traffic">
       <div class="dash-panel-head">
@@ -204,7 +204,7 @@
           </h3>
           <div class="dash-panel-head__actions">
             <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-            <RouterLink class="dash-panel-link" :to="{ name: 'security-analytics' }">Analytics</RouterLink>
+            <RouterLink class="dash-panel-link" :to="{ name: 'l7-traffic-analytics' }">Analytics</RouterLink>
           </div>
         </div>
 
@@ -324,7 +324,7 @@ import {
 } from '@/api/dashboard'
 import { fetchSecuritySummaryGroup } from '@/api/securityAnalytics'
 import { fetchSites } from '@/api/sites'
-import { fetchServers, fetchServerHostMetrics } from '@/api/servers'
+import { fetchServers, fetchServersHostMetrics } from '@/api/servers'
 import {
   getApexAxisLabelStyle,
   getApexBaseChartOptions,
@@ -394,8 +394,8 @@ const dashboardStats = ref({
 const bandwidthServers = ref([])
 /** Live KPIs (site egress, cache) + charts — match Sites list cadence. */
 const liveRefreshMs = 15_000
-/** Host NIC probes — frequent so RX/TX cards feel live. */
-const nicRefreshMs = 5_000
+/** Host NIC probes — batched; slightly slower than before to cut SSH load. */
+const nicRefreshMs = 8_000
 
 let nicRxChartInstance = null
 let nicTxChartInstance = null
@@ -1148,38 +1148,40 @@ const loadEdgeMetrics = async (servers) => {
   })
   if (marked) edgeMetrics.value = pending
 
-  const results = await Promise.all(
-    list.map(async (server) => {
-      try {
-        const payload = await fetchServerHostMetrics(server.id)
-        const rx = Number(payload?.netRxBytesPerSec) || 0
-        const tx = Number(payload?.netTxBytesPerSec) || 0
-        recordEdgeNicSample(server.id, rx, tx)
-        return [server.id, {
-          ...payload,
-          loading: false,
-          error: false,
-          cpuPercent: payload?.cpuPercent == null ? null : Number(payload.cpuPercent),
-          netTxBytesPerSec: tx,
-          netRxBytesPerSec: rx,
-        }]
-      } catch {
-        const prev = edgeMetrics.value[server.id]
-        return [server.id, {
-          ...(prev || {}),
-          loading: false,
-          error: true,
-          cpuPercent: prev?.cpuPercent ?? null,
-          netTxBytesPerSec: prev?.netTxBytesPerSec ?? null,
-          netRxBytesPerSec: prev?.netRxBytesPerSec ?? null,
-        }]
-      }
-    }),
-  )
+  const ids = list.map((server) => server.id)
+  let batch = {}
+  try {
+    batch = await fetchServersHostMetrics(ids)
+  } catch {
+    batch = {}
+  }
 
   const merged = { ...edgeMetrics.value }
-  results.forEach(([id, metric]) => {
-    merged[id] = metric
+  list.forEach((server) => {
+    const payload = batch?.[String(server.id)] ?? batch?.[server.id]
+    if (payload && !payload.error) {
+      const rx = Number(payload?.netRxBytesPerSec) || 0
+      const tx = Number(payload?.netTxBytesPerSec) || 0
+      recordEdgeNicSample(server.id, rx, tx)
+      merged[server.id] = {
+        ...payload,
+        loading: false,
+        error: false,
+        cpuPercent: payload?.cpuPercent == null ? null : Number(payload.cpuPercent),
+        netTxBytesPerSec: tx,
+        netRxBytesPerSec: rx,
+      }
+      return
+    }
+    const prev = edgeMetrics.value[server.id]
+    merged[server.id] = {
+      ...(prev || {}),
+      loading: false,
+      error: true,
+      cpuPercent: prev?.cpuPercent ?? null,
+      netTxBytesPerSec: prev?.netTxBytesPerSec ?? null,
+      netRxBytesPerSec: prev?.netRxBytesPerSec ?? null,
+    }
   })
   edgeMetrics.value = merged
   scheduleEdgeNicSync()
@@ -1679,15 +1681,25 @@ const loadTopTrafficPanels = async () => {
 
 const loadChartSeries = async () => {
   const generation = ++loadGeneration
+  // Filter changes only need chart series — host metrics are range-independent.
   await Promise.all([
     loadBandwidthSeries(),
     loadRequestResponseSeries(),
     loadStatusCodeSeries(),
     loadTopTrafficPanels(),
-    loadEdgeMetrics(serversList.value),
   ])
   if (generation !== loadGeneration) return
   updatedAt.value = new Date()
+}
+
+const startDashboardPolling = () => {
+  if (liveTimer || nicTimer) return
+  liveTimer = window.setInterval(() => {
+    void pollLiveDashboard()
+  }, liveRefreshMs)
+  nicTimer = window.setInterval(() => {
+    void pollNicMetrics()
+  }, nicRefreshMs)
 }
 
 const refreshDashboard = async () => {
@@ -1701,19 +1713,24 @@ const refreshDashboard = async () => {
       loadBandwidthServers(),
     ])
     if (generation !== loadGeneration) return
+    startDashboardPolling()
 
-    // Phase 2: heavy series (once servers exist — avoids the old double-fetch)
+    // Phase 2: chart series only — do not block on SSH host probes
     await Promise.all([
       loadBandwidthSeries(),
       loadRequestResponseSeries(),
       loadStatusCodeSeries(),
       loadTopTrafficPanels(),
-      loadEdgeMetrics(serversList.value),
     ])
     if (generation !== loadGeneration) return
     updatedAt.value = new Date()
   } finally {
     if (generation === loadGeneration) isRefreshing.value = false
+  }
+
+  // Phase 3: batched host metrics after first paint (non-blocking for charts)
+  if (generation === loadGeneration) {
+    void loadEdgeMetrics(serversList.value)
   }
 }
 
@@ -1806,12 +1823,6 @@ onMounted(() => {
   requestAnimationFrame(() => requestAnimationFrame(fitHeroChart))
   void refreshDashboard()
 
-  liveTimer = window.setInterval(() => {
-    void pollLiveDashboard()
-  }, liveRefreshMs)
-  nicTimer = window.setInterval(() => {
-    void pollNicMetrics()
-  }, nicRefreshMs)
   clockTimer = window.setInterval(() => {
     nowMs.value = Date.now()
   }, 1000)
@@ -1831,7 +1842,11 @@ onBeforeUnmount(() => {
   if (liveTimer) window.clearInterval(liveTimer)
   if (nicTimer) window.clearInterval(nicTimer)
   if (clockTimer) window.clearInterval(clockTimer)
+  liveTimer = null
+  nicTimer = null
+  clockTimer = null
   if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
+  filterReloadTimer = 0
   if (resizeRaf) cancelAnimationFrame(resizeRaf)
   destroyBandwidthCharts()
   edgeNicCharts.forEach((chart) => chart.destroy())

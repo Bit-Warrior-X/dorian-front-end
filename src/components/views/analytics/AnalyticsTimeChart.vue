@@ -11,6 +11,7 @@ import {
   getApexDatetimeXaxis,
   getApexFontFamily,
   getApexTooltipTheme,
+  padSeriesToTimeRange,
 } from '@/utils/chartTheme'
 
 const props = defineProps({
@@ -29,6 +30,7 @@ let chart = null
 
 const buildOptions = () => {
   const theme = getApexChartColors()
+  const paddedSeries = padSeriesToTimeRange(props.series, props.start, props.end)
   return {
     chart: {
       type: props.type,
@@ -48,7 +50,7 @@ const buildOptions = () => {
       props.type === 'area'
         ? { type: 'gradient', gradient: { shadeIntensity: 0.3, opacityFrom: props.stacked ? 0.55 : 0.38, opacityTo: props.stacked ? 0.18 : 0.04, stops: [0, 80, 100] } }
         : { type: 'solid', opacity: 1 },
-    colors: props.series.map((entry) => entry.color),
+    colors: paddedSeries.map((entry) => entry.color),
     xaxis: {
       ...getApexDatetimeXaxis(props.start, props.end, { tickCount: 7 }),
       axisBorder: { show: false },
@@ -70,7 +72,7 @@ const buildOptions = () => {
       yaxis: { lines: { show: true } },
     },
     legend: {
-      show: props.legend && props.series.length > 1,
+      show: props.legend && paddedSeries.length > 1,
       position: 'top',
       horizontalAlign: 'right',
       fontSize: '11px',
@@ -84,7 +86,7 @@ const buildOptions = () => {
       x: { formatter: (value) => formatApexTimeTick(value, props.start, props.end) },
       y: { formatter: props.yFormatter },
     },
-    series: props.series.map((entry) => ({ name: entry.name, data: entry.data })),
+    series: paddedSeries.map((entry) => ({ name: entry.name, data: entry.data })),
   }
 }
 

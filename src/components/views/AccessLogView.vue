@@ -3,7 +3,7 @@
     <header class="dash-topbar">
       <div class="dash-topbar__left">
         <h2>Access logs</h2>
-        <p>Raw HTTP access log lines streamed from your edges, with status breakdown and CSV export.</p>
+        <p>Live tail of HTTP access log lines from one edge. Time range only filters already-loaded lines — use Log export for history.</p>
       </div>
       <div class="dash-topbar__right">
         <div class="status-indicator" :class="statusClass">
@@ -14,11 +14,9 @@
       </div>
     </header>
 
-    <AnalyticsSectionNav />
-
     <div class="dash-filterbar">
       <div class="dash-filter-field">
-        <label for="access-server">Server</label>
+        <label for="access-server">Edge</label>
         <select id="access-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
           <option v-for="server in serverOptions" :key="server.value" :value="server.value">
             {{ server.label }}
@@ -64,7 +62,7 @@
         </select>
       </div>
       <div class="dash-filter-field">
-        <label>Time range</label>
+        <label>Filter loaded lines</label>
         <div class="dash-range-pills">
           <button
             v-for="time in timeRanges"
@@ -103,7 +101,7 @@
           {{ isPaused ? 'Resume' : 'Pause' }}
         </button>
         <button type="button" class="dash-filter-apply" :disabled="isLoading" @click="exportCsv">
-          Export
+          Export shown
         </button>
       </div>
     </div>
@@ -209,7 +207,6 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { resolveApiBaseUrl } from '@/api/client'
@@ -259,7 +256,7 @@ const serverOptions = computed(() => {
     list = list.filter((server) => allowed.has(Number(server.id)))
   }
   return [
-    { label: 'Select Server', value: '' },
+    { label: 'Select an edge', value: '' },
     ...list.map((server) => ({
       label: server.name || `Server ${server.id}`,
       value: String(server.id),
@@ -329,7 +326,7 @@ const formatNumber = (value) => {
 }
 
 const metricCards = computed(() => [
-  { label: 'Lines loaded', value: formatNumber(stats.value.total), tone: 'total' },
+  { label: 'Lines shown', value: formatNumber(stats.value.total), tone: 'total' },
   { label: '2xx responses', value: formatNumber(stats.value.success), tone: 'ok' },
   { label: '3xx responses', value: formatNumber(stats.value.redirect), tone: 'info' },
   { label: '4xx errors', value: formatNumber(stats.value.clientError), tone: 'warn' },
@@ -693,7 +690,7 @@ const filteredLogs = computed(() => {
     if (isCustomRange.value && customStart && customEnd && entryTime) {
       matchesTime = entryTime >= customStart && entryTime <= customEnd
     } else if (rangeMs) {
-      matchesTime = entryTime ? entryTime >= now - rangeMs : false
+      matchesTime = !entryTime || entryTime >= now - rangeMs
     }
 
     return matchesQuery && matchesStatus && matchesTime && entryMatchesSelectedSite(entry)

@@ -6,8 +6,15 @@
         Attack alerts
       </h3>
       <div class="dash-attacks__stats">
-        <span><b class="num">{{ attacksToday.length }}</b> {{ attacksToday.length === 1 ? 'attack' : 'attacks' }} today</span>
-        <span><b class="num">{{ formatNumber(sourcesToday) }}</b> sources blocked today</span>
+        <span>
+          <b class="num">{{ attacksInScope.length }}</b>
+          {{ attacksInScope.length === 1 ? 'attack' : 'attacks' }}
+          {{ rangeStatsSuffix }}
+        </span>
+        <span>
+          <b class="num">{{ formatNumber(sourcesInScope) }}</b>
+          sources blocked {{ rangeStatsSuffix }}
+        </span>
         <RouterLink class="dash-panel-link" :to="{ name: detectionRoute }">Security events</RouterLink>
       </div>
     </div>
@@ -52,7 +59,7 @@
         <span>Status</span><span>Attack</span><span>Started</span><span>Duration</span><span>Sources</span><span>Vectors</span>
       </div>
       <button
-        v-for="period in recentAttacks.slice(0, 6)"
+        v-for="period in recentAttacks.slice(0, listLimit)"
         :key="period.reqId"
         type="button"
         role="listitem"
@@ -101,12 +108,36 @@ import SecurityEventDialog from '@/components/SecurityEventDialog.vue'
 import { openAttackConsole } from '@/stores/attackAlert'
 import { fetchSecurityEvents } from '@/api/dashboard'
 import { getApexSeriesColors } from '@/utils/chartTheme'
+import { rangeDurationMs } from '@/utils/timeRange'
 
 const props = defineProps({
   /** Edge filter: `'all'` or a server id. */
   serverId: {
     type: [String, Number],
     default: 'all',
+  },
+  /**
+   * Shared analytics range key (`1h`, `2h`, …, `custom`).
+   * When set, attack alerts load for that window (recomputed on each fetch).
+   */
+  range: {
+    type: String,
+    default: '',
+  },
+  /** Custom range start (ISO / Date). Used when range is `custom`. */
+  customStart: {
+    type: [Date, String, Number],
+    default: null,
+  },
+  /** Custom range end (ISO / Date). Used when range is `custom`. */
+  customEnd: {
+    type: [Date, String, Number],
+    default: null,
+  },
+  /** Short label for the active range (e.g. `2H`). */
+  rangeLabel: {
+    type: String,
+    default: '',
   },
   detectionRoute: {
     type: String,
@@ -130,17 +161,57 @@ const isAllServers = computed(() => {
   return raw === 'all' || raw === '' || raw == null
 })
 
+const toDate = (value) => {
+  if (value == null || value === '') return null
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+/** Fresh window for the selected range — never freeze timestamps across polls. */
+const resolveSelectedWindow = () => {
+  const key = String(props.range || '').trim().toLowerCase()
+  if (!key) return null
+  const now = new Date()
+  if (key === 'custom') {
+    const start = toDate(props.customStart)
+    const end = toDate(props.customEnd)
+    if (!start || !end || end <= start) return null
+    return { start, end }
+  }
+  if (key === 'today') {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start, end: now }
+  }
+  if (key === 'yesterday') {
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return { start: new Date(end.getTime() - 24 * 60 * 60 * 1000), end }
+  }
+  const duration = rangeDurationMs(key)
+  return { start: new Date(now.getTime() - duration), end: now }
+}
+
+const hasRangeFilter = computed(() => Boolean(String(props.range || '').trim()))
+
+const rangeStatsSuffix = computed(() => {
+  if (!hasRangeFilter.value) return 'today'
+  const label = String(props.rangeLabel || '').trim()
+  return label ? `in ${label}` : 'in range'
+})
+
 const scopedPeriods = computed(() => securityEvents.value.filter((period) => (
   isAllServers.value || String(period.serverId ?? '') === String(props.serverId)
 )))
 const recentAttacks = computed(() => scopedPeriods.value.filter((period) => period.reqId))
 const liveAttacks = computed(() => recentAttacks.value.filter((period) => period.status === 'ongoing'))
 const securityNotices = computed(() => scopedPeriods.value.filter((period) => !period.reqId))
-const attacksToday = computed(() => {
+const attacksInScope = computed(() => {
+  if (hasRangeFilter.value) return recentAttacks.value
   const today = new Date(nowMs.value).toDateString()
   return recentAttacks.value.filter((period) => new Date(period.startedAt).toDateString() === today)
 })
-const sourcesToday = computed(() => attacksToday.value.reduce((sum, period) => sum + (Number(period.ipCount) || 0), 0))
+const sourcesInScope = computed(() =>
+  attacksInScope.value.reduce((sum, period) => sum + (Number(period.ipCount) || 0), 0),
+)
 
 const VECTOR_LABELS = [
   ['SOCKET', 'Socket'], ['XMAS', 'Socket'], ['NULL', 'Socket'], ['FIN', 'Socket'],
@@ -250,12 +321,22 @@ const openSecurityEvent = (event) => {
   selectedSecurityEvent.value = event
 }
 
+const listLimit = computed(() => (hasRangeFilter.value ? 12 : 6))
+
 const loadSecurityEvents = async () => {
   if (pollInFlight) return
   if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
   pollInFlight = true
   try {
-    const payload = await fetchSecurityEvents(30)
+    const selected = resolveSelectedWindow()
+    const rangeQuery = selected
+      ? {
+          start: selected.start.toISOString(),
+          end: selected.end.toISOString(),
+        }
+      : null
+    const limit = rangeQuery ? 100 : 30
+    const payload = await fetchSecurityEvents(limit, props.serverId, rangeQuery)
     securityEvents.value = Array.isArray(payload) ? payload : []
   } catch {
     securityEvents.value = []
@@ -270,10 +351,12 @@ const onVisible = () => {
   }
 }
 
-watch(() => props.serverId, () => {
-  // Scope is computed — no reload needed; refresh for freshness when filter changes.
-  void loadSecurityEvents()
-})
+watch(
+  () => [props.serverId, props.range, props.customStart, props.customEnd],
+  () => {
+    void loadSecurityEvents()
+  },
+)
 
 onMounted(() => {
   void loadSecurityEvents()

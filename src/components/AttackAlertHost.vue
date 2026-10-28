@@ -16,9 +16,8 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted } from 'vue'
 import { fetchSecurityEvents } from '@/api/dashboard'
-import AttackConsole from '@/components/AttackConsole.vue'
 import {
   attackAlertState,
   closeAttackConsole,
@@ -28,6 +27,9 @@ import {
   openAttackConsole,
 } from '@/stores/attackAlert'
 import { loadAlarms, upsertAlarm } from '@/stores/alarms'
+
+// Keep ApexCharts off the shell critical path until the console is opened.
+const AttackConsole = defineAsyncComponent(() => import('@/components/AttackConsole.vue'))
 
 const prompt = computed(() => attackAlertState.prompt)
 const consoleReqId = computed(() => attackAlertState.consoleReqId)

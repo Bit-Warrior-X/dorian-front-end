@@ -930,7 +930,7 @@ import {
 import {
   createServer as createServerApi,
   fetchServers,
-  fetchServerHostMetrics,
+  fetchServersHostMetrics,
   fetchDeployVersions,
   probeHostVersions,
   upgradeServer,
@@ -1589,37 +1589,41 @@ const loadEdgeHostMetrics = async (list) => {
   if (!rows.length || edgeMetricsInFlight) return
   edgeMetricsInFlight = true
   try {
-    const results = await Promise.all(rows.map(async (server) => {
-      try {
-        const payload = await fetchServerHostMetrics(server.id)
-        return [server.id, {
-          cpuPercent: numOrNull(payload?.cpuPercent),
-          cpuCores: numOrNull(payload?.cpuCores),
-          memoryUsedBytes: Number(payload?.memoryUsedBytes) || 0,
-          memoryTotalBytes: Number(payload?.memoryTotalBytes) || 0,
-          diskUsedBytes: Number(payload?.diskUsedBytes) || 0,
-          diskTotalBytes: Number(payload?.diskTotalBytes) || 0,
-          temperatureC: numOrNull(payload?.temperatureC),
-          temperatureLabel: payload?.temperatureLabel || '',
-          load1: numOrNull(payload?.load1),
-          load5: numOrNull(payload?.load5),
-          load15: numOrNull(payload?.load15),
-          uptimeSeconds: numOrNull(payload?.uptimeSeconds),
-          netRxBytesPerSec: Number(payload?.netRxBytesPerSec) || 0,
-          netTxBytesPerSec: Number(payload?.netTxBytesPerSec) || 0,
-          netLinkMbps: numOrNull(payload?.netLinkMbps),
-          netInterface: payload?.netInterface || '',
-          hostname: payload?.hostname || '',
-          kernel: payload?.kernel || '',
-        }]
-      } catch {
-        return [server.id, { error: true }]
-      }
-    }))
+    let batch = {}
+    try {
+      batch = await fetchServersHostMetrics(rows.map((server) => server.id))
+    } catch {
+      batch = {}
+    }
     const next = { ...edgeHostMetrics.value }
-    results.forEach(([id, metric]) => {
-      next[id] = metric
-      if (!metric.error) recordEdgeNicSample(id, metric.netRxBytesPerSec, metric.netTxBytesPerSec)
+    rows.forEach((server) => {
+      const payload = batch?.[String(server.id)] ?? batch?.[server.id]
+      if (!payload || payload.error) {
+        next[server.id] = { error: true }
+        return
+      }
+      const metric = {
+        cpuPercent: numOrNull(payload?.cpuPercent),
+        cpuCores: numOrNull(payload?.cpuCores),
+        memoryUsedBytes: Number(payload?.memoryUsedBytes) || 0,
+        memoryTotalBytes: Number(payload?.memoryTotalBytes) || 0,
+        diskUsedBytes: Number(payload?.diskUsedBytes) || 0,
+        diskTotalBytes: Number(payload?.diskTotalBytes) || 0,
+        temperatureC: numOrNull(payload?.temperatureC),
+        temperatureLabel: payload?.temperatureLabel || '',
+        load1: numOrNull(payload?.load1),
+        load5: numOrNull(payload?.load5),
+        load15: numOrNull(payload?.load15),
+        uptimeSeconds: numOrNull(payload?.uptimeSeconds),
+        netRxBytesPerSec: Number(payload?.netRxBytesPerSec) || 0,
+        netTxBytesPerSec: Number(payload?.netTxBytesPerSec) || 0,
+        netLinkMbps: numOrNull(payload?.netLinkMbps),
+        netInterface: payload?.netInterface || '',
+        hostname: payload?.hostname || '',
+        kernel: payload?.kernel || '',
+      }
+      next[server.id] = metric
+      recordEdgeNicSample(server.id, metric.netRxBytesPerSec, metric.netTxBytesPerSec)
     })
     edgeHostMetrics.value = next
   } finally {

@@ -2,19 +2,17 @@
   <div class="dashboard-view analytics-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Traffic</h2>
-        <p>Requests, bandwidth, status codes, HTTP versions, and visitors served by your edges.</p>
+        <h2>L7 Traffic</h2>
+        <p>Application-layer bandwidth, request counts, status codes, HTTP versions, and visitors.</p>
       </div>
       <div class="dash-topbar__right">
         <AppTopbarActions />
       </div>
     </header>
 
-    <AnalyticsSectionNav />
-
     <div class="dash-filterbar">
       <div class="dash-filter-field">
-        <label for="analytics-server">Server</label>
+        <label for="analytics-server">Edge</label>
         <select id="analytics-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
           <option v-for="server in serverOptions" :key="server.value" :value="server.value">
             {{ server.label }}
@@ -63,132 +61,151 @@
         {{ isLoading ? 'Loading…' : 'Apply' }}
       </button>
     </div>
+    <p v-if="showHeavyRangeHint" class="dash-range-hint" role="note">
+      Longer ranges load more data and are slower. This choice applies for this visit only — returning to Analytics restores your last short range (≤12H).
+    </p>
 
-    <AttackAlertsPanel :server-id="selectedServer" />
-
-    <div
-      v-if="isLoading"
-      class="dash-loading-overlay"
-      role="status"
-      aria-live="polite"
-    >
-      <div class="dash-loading-overlay__content">
-        <span class="dash-spinner" aria-hidden="true"></span>
-        <span class="dash-loading-overlay__label">Loading analytics data…</span>
-      </div>
-    </div>
-
-    <nav class="dash-tabbar" aria-label="Analytics sections">
+    <nav class="dash-tabbar" aria-label="Analytics sections" role="tablist">
       <button
         v-for="tab in analyticsTabs"
         :key="tab.id"
         type="button"
+        role="tab"
         class="dash-tab"
         :class="{ active: activeTab === tab.id }"
+        :aria-selected="activeTab === tab.id"
+        :title="tab.hint"
         @click="activeTab = tab.id"
       >
-        {{ tab.label }}
+        <svg class="dash-tab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <template v-if="tab.id === 'bandwidth'"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" /></template>
+          <template v-else-if="tab.id === 'requests'"><path d="M4 19V9M10 19V5M16 19v-7M20 19H3" /></template>
+          <template v-else-if="tab.id === 'audience'"><circle cx="9" cy="8" r="3" /><circle cx="16.5" cy="9.5" r="2.5" /><path d="M3.5 19c.7-3.2 3.2-5 5.5-5s4.8 1.8 5.5 5M13 19c.4-2 1.8-3.3 3.5-3.3S19.6 17 20 19" /></template>
+          <template v-else><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.2 2.4 2.2 14.6 0 17M12 3.5c-2.2 2.4-2.2 14.6 0 17" /></template>
+        </svg>
+        <span class="dash-tab__label">{{ tab.label }}</span>
       </button>
     </nav>
 
     <div v-show="activeTab === 'bandwidth'" class="analytics-tab-panel">
-      <section class="dash-kpi-strip" aria-label="Bandwidth summary">
-        <article
-          v-for="metric in bandwidthMetricCards"
-          :key="metric.label"
-          class="dash-kpi"
-          :class="`dash-kpi--${metric.tone}`"
-        >
-          <span class="dash-kpi__label">{{ metric.label }}</span>
-          <span class="dash-kpi__value num">{{ metric.value }}</span>
-          <span v-if="metric.hint" class="dash-kpi__hint">{{ metric.hint }}</span>
-        </article>
-      </section>
       <section class="dash-grid12">
-        <div class="dash-panel c-12 dash-chart-panel">
+        <div class="dash-panel c-12 dash-panel--hero-chart">
           <div class="dash-panel-head">
-            <div>
-              <h3>Bandwidth by Time</h3>
-              <p class="dash-panel-desc">RX / TX bandwidth trend for NIC / L7</p>
-            </div>
-            <div class="dash-series-legend" aria-hidden="true">
-              <span v-for="item in nicL7Legend" :key="item.name" class="dash-series-legend__item">
-                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
-                {{ item.name }}
+            <h3>
+              <span class="dash-panel-icon signal" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1.5 9h3l2-5 3 9 2-4h3" />
+                </svg>
               </span>
+              L7 Bandwidth
+              <span class="dash-panel-hint">Application throughput · not NIC</span>
+            </h3>
+            <span class="dash-count-tag">{{ selectedRangeLabel }}</span>
+          </div>
+          <div class="dash-readout-strip" aria-label="Live L7 bandwidth">
+            <div class="dash-readout-cell lead">
+              <span class="dash-readout-cell__label"><i class="sw rx" aria-hidden="true"></i>Last RX</span>
+              <span class="dash-readout-cell__value num">{{ statsDisplay.l7RxBandwidthLast }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label"><i class="sw tx" aria-hidden="true"></i>Last TX</span>
+              <span class="dash-readout-cell__value num">{{ statsDisplay.l7TxBandwidthLast }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label">RX volume</span>
+              <span class="dash-readout-cell__value num">{{ statsDisplay.totalL7RxTraffic }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label">TX volume</span>
+              <span class="dash-readout-cell__value num">{{ statsDisplay.totalL7TxTraffic }}</span>
             </div>
           </div>
-          <p class="dash-panel-desc">RX bandwidth</p>
-          <div class="dash-chart-wrap dash-chart-wrap--tall">
-            <div ref="rxBandwidthChart"></div>
-          </div>
-          <p class="dash-panel-desc">TX bandwidth</p>
-          <div class="dash-chart-wrap dash-chart-wrap--tall">
-            <div ref="txBandwidthChart"></div>
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
+            <div ref="l7BandwidthChart"></div>
           </div>
         </div>
-        <div class="dash-panel c-12 dash-chart-panel dash-chart-panel--info">
+        <div class="dash-panel c-12 dash-panel--hero-chart dash-panel--hero-chart-info">
           <div class="dash-panel-head">
-            <div>
-              <h3>Traffic by Time</h3>
-              <p class="dash-panel-desc">NIC / L7 RX / TX traffic over selected range</p>
-            </div>
-            <div class="dash-series-legend" aria-hidden="true">
-              <span v-for="item in trafficLegend" :key="item.name" class="dash-series-legend__item">
-                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
-                {{ item.name }}
+            <h3>
+              <span class="dash-panel-icon l7" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                  <circle cx="8" cy="8" r="6" />
+                  <path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12" />
+                </svg>
               </span>
+              L7 Requests
+              <span class="dash-panel-hint">HTTP request count over time</span>
+            </h3>
+            <span class="dash-count-tag">{{ selectedRangeLabel }}</span>
+          </div>
+          <div class="dash-readout-strip" aria-label="L7 request summary">
+            <div class="dash-readout-cell lead">
+              <span class="dash-readout-cell__label"><i class="sw req" aria-hidden="true"></i>Last interval</span>
+              <span class="dash-readout-cell__value num">{{ formatCompactCount(requestSeriesStats.latest) }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label">Total</span>
+              <span class="dash-readout-cell__value num">{{ statsDisplay.totalRequest }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label">Average</span>
+              <span class="dash-readout-cell__value num">{{ formatCompactCount(requestSeriesStats.avg) }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label">Peak</span>
+              <span class="dash-readout-cell__value num">{{ formatCompactCount(requestSeriesStats.peak) }}</span>
             </div>
           </div>
-          <p class="dash-panel-desc">RX traffic</p>
-          <div class="dash-chart-wrap dash-chart-wrap--tall">
-            <div ref="rxTrafficChart"></div>
-          </div>
-          <p class="dash-panel-desc">TX traffic</p>
-          <div class="dash-chart-wrap dash-chart-wrap--tall">
-            <div ref="txTrafficChart"></div>
+          <div class="dash-chart-wrap dash-chart-wrap--hero">
+            <div ref="l7RequestChart"></div>
           </div>
         </div>
       </section>
     </div>
 
     <div v-show="activeTab === 'requests'" class="analytics-tab-panel">
-      <section class="dash-kpi-strip" aria-label="Request summary">
-        <article
-          v-for="metric in requestsMetricCards"
-          :key="metric.label"
-          class="dash-kpi"
-          :class="`dash-kpi--${metric.tone}`"
-        >
-          <span class="dash-kpi__label">{{ metric.label }}</span>
-          <span class="dash-kpi__value num">{{ metric.value }}</span>
-          <span v-if="metric.hint" class="dash-kpi__hint">{{ metric.hint }}</span>
-        </article>
-      </section>
       <section class="dash-grid12">
-        <div class="dash-panel c-12 dash-chart-panel">
+        <div class="dash-panel c-12 dash-panel--hero-chart">
           <div class="dash-panel-head">
-            <div>
-              <h3>Request / Response by Time</h3>
-              <p class="dash-panel-desc">Request and response trend based on selected range</p>
-            </div>
-            <div class="dash-series-legend" aria-hidden="true">
-              <span v-for="item in requestResponseLegend" :key="item.name" class="dash-series-legend__item">
-                <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
-                {{ item.name }}
+            <h3>
+              <span class="dash-panel-icon signal" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1.5 9h3l2-5 3 9 2-4h3" />
+                </svg>
               </span>
+              Request / Response
+              <span class="dash-panel-hint">Requests vs answered responses (excludes 444/499/5xx/9xx)</span>
+            </h3>
+            <span class="dash-count-tag">{{ selectedRangeLabel }}</span>
+          </div>
+          <div class="dash-readout-strip" aria-label="Request / response summary">
+            <div class="dash-readout-cell lead">
+              <span class="dash-readout-cell__label"><i class="sw req" aria-hidden="true"></i>Requests</span>
+              <span class="dash-readout-cell__value num">{{ statsDisplay.totalRequest }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label"><i class="sw tx" aria-hidden="true"></i>Answered</span>
+              <span class="dash-readout-cell__value num">{{ statsDisplay.totalResponse }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label">Last req</span>
+              <span class="dash-readout-cell__value num">{{ formatCompactCount(requestResponseStats.latestReq) }}</span>
+            </div>
+            <div class="dash-readout-cell">
+              <span class="dash-readout-cell__label">Last answered</span>
+              <span class="dash-readout-cell__value num">{{ formatCompactCount(requestResponseStats.latestResp) }}</span>
             </div>
           </div>
           <div class="dash-chart-wrap dash-chart-wrap--hero">
             <div ref="requestResponseChart"></div>
           </div>
         </div>
-        <div class="dash-panel c-12 dash-chart-panel dash-chart-panel--info">
+        <div class="dash-panel c-12 dash-panel--hero-chart dash-panel--hero-chart-info">
           <div class="dash-panel-head">
-            <div>
-              <h3>Status Code by Time</h3>
-              <p class="dash-panel-desc">Status code trend based on selected range</p>
-            </div>
+            <h3>
+              Status codes
+              <span class="dash-panel-hint">4xx includes 444/499 · 5xx includes 904/929/978</span>
+            </h3>
             <div class="dash-series-legend" aria-hidden="true">
               <span v-for="item in statusCodeLegend" :key="item.name" class="dash-series-legend__item">
                 <span class="dash-series-legend__swatch" :style="{ background: item.color }"></span>
@@ -257,8 +274,8 @@
         <div class="dash-panel c-12 dash-chart-panel">
           <div class="dash-panel-head">
             <div>
-              <h3>IP Count by Time</h3>
-              <p class="dash-panel-desc">Unique IP count trend based on selected range</p>
+              <h3>Unique IPs per interval</h3>
+              <p class="dash-panel-desc">Distinct client IPs in each chart bucket — not the range-wide total</p>
             </div>
           </div>
           <div class="dash-chart-wrap dash-chart-wrap--hero">
@@ -565,16 +582,22 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import ApexCharts from 'apexcharts'
+import FlatPickr from 'vue-flatpickr-component'
+import 'flatpickr/dist/flatpickr.css'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
-import AttackAlertsPanel from '@/components/AttackAlertsPanel.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
 import { notifyError } from '@/utils/notify'
-import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
+import {
+  isHeavyTimeRange,
+  rangeDurationMs,
+  readSharedTimeRange,
+  sharedTimeRanges,
+  writeSharedTimeRange,
+} from '@/utils/timeRange'
 import {
   formatApexTimeTick,
   getApexChartColors,
@@ -955,10 +978,8 @@ const updatePieChartInstance = (instance, el, built) => {
 }
 
 const rerenderAllCharts = () => {
-  renderRxBandwidthChart()
-  renderTxBandwidthChart()
-  renderRxTrafficChart()
-  renderTxTrafficChart()
+  renderL7BandwidthChart()
+  renderL7RequestChart()
   renderRequestResponseChart()
   renderStatusCodeChart()
   renderIpCountChart()
@@ -975,10 +996,10 @@ const rerenderAllCharts = () => {
 const activeTab = ref('bandwidth')
 
 const analyticsTabs = [
-  { id: 'bandwidth', label: 'Bandwidth & Traffic' },
-  { id: 'requests', label: 'Requests & Status' },
-  { id: 'audience', label: 'Audience' },
-  { id: 'http', label: 'HTTP' },
+  { id: 'bandwidth', label: 'Bandwidth & Requests', hint: 'L7 throughput and request volume' },
+  { id: 'requests', label: 'Requests & Status', hint: 'Request / response and status codes' },
+  { id: 'audience', label: 'Audience', hint: 'IPs, ISPs, referers, and countries' },
+  { id: 'http', label: 'HTTP', hint: 'Methods and protocol versions' },
 ]
 
 const selectedServer = ref('all')
@@ -989,7 +1010,7 @@ const showCustomDialog = ref(false)
 const customStartDate = ref(null)
 const customEndDate = ref(null)
 const isLoading = ref(false)
-const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
+const datePickerConfig = { enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
   site: 'all',
@@ -998,11 +1019,13 @@ const appliedFilters = ref({
   customStart: '',
   customEnd: '',
 })
-const rxBandwidthChart = ref(null)
-const txBandwidthChart = ref(null)
-
-const rxTrafficChart = ref(null)
-const txTrafficChart = ref(null)
+/** Tabs already fetched for the current applied-filter key. */
+const loadedTabs = ref(new Set())
+const loadedFilterKey = ref('')
+/** Shared across bandwidth + requests tabs so request-response is fetched once. */
+const requestResponseLoaded = ref(false)
+const l7BandwidthChart = ref(null)
+const l7RequestChart = ref(null)
 
 const requestResponseChart = ref(null)
 const statusCodeChart = ref(null)
@@ -1016,11 +1039,8 @@ const methodChart = ref(null)
 const protocolPieChart = ref(null)
 const protocolChart = ref(null)
 
-let rxBandwidthChartInstance = null
-let txBandwidthChartInstance = null
-
-let rxTrafficChartInstance = null
-let txTrafficChartInstance = null
+let l7BandwidthChartInstance = null
+let l7RequestChartInstance = null
 
 let requestResponseChartInstance = null
 let statusCodeChartInstance = null
@@ -1033,39 +1053,28 @@ let methodPieChartInstance = null
 let methodChartInstance = null
 let protocolPieChartInstance = null
 let protocolChartInstance = null
-const nicRxBandwidthSeries = ref([{ name: 'NIC RX Bandwidth', data: [] }])
-const nicTxBandwidthSeries = ref([{ name: 'NIC TX Bandwidth', data: [] }])
-const l7RxBandwidthSeries = ref([{ name: 'L7 RX Bandwidth', data: [] }])
-const l7TxBandwidthSeries = ref([{ name: 'L7 TX Bandwidth', data: [] }])
-const nicRxTrafficSeries = ref([{ name: 'NIC RX Traffic', data: [] }])
-const nicTxTrafficSeries = ref([{ name: 'NIC TX Traffic', data: [] }])
-const l7RxTrafficSeries = ref([{ name: 'L7 RX Traffic', data: [] }])
-const l7TxTrafficSeries = ref([{ name: 'L7 TX Traffic', data: [] }])
+const l7RxBandwidthSeries = ref([{ name: 'RX', data: [] }])
+const l7TxBandwidthSeries = ref([{ name: 'TX', data: [] }])
+const l7RequestSeries = ref([{ name: 'L7 Requests', data: [] }])
 const requestResponseSeries = ref([
   { name: 'Requests', data: [] },
-  { name: 'Responses', data: [] },
+  { name: 'Answered', data: [] },
 ])
 const statusCodeSeries = ref([
   { name: '2xx', data: [] },
   { name: '3xx', data: [] },
   { name: '4xx', data: [] },
-  { name: '5xx', data: [] },
+  { name: '5xx + 9xx', data: [] },
 ])
-const ipCountSeries = ref([{ name: 'IP Count', data: [] }])
+const ipCountSeries = ref([{ name: 'Unique IPs / interval', data: [] }])
 const methodSeries = ref([])
 const protocolSeries = ref([])
 
 const createDefaultAnalyticsStats = () => ({
-  totalNicRxTraffic: 0,
-  totalNicTxTraffic: 0,
   totalL7RxTraffic: 0,
   totalL7TxTraffic: 0,
-  nicRxBandwidthLast: 0,
-  nicTxBandwidthLast: 0,
   l7RxBandwidthLast: 0,
   l7TxBandwidthLast: 0,
-  nicRxBandwidthLastTime: '',
-  nicTxBandwidthLastTime: '',
   l7RxBandwidthLastTime: '',
   l7TxBandwidthLastTime: '',
   totalRequest: 0,
@@ -1142,7 +1151,7 @@ const colorFromRate = (ratio) => {
 const servers = ref([])
 const sites = ref([])
 const serverOptions = computed(() => [
-  { label: 'All Servers', value: 'all' },
+  { label: 'All edges', value: 'all' },
   ...servers.value.map((server) => ({ label: server.name || `Server ${server.id}`, value: server.id })),
 ])
 const siteOptions = computed(() => {
@@ -1162,6 +1171,15 @@ const siteOptions = computed(() => {
     })),
   ]
 })
+
+const formatCompactCount = (value) => {
+  const n = Number(value)
+  if (value == null || !Number.isFinite(n)) return '—'
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`
+  if (n > 0 && n < 10) return n.toFixed(n < 1 ? 2 : 1).replace(/\.?0+$/, '')
+  return String(Math.round(n))
+}
 
 const formatNumber = (value) => {
   const numeric = Number(value)
@@ -1228,16 +1246,10 @@ const formatDateInput = (value) => {
 }
 
 const statsDisplay = computed(() => ({
-  totalNicRxTraffic: formatKiloBytes(analyticsStats.value.totalNicRxTraffic),
-  totalNicTxTraffic: formatKiloBytes(analyticsStats.value.totalNicTxTraffic),
   totalL7RxTraffic: formatKiloBytes(analyticsStats.value.totalL7RxTraffic),
   totalL7TxTraffic: formatKiloBytes(analyticsStats.value.totalL7TxTraffic),
-  nicRxBandwidthLast: formatKiloBps(analyticsStats.value.nicRxBandwidthLast),
-  nicTxBandwidthLast: formatKiloBps(analyticsStats.value.nicTxBandwidthLast),
   l7RxBandwidthLast: formatKiloBps(analyticsStats.value.l7RxBandwidthLast),
   l7TxBandwidthLast: formatKiloBps(analyticsStats.value.l7TxBandwidthLast),
-  nicRxBandwidthLastTime: formatDateTime(analyticsStats.value.nicRxBandwidthLastTime),
-  nicTxBandwidthLastTime: formatDateTime(analyticsStats.value.nicTxBandwidthLastTime),
   l7RxBandwidthLastTime: formatDateTime(analyticsStats.value.l7RxBandwidthLastTime),
   l7TxBandwidthLastTime: formatDateTime(analyticsStats.value.l7TxBandwidthLastTime),
   totalRequest: formatNumber(analyticsStats.value.totalRequest),
@@ -1247,30 +1259,29 @@ const statsDisplay = computed(() => ({
   ispCount: formatNumber(analyticsStats.value.ispCount),
 }))
 
-const bandwidthMetricCards = computed(() => {
-  const s = statsDisplay.value
-  return [
-    { label: 'RX Bandwidth of NIC (Last)', value: s.nicRxBandwidthLast, hint: s.nicRxBandwidthLastTime, tone: 'info' },
-    { label: 'RX Bandwidth of L7 (Last)', value: s.l7RxBandwidthLast, hint: s.l7RxBandwidthLastTime, tone: 'ok' },
-    { label: 'TX Bandwidth of NIC (Last)', value: s.nicTxBandwidthLast, hint: s.nicTxBandwidthLastTime, tone: 'info' },
-    { label: 'TX Bandwidth of L7 (Last)', value: s.l7TxBandwidthLast, hint: s.l7TxBandwidthLastTime, tone: 'ok' },
-    { label: 'RX Traffic of NIC / L7', value: `${s.totalNicRxTraffic} / ${s.totalL7RxTraffic}`, hint: 'total volume', tone: 'info' },
-    { label: 'TX Traffic of NIC / L7', value: `${s.totalNicTxTraffic} / ${s.totalL7TxTraffic}`, hint: 'total volume', tone: 'warn' },
-  ]
+const requestSeriesStats = computed(() => {
+  const points = (l7RequestSeries.value[0]?.data || []).filter((p) => p.y != null)
+  const values = points.map((p) => Number(p.y) || 0)
+  return {
+    latest: values.length ? values[values.length - 1] : null,
+    avg: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null,
+    peak: values.length ? Math.max(...values) : null,
+  }
 })
 
-const requestsMetricCards = computed(() => {
-  const s = statsDisplay.value
-  return [
-    { label: 'Total Request', value: s.totalRequest, hint: 'over selected range', tone: 'ok' },
-    { label: 'Total Response', value: s.totalResponse, hint: 'over selected range', tone: 'info' },
-  ]
+const requestResponseStats = computed(() => {
+  const req = (requestResponseSeries.value[0]?.data || []).filter((p) => p.y != null)
+  const resp = (requestResponseSeries.value[1]?.data || []).filter((p) => p.y != null)
+  return {
+    latestReq: req.length ? Number(req[req.length - 1].y) || 0 : null,
+    latestResp: resp.length ? Number(resp[resp.length - 1].y) || 0 : null,
+  }
 })
 
 const audienceMetricCards = computed(() => {
   const s = statsDisplay.value
   return [
-    { label: 'IP Count', value: s.ipCount, hint: 'unique clients', tone: 'ok' },
+    { label: 'Unique IPs', value: s.ipCount, hint: 'distinct clients in the selected range', tone: 'ok' },
     { label: 'Referer', value: s.referer, hint: 'distinct referers', tone: 'info' },
     { label: 'ISP Count', value: s.ispCount, hint: 'distinct ISPs', tone: 'warn' },
   ]
@@ -1291,33 +1302,9 @@ const httpMetricCards = computed(() => {
   ]
 })
 
-const nicL7Legend = computed(() => {
-  const c = chartColors()
-  return [
-    { name: 'NIC', color: c.l4 },
-    { name: 'L7', color: c.l7 },
-  ]
-})
-
-const trafficLegend = computed(() => {
-  const c = chartColors()
-  return [
-    { name: 'NIC', color: c.viper },
-    { name: 'L7', color: c.gold },
-  ]
-})
-
-const requestResponseLegend = computed(() => {
-  const c = chartColors()
-  return [
-    { name: 'Requests', color: c.viper },
-    { name: 'Responses', color: c.l4 },
-  ]
-})
-
 const statusCodeLegend = computed(() => {
   const colors = STATUS_SERIES_COLORS()
-  return ['2xx', '3xx', '4xx', '5xx'].map((name, index) => ({
+  return ['2xx', '3xx', '4xx', '5xx + 9xx'].map((name, index) => ({
     name,
     color: colors[index % colors.length],
   }))
@@ -1333,6 +1320,10 @@ const selectedRangeLabel = computed(() => {
   const found = timeRanges.find((range) => range.value === selectedTimeRange.value)
   return found?.label || 'All'
 })
+
+const showHeavyRangeHint = computed(
+  () => !isCustomRange.value && isHeavyTimeRange(selectedTimeRange.value),
+)
 
 const timeRanges = sharedTimeRanges
 
@@ -1360,7 +1351,9 @@ const applyFilters = () => {
     customStart: isCustomRange.value ? formatDateInput(customStartDate.value) : '',
     customEnd: isCustomRange.value ? formatDateInput(customEndDate.value) : '',
   }
-  loadAnalyticsData()
+  loadedTabs.value = new Set()
+  loadedFilterKey.value = ''
+  void loadAnalyticsData()
 }
 
 const resolveRangeMs = (filters) => rangeDurationMs(filters?.range)
@@ -1424,78 +1417,41 @@ const loadSites = async () => {
   }
 }
 
-const loadAnalyticsData = async () => {
-  if (isLoading.value) return
-  isLoading.value = true
-  const params = buildAnalyticsParams()
-
-  let summary = null
-  try {
-    summary = await fetchAnalyticsSummary(params)
-  } catch (error) {
-    console.error('Failed to load analytics summary', error)
-    analyticsStats.value = createDefaultAnalyticsStats()
-    notifyError(ANALYTICS_TITLE, error?.message || 'The analytics summary could not be loaded.')
+const analyticsFilterKey = (filters = appliedFilters.value) => {
+  if (filters.isCustom) {
+    return `${filters.server}|${filters.site}|custom|${filters.customStart}|${filters.customEnd}`
   }
+  return `${filters.server}|${filters.site}|${filters.range}`
+}
 
+const applyRequestResponseSeries = (requestResponse) => {
+  const requestPoints = mapSeriesPoints(Array.isArray(requestResponse) ? requestResponse : [], 'requestCount')
+  l7RequestSeries.value = [{ name: 'L7 Requests', data: requestPoints }]
+  requestResponseSeries.value = [
+    { name: 'Requests', data: requestPoints },
+    {
+      name: 'Answered',
+      data: mapSeriesPoints(Array.isArray(requestResponse) ? requestResponse : [], 'responseCount'),
+    },
+  ]
+  requestResponseLoaded.value = true
+}
+
+const ensureRequestResponse = async (params) => {
+  if (requestResponseLoaded.value) return
+  const requestResponse = await fetchAnalyticsSeries('request-response', params)
+  applyRequestResponseSeries(requestResponse)
+}
+
+const loadSummary = async (params) => {
   try {
-    const [
-      nicRxBandwidth,
-      nicTxBandwidth,
-      l7RxBandwidth,
-      l7TxBandwidth,
-      nicRxTraffic, 
-      nicTxTraffic,
-      l7RxTraffic,
-      l7TxTraffic,
-      requestResponse,
-      statusSeries,
-      ipCount,
-      methodPoints,
-      protocolPoints,
-      statusSummary,
-      topIps,
-      topIsps,
-      topReferers,
-      countryRows,
-      methodSummary,
-      protocolSummary,
-    ] = await Promise.all([
-      fetchAnalyticsSeries('nic-rx-bandwidth', params),
-      fetchAnalyticsSeries('nic-tx-bandwidth', params),
-      fetchAnalyticsSeries('l7-rx-bandwidth', params),
-      fetchAnalyticsSeries('l7-tx-bandwidth', params),
-      fetchAnalyticsSeries('nic-rx-traffic', params),
-      fetchAnalyticsSeries('nic-tx-traffic', params),
-      fetchAnalyticsSeries('l7-rx-traffic', params),
-      fetchAnalyticsSeries('l7-tx-traffic', params),
-      fetchAnalyticsSeries('request-response', params),
-      fetchAnalyticsSeries('status-codes', params),
-      fetchAnalyticsSeries('ip-count', params),
-      fetchAnalyticsSeries('methods', params),
-      fetchAnalyticsSeries('protocols', params),
-      fetchAnalyticsSummaryGroup('status-codes', params),
-      fetchAnalyticsSummaryGroup('top-ips', params),
-      fetchAnalyticsSummaryGroup('isps', params),
-      fetchAnalyticsSummaryGroup('referers', params),
-      fetchAnalyticsSummaryGroup('countries', params),
-      fetchAnalyticsSummaryGroup('methods', params),
-      fetchAnalyticsSummaryGroup('protocols', params),
-    ])
-
+    const summary = await fetchAnalyticsSummary(params)
     const summaryData = summary || {}
-
     analyticsStats.value = {
-      totalNicRxTraffic: Number(summaryData?.totalNicRxTraffic ?? 0),
-      totalNicTxTraffic: Number(summaryData?.totalNicTxTraffic ?? 0),
       totalL7RxTraffic: Number(summaryData?.totalL7RxTraffic ?? 0),
       totalL7TxTraffic: Number(summaryData?.totalL7TxTraffic ?? 0),
-      nicRxBandwidthLast: Number(summaryData?.nicRxBandwidthLast ?? 0),
-      nicTxBandwidthLast: Number(summaryData?.nicTxBandwidthLast ?? 0),
       l7RxBandwidthLast: Number(summaryData?.l7RxBandwidthLast ?? 0),
       l7TxBandwidthLast: Number(summaryData?.l7TxBandwidthLast ?? 0),
-      nicRxBandwidthLastTime: summaryData?.nicRxBandwidthLastTime || '',
-      nicTxBandwidthLastTime: summaryData?.nicTxBandwidthLastTime || '',
       l7RxBandwidthLastTime: summaryData?.l7RxBandwidthLastTime || '',
       l7TxBandwidthLastTime: summaryData?.l7TxBandwidthLastTime || '',
       totalRequest: Number(summaryData?.totalRequest ?? 0),
@@ -1504,108 +1460,181 @@ const loadAnalyticsData = async () => {
       refererCount: Number(summaryData?.refererCount ?? 0),
       ispCount: Number(summaryData?.ispCount ?? 0),
     }
+  } catch (error) {
+    console.error('Failed to load analytics summary', error)
+    analyticsStats.value = createDefaultAnalyticsStats()
+    notifyError(ANALYTICS_TITLE, error?.message || 'The analytics summary could not be loaded.')
+  }
+}
 
-    nicRxBandwidthSeries.value = [
-      { name: 'NIC RX Bandwidth', data: mapSeriesPoints(Array.isArray(nicRxBandwidth) ? nicRxBandwidth : [], 'traffic') },
-    ]
-    nicTxBandwidthSeries.value = [
-      { name: 'NIC TX Bandwidth', data: mapSeriesPoints(Array.isArray(nicTxBandwidth) ? nicTxBandwidth : [], 'traffic') },
-    ]
-    l7RxBandwidthSeries.value = [
-      { name: 'L7 RX Bandwidth', data: mapSeriesPoints(Array.isArray(l7RxBandwidth) ? l7RxBandwidth : [], 'traffic') },
-    ]
-    l7TxBandwidthSeries.value = [
-      { name: 'L7 TX Bandwidth', data: mapSeriesPoints(Array.isArray(l7TxBandwidth) ? l7TxBandwidth : [], 'traffic') },
-    ]
-    nicRxTrafficSeries.value = [
-      { name: 'NIC RX Traffic', data: mapSeriesPoints(Array.isArray(nicRxTraffic) ? nicRxTraffic : [], 'traffic') },
-    ]
-    nicTxTrafficSeries.value = [
-      { name: 'NIC TX Traffic', data: mapSeriesPoints(Array.isArray(nicTxTraffic) ? nicTxTraffic : [], 'traffic') },
-    ]
-    l7RxTrafficSeries.value = [
-      { name: 'L7 RX Traffic', data: mapSeriesPoints(Array.isArray(l7RxTraffic) ? l7RxTraffic : [], 'traffic') },
-    ]
-    l7TxTrafficSeries.value = [
-      { name: 'L7 TX Traffic', data: mapSeriesPoints(Array.isArray(l7TxTraffic) ? l7TxTraffic : [], 'traffic') },
-    ]
-    requestResponseSeries.value = [
-      {
-        name: 'Requests',
-        data: mapSeriesPoints(Array.isArray(requestResponse) ? requestResponse : [], 'requestCount'),
-      },
-      {
-        name: 'Responses',
-        data: mapSeriesPoints(Array.isArray(requestResponse) ? requestResponse : [], 'responseCount'),
-      },
-    ]
-    statusCodeSeries.value = [
-      { name: '2xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'success') },
-      { name: '3xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'redirect') },
-      { name: '4xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'client') },
-      { name: '5xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'server') },
-    ]
-    ipCountSeries.value = [
-      { name: 'IP Count', data: mapSeriesPoints(Array.isArray(ipCount) ? ipCount : [], 'count') },
-    ]
-    methodSeries.value = methodKeys.map((method) => ({
-      name: method.label,
-      data: mapSeriesPoints(Array.isArray(methodPoints) ? methodPoints : [], method.field),
-    }))
-    protocolSeries.value = protocolKeys.map((protocol) => ({
-      name: protocol.label,
-      data: mapSeriesPoints(Array.isArray(protocolPoints) ? protocolPoints : [], protocol.field),
-    }))
+const loadBandwidthTab = async (params) => {
+  const [l7RxBandwidth, l7TxBandwidth] = await Promise.all([
+    fetchAnalyticsSeries('l7-rx-bandwidth', params),
+    fetchAnalyticsSeries('l7-tx-bandwidth', params),
+    ensureRequestResponse(params),
+  ])
+  l7RxBandwidthSeries.value = [
+    { name: 'RX', data: mapSeriesPoints(Array.isArray(l7RxBandwidth) ? l7RxBandwidth : [], 'traffic') },
+  ]
+  l7TxBandwidthSeries.value = [
+    { name: 'TX', data: mapSeriesPoints(Array.isArray(l7TxBandwidth) ? l7TxBandwidth : [], 'traffic') },
+  ]
+}
 
-    const statusRows = statusCodeList.map((code) => ({
-      code,
-      count: Number(statusSummary?.[`code${code}`] ?? 0),
-    }))
-    statusCodeRows.value = buildRateRows(statusRows)
+const loadRequestsTab = async (params) => {
+  const [, statusSeries, statusSummary] = await Promise.all([
+    ensureRequestResponse(params),
+    fetchAnalyticsSeries('status-codes', params),
+    fetchAnalyticsSummaryGroup('status-codes', params),
+  ])
+  statusCodeSeries.value = [
+    { name: '2xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'success') },
+    { name: '3xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'redirect') },
+    { name: '4xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'client') },
+    { name: '5xx + 9xx', data: mapSeriesPoints(Array.isArray(statusSeries) ? statusSeries : [], 'server') },
+  ]
+  const statusRows = statusCodeList.map((code) => ({
+    code,
+    count: Number(statusSummary?.[`code${code}`] ?? 0),
+  }))
+  statusCodeRows.value = buildRateRows(statusRows)
+}
 
-    const topIpRows = (Array.isArray(topIps) ? topIps : []).map((row) => ({
+const loadAudienceTab = async (params) => {
+  const [ipCount, topIps, topIsps, topReferers, countryRows] = await Promise.all([
+    fetchAnalyticsSeries('ip-count', params),
+    fetchAnalyticsSummaryGroup('top-ips', params),
+    fetchAnalyticsSummaryGroup('isps', params),
+    fetchAnalyticsSummaryGroup('referers', params),
+    fetchAnalyticsSummaryGroup('countries', params),
+  ])
+  ipCountSeries.value = [
+    { name: 'Unique IPs / interval', data: mapSeriesPoints(Array.isArray(ipCount) ? ipCount : [], 'count') },
+  ]
+  ipTableRows.value = buildRateRows(
+    (Array.isArray(topIps) ? topIps : []).map((row) => ({
       ip: row.ip,
       requests: Number(row.requests ?? 0),
-    }))
-    ipTableRows.value = buildRateRows(topIpRows)
-
-    const ispRows = (Array.isArray(topIsps) ? topIsps : []).map((row) => ({
+    })),
+  )
+  ispTableRows.value = buildRateRows(
+    (Array.isArray(topIsps) ? topIsps : []).map((row) => ({
       isp: row.isp,
       requests: Number(row.requests ?? 0),
-    }))
-    ispTableRows.value = buildRateRows(ispRows)
-
-    const refererRows = (Array.isArray(topReferers) ? topReferers : []).map((row) => ({
+    })),
+  )
+  refererTableRows.value = buildRateRows(
+    (Array.isArray(topReferers) ? topReferers : []).map((row) => ({
       referer: !row.referer || row.referer === '-' ? '(direct)' : row.referer,
       requests: Number(row.requests ?? 0),
-    }))
-    refererTableRows.value = buildRateRows(refererRows)
+    })),
+  )
+  countryRequests.value = (Array.isArray(countryRows) ? countryRows : []).map((row) => ({
+    code: String(row.countryCode || '').toUpperCase(),
+    name: row.countryCode ? row.countryCode.toUpperCase() : 'Unknown',
+    count: Number(row.requests ?? 0),
+  }))
+}
 
-    const countries = (Array.isArray(countryRows) ? countryRows : []).map((row) => ({
-      code: String(row.countryCode || '').toUpperCase(),
-      name: row.countryCode ? row.countryCode.toUpperCase() : 'Unknown',
-      count: Number(row.requests ?? 0),
-    }))
-    countryRequests.value = countries
-
-    const methodRows = methodKeys.map((method) => ({
+const loadHttpTab = async (params) => {
+  const [methodPoints, protocolPoints, methodSummary, protocolSummary] = await Promise.all([
+    fetchAnalyticsSeries('methods', params),
+    fetchAnalyticsSeries('protocols', params),
+    fetchAnalyticsSummaryGroup('methods', params),
+    fetchAnalyticsSummaryGroup('protocols', params),
+  ])
+  methodSeries.value = methodKeys.map((method) => ({
+    name: method.label,
+    data: mapSeriesPoints(Array.isArray(methodPoints) ? methodPoints : [], method.field),
+  }))
+  protocolSeries.value = protocolKeys.map((protocol) => ({
+    name: protocol.label,
+    data: mapSeriesPoints(Array.isArray(protocolPoints) ? protocolPoints : [], protocol.field),
+  }))
+  methodTableRows.value = buildRateRows(
+    methodKeys.map((method) => ({
       method: method.label,
       requests: Number(methodSummary?.[method.field] ?? 0),
-    }))
-    methodTableRows.value = buildRateRows(methodRows)
-
-    const protocolRows = protocolKeys.map((protocol) => ({
+    })),
+  )
+  protocolTableRows.value = buildRateRows(
+    protocolKeys.map((protocol) => ({
       protocol: protocol.label,
       requests: Number(protocolSummary?.[protocol.field] ?? 0),
-    }))
-    protocolTableRows.value = buildRateRows(protocolRows)
+    })),
+  )
+}
 
-    renderChartsForTab(activeTab.value)
+const loadTabData = async (tabId, params) => {
+  switch (tabId) {
+    case 'bandwidth':
+      await loadBandwidthTab(params)
+      break
+    case 'requests':
+      await loadRequestsTab(params)
+      break
+    case 'audience':
+      await loadAudienceTab(params)
+      break
+    case 'http':
+      await loadHttpTab(params)
+      break
+    default:
+      break
+  }
+}
+
+const markTabLoaded = (tabId) => {
+  const next = new Set(loadedTabs.value)
+  next.add(tabId)
+  loadedTabs.value = next
+}
+
+let analyticsLoadSeq = 0
+
+/** Load summary + active tab only; other tabs fetch on first visit for this filter key. */
+const loadAnalyticsData = async (tabId = activeTab.value) => {
+  const params = buildAnalyticsParams()
+  const filterKey = analyticsFilterKey()
+  const filterChanged = filterKey !== loadedFilterKey.value
+
+  if (
+    !filterChanged
+    && loadedTabs.value.has('__summary')
+    && loadedTabs.value.has(tabId)
+  ) {
+    renderChartsForTab(tabId)
+    return
+  }
+
+  const seq = ++analyticsLoadSeq
+  isLoading.value = true
+
+  if (filterChanged) {
+    loadedTabs.value = new Set()
+    loadedFilterKey.value = filterKey
+    requestResponseLoaded.value = false
+  }
+
+  try {
+    if (!loadedTabs.value.has('__summary')) {
+      await loadSummary(params)
+      if (seq !== analyticsLoadSeq) return
+      markTabLoaded('__summary')
+    }
+    if (!loadedTabs.value.has(tabId)) {
+      await loadTabData(tabId, params)
+      if (seq !== analyticsLoadSeq) return
+      markTabLoaded(tabId)
+    }
+    if (seq !== analyticsLoadSeq) return
+    renderChartsForTab(tabId)
   } catch (error) {
+    if (seq !== analyticsLoadSeq) return
     console.error('Failed to load analytics data', error)
     notifyError(ANALYTICS_TITLE, error?.message || 'The analytics data could not be loaded.')
   } finally {
-    isLoading.value = false
+    if (seq === analyticsLoadSeq) isLoading.value = false
   }
 }
 
@@ -1664,113 +1693,54 @@ const buildRateRows = (rows) => {
   })
 }
 
-const renderRxBandwidthChart = () => {
-  if (!rxBandwidthChart.value) return
+const renderL7BandwidthChart = () => {
+  if (!l7BandwidthChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange([
-    ...(nicRxBandwidthSeries.value.length ? [{ name: 'NIC RX Bandwidth', data: nicRxBandwidthSeries.value[0].data }] : []),
-    ...(l7RxBandwidthSeries.value.length ? [{ name: 'L7 RX Bandwidth', data: l7RxBandwidthSeries.value[0].data }] : []),
+    ...(l7RxBandwidthSeries.value.length ? [{ name: 'RX', data: l7RxBandwidthSeries.value[0].data }] : []),
+    ...(l7TxBandwidthSeries.value.length ? [{ name: 'TX', data: l7TxBandwidthSeries.value[0].data }] : []),
   ], rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     ...timeSeriesChartBase({
       type: 'area',
-      height: 320,
+      height: 360,
       rangeAxis,
       yLabelFormatter: (val) => formatKiloBps(val),
     }),
-    colors: [chartColors().l4, chartColors().l7],
+    colors: [chartColors().l7, chartColors().warn],
     series,
   }
 
-  if (rxBandwidthChartInstance) {
-    rxBandwidthChartInstance.updateOptions(options, true, true)
+  if (l7BandwidthChartInstance) {
+    l7BandwidthChartInstance.updateOptions(options, true, true)
   } else {
-    rxBandwidthChartInstance = new ApexCharts(rxBandwidthChart.value, options)
-    rxBandwidthChartInstance.render()
+    l7BandwidthChartInstance = new ApexCharts(l7BandwidthChart.value, options)
+    l7BandwidthChartInstance.render()
   }
 }
 
-
-const renderTxBandwidthChart = () => {
-  if (!txBandwidthChart.value) return
+const renderL7RequestChart = () => {
+  if (!l7RequestChart.value) return
   const { start, end } = resolveRangeWindow(appliedFilters.value)
   const rangeAxis = timeSeriesAxis(start, end)
-  const series = padSeriesToTimeRange([
-    ...(nicTxBandwidthSeries.value.length ? [{ name: 'NIC TX Bandwidth', data: nicTxBandwidthSeries.value[0].data }] : []),
-    ...(l7TxBandwidthSeries.value.length ? [{ name: 'L7 TX Bandwidth', data: l7TxBandwidthSeries.value[0].data }] : []),
-  ], rangeAxis.startMs, rangeAxis.endMs)
+  const series = padSeriesToTimeRange(l7RequestSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
     ...timeSeriesChartBase({
       type: 'area',
-      height: 320,
+      height: 380,
       rangeAxis,
-      yLabelFormatter: (val) => formatKiloBps(val),
+      yLabelFormatter: (val) => formatNumber(Math.round(val)),
     }),
-    colors: [chartColors().l4, chartColors().l7],
+    colors: [chartColors().viper],
     series,
   }
 
-  if (txBandwidthChartInstance) {
-    txBandwidthChartInstance.updateOptions(options, true, true)
+  if (l7RequestChartInstance) {
+    l7RequestChartInstance.updateOptions(options, true, true)
   } else {
-    txBandwidthChartInstance = new ApexCharts(txBandwidthChart.value, options)
-    txBandwidthChartInstance.render()
-  }
-}
-
-const renderRxTrafficChart = () => {
-  if (!rxTrafficChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const rangeAxis = timeSeriesAxis(start, end)
-  const series = padSeriesToTimeRange([
-    ...(nicRxTrafficSeries.value.length ? [{ name: 'NIC RX Traffic', data: nicRxTrafficSeries.value[0].data }] : []),
-    ...(l7RxTrafficSeries.value.length ? [{ name: 'L7 RX Traffic', data: l7RxTrafficSeries.value[0].data }] : []),
-  ], rangeAxis.startMs, rangeAxis.endMs)
-  const options = {
-    ...timeSeriesChartBase({
-      type: 'area',
-      height: 320,
-      rangeAxis,
-      yLabelFormatter: (val) => formatKiloBytes(val),
-    }),
-    colors: [chartColors().viper, chartColors().gold],
-    series,
-  }
-
-  if (rxTrafficChartInstance) {
-    rxTrafficChartInstance.updateOptions(options, true, true)
-  } else {
-    rxTrafficChartInstance = new ApexCharts(rxTrafficChart.value, options)
-    rxTrafficChartInstance.render()
-  }
-}
-
-
-const renderTxTrafficChart = () => {
-  if (!txTrafficChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
-  const rangeAxis = timeSeriesAxis(start, end)
-  const series = padSeriesToTimeRange([
-    ...(nicTxTrafficSeries.value.length ? [{ name: 'NIC TX Traffic', data: nicTxTrafficSeries.value[0].data }] : []),
-    ...(l7TxTrafficSeries.value.length ? [{ name: 'L7 TX Traffic', data: l7TxTrafficSeries.value[0].data }] : []),
-  ], rangeAxis.startMs, rangeAxis.endMs)
-  const options = {
-    ...timeSeriesChartBase({
-      type: 'area',
-      height: 320,
-      rangeAxis,
-      yLabelFormatter: (val) => formatKiloBytes(val),
-    }),
-    colors: [chartColors().viper, chartColors().gold],
-    series,
-  }
-
-  if (txTrafficChartInstance) {
-    txTrafficChartInstance.updateOptions(options, true, true)
-  } else {
-    txTrafficChartInstance = new ApexCharts(txTrafficChart.value, options)
-    txTrafficChartInstance.render()
+    l7RequestChartInstance = new ApexCharts(l7RequestChart.value, options)
+    l7RequestChartInstance.render()
   }
 }
 
@@ -1973,10 +1943,8 @@ const renderChartsForTab = (tabId) => {
   nextTick(() => {
     switch (tabId) {
       case 'bandwidth':
-        renderRxBandwidthChart()
-        renderTxBandwidthChart()
-        renderRxTrafficChart()
-        renderTxTrafficChart()
+        renderL7BandwidthChart()
+        renderL7RequestChart()
         break
       case 'requests':
         renderRequestResponseChart()
@@ -1999,7 +1967,9 @@ const renderChartsForTab = (tabId) => {
   })
 }
 
-watch(activeTab, (tab) => renderChartsForTab(tab))
+watch(activeTab, (tab) => {
+  void loadAnalyticsData(tab)
+})
 
 watch(selectedServer, () => {
   if (selectedSite.value === 'all') return
@@ -2010,27 +1980,19 @@ watch(selectedServer, () => {
 onMounted(() => {
   loadServers()
   loadSites()
-  loadAnalyticsData()
+  void loadAnalyticsData(activeTab.value)
   window.addEventListener('cdnproxy-theme-change', rerenderAllCharts)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('cdnproxy-theme-change', rerenderAllCharts)
-  if (rxBandwidthChartInstance) {
-    rxBandwidthChartInstance.destroy()
-    rxBandwidthChartInstance = null
+  if (l7BandwidthChartInstance) {
+    l7BandwidthChartInstance.destroy()
+    l7BandwidthChartInstance = null
   }
-  if (txBandwidthChartInstance) {
-    txBandwidthChartInstance.destroy()
-    txBandwidthChartInstance = null
-  }
-  if (rxTrafficChartInstance) {
-    rxTrafficChartInstance.destroy()
-    rxTrafficChartInstance = null
-  }
-  if (txTrafficChartInstance) {
-    txTrafficChartInstance.destroy()
-    txTrafficChartInstance = null
+  if (l7RequestChartInstance) {
+    l7RequestChartInstance.destroy()
+    l7RequestChartInstance = null
   }
   if (requestResponseChartInstance) {
     requestResponseChartInstance.destroy()
@@ -2084,6 +2046,132 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   min-height: 280px;
+}
+
+.analytics-view .dash-panel--hero-chart {
+  background:
+    linear-gradient(180deg, rgba(46, 158, 108, 0.04) 0%, transparent 42%),
+    var(--app-surface);
+}
+
+.analytics-view .dash-panel--hero-chart-info {
+  background:
+    linear-gradient(180deg, rgba(107, 159, 212, 0.06) 0%, transparent 42%),
+    var(--app-surface);
+}
+
+.analytics-view .dash-panel--hero-chart .dash-panel-head {
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.analytics-view .dash-panel--hero-chart .dash-panel-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.analytics-view .dash-panel-icon {
+  --icon-tone: var(--app-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--icon-tone);
+  background: color-mix(in srgb, var(--icon-tone) 14%, transparent);
+  flex: none;
+}
+
+.analytics-view .dash-panel-icon.signal { --icon-tone: var(--dorian-viper-400, var(--app-accent)); }
+.analytics-view .dash-panel-icon.l7 { --icon-tone: var(--dorian-l7, #8fa3b8); }
+
+.analytics-view .dash-panel-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.analytics-view .dash-panel-hint {
+  font-size: var(--type-small, 11px);
+  font-weight: 400;
+  color: var(--app-text-muted);
+}
+
+.analytics-view .dash-readout-strip {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, minmax(0, 1fr));
+  border: 0.5px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface-muted);
+  margin-bottom: 8px;
+}
+
+.analytics-view .dash-readout-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  min-width: 0;
+}
+
+.analytics-view .dash-readout-cell + .dash-readout-cell {
+  border-left: 0.5px solid var(--app-border);
+}
+
+.analytics-view .dash-readout-cell__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.analytics-view .dash-readout-cell__label .sw {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.analytics-view .dash-readout-cell__label .sw.rx,
+.analytics-view .dash-readout-cell__label .sw.req {
+  background: var(--dorian-viper-400, var(--app-accent));
+}
+
+.analytics-view .dash-readout-cell__label .sw.tx {
+  background: var(--dorian-warn, #e0a83f);
+}
+
+.analytics-view .dash-readout-cell__value {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--app-heading);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.analytics-view .dash-readout-cell.lead .dash-readout-cell__value {
+  font-size: 20px;
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+@media (max-width: 900px) {
+  .analytics-view .dash-readout-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .analytics-view .dash-readout-cell:nth-child(3) {
+    border-left: 0;
+    border-top: 0.5px solid var(--app-border);
+  }
+
+  .analytics-view .dash-readout-cell:nth-child(n + 3) {
+    border-top: 0.5px solid var(--app-border);
+  }
 }
 
 .dialog-overlay {

@@ -10,7 +10,7 @@
           <span class="pill edge">{{ attack?.serverName || 'Edge' }}</span>
           <div class="attack-console__chips-spacer"></div>
           <button class="ghost" type="button" @click="exportReport">Export report</button>
-          <button class="ghost" type="button" @click="showRawLogs">Raw logs</button>
+          <button class="ghost" type="button" @click="openFullLog">Full log</button>
           <button class="icon" type="button" aria-label="Close attack view" @click="emit('close')">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 6l12 12M18 6L6 18"></path>
@@ -21,7 +21,7 @@
         <div class="attack-console__title-row">
           <div>
             <h2 id="attack-console-title">{{ headline }}</h2>
-            <p class="mono muted">{{ attack?.title || 'L4 attack' }}</p>
+            <p class="mono muted">{{ subtitle }}</p>
           </div>
           <dl class="attack-console__times">
             <div>
@@ -65,6 +65,27 @@
       <p v-if="error" class="attack-console__error">{{ error }}</p>
 
       <div class="attack-console__body">
+        <nav class="dash-tabbar attack-console__tabs" aria-label="Attack sections" role="tablist">
+          <button
+            v-for="tab in attackTabs"
+            :key="tab.id"
+            type="button"
+            role="tab"
+            class="dash-tab"
+            :class="{ active: activeTab === tab.id }"
+            :aria-selected="activeTab === tab.id"
+            @click="activeTab = tab.id"
+          >
+            <svg class="dash-tab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <template v-if="tab.id === 'traffic'"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" /></template>
+              <template v-else-if="tab.id === 'sources'"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></template>
+              <template v-else><path d="M4 6h16M4 12h10M4 18h13" /></template>
+            </svg>
+            <span class="dash-tab__label">{{ tab.label }}</span>
+          </button>
+        </nav>
+
+        <div v-show="activeTab === 'traffic'" class="attack-console__panel">
         <section class="kpis" aria-label="Summary">
           <article>
             <span>Peak ingress</span>
@@ -84,7 +105,9 @@
             </div>
             <div class="vector-legend">
               <span v-for="part in vectorParts" :key="`${part.type}-label`">
-                <i :style="{ background: part.color }"></i>{{ part.type }} <b>{{ part.count }}</b>
+                <i :style="{ background: part.color }"></i>{{ part.type }}
+                <b v-if="part.count > 0">{{ part.count }}</b>
+                <em v-if="part.range" class="vector-range">{{ part.range }}</em>
               </span>
               <span v-if="!vectorParts.length">{{ primaryType }}</span>
             </div>
@@ -110,8 +133,9 @@
           <div ref="trafficChartEl" class="chart" role="img" :aria-label="chartCaption"></div>
           <p v-if="loaded && !hasDrops" class="empty">No firewall samples yet.</p>
         </section>
+        </div>
 
-        <div class="split">
+        <div v-if="activeTab === 'sources'" class="attack-console__panel">
           <section class="panel sources">
             <header class="panel__head sources__head">
               <div class="sources__title">
@@ -129,21 +153,31 @@
             <div class="sources__cols">
               <span>Source</span><span>Vector</span><span>Blocked</span><span>Status</span>
             </div>
-            <p v-if="loaded && !visibleSources.length" class="empty">{{ sourcesEmptyText }}</p>
-            <div v-else class="sources__list">
-              <div v-for="source in visibleSources" :key="source.ip" class="sources__row">
+            <p v-if="sourcesLoading && !sources.length" class="empty">Loading sources…</p>
+            <p v-else-if="loaded && !sources.length" class="empty">{{ sourcesEmptyText }}</p>
+            <div
+              v-else
+              ref="sourcesEl"
+              class="sources__list"
+              @scroll.passive="onSourcesScroll"
+            >
+              <div v-for="source in sources" :key="source.ip" class="sources__row">
                 <span class="mono">{{ source.ip }}</span>
                 <span><em class="chip" :class="vectorClass(source.attackType)">{{ source.attackType || 'L4' }}</em></span>
                 <span class="mono dim" :title="source.blocks > 1 ? `Blocked ${source.blocks} times, first at ${formatClock(source.firstBlockedAt)}` : ''">{{ formatClock(source.lastBlockedAt) }}</span>
                 <span class="status" :class="{ hot: source.active }">{{ sourceStatus(source) }}</span>
               </div>
+              <p v-if="sourcesLoading" class="empty">Loading more…</p>
+              <p v-else-if="sourcesHasMore" class="empty">Scroll for more</p>
             </div>
             <footer>
-              <span>Showing {{ visibleSources.length }} of {{ srcFilter === 'active' ? `${activeCount} active` : sourceCount }}</span>
+              <span>Showing {{ sources.length }} of {{ srcFilter === 'active' ? `${activeCount} active` : sourceCount }}<template v-if="srcQuery.trim()"> matching “{{ srcQuery.trim() }}”</template></span>
               <button type="button" @click="openEdge">View all in firewall</button>
             </footer>
           </section>
+        </div>
 
+        <div v-if="activeTab === 'console'" class="attack-console__panel">
           <section ref="spartaEl" class="console">
             <header class="panel__head">
               <div>
@@ -156,10 +190,18 @@
                 <span v-for="key in watchedCounters" :key="key">{{ key }}</span>
               </div>
             </header>
-            <p v-if="spartaError" class="empty">{{ spartaError }}</p>
-            <div v-else class="console__log">
-              <p v-if="loaded && !logs.length" class="empty">{{ ongoing ? 'Waiting for Sparta counters…' : 'No Sparta counters in this time range.' }}</p>
-              <div v-for="(line, index) in logs" :key="index" class="console__row">
+            <p v-if="spartaError && !logs.length" class="empty">{{ spartaError }}</p>
+            <div
+              v-else
+              ref="spartaLogEl"
+              class="console__log"
+              @scroll.passive="onSpartaScroll"
+            >
+              <p v-if="spartaLoading && !logs.length" class="empty">Loading Sparta counters…</p>
+              <p v-else-if="!logs.length" class="empty">{{ spartaError || (ongoing ? 'Waiting for Sparta counters…' : 'No Sparta counters in this archive.') }}</p>
+              <p v-else-if="spartaLoadingOlder" class="empty">Loading earlier…</p>
+              <p v-else-if="!spartaHasMore && logs.length" class="empty">Start of counters</p>
+              <div v-for="(line, index) in logs" :key="`${line.time}-${index}`" class="console__row">
                 <span class="mono dim">{{ formatClock(line.time) }}</span>
                 <span class="counters">
                   <span v-for="counter in line.counters" :key="counter.k">
@@ -169,11 +211,78 @@
               </div>
             </div>
             <footer>
-              <span>Counters shown as dropped / passed per second</span>
-              <button type="button" @click="openEdge">Open full log</button>
+              <span>
+                Counters shown as dropped / passed per second
+                <template v-if="spartaLog.length"> · {{ spartaLog.length.toLocaleString() }}<template v-if="spartaTotal"> / {{ spartaTotal.toLocaleString() }}</template> loaded</template>
+                <template v-if="spartaHasMore && logs.length"> · scroll up for earlier</template>
+              </span>
+              <button type="button" @click="openFullLog">Open full log</button>
             </footer>
           </section>
         </div>
+      </div>
+
+      <div
+        v-if="fullLogOpen"
+        class="full-log-backdrop"
+        @click.self="closeFullLog"
+      >
+        <section class="full-log" role="dialog" aria-modal="true" aria-labelledby="full-log-title">
+          <header class="full-log__head">
+            <div>
+              <h3 id="full-log-title">Full Sparta log</h3>
+              <p class="full-log__meta mono">
+                {{ attack?.serverName || 'edge' }}
+                <template v-if="fullLogFileName"> · {{ fullLogFileName }}</template>
+                <template v-if="fullLogTotal"> · {{ fullLogLines.length.toLocaleString() }} / {{ fullLogTotal.toLocaleString() }} lines</template>
+                <template v-else-if="fullLogLines.length"> · {{ fullLogLines.length.toLocaleString() }} lines</template>
+              </p>
+            </div>
+            <div class="full-log__actions">
+              <button
+                class="ghost"
+                type="button"
+                :disabled="fullLogDownloading || (!fullLogLines.length && !fullLogFileName)"
+                @click="downloadLoadedLog"
+              >
+                Export loaded
+              </button>
+              <button
+                class="ghost"
+                type="button"
+                :disabled="fullLogDownloading || (!fullLogFileName && !fullLogLines.length)"
+                @click="downloadArchiveFile"
+              >
+                {{ fullLogDownloading ? 'Downloading…' : 'Download archive' }}
+              </button>
+              <button class="icon" type="button" aria-label="Close full log" @click="closeFullLog">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 6l12 12M18 6L6 18"></path>
+                </svg>
+              </button>
+            </div>
+          </header>
+          <p v-if="fullLogError" class="full-log__error">{{ fullLogError }}</p>
+          <div
+            ref="fullLogEl"
+            class="full-log__body"
+            @scroll.passive="onFullLogScroll"
+          >
+            <p v-if="!fullLogLines.length && fullLogLoading" class="full-log__empty">Loading archive…</p>
+            <p v-else-if="!fullLogLines.length && !fullLogLoading" class="full-log__empty">No archive file for this attack.</p>
+            <div
+              v-for="(line, index) in fullLogLines"
+              :key="index"
+              class="full-log__row"
+              :class="fullLogLineClass(line.text)"
+            >
+              <span class="mono dim">{{ line.time ? formatClock(line.time) : '' }}</span>
+              <span class="full-log__text">{{ line.text }}</span>
+            </div>
+            <p v-if="fullLogLines.length && fullLogLoading" class="full-log__more">Loading more…</p>
+            <p v-else-if="fullLogLines.length && !fullLogHasMore" class="full-log__more">End of archive</p>
+          </div>
+        </section>
       </div>
     </section>
   </div>
@@ -183,7 +292,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ApexCharts from 'apexcharts'
-import { fetchAttackConsole } from '@/api/dashboard'
+import { downloadAttackSpartaArchive, fetchAttackConsole, fetchAttackSources, fetchAttackSpartaArchive } from '@/api/dashboard'
+import { notifyError, notifySuccess } from '@/utils/notify'
 import { getApexChartColors, getApexSeriesColors, getApexTooltipTheme } from '@/utils/chartTheme'
 
 const props = defineProps({
@@ -193,6 +303,15 @@ const emit = defineEmits(['close'])
 const router = useRouter()
 
 const SAMPLE_MS = 5000
+const attackTabs = [
+  { id: 'traffic', label: 'Traffic' },
+  { id: 'sources', label: 'Blocked sources' },
+  { id: 'console', label: 'Sparta console' },
+]
+const SOURCE_PAGE = 25
+const DROP_RENDER_CAP = 720
+const SPARTA_PAGE = 120
+const SPARTA_MAX_LINES = 240
 const COUNTER_ORDER = ['SYN', 'ACK', 'RST', 'PSH+ACK', 'STOMP', 'HANDSHAKE', 'FIN', 'UDP', 'ICMP', 'GRE']
 const COUNTERS_FOR_TOKEN = {
   SYN: ['SYN'],
@@ -219,17 +338,44 @@ const attackTypes = ref([])
 const protection = ref('')
 const spartaLog = ref([])
 const spartaError = ref('')
+const spartaLogEl = ref(null)
+const spartaNext = ref(0)
+const spartaHasMore = ref(true)
+const spartaTotal = ref(0)
+const spartaFileName = ref('')
+const spartaLoading = ref(false)
+const spartaLoadingOlder = ref(false)
+let spartaScrollLock = false
 const error = ref('')
 const loaded = ref(false)
+const activeTab = ref('traffic')
+let sourcesFetched = false
 const now = ref(Date.now())
 const srcFilter = ref('active')
 let srcFilterChosen = false
 const srcQuery = ref('')
+const sourcesEl = ref(null)
+const sourcesHasMore = ref(true)
+const sourcesNext = ref(0)
+const sourcesLoading = ref(false)
+let sourcesSearchTimer = 0
 const trafficChartEl = ref(null)
 const spartaEl = ref(null)
+const fullLogOpen = ref(false)
+const fullLogEl = ref(null)
+const fullLogLines = ref([])
+const fullLogTotal = ref(0)
+const fullLogNext = ref(0)
+const fullLogHasMore = ref(false)
+const fullLogFileName = ref('')
+const fullLogError = ref('')
+const fullLogLoading = ref(false)
+const fullLogDownloading = ref(false)
+const FULL_LOG_PAGE = 200
 let trafficChart = null
 let pollTimer = 0
 let clockTimer = 0
+let spartaPollTimer = 0
 
 const ongoing = computed(() => attack.value?.status === 'ongoing')
 const hasDrops = computed(() => drops.value.length > 0)
@@ -239,8 +385,15 @@ const headline = computed(() => {
   if (names.length > 1) return `${names.join(' + ')} flood`
   return `${names[0] || primaryType.value} flood`
 })
+const subtitle = computed(() => {
+  const names = attackTypes.value.map((item) => item.type).filter(Boolean)
+  if (names.length > 1) return names.join(' · ')
+  const events = Array.isArray(attack.value?.events) ? attack.value.events : []
+  const technical = events.map((event) => event?.data || event?.attackType || '').find((value) => /ATTACK|BLOCK|PROTEC/i.test(value))
+  return technical || attack.value?.attackType || attack.value?.title || 'L4 attack'
+})
 const layerChip = computed(() => {
-  const label = primaryType.value.toUpperCase()
+  const label = (attackTypes.value.map((item) => item.type).join(' ') || primaryType.value).toUpperCase()
   if (label.includes('UDP')) return 'L4 · UDP'
   if (label.includes('ICMP')) return 'L4 · ICMP'
   if (label.includes('GRE')) return 'L4 · GRE'
@@ -253,9 +406,16 @@ const protectionOn = computed(() => {
   return ongoing.value
 })
 const modeLabel = computed(() => {
-  const title = String(attack.value?.title || '')
-  if (title.includes('FIXED')) return 'Mode: fixed block · XDP'
-  if (title.includes('BURST')) return 'Mode: burst block · XDP'
+  const events = Array.isArray(attack.value?.events) ? attack.value.events : []
+  const blob = [
+    attack.value?.title,
+    attack.value?.attackType,
+    protection.value,
+    ...events.map((event) => `${event?.data || ''} ${event?.attackType || ''}`),
+    ...sources.value.map((source) => source.attackType || ''),
+  ].join(' ')
+  if (/FIXED/i.test(blob)) return 'Mode: fixed block · XDP'
+  if (/BURST/i.test(blob)) return 'Mode: burst block · XDP'
   return protectionOn.value ? 'Protection on · XDP' : 'Protection off · XDP'
 })
 const startedMs = computed(() => {
@@ -299,21 +459,30 @@ const peakIngress = computed(() => {
 const droppedTotal = computed(() => formatBytes(drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0), 0)))
 const passedTotal = computed(() => formatBytes(drops.value.reduce((sum, point) => sum + (Number(point.allowed) || 0), 0)))
 const vectorParts = computed(() => {
-  const total = attackTypes.value.reduce((sum, item) => sum + (Number(item.count) || 0), 0) || 1
-  return attackTypes.value.slice(0, 4).map((item, index) => ({
-    type: item.type,
-    count: item.count,
-    width: `${Math.max(6, Math.round(((Number(item.count) || 0) / total) * 100))}%`,
-    color: vectorColor(item.type, index),
-  }))
+  const scored = attackTypes.value.map((item) => Math.max(Number(item.count) || 0, 1))
+  const total = scored.reduce((sum, value) => sum + value, 0) || 1
+  return attackTypes.value.slice(0, 4).map((item, index) => {
+    const count = Number(item.count) || 0
+    const weight = Math.max(count, 1)
+    return {
+      type: item.type,
+      count,
+      startedAt: item.startedAt || '',
+      endedAt: item.endedAt || '',
+      range: vectorRangeLabel(item.startedAt, item.endedAt),
+      width: `${Math.max(6, Math.round((weight / total) * 100))}%`,
+      color: vectorColor(item.type, index),
+    }
+  })
 })
-const visibleSources = computed(() => {
-  const query = srcQuery.value.trim().toLowerCase()
-  return sources.value.filter((source) => (
-    (srcFilter.value === 'all' || source.active)
-    && (!query || String(source.ip || '').toLowerCase().includes(query))
-  ))
-})
+
+const vectorRangeLabel = (startedAt, endedAt) => {
+  const start = formatShortClockSafe(startedAt)
+  const end = formatShortClockSafe(endedAt)
+  if (start && end) return `${start}–${end}`
+  if (start) return `from ${start}`
+  return ''
+}
 const watchedCounters = computed(() => {
   const labels = [
     ...attackTypes.value.map((item) => item.type),
@@ -327,12 +496,19 @@ const watchedCounters = computed(() => {
 const logs = computed(() => {
   const watched = new Set(watchedCounters.value)
   return spartaLog.value
+    .slice(-SPARTA_MAX_LINES)
     .map(parseLogLine)
-    .filter((line) => line?.isCounter)
-    .map((line) => ({
-      ...line,
-      counters: watched.size ? line.counters.filter((counter) => watched.has(counter.k)) : line.counters,
-    }))
+    .filter((line) => line?.isCounter || line?.counters?.length)
+    .map((line) => {
+      // Prefer attack-vector counters when present, but never hide the whole line.
+      const focused = watched.size
+        ? line.counters.filter((counter) => watched.has(counter.k))
+        : line.counters
+      return {
+        ...line,
+        counters: focused.length ? focused : line.counters,
+      }
+    })
     .filter((line) => line.counters.length)
 })
 const logRangeLabel = computed(() => {
@@ -340,6 +516,7 @@ const logRangeLabel = computed(() => {
   return start && end ? `${formatClock(start)} – ${formatClock(end)}` : ''
 })
 const sourcesEmptyText = computed(() => {
+  if (srcQuery.value.trim()) return 'No sources match that address.'
   if (srcFilter.value === 'active' && sourceCount.value > 0) return 'No sources are blocked right now.'
   return 'No source addresses recorded for this attack.'
 })
@@ -351,7 +528,7 @@ const sourceStatus = (source) => {
 const chartCaption = computed(() => {
   const { start, end } = windowRange.value
   const range = start && end ? `${formatShortClock(start)} – ${formatShortClock(end)} · ` : ''
-  return `${range}${SAMPLE_MS / 1000} s samples · shaded = attack window`
+  return `${range}${SAMPLE_MS / 1000} s samples · shaded = vector windows`
 })
 
 const formatDuration = (start, end) => {
@@ -404,8 +581,16 @@ const vectorColor = (type, index) => {
   if (label.includes('STOMP') || label.includes('PSH')) return colors.l7
   if (label.includes('UDP')) return colors.l4
   if (label.includes('ICMP') || label.includes('GRE')) return colors.teal
-  if (label.includes('ACK') || label.includes('SYN') || label.includes('RST')) return colors.warn
+  if (label.includes('RST')) return colors.danger || colors.l7
+  if (label.includes('SYN')) return colors.viper
+  if (label.includes('ACK')) return colors.warn
   return [colors.warn, colors.l7, colors.l4, colors.viper][index % 4]
+}
+
+const formatShortClockSafe = (value) => {
+  const parsed = Date.parse(value || '')
+  if (!Number.isFinite(parsed)) return ''
+  return formatShortClock(parsed)
 }
 
 const vectorClass = (type) => {
@@ -416,20 +601,21 @@ const vectorClass = (type) => {
 }
 
 const parseLogLine = (entry) => {
-  const body = String(entry?.text || '').replace(/\x1b\[[0-9;]*m/g, '').trim()
+  const body = String(entry?.text || '')
+    .replace(/\x1b\[[0-9;]*m/g, '')
+    .replace(/^\[\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}\]\s*/, '')
+    .trim()
   if (!body) return null
   const time = entry?.time || ''
-  const isCounter = /\b(?:SYN|ACK|PSH|RST|FIN|UDP|ICMP|GRE|STOMP)\s*:/.test(body)
   const counters = []
-  if (isCounter) {
-    const pattern = /([A-Z][A-Z0-9+]*)\s*:\s*([0-9]+(?:\/[0-9]+)?)/g
-    let match = pattern.exec(body)
-    while (match) {
-      counters.push({ k: match[1], v: match[2] })
-      match = pattern.exec(body)
-    }
+  const pattern = /([A-Z][A-Z0-9+]*)\s*:\s*([0-9]+(?:\/[0-9]+)?)/g
+  let match = pattern.exec(body)
+  while (match) {
+    counters.push({ k: match[1], v: match[2] })
+    match = pattern.exec(body)
   }
-  return { time, body, isCounter: isCounter && counters.length > 0, counters }
+  const known = counters.some((counter) => /^(?:SYN|ACK|PSH|RST|FIN|UDP|ICMP|GRE|STOMP|HANDSHAKE)/.test(counter.k))
+  return { time, body, isCounter: known || counters.length > 0, counters }
 }
 
 const bucketSeries = (rows, keys, bucketMs) => {
@@ -470,7 +656,41 @@ const chartSeries = () => {
 const chartAnnotations = (seriesColors) => {
   const warn = seriesColors.warn
   const xaxis = []
-  if (startedMs.value) {
+  const vectorWindows = attackTypes.value
+    .map((item, index) => {
+      const start = Date.parse(item.startedAt || '')
+      const end = Date.parse(item.endedAt || '')
+      if (!Number.isFinite(start)) return null
+      return {
+        type: item.type || `Vector ${index + 1}`,
+        start,
+        end: Number.isFinite(end) && end > start ? end : (endedMs.value || now.value),
+        color: vectorColor(item.type, index),
+      }
+    })
+    .filter(Boolean)
+  if (vectorWindows.length) {
+    vectorWindows.forEach((window, index) => {
+      xaxis.push({
+        x: window.start,
+        x2: window.end,
+        fillColor: window.color || warn,
+        opacity: 0.1,
+        borderColor: window.color || warn,
+        strokeDashArray: 3,
+        label: {
+          text: window.type,
+          position: 'top',
+          orientation: 'horizontal',
+          textAnchor: 'start',
+          offsetX: 6,
+          offsetY: 6 + index * 18,
+          borderWidth: 0,
+          style: { background: 'transparent', color: seriesColors.sand, fontSize: '11px', fontWeight: 500 },
+        },
+      })
+    })
+  } else if (startedMs.value) {
     xaxis.push({
       x: startedMs.value,
       x2: endedMs.value || now.value,
@@ -502,7 +722,7 @@ const chartAnnotations = (seriesColors) => {
         orientation: 'horizontal',
         textAnchor: 'start',
         offsetX: 6,
-        offsetY: 28,
+        offsetY: 28 + Math.max(0, vectorWindows.length - 1) * 18,
         borderColor: cssVar('--dorian-gold-dim', warn),
         borderRadius: 4,
         style: {
@@ -598,20 +818,19 @@ const load = async () => {
       start: Number.isFinite(windowStart) ? windowStart : null,
       end: Number.isFinite(windowEnd) ? windowEnd : null,
     }
-    drops.value = Array.isArray(payload?.drops) ? payload.drops : []
-    sources.value = Array.isArray(payload?.sources) ? payload.sources : []
+    const dropRows = Array.isArray(payload?.drops) ? payload.drops : []
+    drops.value = dropRows.length > DROP_RENDER_CAP
+      ? dropRows.filter((_, index) => index === 0 || index === dropRows.length - 1 || index % Math.ceil(dropRows.length / DROP_RENDER_CAP) === 0).slice(0, DROP_RENDER_CAP)
+      : dropRows
     activeCount.value = Number(payload?.activeCount) || 0
-    sourceCount.value = Number(payload?.sourceCount) || sources.value.length
+    sourceCount.value = Number(payload?.sourceCount) || 0
     const serverTime = Date.parse(payload?.serverTime || '')
     clockSkew.value = Number.isFinite(serverTime) ? serverTime - Date.now() : 0
     if (!srcFilterChosen) {
       srcFilter.value = activeCount.value > 0 ? 'active' : 'all'
-      srcFilterChosen = true
     }
     attackTypes.value = Array.isArray(payload?.attackTypes) ? payload.attackTypes : []
     protection.value = payload?.protection || ''
-    spartaLog.value = Array.isArray(payload?.spartaLog) ? payload.spartaLog : []
-    spartaError.value = payload?.spartaError || ''
     error.value = ''
     loaded.value = true
     await renderCharts()
@@ -622,28 +841,143 @@ const load = async () => {
   }
 }
 
-const exportReport = () => {
-  const lines = [
-    headline.value,
-    attack.value?.title || '',
-    attack.value?.serverName || '',
-    `Started ${formatClock(attack.value?.startedAt) || '—'}`,
-    `Duration ${durationLabel.value || '—'}`,
-    `Sources ${sourceCount.value} (${activeCount.value} active)`,
-    `Reports ${attack.value?.eventCount ?? 0}`,
-    '',
-    ...sources.value.map((source) => `${source.ip}\t${source.attackType || 'L4'}\t${formatClock(source.firstBlockedAt)}\t${source.active ? 'blocking' : 'released'}`),
-  ]
-  const blob = new Blob([lines.filter(Boolean).join('\n')], { type: 'text/plain' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = `attack-${props.reqId}.txt`
-  link.click()
-  URL.revokeObjectURL(link.href)
+const resetSources = () => {
+  sources.value = []
+  sourcesNext.value = 0
+  sourcesHasMore.value = true
 }
 
-const showRawLogs = () => {
-  spartaEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+const ensureSources = () => {
+  if (sourcesFetched || sourcesLoading.value) return
+  sourcesFetched = true
+  loadSources({ reset: true })
+}
+
+const startSpartaPoll = () => {
+  if (spartaPollTimer) return
+  if (!spartaLog.value.length) loadSpartaPage()
+  spartaPollTimer = window.setInterval(pollSpartaLive, 5000)
+}
+
+const stopSpartaPoll = () => {
+  if (!spartaPollTimer) return
+  window.clearInterval(spartaPollTimer)
+  spartaPollTimer = 0
+}
+
+const loadSources = async ({ reset = false } = {}) => {
+  if (sourcesLoading.value) return
+  if (!reset && sources.value.length && !sourcesHasMore.value) return
+  if (reset) resetSources()
+  sourcesLoading.value = true
+  try {
+    const payload = await fetchAttackSources(props.reqId, {
+      offset: sourcesNext.value,
+      limit: SOURCE_PAGE,
+      q: srcQuery.value,
+      active: srcFilter.value === 'active',
+    })
+    const chunk = Array.isArray(payload?.sources) ? payload.sources : []
+    const seen = new Set(sources.value.map((item) => item.ip))
+    const unique = chunk.filter((item) => item?.ip && !seen.has(item.ip))
+    sources.value = sources.value.concat(unique)
+    sourcesNext.value = Number(payload?.next) || (sourcesNext.value + chunk.length)
+    sourcesHasMore.value = Boolean(payload?.hasMore) && chunk.length > 0
+    if (Number.isFinite(Number(payload?.activeCount))) activeCount.value = Number(payload.activeCount)
+    if (Number.isFinite(Number(payload?.sourceCount))) sourceCount.value = Number(payload.sourceCount)
+  } catch {
+    if (reset) sources.value = []
+    sourcesHasMore.value = false
+  } finally {
+    sourcesLoading.value = false
+  }
+}
+
+const onSourcesScroll = () => {
+  const el = sourcesEl.value
+  if (!el || sourcesLoading.value || !sourcesHasMore.value) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 64) {
+    loadSources()
+  }
+}
+
+const saveBlob = (blob, fileName) => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1500)
+}
+
+const exportReport = () => {
+  const vectorLines = attackTypes.value.map((item) => {
+    const window = [item.startedAt, item.endedAt].filter(Boolean).map(formatClock).join(' → ')
+    return `- ${item.type}${item.count ? ` × ${item.count}` : ''}${window ? ` (${window})` : ''}`
+  })
+  const lines = [
+    '# Dorian attack report',
+    `req_id: ${props.reqId}`,
+    `title: ${headline.value}`,
+    `edge: ${attack.value?.serverName || '—'}`,
+    `status: ${ongoing.value ? 'ongoing' : 'ended'}`,
+    `started: ${attack.value?.startedAt || '—'}`,
+    `ended: ${attack.value?.endedAt || attack.value?.createdAt || '—'}`,
+    `duration: ${durationLabel.value || '—'}`,
+    `sources: ${sourceCount.value} (${activeCount.value} active)`,
+    `detector_reports: ${attack.value?.eventCount ?? 0}`,
+    protection.value ? `protection: ${protection.value}` : '',
+    '',
+    '## Vectors',
+    ...(vectorLines.length ? vectorLines : ['- (none)']),
+    '',
+    '## Blocked sources',
+    'ip\tvector\tfirst_blocked\tlast_blocked\tstatus',
+    ...sources.value.map((source) => [
+      source.ip,
+      source.attackType || 'L4',
+      source.firstBlockedAt || '',
+      source.lastBlockedAt || '',
+      source.active ? 'blocking' : 'released',
+    ].join('\t')),
+    '',
+    '## Sparta counters (console sample)',
+    ...spartaLog.value.slice(0, 500).map((line) => `${line.time || ''}\t${line.text || ''}`),
+    spartaLog.value.length > 500 ? `… ${spartaLog.value.length - 500} more counter lines in Full log` : '',
+    '',
+    'Open Full log → Download archive for the complete Sparta attack file.',
+  ]
+  const blob = new Blob([`${lines.filter((line) => line !== null && line !== undefined).join('\n')}\n`], { type: 'text/plain;charset=utf-8' })
+  saveBlob(blob, `attack-${props.reqId}-report.txt`)
+  notifySuccess('Attack export', 'Report downloaded.')
+}
+
+const downloadLoadedLog = () => {
+  if (!fullLogLines.value.length) {
+    notifyError('Sparta log', 'Load the archive first, then export.')
+    return
+  }
+  const body = fullLogLines.value.map((line) => line.text || '').join('\n')
+  const name = fullLogFileName.value
+    ? fullLogFileName.value.replace(/\.log$/i, '') + `-loaded-${fullLogLines.value.length}.log`
+    : `sparta-attack-${props.reqId}-loaded.log`
+  saveBlob(new Blob([`${body}\n`], { type: 'text/plain;charset=utf-8' }), name)
+  notifySuccess('Sparta log', `Exported ${fullLogLines.value.length.toLocaleString()} loaded lines.`)
+}
+
+const downloadArchiveFile = async () => {
+  if (fullLogDownloading.value) return
+  fullLogDownloading.value = true
+  try {
+    const { blob, fileName, size } = await downloadAttackSpartaArchive(props.reqId)
+    saveBlob(blob, fileName)
+    const mb = size > 0 ? ` (${(size / (1024 * 1024)).toFixed(1)} MB)` : ''
+    notifySuccess('Sparta log', `Archive downloaded${mb}.`)
+  } catch (err) {
+    notifyError('Sparta log', err?.message || 'Archive download failed.')
+  } finally {
+    fullLogDownloading.value = false
+  }
 }
 
 const openEdge = () => {
@@ -653,9 +987,261 @@ const openEdge = () => {
   router.push({ name: 'server-settings', query: { server: String(id) } })
 }
 
-onMounted(() => {
-  load()
-  pollTimer = window.setInterval(load, 3000)
+const fullLogLineClass = (text) => {
+  const body = String(text || '')
+  if (/\bCRITIC\b/.test(body)) return 'lvl-critic'
+  if (/\bNOTICE\b/.test(body)) return 'lvl-notice'
+  if (/\bALERT\b|\bDETECT\b/.test(body)) return 'lvl-alert'
+  if (/\bDEBUG\b/.test(body)) return 'lvl-debug'
+  if (/^\s*#/.test(body)) return 'lvl-meta'
+  if (/\b(?:SYN|ACK|PSH|RST|FIN|UDP|ICMP|GRE|STOMP)\s*:/.test(body)) return 'lvl-counter'
+  return ''
+}
+
+const resetSpartaLog = () => {
+  spartaLog.value = []
+  spartaError.value = ''
+  spartaNext.value = 0
+  spartaHasMore.value = true
+  spartaTotal.value = 0
+  spartaFileName.value = ''
+  spartaLoadingOlder.value = false
+  spartaScrollLock = false
+}
+
+const lineKey = (line) => `${line?.time || ''}\t${line?.text || ''}`
+
+const newerThan = (line, last) => {
+  if (!last) return true
+  const left = Date.parse(line?.time || '')
+  const right = Date.parse(last?.time || '')
+  if (Number.isFinite(left) && Number.isFinite(right) && left !== right) return left > right
+  return lineKey(line) !== lineKey(last)
+}
+
+const capSpartaLines = (lines) => {
+  if (lines.length <= SPARTA_MAX_LINES) return lines
+  return lines.slice(lines.length - SPARTA_MAX_LINES)
+}
+
+const lockSpartaScroll = async (fn) => {
+  spartaScrollLock = true
+  try {
+    await fn()
+  } finally {
+    await nextTick()
+    window.setTimeout(() => {
+      spartaScrollLock = false
+    }, 80)
+  }
+}
+
+const scrollSpartaToBottom = async () => {
+  await lockSpartaScroll(async () => {
+    await nextTick()
+    const el = spartaLogEl.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
+
+const extractCounterLines = (rows) => {
+  const out = []
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const parsed = parseLogLine(row)
+    if (!parsed?.isCounter || !parsed.counters.length) continue
+    out.push({
+      time: row?.time || parsed.time || '',
+      text: parsed.body,
+    })
+  }
+  return out
+}
+
+const loadSpartaPage = async ({ older = false, replace = false } = {}) => {
+  if (spartaLoading.value) return
+  if (older && (!spartaHasMore.value || spartaLog.value.length >= SPARTA_MAX_LINES)) {
+    if (spartaLog.value.length >= SPARTA_MAX_LINES) spartaHasMore.value = false
+    return
+  }
+  spartaLoading.value = true
+  spartaLoadingOlder.value = older
+  try {
+    // Use the same archive endpoint as Full log (proven to work), then keep
+    // only counter lines. First open loads near the end of the file.
+    let fileOffset = 0
+    let total = spartaTotal.value
+    if (!older || replace || !spartaLog.value.length) {
+      const probe = await fetchAttackSpartaArchive(props.reqId, {
+        offset: 0,
+        limit: 1,
+        skipTotal: false,
+      })
+      if (probe?.error) spartaError.value = probe.error
+      else spartaError.value = ''
+      total = Number(probe?.total) || 0
+      if (total > 0) spartaTotal.value = total
+      if (probe?.fileName) spartaFileName.value = probe.fileName
+      else if (probe?.file) spartaFileName.value = String(probe.file).split('/').pop() || ''
+      fileOffset = Math.max(0, total - SPARTA_PAGE)
+      spartaNext.value = fileOffset
+    } else {
+      fileOffset = Math.max(0, spartaNext.value - SPARTA_PAGE)
+    }
+
+    const payload = await fetchAttackSpartaArchive(props.reqId, {
+      offset: fileOffset,
+      limit: SPARTA_PAGE,
+      skipTotal: total > 0,
+    })
+    if (payload?.error) spartaError.value = payload.error
+    else if (!spartaError.value) spartaError.value = ''
+    if (Number(payload?.total) > 0) {
+      total = Number(payload.total)
+      spartaTotal.value = total
+    }
+    if (payload?.fileName) spartaFileName.value = payload.fileName
+    else if (payload?.file) spartaFileName.value = String(payload.file).split('/').pop() || spartaFileName.value
+
+    const chunk = extractCounterLines(payload?.lines)
+    if (older && spartaLog.value.length) {
+      const el = spartaLogEl.value
+      const prevHeight = el?.scrollHeight || 0
+      const prevTop = el?.scrollTop || 0
+      const room = Math.max(0, SPARTA_MAX_LINES - spartaLog.value.length)
+      const kept = room ? chunk.slice(Math.max(0, chunk.length - room)) : []
+      if (!kept.length) {
+        spartaHasMore.value = fileOffset > 0
+        spartaNext.value = fileOffset
+        return
+      }
+      await lockSpartaScroll(async () => {
+        spartaLog.value = kept.concat(spartaLog.value)
+        await nextTick()
+        if (el) el.scrollTop = prevTop + (el.scrollHeight - prevHeight)
+      })
+      spartaNext.value = fileOffset
+      spartaHasMore.value = fileOffset > 0 && spartaLog.value.length < SPARTA_MAX_LINES
+    } else {
+      const previous = replace ? [] : spartaLog.value
+      const last = previous[previous.length - 1]
+      const lastSeen = last ? lineKey(last) : ''
+      const seenAt = lastSeen ? chunk.findIndex((line) => lineKey(line) === lastSeen) : -1
+      const fresh = !previous.length
+        ? chunk
+        : seenAt >= 0
+          ? chunk.slice(seenAt + 1)
+          : chunk.filter((line) => newerThan(line, last))
+      if (!previous.length || replace) {
+        spartaLog.value = capSpartaLines(chunk)
+        await scrollSpartaToBottom()
+      } else if (fresh.length) {
+        const el = spartaLogEl.value
+        const pinned = el && el.scrollHeight - el.scrollTop - el.clientHeight < 48
+        spartaLog.value = capSpartaLines(previous.concat(fresh))
+        if (pinned) await scrollSpartaToBottom()
+      } else if (!spartaLog.value.length) {
+        spartaLog.value = capSpartaLines(chunk)
+        await scrollSpartaToBottom()
+      }
+      spartaNext.value = fileOffset
+      spartaHasMore.value = fileOffset > 0 && spartaLog.value.length < SPARTA_MAX_LINES
+      if (!chunk.length && !spartaLog.value.length && !spartaError.value) {
+        spartaError.value = total > 0
+          ? 'Archive loaded, but no counter lines were found.'
+          : 'No archive file for this attack.'
+      }
+    }
+  } catch (err) {
+    spartaError.value = err?.message || 'Sparta log is unavailable'
+    if (replace || !spartaLog.value.length) spartaHasMore.value = false
+  } finally {
+    spartaLoading.value = false
+    spartaLoadingOlder.value = false
+  }
+}
+
+const onSpartaScroll = () => {
+  const el = spartaLogEl.value
+  if (!el || spartaScrollLock || spartaLoading.value || !spartaHasMore.value) return
+  if (el.scrollTop <= 24) {
+    loadSpartaPage({ older: true })
+  }
+}
+
+const pollSpartaLive = async () => {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+  if (spartaLoading.value || !ongoing.value) return
+  if (!spartaFileName.value) {
+    await loadSpartaPage({ replace: true })
+    return
+  }
+  await loadSpartaPage()
+}
+
+const resetFullLog = () => {
+  fullLogLines.value = []
+  fullLogTotal.value = 0
+  fullLogNext.value = 0
+  fullLogHasMore.value = false
+  fullLogFileName.value = ''
+  fullLogError.value = ''
+}
+
+const closeFullLog = () => {
+  fullLogOpen.value = false
+}
+
+const loadFullLogPage = async () => {
+  if (fullLogLoading.value) return
+  if (fullLogOpen.value && fullLogLines.value.length && !fullLogHasMore.value) return
+  fullLogLoading.value = true
+  fullLogError.value = ''
+  try {
+    const skipTotal = fullLogTotal.value > 0
+    const payload = await fetchAttackSpartaArchive(props.reqId, {
+      offset: fullLogNext.value,
+      limit: FULL_LOG_PAGE,
+      skipTotal,
+    })
+    if (payload?.error) {
+      fullLogError.value = payload.error
+    }
+    const chunk = Array.isArray(payload?.lines) ? payload.lines : []
+    fullLogLines.value = fullLogLines.value.concat(chunk)
+    if (Number(payload?.total) > 0) fullLogTotal.value = Number(payload.total)
+    fullLogNext.value = Number(payload?.next) || (fullLogNext.value + chunk.length)
+    fullLogHasMore.value = Boolean(payload?.hasMore)
+    if (payload?.fileName) fullLogFileName.value = payload.fileName
+    else if (payload?.file) fullLogFileName.value = String(payload.file).split('/').pop() || ''
+    if (!chunk.length && !fullLogLines.value.length && !fullLogError.value) {
+      fullLogError.value = 'No archive file for this attack.'
+    }
+  } catch (err) {
+    fullLogError.value = err?.message || 'The Sparta archive could not be loaded.'
+    fullLogHasMore.value = false
+  } finally {
+    fullLogLoading.value = false
+  }
+}
+
+const openFullLog = async () => {
+  resetFullLog()
+  fullLogOpen.value = true
+  await loadFullLogPage()
+}
+
+const onFullLogScroll = () => {
+  const el = fullLogEl.value
+  if (!el || fullLogLoading.value || !fullLogHasMore.value) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 140) {
+    loadFullLogPage()
+  }
+}
+
+onMounted(async () => {
+  await load()
+  srcFilterChosen = true
+  pollTimer = window.setInterval(load, 8000)
   clockTimer = window.setInterval(() => {
     now.value = Date.now()
   }, 1000)
@@ -663,15 +1249,49 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.clearInterval(pollTimer)
+  window.clearInterval(spartaPollTimer)
   window.clearInterval(clockTimer)
+  window.clearTimeout(sourcesSearchTimer)
   trafficChart?.destroy()
 })
 
-watch(() => props.reqId, () => {
+watch(() => props.reqId, async () => {
   trafficChart?.destroy()
   trafficChart = null
   srcFilterChosen = false
-  load()
+  srcQuery.value = ''
+  activeTab.value = 'traffic'
+  sourcesFetched = false
+  stopSpartaPoll()
+  closeFullLog()
+  resetFullLog()
+  resetSpartaLog()
+  resetSources()
+  await load()
+  srcFilterChosen = true
+})
+
+watch(activeTab, async (tab) => {
+  if (tab === 'traffic') {
+    await nextTick()
+    trafficChart?.resize?.()
+  }
+  if (tab === 'sources') ensureSources()
+  if (tab === 'console') startSpartaPoll()
+  else stopSpartaPoll()
+})
+
+watch(srcQuery, () => {
+  if (!srcFilterChosen) return
+  window.clearTimeout(sourcesSearchTimer)
+  sourcesSearchTimer = window.setTimeout(() => {
+    loadSources({ reset: true })
+  }, 280)
+})
+
+watch(srcFilter, () => {
+  if (!srcFilterChosen) return
+  loadSources({ reset: true })
 })
 </script>
 
@@ -688,6 +1308,7 @@ watch(() => props.reqId, () => {
 }
 
 .attack-console {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: min(1120px, 100%);
@@ -911,7 +1532,18 @@ footer button {
   gap: 16px;
   min-height: 0;
   overflow: auto;
-  padding: 20px 28px 24px;
+  padding: 16px 28px 24px;
+}
+
+.attack-console__tabs {
+  flex: none;
+}
+
+.attack-console__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
 }
 
 .kpis {
@@ -976,8 +1608,14 @@ footer button {
   font-size: 12px;
 }
 
-.vector-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.vector-legend span { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .vector-legend i { width: 8px; height: 8px; border-radius: 2px; }
+.vector-range {
+  color: var(--app-text-muted);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85em;
+}
 
 .panel { padding: 18px 20px 14px; }
 .panel__head { justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -1025,8 +1663,9 @@ footer button {
 .sources, .console {
   display: flex;
   flex-direction: column;
-  min-height: 420px;
-  max-height: 460px;
+  min-height: 520px;
+  max-height: none;
+  flex: 1;
 }
 
 .sources { padding: 0; overflow: hidden; }
@@ -1186,6 +1825,106 @@ footer button {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--dorian-danger) 55%, transparent); }
   70% { box-shadow: 0 0 0 7px transparent; }
   100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.full-log-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: color-mix(in srgb, var(--app-overlay, rgba(0, 0, 0, 0.45)) 88%, transparent);
+}
+.full-log {
+  display: flex;
+  flex-direction: column;
+  width: min(1400px, calc(100vw - 40px));
+  height: min(900px, calc(100vh - 40px));
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  background: var(--app-bg);
+  box-shadow: 0 18px 48px color-mix(in srgb, #000 35%, transparent);
+}
+.full-log__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--app-border);
+}
+.full-log__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.full-log__actions .ghost {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface-muted, transparent);
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.full-log__actions .ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.full-log__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+.full-log__meta {
+  margin: 4px 0 0;
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+.full-log__error {
+  margin: 0;
+  padding: 10px 18px;
+  color: var(--dorian-danger);
+  border-bottom: 1px solid var(--app-border);
+  font-size: 13px;
+}
+.full-log__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 0 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.full-log__row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  padding: 1px 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.full-log__row .dim { color: var(--app-text-muted); }
+.full-log__text { color: var(--app-text-secondary); }
+.full-log__row.lvl-critic .full-log__text { color: var(--dorian-danger); }
+.full-log__row.lvl-notice .full-log__text,
+.full-log__row.lvl-alert .full-log__text { color: var(--dorian-warn); }
+.full-log__row.lvl-debug .full-log__text { color: var(--app-text-muted); }
+.full-log__row.lvl-meta .full-log__text { color: var(--app-text-muted); font-style: italic; }
+.full-log__row.lvl-counter .full-log__text { color: var(--app-text); }
+.full-log__empty,
+.full-log__more {
+  margin: 12px 18px;
+  color: var(--app-text-muted);
+  font-size: 12px;
 }
 
 @media (max-width: 980px) {

@@ -310,12 +310,22 @@ const routes = [
       },
       {
         path: 'analytics/traffic',
-        name: 'security-analytics',
+        name: 'l7-traffic-analytics',
         component: () => import('@/components/views/Analytics.vue'),
         meta: {
-          title: 'Traffic',
+          title: 'L7 Traffic',
           section: 'analytics',
-          description: 'Requests, bandwidth, status codes, HTTP versions, and visitors served by your edges.',
+          description: 'Application-layer bandwidth, request counts, status codes, HTTP versions, and visitors.',
+        }
+      },
+      {
+        path: 'analytics/traffic-l4',
+        name: 'l4-traffic-analytics',
+        component: () => import('@/components/views/Layer4TrafficAnalyticsView.vue'),
+        meta: {
+          title: 'L4 Traffic',
+          section: 'analytics',
+          description: 'Network-interface throughput (NIC RX / TX) on your edges, before L7 processing.',
         }
       },
       {
@@ -388,7 +398,7 @@ const routes = [
           description: 'Export historical logs for offline analysis.',
         }
       },
-      { path: 'analytics/security-analytics', redirect: { name: 'security-analytics' } },
+      { path: 'analytics/security-analytics', name: 'security-analytics', redirect: { name: 'l7-traffic-analytics' } },
       { path: 'analytics/security-analytics-detail', redirect: { name: 'security-analytics-detail' } },
       { path: 'analytics/layer4-attack-analytics', redirect: { name: 'layer4-attack-analytics' } },
       { path: 'analytics/detection', redirect: { name: 'attack-detection' } },

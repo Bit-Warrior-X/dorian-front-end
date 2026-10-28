@@ -11,15 +11,16 @@
       </div>
     </header>
 
-    <AnalyticsSectionNav />
-
     <AnalyticsFilterBar :filters="filters" :loading="isLoading" id-prefix="performance" />
 
     <p v-if="loadError" class="analytics-error" role="alert">{{ loadError }}</p>
 
     <section class="dash-kpi-strip">
       <article v-for="card in kpiCards" :key="card.label" class="dash-kpi" :class="`dash-kpi--${card.tone}`">
-        <span class="dash-kpi__label">{{ card.label }}</span>
+        <span class="dash-kpi__label info-hint-heading">
+          <span>{{ card.label }}</span>
+          <InfoHint :text="card.help" :aria-label="`${card.label} help`" />
+        </span>
         <span class="dash-kpi__value num">{{ card.value }}</span>
         <span class="dash-kpi__hint">{{ card.hint }}</span>
       </article>
@@ -29,14 +30,24 @@
       <div class="dash-panel c-12 dash-chart-panel">
         <div class="dash-panel-head">
           <div>
-            <h3>Edge response time</h3>
+            <h3 class="info-hint-heading">
+              <span>Edge response time</span>
+              <InfoHint
+                text="Client-facing latency ($request_time): from the edge receiving the request until the last response byte is sent, including cache hits and origin fetches. Non-blocked requests only.
+p50 / p95 / p99 are percentiles from the edge latency histogram — half of requests finish at or below p50; 95% at or below p95; 99% at or below p99."
+                aria-label="Edge response time help"
+              />
+            </h3>
             <p class="dash-panel-desc">Time from receiving the request to sending the last byte, including origin fetches · {{ filters.rangeLabel }}</p>
           </div>
           <div class="dash-chart-readouts">
             <div v-for="readout in edgeReadouts" :key="readout.label" class="dash-chart-readout">
               <span class="dash-chart-readout__swatch" :style="{ background: readout.color }"></span>
               <div>
-                <div class="dash-chart-readout__label">{{ readout.label }}</div>
+                <div class="dash-chart-readout__label info-hint-heading">
+                  <span>{{ readout.label }}</span>
+                  <InfoHint :text="readout.help" :aria-label="`Edge ${readout.label} help`" />
+                </div>
                 <div class="dash-chart-readout__value num">{{ readout.value }}</div>
               </div>
             </div>
@@ -57,8 +68,15 @@
       <div class="dash-panel c-6 dash-chart-panel">
         <div class="dash-panel-head">
           <div>
-            <h3>Origin response time</h3>
-            <p class="dash-panel-desc">Time to first byte from the origin, for requests that were not served from cache</p>
+            <h3 class="info-hint-heading">
+              <span>Origin response time</span>
+              <InfoHint
+                text="Upstream latency ($upstream_response_time) for requests that contacted origin (not served fully from cache). Retries are summed into one sample.
+p50 is the median origin wait; p95 shows the slow tail most users still see. Spikes here usually mean a slow or overloaded origin."
+                aria-label="Origin response time help"
+              />
+            </h3>
+            <p class="dash-panel-desc">Time waiting on origin for requests that were not served from cache</p>
           </div>
         </div>
         <div class="dash-chart-wrap">
@@ -76,8 +94,16 @@
       <div class="dash-panel c-6 dash-chart-panel dash-chart-panel--danger">
         <div class="dash-panel-head">
           <div>
-            <h3>Origin errors</h3>
-            <p class="dash-panel-desc">5xx responses and timeouts returned by origins to the edge</p>
+            <h3 class="info-hint-heading">
+              <span>Origin 5xx and timeouts</span>
+              <InfoHint
+                text="5xx: the origin itself returned a 5xx status (final $upstream_status). Does not include connect failures.
+Timeouts: no usable origin response within proxy connect/read timeouts.
+Each point is the count of failed origin contacts in that chart interval (1 min on short ranges, wider on long ranges) — useful to spot origin outages vs slow-but-successful responses."
+                aria-label="Origin errors help"
+              />
+            </h3>
+            <p class="dash-panel-desc">Origin 5xx responses, plus connect/read timeouts (no usable response)</p>
           </div>
         </div>
         <div class="dash-chart-wrap">
@@ -94,7 +120,16 @@
       <div class="dash-panel c-6">
         <div class="dash-panel-head">
           <div>
-            <h3>By edge</h3>
+            <h3 class="info-hint-heading">
+              <span>By edge</span>
+              <InfoHint
+                text="One row per edge server in the selected scope.
+Requests: total edge requests in the range.
+p50 / p95: edge response-time percentiles for that server.
+5xx rate: origin 5xx responses ÷ origin requests on that edge (cache hits do not count in the denominator)."
+                aria-label="By edge help"
+              />
+            </h3>
             <p class="dash-panel-desc">Response time and error rate for each edge server</p>
           </div>
         </div>
@@ -103,10 +138,30 @@
             <thead>
               <tr>
                 <th>Edge</th>
-                <th class="is-num">Requests</th>
-                <th class="is-num">p50</th>
-                <th class="is-num">p95</th>
-                <th class="is-num">5xx rate</th>
+                <th class="is-num">
+                  <span class="info-hint-heading">
+                    <span>Requests</span>
+                    <InfoHint text="Total requests handled by this edge in the selected time range, including blocked ones. Latency percentiles only cover requests that were answered." aria-label="Requests column help" />
+                  </span>
+                </th>
+                <th class="is-num">
+                  <span class="info-hint-heading">
+                    <span>p50</span>
+                    <InfoHint text="Median edge response time on this server — half of requests finished at or below this value." aria-label="Edge p50 column help" />
+                  </span>
+                </th>
+                <th class="is-num">
+                  <span class="info-hint-heading">
+                    <span>p95</span>
+                    <InfoHint text="95th percentile edge response time — 95% of requests finished at or below this value. High values mean a noticeable slow tail." aria-label="Edge p95 column help" />
+                  </span>
+                </th>
+                <th class="is-num">
+                  <span class="info-hint-heading">
+                    <span>5xx rate</span>
+                    <InfoHint text="Share of origin contacts on this edge that returned 5xx from the origin (origin 5xx ÷ origin requests)." aria-label="Edge 5xx rate column help" />
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -126,7 +181,14 @@
       <div class="dash-panel c-6">
         <div class="dash-panel-head">
           <div>
-            <h3>Slowest origins</h3>
+            <h3 class="info-hint-heading">
+              <span>Slowest origins</span>
+              <InfoHint
+                text="Sites ranked by origin p95 (slowest first). Only traffic that contacted origin is included.
+Use this to find which domains drag edge latency — a high p95 with a rising 5xx rate or timeouts usually points at origin capacity or network issues."
+                aria-label="Slowest origins help"
+              />
+            </h3>
             <p class="dash-panel-desc">Sites ranked by origin p95 response time</p>
           </div>
         </div>
@@ -135,10 +197,30 @@
             <thead>
               <tr>
                 <th>Site</th>
-                <th class="is-num">Origin requests</th>
-                <th class="is-num">p95</th>
-                <th class="is-num">5xx rate</th>
-                <th class="is-num">Timeouts</th>
+                <th class="is-num">
+                  <span class="info-hint-heading">
+                    <span>Origin requests</span>
+                    <InfoHint text="Requests that contacted this site's origin (cache misses / bypass / dynamic). Cache hits are excluded." aria-label="Origin requests column help" />
+                  </span>
+                </th>
+                <th class="is-num">
+                  <span class="info-hint-heading">
+                    <span>p95</span>
+                    <InfoHint text="95th percentile origin wait time for this site — how long the slowest common origin fetches take." aria-label="Origin p95 column help" />
+                  </span>
+                </th>
+                <th class="is-num">
+                  <span class="info-hint-heading">
+                    <span>5xx rate</span>
+                    <InfoHint text="Origin 5xx responses ÷ origin requests for this site." aria-label="Origin 5xx rate column help" />
+                  </span>
+                </th>
+                <th class="is-num">
+                  <span class="info-hint-heading">
+                    <span>Timeouts</span>
+                    <InfoHint text="Origin contacts that hit proxy connect/read timeout with no usable response." aria-label="Timeouts column help" />
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -161,7 +243,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
+import InfoHint from '@/components/InfoHint.vue'
 import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'
 import AnalyticsTimeChart from '@/components/views/analytics/AnalyticsTimeChart.vue'
 import PreviewDataBadge from '@/components/views/analytics/PreviewDataBadge.vue'
@@ -230,11 +312,41 @@ const palette = computed(() => {
 const kpiCards = computed(() => {
   const s = summary.value
   return [
-    { label: 'Edge response p50', value: formatMs(s.edgeResponseP50Ms), hint: 'median request', tone: 'ok' },
-    { label: 'Edge response p95', value: formatMs(s.edgeResponseP95Ms), hint: `p99 ${formatMs(s.edgeResponseP99Ms)}`, tone: 'info' },
-    { label: 'Origin response p95', value: formatMs(s.originResponseP95Ms), hint: `p50 ${formatMs(s.originResponseP50Ms)}`, tone: 'warn' },
-    { label: 'Origin 5xx rate', value: formatPercent(s.originErrorRate, 2), hint: `${formatNumber(s.origin5xx)} of ${formatCompact(s.originRequests)} origin requests`, tone: 'danger' },
-    { label: 'Origin timeouts', value: formatNumber(s.originTimeouts), hint: 'no response before timeout', tone: 'total' },
+    {
+      label: 'Edge response p50',
+      value: formatMs(s.edgeResponseP50Ms),
+      hint: 'median request',
+      tone: 'ok',
+      help: 'Median client-facing response time across the selected range. Half of edge requests finished at or below this value ($request_time, last byte to client).',
+    },
+    {
+      label: 'Edge response p95',
+      value: formatMs(s.edgeResponseP95Ms),
+      hint: `p99 ${formatMs(s.edgeResponseP99Ms)}`,
+      tone: 'info',
+      help: '95th percentile edge response time. 95% of requests finished at or below this; the hint shows p99 for the extreme tail.',
+    },
+    {
+      label: 'Origin response p95',
+      value: formatMs(s.originResponseP95Ms),
+      hint: `p50 ${formatMs(s.originResponseP50Ms)}`,
+      tone: 'warn',
+      help: '95th percentile wait on origin ($upstream_response_time) for requests that contacted origin. Hint shows the median (p50) for comparison.',
+    },
+    {
+      label: 'Origin 5xx rate',
+      value: formatPercent(s.originErrorRate, 2),
+      hint: `${formatNumber(s.origin5xx)} of ${formatCompact(s.originRequests)} origin requests`,
+      tone: 'danger',
+      help: 'Share of origin contacts where the origin returned 5xx (origin 5xx ÷ origin requests). Cache hits are not in the denominator.',
+    },
+    {
+      label: 'Origin timeouts',
+      value: formatNumber(s.originTimeouts),
+      hint: 'no response before timeout',
+      tone: 'total',
+      help: 'Count of origin contacts that hit proxy connect/read timeout with no usable response in the selected range.',
+    },
   ]
 })
 
@@ -260,9 +372,24 @@ const originErrorSeries = computed(() => [
 ])
 
 const edgeReadouts = computed(() => [
-  { label: 'p50', color: palette.value.p50, value: formatMs(summary.value.edgeResponseP50Ms) },
-  { label: 'p95', color: palette.value.p95, value: formatMs(summary.value.edgeResponseP95Ms) },
-  { label: 'p99', color: palette.value.p99, value: formatMs(summary.value.edgeResponseP99Ms) },
+  {
+    label: 'p50',
+    color: palette.value.p50,
+    value: formatMs(summary.value.edgeResponseP50Ms),
+    help: 'Median edge response time for the selected range.',
+  },
+  {
+    label: 'p95',
+    color: palette.value.p95,
+    value: formatMs(summary.value.edgeResponseP95Ms),
+    help: '95th percentile edge response time — typical slow-tail latency users still feel.',
+  },
+  {
+    label: 'p99',
+    color: palette.value.p99,
+    value: formatMs(summary.value.edgeResponseP99Ms),
+    help: '99th percentile edge response time — the extreme tail (outliers, rare slow paths).',
+  },
 ])
 
 const latencyTone = (value, threshold) => ((Number(value) || 0) > threshold ? 'is-low' : '')

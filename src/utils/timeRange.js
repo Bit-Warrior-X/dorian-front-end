@@ -12,10 +12,28 @@ export const sharedTimeRanges = [
 const STORAGE_KEY = 'dorian.timeRange'
 const DEFAULT_RANGE = '4h'
 
+/** Ranges ≤ 12h are safe to remember across navigation. */
+const PERSISTABLE_RANGES = new Set(['1h', '2h', '4h', '12h'])
+
+/** Longer windows pull much more series data — do not sticky-restore them. */
+const HEAVY_RANGES = new Set(['1d', '2d', '7d', '1m', '24h', '48h'])
+
+export function isHeavyTimeRange(value) {
+  return HEAVY_RANGES.has(String(value || '').trim().toLowerCase())
+}
+
+export function isPersistableTimeRange(value) {
+  return PERSISTABLE_RANGES.has(String(value || '').trim().toLowerCase())
+}
+
 export function readSharedTimeRange() {
   try {
     const value = window.sessionStorage.getItem(STORAGE_KEY)
-    if (sharedTimeRanges.some((range) => range.value === value)) return value
+    if (isPersistableTimeRange(value)) return value
+    // Legacy sticky 7d/1m (or unknown) → fall back to a light default.
+    if (value && sharedTimeRanges.some((range) => range.value === value)) {
+      return DEFAULT_RANGE
+    }
   } catch {
     // sessionStorage can be unavailable
   }
@@ -24,6 +42,9 @@ export function readSharedTimeRange() {
 
 export function writeSharedTimeRange(value) {
   if (!sharedTimeRanges.some((range) => range.value === value)) return
+  // Heavy ranges still apply for the current visit, but do not overwrite the
+  // last light range so revisiting Analytics stays fast.
+  if (!isPersistableTimeRange(value)) return
   try {
     window.sessionStorage.setItem(STORAGE_KEY, value)
   } catch {

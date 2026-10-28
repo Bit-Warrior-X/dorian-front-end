@@ -10,11 +10,9 @@
       </div>
     </header>
 
-    <AnalyticsSectionNav />
-
     <div class="dash-filterbar">
       <div class="dash-filter-field">
-        <label for="security-server">Server</label>
+        <label for="security-server">Edge</label>
         <select id="security-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
           <option v-for="server in serverOptions" :key="server.value" :value="server.value">
             {{ server.label }}
@@ -64,28 +62,24 @@
       </button>
     </div>
 
-    <div
-      v-if="isLoading"
-      class="dash-loading-overlay"
-      role="status"
-      aria-live="polite"
-    >
-      <div class="dash-loading-overlay__content">
-        <span class="dash-spinner" aria-hidden="true"></span>
-        <span class="dash-loading-overlay__label">Loading security data…</span>
-      </div>
-    </div>
-
-    <nav class="dash-tabbar" aria-label="L7 attack sections">
+    <nav class="dash-tabbar" aria-label="L7 attack sections" role="tablist">
       <button
         v-for="tab in securityTabs"
         :key="tab.id"
         type="button"
+        role="tab"
         class="dash-tab"
         :class="{ active: activeTab === tab.id }"
+        :aria-selected="activeTab === tab.id"
         @click="activeTab = tab.id"
       >
-        {{ tab.label }}
+        <svg class="dash-tab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <template v-if="tab.id === 'overview'"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /></template>
+          <template v-else-if="tab.id === 'attacks'"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /><path d="M9.5 12h5M12 9.5v5" /></template>
+          <template v-else-if="tab.id === 'geography'"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.2 2.4 2.2 14.6 0 17M12 3.5c-2.2 2.4-2.2 14.6 0 17" /></template>
+          <template v-else><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></template>
+        </svg>
+        <span class="dash-tab__label">{{ tab.label }}</span>
       </button>
     </nav>
 
@@ -107,13 +101,13 @@
           <div class="dash-panel-head">
             <div>
               <h3>Blocked requests over time</h3>
-              <p class="dash-panel-desc">HTTP requests rejected at the edge · {{ selectedRangeLabel }}</p>
+              <p class="dash-panel-desc">HTTP requests rejected at the edge. Long ranges average per chart point · {{ selectedRangeLabel }}</p>
             </div>
             <div class="dash-chart-readouts">
               <div class="dash-chart-readout">
                 <span class="dash-chart-readout__swatch dash-chart-readout__swatch--danger"></span>
                 <div>
-                  <div class="dash-chart-readout__label">Latest interval</div>
+                  <div class="dash-chart-readout__label">Latest (per min)</div>
                   <div class="dash-chart-readout__value num danger">{{ latestBlockCountLabel }}</div>
                 </div>
               </div>
@@ -132,7 +126,13 @@
         <div class="dash-panel c-12">
           <div class="dash-panel-head">
             <div>
-              <h3>Blocks by rule</h3>
+              <h3 class="info-hint-heading">
+                <span>Blocks by rule</span>
+                <InfoHint
+                  text="Blocked requests attributed to the WAF rule category that made the final decision (Athens block_reason_stats). Per site and minute, these counts sum to blocked_request_count."
+                  aria-label="Blocks by rule help"
+                />
+              </h3>
               <p class="dash-panel-desc">Which WAF rule category rejected the request</p>
             </div>
             <PreviewDataBadge v-if="ruleTypesPreview" />
@@ -227,6 +227,153 @@
                 </tr>
                 <tr v-if="!topBlockRows.length">
                   <td colspan="2" class="empty-row">No data</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-show="activeTab === 'attacks'" class="analytics-tab-panel">
+      <section class="l7-attack-summary" aria-label="L7 attack summary">
+        <article class="l7-attack-summary__card">
+          <span class="l7-attack-summary__label">Temp-block events</span>
+          <span class="l7-attack-summary__value num">{{ formatNumber(attackSummary.attempts) }}</span>
+          <span class="l7-attack-summary__hint">every Temporary blocks add in range · not every blocked request (see Overview)</span>
+        </article>
+        <article class="l7-attack-summary__card">
+          <span class="l7-attack-summary__label">Unique sources</span>
+          <span class="l7-attack-summary__value num">{{ formatNumber(attackSummary.sources) }}</span>
+          <span class="l7-attack-summary__hint">distinct IPs added to Temporary blocks</span>
+        </article>
+        <article class="l7-attack-summary__card">
+          <span class="l7-attack-summary__label">Attacked URIs</span>
+          <span class="l7-attack-summary__value num">{{ formatNumber(attackSummary.urls) }}</span>
+          <span class="l7-attack-summary__hint">{{ attackSummary.topRule || 'no dominant rule' }}</span>
+        </article>
+      </section>
+
+      <section class="dash-grid12">
+        <div class="dash-panel c-6">
+          <div class="dash-panel-head">
+            <div>
+              <h3 class="info-hint-heading">
+                <span>Recent temp-block events</span>
+                <InfoHint
+                  text="One row per time an IP was added to Temporary blocks (Drop+Block / temp ban). This is not the same as Overview “Blocked requests”, which counts every refused HTTP request from Athens. Rows remain after the Temporary blocks TTL expires."
+                  aria-label="Recent L7 blocks help"
+                />
+              </h3>
+              <p class="dash-panel-desc">IPs added to Temporary blocks · kept after expiry</p>
+            </div>
+            <span class="dash-count-tag">{{ formatNumber(recentAttackRows.length) }} shown</span>
+          </div>
+          <p v-if="!recentAttackRows.length" class="empty-row">No temporary blocks in this range.</p>
+          <ul v-else class="l7-attack-list" aria-label="Recent temp-block events">
+            <li
+              v-for="row in recentAttackRows"
+              :key="`${row.id || row.sourceIp}-${row.blockedAt}-${row.url || ''}`"
+              class="l7-attack-row"
+            >
+              <div class="l7-attack-row__time">
+                <span class="l7-attack-row__clock num">{{ formatClock(row.blockedAt) }}</span>
+                <span class="l7-attack-row__rel">{{ formatRelativeTime(row.blockedAt) }}</span>
+              </div>
+              <div class="l7-attack-row__body">
+                <div class="l7-attack-row__main">
+                  <span class="l7-attack-row__ip num">{{ row.sourceIp }}</span>
+                  <span class="badge badge--sm">{{ ruleLabel(row.triggerRule) }}</span>
+                </div>
+                <div class="l7-attack-row__uri num" :title="row.url || ''">{{ row.url || '(no URL)' }}</div>
+                <div class="l7-attack-row__meta">
+                  <span>{{ row.siteDomain || (row.siteId ? `site ${row.siteId}` : 'edge') }}</span>
+                  <span v-if="row.serverName">· {{ row.serverName }}</span>
+                  <span v-if="row.country">· {{ row.country }}</span>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="dash-panel c-6">
+          <div class="dash-panel-head">
+            <div>
+              <h3 class="info-hint-heading">
+                <span>Top attacking IPs</span>
+                <InfoHint
+                  text="Client IPs ranked by how many durable L7 block events they generated in the selected range, per edge."
+                  aria-label="Top attacking IPs help"
+                />
+              </h3>
+              <p class="dash-panel-desc">Sources ranked by temp-block events (top 20)</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="ip-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Source</th>
+                  <th>Edge</th>
+                  <th>Rules</th>
+                  <th class="is-num">Temp-bans</th>
+                  <th>Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, index) in topAttackIpRows" :key="`${row.serverId}-${row.ip}`">
+                  <td class="num">{{ index + 1 }}</td>
+                  <td class="num">{{ row.ip }}</td>
+                  <td>{{ row.serverName || `edge-${row.serverId}` }}</td>
+                  <td>{{ (row.triggerRules || []).slice(0, 3).map(ruleLabel).join(', ') || '—' }}</td>
+                  <td class="is-num num">{{ formatNumber(row.count) }}</td>
+                  <td>{{ formatRelativeTime(row.lastSeen) }}</td>
+                </tr>
+                <tr v-if="!topAttackIpRows.length">
+                  <td colspan="6" class="empty-row">No attacking IPs in this range</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="dash-panel c-12">
+          <div class="dash-panel-head">
+            <div>
+              <h3 class="info-hint-heading">
+                <span>Most attacked URIs</span>
+                <InfoHint
+                  text="Request URLs that triggered L7 temporary blocks most often. Unique IPs shows how many distinct clients hit that URI."
+                  aria-label="Most attacked URIs help"
+                />
+              </h3>
+              <p class="dash-panel-desc">URLs that triggered Temporary blocks (top 20)</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="ip-table">
+              <thead>
+                <tr>
+                  <th>URI</th>
+                  <th>Site</th>
+                  <th>Rules</th>
+                  <th class="is-num">Temp-bans</th>
+                  <th class="is-num">Unique IPs</th>
+                  <th>Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in topAttackUrlRows" :key="`${row.siteId}-${row.url}`">
+                  <td class="num" :title="row.url">{{ truncateMiddle(row.url, 96) }}</td>
+                  <td>{{ row.siteDomain || (row.siteId ? `site ${row.siteId}` : '—') }}</td>
+                  <td>{{ (row.triggerRules || []).slice(0, 3).map(ruleLabel).join(', ') || '—' }}</td>
+                  <td class="is-num num">{{ formatNumber(row.count) }}</td>
+                  <td class="is-num num">{{ formatNumber(row.uniqueIps) }}</td>
+                  <td>{{ formatRelativeTime(row.lastSeen) }}</td>
+                </tr>
+                <tr v-if="!topAttackUrlRows.length">
+                  <td colspan="6" class="empty-row">No attacked URIs in this range</td>
                 </tr>
               </tbody>
             </table>
@@ -355,19 +502,24 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ApexCharts from 'apexcharts'
+import FlatPickr from 'vue-flatpickr-component'
+import 'flatpickr/dist/flatpickr.css'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
+import InfoHint from '@/components/InfoHint.vue'
 import PreviewDataBadge from '@/components/views/analytics/PreviewDataBadge.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 import {
+  FIREWALL_RULE_TYPES,
   fetchSecuritySummary,
   fetchSecuritySeries,
   fetchSecuritySummaryGroup,
   fetchSecurityRuleTypes,
+  fetchSecurityAttacks,
 } from '@/api/securityAnalytics'
+import { formatRelativeTime } from '@/utils/auditFormat'
 import {
   formatApexTimeTick,
   getApexChartColors,
@@ -399,6 +551,7 @@ const mapEmptyFill = () =>
 const activeTab = ref('overview')
 const securityTabs = [
   { id: 'overview', label: 'Overview' },
+  { id: 'attacks', label: 'Attacks' },
   { id: 'geography', label: 'Geography' },
   { id: 'toplists', label: 'Request context' },
 ]
@@ -411,7 +564,7 @@ const showCustomDialog = ref(false)
 const customStartDate = ref(null)
 const customEndDate = ref(null)
 const isLoading = ref(false)
-const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
+const datePickerConfig = { enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
   site: 'all',
@@ -442,6 +595,46 @@ const topRefererRows = ref([])
 const topUserAgentRows = ref([])
 const ruleTypeRows = ref([])
 const ruleTypesPreview = ref(false)
+const recentAttackRows = ref([])
+const topAttackIpRows = ref([])
+const topAttackUrlRows = ref([])
+
+const ruleLabelMap = Object.fromEntries(FIREWALL_RULE_TYPES.map((row) => [row.ruleType, row.label]))
+const ruleLabel = (value) => {
+  const key = String(value || '').trim().toLowerCase()
+  if (!key) return 'Unknown'
+  return ruleLabelMap[key] || value
+}
+const formatClock = (value) => {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return String(value)
+  return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+const truncateMiddle = (value, max = 80) => {
+  const text = String(value || '')
+  if (text.length <= max) return text
+  const keep = Math.max(12, Math.floor((max - 1) / 2))
+  return `${text.slice(0, keep)}…${text.slice(-keep)}`
+}
+const attackTotals = ref({ events: 0, sources: 0, urls: 0 })
+const attackSummary = computed(() => {
+  const attempts = recentAttackRows.value.length
+  const sources = new Set(topAttackIpRows.value.map((row) => row.ip)).size || new Set(recentAttackRows.value.map((row) => row.sourceIp)).size
+  const urls = topAttackUrlRows.value.length || new Set(recentAttackRows.value.map((row) => row.url).filter(Boolean)).size
+  const ruleCounts = {}
+  recentAttackRows.value.forEach((row) => {
+    const key = String(row.triggerRule || '').trim() || 'unknown'
+    ruleCounts[key] = (ruleCounts[key] || 0) + 1
+  })
+  const topRuleKey = Object.entries(ruleCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+  return {
+    attempts: Number(attackTotals.value.events) || topAttackIpRows.value.reduce((sum, row) => sum + (Number(row.count) || 0), 0) || attempts,
+    sources: Number(attackTotals.value.sources) || sources,
+    urls: Number(attackTotals.value.urls) || urls,
+    topRule: topRuleKey ? ruleLabel(topRuleKey) : '',
+  }
+})
 
 const formatNumber = (value) => {
   const numeric = Number(value)
@@ -477,19 +670,21 @@ const metricCards = computed(() => {
     {
       label: 'Blocked requests',
       value: formatNumber(blocked),
-      hint: rate > 0 ? `${rate.toFixed(rate >= 10 ? 0 : 1)}% of traffic` : 'blocked in range',
+      hint: rate > 0
+        ? `${rate.toFixed(rate >= 10 ? 0 : 1)}% of traffic · every refused HTTP request`
+        : 'every refused HTTP request in range',
       tone: 'danger',
     },
     {
-      label: 'Source IPs',
+      label: 'Source IP-minutes',
       value: formatNumber(securityStats.value.totalIps),
-      hint: 'unique per interval, summed',
+      hint: 'per edge-minute unique, summed (not distinct)',
       tone: 'info',
     },
     {
-      label: 'Blocked IPs',
+      label: 'Blocked IP-minutes',
       value: formatNumber(securityStats.value.blacklistedIps),
-      hint: 'unique per interval, summed',
+      hint: 'per edge-minute unique blocked, summed',
       tone: 'warn',
     },
   ]
@@ -502,7 +697,7 @@ const latestBlockPoint = computed(() => {
 })
 
 const latestBlockCountLabel = computed(() =>
-  formatNumber(latestBlockPoint.value?.y ?? securityStats.value.blockRequestCounts),
+  latestBlockPoint.value ? formatNumber(latestBlockPoint.value.y) : '—',
 )
 
 const blockRateLabel = computed(() => {
@@ -733,7 +928,7 @@ const renderBlockCountChart = () => {
 }
 
 const serverOptions = computed(() => [
-  { label: 'All Servers', value: 'all' },
+  { label: 'All edges', value: 'all' },
   ...servers.value.map((server) => ({
     label: server.name || `Server ${server.id}`,
     value: server.id,
@@ -759,13 +954,14 @@ const siteOptions = computed(() => {
 })
 
 const selectedRangeLabel = computed(() => {
-  if (isCustomRange.value) {
-    if (customStartDate.value && customEndDate.value) {
-      return `${formatDateTime(customStartDate.value)} → ${formatDateTime(customEndDate.value)}`
+  const filters = appliedFilters.value
+  if (filters.isCustom) {
+    if (filters.customStart && filters.customEnd) {
+      return `${formatDateTime(filters.customStart)} → ${formatDateTime(filters.customEnd)}`
     }
     return 'Custom'
   }
-  const found = timeRanges.find((range) => range.value === selectedTimeRange.value)
+  const found = timeRanges.find((range) => range.value === filters.range)
   return found?.label || 'All'
 })
 
@@ -860,9 +1056,23 @@ const loadSecurityAnalytics = async () => {
     }))
     topUserAgentRows.value = Array.isArray(topUserAgents) ? topUserAgents : []
 
-    const ruleTypes = await fetchSecurityRuleTypes(params, securityStats.value.blockRequestCounts)
+    const [ruleTypes, recentAttacks, topAttackIps, topAttackUrls, attackSummaryPayload] = await Promise.all([
+      fetchSecurityRuleTypes(params, securityStats.value.blockRequestCounts),
+      fetchSecurityAttacks('recent', { ...params, limit: 50 }).catch(() => []),
+      fetchSecurityAttacks('top-ips', { ...params, limit: 20 }).catch(() => []),
+      fetchSecurityAttacks('top-urls', { ...params, limit: 20 }).catch(() => []),
+      fetchSecurityAttacks('summary', params).catch(() => null),
+    ])
     ruleTypeRows.value = (Array.isArray(ruleTypes.data) ? ruleTypes.data : []).filter((row) => Number(row.count) > 0)
     ruleTypesPreview.value = ruleTypes.preview
+    recentAttackRows.value = Array.isArray(recentAttacks) ? recentAttacks : []
+    topAttackIpRows.value = Array.isArray(topAttackIps) ? topAttackIps : []
+    topAttackUrlRows.value = Array.isArray(topAttackUrls) ? topAttackUrls : []
+    attackTotals.value = {
+      events: Number(attackSummaryPayload?.events) || 0,
+      sources: Number(attackSummaryPayload?.sources) || 0,
+      urls: Number(attackSummaryPayload?.urls) || 0,
+    }
 
     nextTick(() => renderBlockCountChart())
   } catch (error) {
@@ -1198,6 +1408,130 @@ onBeforeUnmount(() => {
   .url-bar-row {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+}
+
+.l7-attack-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.l7-attack-summary__card {
+  padding: 14px 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface);
+}
+
+.l7-attack-summary__label {
+  display: block;
+  font-size: var(--type-caption);
+  color: var(--app-text-muted);
+}
+
+.l7-attack-summary__value {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--type-section-title);
+  font-weight: 700;
+  color: var(--app-heading);
+}
+
+.l7-attack-summary__hint {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--type-small);
+  color: var(--app-text-muted);
+}
+
+.l7-attack-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.l7-attack-row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+}
+
+.l7-attack-row__time {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.l7-attack-row__clock {
+  font-size: var(--type-caption);
+  color: var(--app-heading);
+}
+
+.l7-attack-row__rel {
+  font-size: var(--type-small);
+  color: var(--app-text-muted);
+}
+
+.l7-attack-row__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.l7-attack-row__ip {
+  font-weight: 600;
+  color: var(--app-heading);
+}
+
+.l7-attack-row__uri {
+  margin-top: 4px;
+  font-size: var(--type-caption);
+  color: var(--app-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.l7-attack-row__meta {
+  margin-top: 4px;
+  font-size: var(--type-small);
+  color: var(--app-text-muted);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-btn-danger-bg, #e15241) 14%, transparent);
+  color: var(--app-btn-danger-bg, #e15241);
+  font-size: var(--type-small);
+  font-weight: 600;
+}
+
+.badge--sm {
+  padding: 1px 7px;
+}
+
+@media (max-width: 900px) {
+  .l7-attack-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .l7-attack-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

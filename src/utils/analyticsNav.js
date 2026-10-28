@@ -3,7 +3,8 @@ export const analyticsNavGroups = [
     id: 'traffic',
     label: 'Traffic',
     items: [
-      { name: 'security-analytics', label: 'Traffic', path: '/app/analytics/traffic' },
+      { name: 'l7-traffic-analytics', label: 'L7 Traffic', path: '/app/analytics/traffic' },
+      { name: 'l4-traffic-analytics', label: 'L4 Traffic', path: '/app/analytics/traffic-l4' },
       { name: 'cache-analytics', label: 'Cache', path: '/app/analytics/cache' },
       { name: 'performance-analytics', label: 'Performance', path: '/app/analytics/performance' },
     ],

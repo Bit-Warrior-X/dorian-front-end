@@ -1,61 +1,116 @@
-import { apiRequest } from './client'
-import { createRandom, pick, withPreviewFallback } from '@/utils/analyticsPreview'
-
-const SAMPLE_PATHS = ['/', '/index.html', '/assets/app.js', '/api/v1/products', '/images/logo.svg', '/login', '/.env', '/wp-login.php']
-const SAMPLE_METHODS = ['GET', 'GET', 'GET', 'POST', 'HEAD']
-const SAMPLE_STATUSES = [200, 200, 200, 200, 304, 301, 404, 403, 444, 502]
-const SAMPLE_CACHE = ['HIT', 'HIT', 'MISS', 'BYPASS', 'DYNAMIC']
-const SAMPLE_AGENTS = ['Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'curl/8.4.0', 'Googlebot/2.1', 'python-requests/2.31']
-
-const sampleRows = ({ start, end, type }) => {
-  const random = createRandom(`${start}|${end}|${type}`)
-  const startMs = new Date(start).getTime()
-  const endMs = new Date(end).getTime() + 24 * 3600000
-  return Array.from({ length: 200 }, () => {
-    const status = pick(random, SAMPLE_STATUSES)
-    const row = {
-      time: new Date(startMs + random() * (endMs - startMs)).toISOString(),
-      clientIp: `203.0.113.${Math.floor(random() * 254) + 1}`,
-      method: pick(random, SAMPLE_METHODS),
-      host: 'example.com',
-      path: pick(random, SAMPLE_PATHS),
-      status,
-      bytes: Math.floor(random() * 90000),
-      requestTimeMs: Math.round(5 + random() * 400),
-      cacheStatus: pick(random, SAMPLE_CACHE),
-      userAgent: pick(random, SAMPLE_AGENTS),
-    }
-    if (type === 'security' || status === 444 || status === 403) row.action = status === 444 ? 'block' : 'allow'
-    return row
-  }).sort((a, b) => a.time.localeCompare(b.time))
-}
-
-const serialize = (rows, format) => {
-  if (format === 'json') return JSON.stringify(rows, null, 2)
-  const columns = Object.keys(rows[0] || {})
-  if (format === 'txt') {
-    return rows.map((row) => `${row.clientIp} - - [${row.time}] "${row.method} ${row.path} HTTP/1.1" ${row.status} ${row.bytes} "${row.userAgent}" "${row.host}"`).join('\n')
-  }
-  const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
-  return [columns.join(','), ...rows.map((row) => columns.map((key) => escape(row[key])).join(','))].join('\n')
-}
+import { apiRequest, resolveApiBaseUrl } from './client'
+import { readStoredAuth } from '@/stores/authStorage'
 
 const MIME = { csv: 'text/csv', json: 'application/json', txt: 'text/plain' }
 
+const fileNameFromDisposition = (header, fallback) => {
+  const match = /filename="?([^";]+)"?/i.exec(String(header || ''))
+  return match?.[1] || fallback
+}
+
+const authHeaders = () => {
+  const token = readStoredAuth()?.token || ''
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 /**
- * Requests an export job. The live endpoint answers `{ jobId, status, downloadUrl? }`;
- * the preview fallback returns a sample file as a Blob.
+ * Requests a real log export from Athens (access / security). Returns a downloadable Blob.
+ * Error logs are rejected by the API until an error-log pipeline exists.
  */
-export const requestLogExport = (payload) =>
-  withPreviewFallback(
-    () => apiRequest('/analytics/logs/export', { method: 'POST', body: JSON.stringify(payload) }),
-    () => {
-      const rows = sampleRows(payload)
-      return {
-        status: 'ready',
-        fileName: `dorian-${payload.type}-logs-sample-${payload.start}_${payload.end}.${payload.format}`,
-        blob: new Blob([serialize(rows, payload.format)], { type: MIME[payload.format] || 'text/plain' }),
-        rows: rows.length,
-      }
+export const requestLogExport = async (payload) => {
+  const apiBaseUrl = await resolveApiBaseUrl()
+  const response = await fetch(`${apiBaseUrl}/analytics/logs/export`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
     },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    let message = `Export failed (HTTP ${response.status})`
+    try {
+      const body = await response.json()
+      if (body?.message) message = body.message
+      else if (body?.error) message = body.error
+    } catch {
+      /* ignore */
+    }
+    const error = new Error(message)
+    error.status = response.status
+    throw error
+  }
+
+  const blob = await response.blob()
+  const rows = Number(response.headers.get('X-Export-Rows') || 0)
+  const warnings = String(response.headers.get('X-Export-Warnings') || '').trim()
+  const fileName = fileNameFromDisposition(
+    response.headers.get('Content-Disposition'),
+    `dorian-${payload.type}-logs-${payload.start}_${payload.end}.${payload.format}`,
   )
+  return {
+    status: 'ready',
+    fileName,
+    blob,
+    rows,
+    warnings,
+    contentType: MIME[payload.format] || blob.type,
+  }
+}
+
+/** List hourly L4/L7 log files retained on one edge. */
+export const fetchEdgeLogFiles = async ({ serverId, layer = 'all' } = {}) => {
+  const params = new URLSearchParams()
+  params.set('serverId', String(serverId))
+  if (layer) params.set('layer', layer)
+  return apiRequest(`/analytics/logs/files?${params.toString()}`)
+}
+
+/** Page into an allowlisted edge log file. */
+export const fetchEdgeLogFileContent = async ({
+  serverId,
+  path,
+  offset = 0,
+  limit = 200,
+  skipTotal = false,
+} = {}) => {
+  const params = new URLSearchParams()
+  params.set('serverId', String(serverId))
+  params.set('path', path)
+  params.set('offset', String(offset))
+  params.set('limit', String(limit))
+  if (skipTotal) params.set('skipTotal', '1')
+  return apiRequest(`/analytics/logs/files/content?${params.toString()}`)
+}
+
+/** Download a full hourly / attack log file from the edge. */
+export const downloadEdgeLogFile = async ({ serverId, path, fileName } = {}) => {
+  const apiBaseUrl = await resolveApiBaseUrl()
+  const params = new URLSearchParams()
+  params.set('serverId', String(serverId))
+  params.set('path', path)
+  const response = await fetch(`${apiBaseUrl}/analytics/logs/files/download?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      ...authHeaders(),
+    },
+  })
+  if (!response.ok) {
+    let message = `Download failed (HTTP ${response.status})`
+    try {
+      const body = await response.json()
+      if (body?.message) message = body.message
+      else if (body?.error) message = body.error
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message)
+  }
+  const blob = await response.blob()
+  const name = fileNameFromDisposition(
+    response.headers.get('Content-Disposition'),
+    fileName || path.split('/').pop() || 'edge-log.bin',
+  )
+  return { blob, fileName: name, size: Number(response.headers.get('X-Log-Size') || blob.size || 0) }
+}

@@ -11,7 +11,7 @@ export const FIREWALL_RULE_TYPES = [
   { ruleType: 'anti-header', label: 'Anti header', weight: 0.05 },
   { ruleType: 'response-freq', label: 'Response freq', weight: 0.04 },
   { ruleType: 'ip-reputation', label: 'IP reputation', weight: 0.03 },
-  { ruleType: 'temporary-block', label: 'Temporary block', weight: 0.02 },
+  { ruleType: 'temporary-block', label: 'Already on Temporary blocks', weight: 0.02 },
 ]
 
 const buildQuery = (params = {}) => {
@@ -54,3 +54,15 @@ export const fetchSecurityRuleTypes = (params = {}, blockedTotal = 0) =>
       })).sort((a, b) => b.count - a.count)
     },
   )
+
+export const fetchSecurityAttacks = async (kind, params = {}) => {
+  const query = new URLSearchParams()
+  if (params.range) query.set('range', params.range)
+  if (params.serverId && params.serverId !== 'all') query.set('serverId', params.serverId)
+  if (params.siteId && params.siteId !== 'all') query.set('siteId', params.siteId)
+  if (params.start) query.set('start', params.start)
+  if (params.end) query.set('end', params.end)
+  if (params.limit) query.set('limit', String(params.limit))
+  const suffix = query.toString()
+  return apiRequest(`/analytics/security/attacks/${kind}${suffix ? `?${suffix}` : ''}`)
+}

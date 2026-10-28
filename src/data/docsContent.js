@@ -46,7 +46,7 @@ export const startSteps = [
     title: 'Point DNS and verify',
     body: 'Aim A/AAAA (or CNAME) at the edge IP, then confirm traffic and mitigations in Insights.',
     tips: [
-      'Use Access logs for immediate request proof; Traffic for bandwidth trends.',
+      'Use Access logs for immediate request proof; Traffic for bandwidth and L7 request trends.',
     ],
     to: { name: 'dashboard' },
     cta: 'Open Overview',
@@ -82,9 +82,14 @@ export const concepts = [
 
 export const insightRows = [
   {
-    title: 'Traffic',
-    body: 'Requests, bandwidth, status codes, HTTP methods/versions, countries, ISPs, referers',
-    to: { name: 'security-analytics' },
+    title: 'L7 Traffic',
+    body: 'Application bandwidth, request counts, status codes, HTTP methods/versions, countries, ISPs, referers',
+    to: { name: 'l7-traffic-analytics' },
+  },
+  {
+    title: 'L4 Traffic',
+    body: 'NIC RX / TX throughput at the network interface, before L7 processing',
+    to: { name: 'l4-traffic-analytics' },
   },
   {
     title: 'Cache',

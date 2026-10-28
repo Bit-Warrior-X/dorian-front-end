@@ -1,7 +1,13 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
-import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
+import {
+  isHeavyTimeRange,
+  rangeDurationMs,
+  readSharedTimeRange,
+  sharedTimeRanges,
+  writeSharedTimeRange,
+} from '@/utils/timeRange'
 
 const formatDateTime = (value) => {
   if (!value) return '-'
@@ -58,6 +64,10 @@ export function useAnalyticsFilters(onApply) {
     }
     return sharedTimeRanges.find((range) => range.value === applied.range)?.label || applied.range
   })
+
+  const showHeavyRangeHint = computed(
+    () => !isCustomRange.value && isHeavyTimeRange(selectedTimeRange.value),
+  )
 
   const params = computed(() => {
     const next = { serverId: applied.server, siteId: applied.site }
@@ -129,6 +139,7 @@ export function useAnalyticsFilters(onApply) {
     siteOptions,
     timeRanges: sharedTimeRanges,
     rangeLabel,
+    showHeavyRangeHint,
     params,
     window,
     apply,

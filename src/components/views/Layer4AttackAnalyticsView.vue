@@ -3,32 +3,23 @@
     <header class="dash-topbar">
       <div class="dash-topbar__left">
         <h2>DDoS (L4)</h2>
-        <p>Network-layer flood volume, allowed vs dropped traffic, protocol mix, and attacking IPs.</p>
+        <p>Network-layer flood rates, allowed vs dropped traffic, protocol mix, and attacking IPs.</p>
       </div>
       <div class="dash-topbar__right">
         <AppTopbarActions />
       </div>
     </header>
 
-    <AnalyticsSectionNav />
-
     <div class="dash-filterbar">
       <div class="dash-filter-field">
-        <label for="layer4-server">Server</label>
+        <label for="layer4-server">Edge</label>
         <select id="layer4-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
           <option v-for="server in serverOptions" :key="server.value" :value="server.value">
             {{ server.label }}
           </option>
         </select>
       </div>
-      <div class="dash-filter-field">
-        <label for="layer4-site">Site</label>
-        <select id="layer4-site" v-model="selectedSite" class="dash-select" :disabled="isLoading">
-          <option v-for="site in siteOptions" :key="site.value" :value="site.value">
-            {{ site.label }}
-          </option>
-        </select>
-      </div>
+      <p class="dash-filter-note">L4 counters are per edge, not per site.</p>
       <div class="dash-filter-field">
         <label>Time range</label>
         <div class="dash-range-pills">
@@ -64,28 +55,32 @@
       </button>
     </div>
 
-    <div
-      v-if="isLoading"
-      class="dash-loading-overlay"
-      role="status"
-      aria-live="polite"
-    >
-      <div class="dash-loading-overlay__content">
-        <span class="dash-spinner" aria-hidden="true"></span>
-        <span class="dash-loading-overlay__label">Loading L4 attack data…</span>
-      </div>
-    </div>
+    <AttackAlertsPanel
+      :server-id="appliedFilters.server"
+      :range="appliedFilters.range"
+      :custom-start="appliedFilters.isCustom ? appliedFilters.start : null"
+      :custom-end="appliedFilters.isCustom ? appliedFilters.end : null"
+      :range-label="selectedRangeLabel"
+      detection-route="attack-detection"
+    />
 
-    <nav class="dash-tabbar" aria-label="Layer 4 analytics sections">
+    <nav class="dash-tabbar" aria-label="Layer 4 analytics sections" role="tablist">
       <button
         v-for="tab in l4Tabs"
         :key="tab.id"
         type="button"
+        role="tab"
         class="dash-tab"
         :class="{ active: activeTab === tab.id }"
+        :aria-selected="activeTab === tab.id"
         @click="activeTab = tab.id"
       >
-        {{ tab.label }}
+        <svg class="dash-tab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <template v-if="tab.id === 'overview'"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" /></template>
+          <template v-else-if="tab.id === 'protocols'"><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.2 2.4 2.2 14.6 0 17M12 3.5c-2.2 2.4-2.2 14.6 0 17" /></template>
+          <template v-else><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /></template>
+        </svg>
+        <span class="dash-tab__label">{{ tab.label }}</span>
       </button>
     </nav>
 
@@ -107,8 +102,8 @@
         <div class="dash-panel c-12 l4-chart-panel">
           <div class="dash-panel-head">
             <div>
-              <h3>Allowed vs blocked traffic</h3>
-              <p class="dash-panel-desc">Edge L4 volume over {{ selectedRangeLabel }}</p>
+              <h3>Allowed vs blocked rate</h3>
+              <p class="dash-panel-desc">Sparta samples in bytes/s · {{ selectedRangeLabel }}</p>
             </div>
             <div class="l4-chart-readouts">
               <div class="l4-chart-readout">
@@ -146,7 +141,7 @@
           <div class="dash-panel-head">
             <div>
               <h3>IP protocols by time</h3>
-              <p class="dash-panel-desc">TCP, UDP, ICMP, GRE, and other protocol volume</p>
+              <p class="dash-panel-desc">TCP, UDP, ICMP, GRE, and other protocol rates (bytes/s)</p>
             </div>
             <div class="l4-proto-legend" aria-hidden="true">
               <span v-for="item in protocolLegend" :key="item.name" class="l4-proto-legend__item">
@@ -165,14 +160,14 @@
     <div v-show="activeTab === 'attacks'" class="analytics-tab-panel">
       <section class="l4-attack-summary" aria-label="Attack summary">
         <article class="l4-attack-summary__card">
-          <span class="l4-attack-summary__label">Attempts</span>
+          <span class="l4-attack-summary__label">Source blocks</span>
           <span class="l4-attack-summary__value num">{{ formatNumber(attackSummary.attempts) }}</span>
-          <span class="l4-attack-summary__hint">in {{ selectedRangeLabel }}</span>
+          <span class="l4-attack-summary__hint">every per-IP Sparta block in {{ selectedRangeLabel }}</span>
         </article>
         <article class="l4-attack-summary__card">
           <span class="l4-attack-summary__label">Unique sources</span>
           <span class="l4-attack-summary__value num">{{ formatNumber(attackSummary.sources) }}</span>
-          <span class="l4-attack-summary__hint">across listed edges</span>
+          <span class="l4-attack-summary__hint">distinct source IPs in range</span>
         </article>
         <article class="l4-attack-summary__card">
           <span class="l4-attack-summary__label">Edges hit</span>
@@ -185,12 +180,12 @@
         <div class="dash-panel c-6 l4-attack-panel">
           <div class="dash-panel-head">
             <div>
-              <h3>Recent attack attempts</h3>
-              <p class="dash-panel-desc">Newest L4 blocks reported by Sparta on each edge</p>
+              <h3>Recent source blocks</h3>
+              <p class="dash-panel-desc">Per-IP Sparta blocks — not the same as attack periods on Security events</p>
             </div>
             <span class="dash-count-tag">{{ formatNumber(recentAttackRows.length) }} shown</span>
           </div>
-          <p v-if="!recentAttackRows.length" class="dash-empty">No attack attempts in this range.</p>
+          <p v-if="!recentAttackRows.length" class="dash-empty">No source blocks in this range.</p>
           <ul v-else class="l4-attack-list" aria-label="Recent attacks">
             <li v-for="row in recentAttackRows" :key="`${row.serverId}-${row.sourceIp}-${row.timestamp}-${row.reqId || ''}`" class="l4-attack-row">
               <div class="l4-attack-row__time">
@@ -357,11 +352,11 @@
         </div>
         <div class="dialog-body">
           <div class="dialog-form-group">
-            <label>Server</label>
+            <label>Edge</label>
             <select v-model="blacklistForm.serverId" class="dialog-input">
-              <option value="all">Select server</option>
+              <option value="all">Select an edge</option>
               <option v-for="server in servers" :key="server.id" :value="server.id">
-                {{ server.name || `Server ${server.id}` }}
+                {{ server.name || `Edge ${server.id}` }}
               </option>
             </select>
           </div>
@@ -386,8 +381,10 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import ApexCharts from 'apexcharts'
+import FlatPickr from 'vue-flatpickr-component'
+import 'flatpickr/dist/flatpickr.css'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import AnalyticsSectionNav from '@/components/views/analytics/AnalyticsSectionNav.vue'
+import AttackAlertsPanel from '@/components/AttackAlertsPanel.vue'
 import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
@@ -455,7 +452,7 @@ const showCustomDialog = ref(false)
 const customStartDate = ref(null)
 const customEndDate = ref(null)
 const isLoading = ref(false)
-const datePickerConfig = { enableTime: true, dateFormat: 'Y-m-d H:i' }
+const datePickerConfig = { enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i' }
 const appliedFilters = ref({
   server: 'all',
   site: 'all',
@@ -482,6 +479,7 @@ const trafficPoints = ref([])
 const protocolPoints = ref([])
 const recentAttackRows = ref([])
 const seenIpRows = ref([])
+const attackTotals = ref({ attempts: 0, sources: 0, edges: 0 })
 const showBlacklistDialog = ref(false)
 const blacklistForm = ref({
   ip: '',
@@ -492,7 +490,7 @@ const blacklistForm = ref({
 const timeRanges = sharedTimeRanges
 
 const serverOptions = computed(() => [
-  { label: 'All Servers', value: 'all' },
+  { label: 'All edges', value: 'all' },
   ...servers.value.map((server) => ({
     label: server.name || `Server ${server.id}`,
     value: server.id,
@@ -521,6 +519,7 @@ const selectTimeRange = (value) => {
   selectedTimeRange.value = value
   isCustomRange.value = false
   writeSharedTimeRange(value)
+  applyFilters()
 }
 
 const applyCustomRange = () => {
@@ -534,7 +533,7 @@ const applyCustomRange = () => {
 const applyFilters = () => {
   appliedFilters.value = {
     server: selectedServer.value,
-    site: selectedSite.value,
+    site: 'all',
     range: selectedTimeRange.value,
     isCustom: isCustomRange.value,
     start: isCustomRange.value ? formatDateInput(customStartDate.value) : null,
@@ -544,10 +543,11 @@ const applyFilters = () => {
 }
 
 const selectedRangeLabel = computed(() => {
-  if (isCustomRange.value && customStartDate.value && customEndDate.value) {
-    return `${formatDateTime(customStartDate.value)} → ${formatDateTime(customEndDate.value)}`
+  const filters = appliedFilters.value
+  if (filters.isCustom && filters.start && filters.end) {
+    return `${formatDateTime(filters.start)} → ${formatDateTime(filters.end)}`
   }
-  const match = timeRanges.find((range) => range.value === selectedTimeRange.value)
+  const match = timeRanges.find((range) => range.value === filters.range)
   return match?.label ?? 'Custom'
 })
 
@@ -584,9 +584,9 @@ const attackSummary = computed(() => {
   }
   const attempts = tops.reduce((sum, row) => sum + (Number(row.count) || 0), 0) || rows.length
   return {
-    attempts,
-    sources: sources.size,
-    edges: edges.size,
+    attempts: Number(attackTotals.value.attempts) || attempts,
+    sources: Number(attackTotals.value.sources) || sources.size,
+    edges: Number(attackTotals.value.edges) || edges.size,
     topType: topType ? `Mostly ${topType}` : '',
   }
 })
@@ -616,33 +616,37 @@ const formatClock = (value) => {
 }
 
 const metricCards = computed(() => {
+  const latest = latestTrafficPoint.value
+  const totalNow = Number(latest?.totalTraffic ?? 0) ||
+    (Number(latest?.allowedTraffic ?? 0) + Number(latest?.blockedTraffic ?? 0))
+  const allowedNow = Number(latest?.allowedTraffic ?? 0)
+  const blockedNow = Number(latest?.blockedTraffic ?? 0)
   const total = Number(l4Summary.value.totalTraffic) || 0
-  const allowed = Number(l4Summary.value.allowedTraffic) || 0
   const blocked = Number(l4Summary.value.blockedTraffic) || 0
   const rate = total > 0 ? (blocked / total) * 100 : 0
   return [
     {
-      label: 'Total traffic',
-      value: formatThroughput(total),
-      hint: selectedRangeLabel.value,
+      label: 'Total rate',
+      value: formatRate(totalNow),
+      hint: `latest Sparta sample · ${selectedRangeLabel.value}`,
       tone: 'total',
     },
     {
-      label: 'Allowed',
-      value: formatThroughput(allowed),
-      hint: 'passed L4 filters',
+      label: 'Allowed rate',
+      value: formatRate(allowedNow),
+      hint: 'latest sample · passed L4 filters',
       tone: 'ok',
     },
     {
-      label: 'Blocked',
-      value: formatThroughput(blocked),
-      hint: 'dropped as attack',
+      label: 'Blocked rate',
+      value: formatRate(blockedNow),
+      hint: 'latest sample · dropped as attack',
       tone: 'danger',
     },
     {
-      label: 'Block rate',
+      label: 'Block share',
       value: `${rate.toFixed(rate >= 10 ? 0 : 1)}%`,
-      hint: 'blocked ÷ total',
+      hint: 'blocked ÷ total across samples in range',
       tone: 'warn',
     },
   ]
@@ -803,12 +807,13 @@ const loadL4Analytics = async () => {
   isLoading.value = true
   const params = buildL4Params()
   try {
-    const [summary, trafficSeries, protocolSeries, recentAttacks, topIps] = await Promise.all([
+    const [summary, trafficSeries, protocolSeries, recentAttacks, topIps, attackSummaryPayload] = await Promise.all([
       fetchL4Summary(params),
       fetchL4Series('traffic', params),
       fetchL4Series('protocols', params),
       fetchL4Attacks('recent', { ...params, limit: 40 }),
       fetchL4Attacks('top-ips', { ...params, limit: 50 }),
+      fetchL4Attacks('summary', params).catch(() => null),
     ])
 
     l4Summary.value = {
@@ -820,6 +825,11 @@ const loadL4Analytics = async () => {
     protocolPoints.value = Array.isArray(protocolSeries) ? protocolSeries : []
     recentAttackRows.value = Array.isArray(recentAttacks) ? recentAttacks : []
     seenIpRows.value = Array.isArray(topIps) ? topIps : []
+    attackTotals.value = {
+      attempts: Number(attackSummaryPayload?.attempts) || 0,
+      sources: Number(attackSummaryPayload?.sources) || 0,
+      edges: Number(attackSummaryPayload?.edges) || 0,
+    }
 
     nextTick(() => renderChartsForTab(activeTab.value))
   } catch (error) {
@@ -1087,6 +1097,14 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.dash-filter-note {
+  margin: 0;
+  align-self: end;
+  padding-bottom: 6px;
+  font-size: 12px;
+  color: var(--app-text-muted);
 }
 
 .analytics-tab-panel {

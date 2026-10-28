@@ -1,8 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import FlatPickr from 'vue-flatpickr-component'
-import 'flatpickr/dist/flatpickr.css'
 import '@/assets/styles/index.css'
 import { initTheme } from '@/stores/theme'
 import { auth } from '@/stores/auth'
@@ -31,5 +29,4 @@ if (auth.isAuthenticated.value && isSessionIdleExpired()) {
 }
 
 const app = createApp(App)
-app.component('FlatPickr', FlatPickr)
 app.use(router).mount('#app')
