@@ -63,6 +63,7 @@ export const fetchSecurityAttacks = async (kind, params = {}) => {
   if (params.start) query.set('start', params.start)
   if (params.end) query.set('end', params.end)
   if (params.limit) query.set('limit', String(params.limit))
+  if (params.ip) query.set('ip', String(params.ip))
   const suffix = query.toString()
   return apiRequest(`/analytics/security/attacks/${kind}${suffix ? `?${suffix}` : ''}`)
 }

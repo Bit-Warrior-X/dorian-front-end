@@ -159,6 +159,18 @@
       </div>
     </section>
     <SecurityEventDialog :event="selectedSecurityEvent" @close="selectedSecurityEvent = null" />
+    <L7TempBlockConsole
+      v-if="selectedL7Event"
+      :event="selectedL7Event"
+      :range="appliedFilters.isCustom ? '' : appliedFilters.range"
+      :start="appliedFilters.isCustom ? appliedFilters.customStart : ''"
+      :end="appliedFilters.isCustom ? appliedFilters.customEnd : ''"
+      :server-id="appliedFilters.server"
+      :site-id="appliedFilters.site"
+      :range-label="rangeLabel"
+      @close="selectedL7Event = null"
+      @select="selectedL7Event = $event"
+    />
 
     <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
       <div class="dialog-content">
@@ -208,6 +220,7 @@ import FlatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import SecurityEventDialog from '@/components/SecurityEventDialog.vue'
+import L7TempBlockConsole from '@/components/L7TempBlockConsole.vue'
 import { openAttackConsole } from '@/stores/attackAlert'
 import { l4AttackLabel } from '@/utils/l4AttackType'
 import { fetchDashboardSummary, fetchSecurityEvents } from '@/api/dashboard'
@@ -270,6 +283,7 @@ const servers = ref([])
 const sites = ref([])
 const securityEvents = ref([])
 const selectedSecurityEvent = ref(null)
+const selectedL7Event = ref(null)
 const openSecurityEvent = (event) => {
   if (event?.reqId) {
     openAttackConsole(event.reqId)
@@ -278,13 +292,7 @@ const openSecurityEvent = (event) => {
   selectedSecurityEvent.value = event
 }
 const openL7TempBlock = (event) => {
-  selectedSecurityEvent.value = {
-    title: event.sourceIp || 'Temporary block',
-    description: [event.url, event.triggerRule, event.siteDomain].filter(Boolean).join(' · '),
-    createdAt: event.blockedAt,
-    serverName: event.serverName,
-    layer: 'L7',
-  }
+  selectedL7Event.value = event
 }
 const l4Defense = ref({ blockedTraffic: 0 })
 const l7Defense = ref({ blockRequestCounts: 0 })

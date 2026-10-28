@@ -274,24 +274,25 @@
             <li
               v-for="row in recentAttackRows"
               :key="`${row.id || row.sourceIp}-${row.blockedAt}-${row.url || ''}`"
-              class="l7-attack-row"
             >
-              <div class="l7-attack-row__time">
-                <span class="l7-attack-row__clock num">{{ formatClock(row.blockedAt) }}</span>
-                <span class="l7-attack-row__rel">{{ formatRelativeTime(row.blockedAt) }}</span>
-              </div>
-              <div class="l7-attack-row__body">
-                <div class="l7-attack-row__main">
-                  <span class="l7-attack-row__ip num">{{ row.sourceIp }}</span>
-                  <span class="badge badge--sm">{{ ruleLabel(row.triggerRule) }}</span>
+              <button type="button" class="l7-attack-row" @click="openL7TempBlock(row)">
+                <div class="l7-attack-row__time">
+                  <span class="l7-attack-row__clock num">{{ formatClock(row.blockedAt) }}</span>
+                  <span class="l7-attack-row__rel">{{ formatRelativeTime(row.blockedAt) }}</span>
                 </div>
-                <div class="l7-attack-row__uri num" :title="row.url || ''">{{ row.url || '(no URL)' }}</div>
-                <div class="l7-attack-row__meta">
-                  <span>{{ row.siteDomain || (row.siteId ? `site ${row.siteId}` : 'edge') }}</span>
-                  <span v-if="row.serverName">· {{ row.serverName }}</span>
-                  <span v-if="row.country">· {{ row.country }}</span>
+                <div class="l7-attack-row__body">
+                  <div class="l7-attack-row__main">
+                    <span class="l7-attack-row__ip num">{{ row.sourceIp }}</span>
+                    <span class="badge badge--sm">{{ ruleLabel(row.triggerRule) }}</span>
+                  </div>
+                  <div class="l7-attack-row__uri num" :title="row.url || ''">{{ row.url || '(no URL)' }}</div>
+                  <div class="l7-attack-row__meta">
+                    <span>{{ row.siteDomain || (row.siteId ? `site ${row.siteId}` : 'edge') }}</span>
+                    <span v-if="row.serverName">· {{ row.serverName }}</span>
+                    <span v-if="row.country">· {{ row.country }}</span>
+                  </div>
                 </div>
-              </div>
+              </button>
             </li>
           </ul>
         </div>
@@ -459,6 +460,19 @@
       </section>
     </div>
 
+    <L7TempBlockConsole
+      v-if="selectedL7Event"
+      :event="selectedL7Event"
+      :range="appliedFilters.isCustom ? '' : appliedFilters.range"
+      :start="appliedFilters.isCustom ? appliedFilters.customStart : ''"
+      :end="appliedFilters.isCustom ? appliedFilters.customEnd : ''"
+      :server-id="appliedFilters.server"
+      :site-id="appliedFilters.site"
+      :range-label="selectedRangeLabel"
+      @close="selectedL7Event = null"
+      @select="selectedL7Event = $event"
+    />
+
     <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
       <div class="dialog-content">
         <div class="dialog-header">
@@ -508,6 +522,7 @@ import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import InfoHint from '@/components/InfoHint.vue'
+import L7TempBlockConsole from '@/components/L7TempBlockConsole.vue'
 import PreviewDataBadge from '@/components/views/analytics/PreviewDataBadge.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
@@ -598,6 +613,10 @@ const ruleTypesPreview = ref(false)
 const recentAttackRows = ref([])
 const topAttackIpRows = ref([])
 const topAttackUrlRows = ref([])
+const selectedL7Event = ref(null)
+const openL7TempBlock = (event) => {
+  selectedL7Event.value = event
+}
 
 const ruleLabelMap = Object.fromEntries(FIREWALL_RULE_TYPES.map((row) => [row.ruleType, row.label]))
 const ruleLabel = (value) => {
@@ -1461,10 +1480,20 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 88px 1fr;
   gap: 12px;
+  width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--app-border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.l7-attack-row:hover {
+  border-color: var(--app-border-strong);
+  background: color-mix(in srgb, var(--app-surface) 96%, transparent);
 }
 
 .l7-attack-row__time {
