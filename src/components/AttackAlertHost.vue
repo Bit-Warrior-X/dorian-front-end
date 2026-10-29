@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div v-if="prompt" class="attack-alert-backdrop">
       <section class="attack-alert" role="alertdialog" aria-modal="true" aria-labelledby="attack-alert-title">
-        <p class="attack-alert__kicker">L4 attack</p>
+        <p class="attack-alert__kicker">{{ layerLabel }} attack</p>
         <h2 id="attack-alert-title">{{ headline }}</h2>
         <p class="attack-alert__body">{{ detail }}</p>
         <div class="attack-alert__actions">
@@ -33,18 +33,26 @@ const AttackConsole = defineAsyncComponent(() => import('@/components/AttackCons
 
 const prompt = computed(() => attackAlertState.prompt)
 const consoleReqId = computed(() => attackAlertState.consoleReqId)
+const layerLabel = computed(() => (String(prompt.value?.layer || '').toUpperCase() === 'L7' ? 'L7' : 'L4'))
 
 const headline = computed(() => {
   const edge = prompt.value?.serverName || 'this edge'
-  if (prompt.value?.status === 'ended') return `The L4 attack on ${edge} has stopped`
-  return `An L4 attack has started on ${edge}`
+  const layer = layerLabel.value
+  if (prompt.value?.status === 'ended') return `The ${layer} attack on ${edge} has stopped`
+  return `An ${layer} attack has started on ${edge}`
 })
 
 const detail = computed(() => {
-  const title = prompt.value?.title || 'L4 DDOS'
+  const isL7 = layerLabel.value === 'L7'
+  const title = prompt.value?.title || (isL7 ? 'L7 attack' : 'L4 DDOS')
   const count = Number(prompt.value?.ipCount || 0)
-  const sources = count > 0 ? `${count} source${count === 1 ? '' : 's'} blocked` : 'sources are being blocked'
-  return `${title}. ${sources}. Open the attack view for NIC traffic, the Sparta log, and the addresses currently blocked.`
+  const sources = isL7
+    ? (count > 0 ? `${count} unique IP${count === 1 ? '' : 's'}` : 'unique IPs observed')
+    : (count > 0 ? `${count} source${count === 1 ? '' : 's'} blocked` : 'sources are being blocked')
+  const hint = isL7
+    ? 'Open the attack view for blocked vs passed requests, vectors, and top clients.'
+    : 'Open the attack view for NIC traffic, the Sparta log, and the addresses currently blocked.'
+  return `${title}. ${sources}. ${hint}`
 })
 
 const seen = new Set()
@@ -53,15 +61,19 @@ let primed = false
 
 const periodKey = (period) => String(period?.reqId || period?.id || '').trim()
 
-const isL4Period = (period) => {
+const isAttackPeriod = (period) => {
   if (!periodKey(period)) return false
-  if (period.layer && period.layer !== 'L4') return false
-  // Alarms / modal only track real attack windows (shared req_id).
+  const layer = String(period?.layer || '').toUpperCase()
+  if (layer && layer !== 'L4' && layer !== 'L7') return false
   return Boolean(period.reqId)
 }
 
 const sourceLabel = (period) => {
   const count = Number(period?.activeIpCount ?? period?.ipCount ?? 0)
+  if (String(period?.layer || '').toUpperCase() === 'L7') {
+    if (count > 0) return `${count} unique IP${count === 1 ? '' : 's'}`
+    return 'unique IPs observed'
+  }
   if (count > 0) return `${count} source${count === 1 ? '' : 's'} blocked`
   return 'sources are being blocked'
 }
@@ -71,18 +83,19 @@ const queueAttackAlarm = (period, { read = false } = {}) => {
   if (!reqId) return Promise.resolve(null)
   const ongoing = period.status === 'ongoing'
   const edge = period.serverName || 'edge'
-  // Topbar Alarms queue (separate from the Dashboard "Attack alerts" panel).
+  const layer = String(period?.layer || '').toUpperCase() === 'L7' ? 'L7' : 'L4'
   return upsertAlarm({
     id: `attack:${reqId}`,
     kind: 'attack',
     severity: ongoing ? 'critical' : 'warning',
-    title: ongoing ? `L4 attack on ${edge}` : `L4 attack ended on ${edge}`,
-    body: `${period.title || 'L4 DDOS'}. ${sourceLabel(period)}.`,
+    title: ongoing ? `${layer} attack on ${edge}` : `${layer} attack ended on ${edge}`,
+    body: `${period.title || `${layer} attack`}. ${sourceLabel(period)}.`,
     status: ongoing ? 'ongoing' : 'ended',
     at: period.endedAt || period.createdAt || period.startedAt || new Date().toISOString(),
     reqId,
     serverId: period.serverId ?? null,
     serverName: period.serverName || '',
+    layer,
     read,
   })
 }
@@ -91,7 +104,7 @@ const poll = async () => {
   if (document.visibilityState === 'hidden') return
   try {
     const periods = await fetchSecurityEvents(30)
-    const attacks = (Array.isArray(periods) ? periods : []).filter(isL4Period)
+    const attacks = (Array.isArray(periods) ? periods : []).filter(isAttackPeriod)
     if (!primed) {
       primed = true
       await Promise.all(
@@ -99,7 +112,6 @@ const poll = async () => {
           const key = periodKey(period)
           seen.add(key)
           knownStatus.set(key, period.status)
-          // Seed history into the Alarms queue; only live attacks start unread (red badge).
           return queueAttackAlarm(period, { read: period.status !== 'ongoing' })
         }),
       )
@@ -120,13 +132,11 @@ const poll = async () => {
       knownStatus.set(key, period.status)
 
       if (isNew) {
-        // New attack → Alarms queue + red unread badge.
         writes.push(queueAttackAlarm(period, { read: false }))
         fresh.push(period)
         return
       }
       if (prev !== period.status) {
-        // Start→end (or reopen) also lands as unread so the badge lights up.
         writes.push(queueAttackAlarm(period, { read: false }))
         return
       }

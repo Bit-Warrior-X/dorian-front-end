@@ -28,17 +28,18 @@
         @click="openAttackConsole(period.reqId)"
       >
         <span class="dash-live-attack__badge"><i aria-hidden="true"></i>Under attack</span>
+        <span class="dash-attack-layer" :class="layerTone(period)" :title="`${layerLabel(period)} attack`">{{ layerLabel(period) }}</span>
         <span class="dash-live-attack__main">
           <strong>{{ attackHeadline(period) }}</strong>
           <span>{{ period.serverName || 'Edge' }} · started {{ formatLogTime(period.startedAt) }} · {{ elapsedLabel(period.startedAt, nowMs) }} ago</span>
         </span>
         <span class="dash-live-attack__metric">
           <b class="num">{{ formatNumber(period.activeIpCount || 0) }}</b>
-          <span>blocking now</span>
+          <span>{{ period.layer === 'L7' ? 'active now' : 'blocking now' }}</span>
         </span>
         <span class="dash-live-attack__metric">
           <b class="num">{{ formatNumber(period.ipCount || 0) }}</b>
-          <span>sources so far</span>
+          <span>{{ period.layer === 'L7' ? 'unique IPs' : 'sources so far' }}</span>
         </span>
         <span class="dash-live-attack__open">Open live view</span>
       </button>
@@ -49,14 +50,14 @@
       </span>
       <span>
         <strong>No attack in progress</strong>
-        <template v-if="recentAttacks[0]"> · last attack {{ formatAttackDay(recentAttacks[0].startedAt) }} {{ formatLogTime(recentAttacks[0].startedAt) }} on {{ recentAttacks[0].serverName || 'an edge' }}, {{ elapsedLabel(recentAttacks[0].endedAt || recentAttacks[0].startedAt, nowMs) }} ago</template>
+        <template v-if="recentAttacks[0]"> · last {{ layerLabel(recentAttacks[0]) }} attack {{ formatAttackDay(recentAttacks[0].startedAt) }} {{ formatLogTime(recentAttacks[0].startedAt) }} on {{ recentAttacks[0].serverName || 'an edge' }}, {{ elapsedLabel(recentAttacks[0].endedAt || recentAttacks[0].startedAt, nowMs) }} ago</template>
         <template v-else> · no attacks recorded{{ isAllServers ? '' : ' on this edge' }}</template>
       </span>
     </div>
 
     <div v-if="recentAttacks.length" class="dash-attack-list" role="list">
       <div class="dash-attack-row dash-attack-row--head" aria-hidden="true">
-        <span>Status</span><span>Attack</span><span>Started</span><span>Duration</span><span>Sources</span><span>Vectors</span>
+        <span>Status</span><span>Layer</span><span>Attack</span><span>Started</span><span>Duration</span><span>{{ hasL7Attacks ? 'IPs' : 'Sources' }}</span><span>Vectors</span>
       </div>
       <button
         v-for="period in recentAttacks.slice(0, listLimit)"
@@ -69,6 +70,7 @@
         <span class="dash-attack-status" :class="period.status === 'ongoing' ? 'live' : 'ended'">
           {{ period.status === 'ongoing' ? 'Ongoing' : 'Mitigated' }}
         </span>
+        <span class="dash-attack-layer" :class="layerTone(period)" :title="`${layerLabel(period)} attack`">{{ layerLabel(period) }}</span>
         <span class="dash-attack-name">
           <strong>{{ attackHeadline(period) }}</strong>
           <span>{{ period.serverName || 'Edge' }}</span>
@@ -203,6 +205,7 @@ const scopedPeriods = computed(() => securityEvents.value.filter((period) => (
 )))
 const recentAttacks = computed(() => scopedPeriods.value.filter((period) => period.reqId))
 const liveAttacks = computed(() => recentAttacks.value.filter((period) => period.status === 'ongoing'))
+const hasL7Attacks = computed(() => recentAttacks.value.some((period) => period.layer === 'L7'))
 const securityNotices = computed(() => scopedPeriods.value.filter((period) => !period.reqId))
 const attacksInScope = computed(() => {
   if (hasRangeFilter.value) return recentAttacks.value
@@ -218,7 +221,13 @@ const VECTOR_LABELS = [
   ['STOMP', 'STOMP'], ['PSH', 'STOMP'], ['HANDSHAKE', 'Handshake'],
   ['SYN', 'SYN'], ['RST', 'RST'], ['ACK', 'ACK'],
   ['UDP', 'UDP'], ['ICMP', 'ICMP'], ['GRE', 'GRE'],
+  ['FLOOD', 'Flood'], ['RAPIDRESET', 'Rapid Reset'], ['RAPID', 'Rapid Reset'],
+  ['MALFORMED', 'Malformed'], ['BLOCKED', 'Blocked'],
 ]
+
+const isL7Period = (period) => String(period?.layer || '').toUpperCase() === 'L7'
+const layerLabel = (period) => (isL7Period(period) ? 'L7' : 'L4')
+const layerTone = (period) => (isL7Period(period) ? 'l7' : 'l4')
 
 const vectorLabel = (raw) => {
   const tokens = new Set(String(raw || '').toUpperCase().split(/[^A-Z0-9]+/))
@@ -229,19 +238,23 @@ const vectorLabel = (raw) => {
 const periodVectors = (period) => {
   const totals = new Map()
   ;(period?.vectors || []).forEach((item) => {
-    const label = vectorLabel(item.type)
+    const label = vectorLabel(item.type) || (isL7Period(period) ? String(item.type || '').trim() : '')
     if (label) totals.set(label, (totals.get(label) || 0) + (Number(item.count) || 0))
   })
   if (!totals.size) {
-    const label = vectorLabel(period?.attackType)
-    if (label) totals.set(label, Number(period?.ipCount) || 1)
+    String(period?.attackType || '')
+      .split(/[+|,/]+/)
+      .map((part) => vectorLabel(part) || (isL7Period(period) ? part.trim() : ''))
+      .filter(Boolean)
+      .forEach((label) => totals.set(label, Number(period?.ipCount) || 1))
   }
   return [...totals.entries()].sort((a, b) => b[1] - a[1])
 }
 
 const attackHeadline = (period) => {
   const labels = periodVectors(period).slice(0, 2).map(([label]) => label)
-  return labels.length ? `${labels.join(' + ')} flood` : (period?.title || 'L4 attack')
+  if (!labels.length) return period?.title || (isL7Period(period) ? 'L7 attack' : 'L4 attack')
+  return isL7Period(period) ? `${labels.join(' + ')} attack` : `${labels.join(' + ')} flood`
 }
 
 const vectorColor = (label) => {
@@ -249,6 +262,7 @@ const vectorColor = (label) => {
   return {
     STOMP: colors.l7, Handshake: colors.warn, SYN: colors.sand, ACK: colors.warn, RST: colors.danger,
     UDP: colors.l4, ICMP: colors.teal, GRE: colors.teal, Socket: colors.slate,
+    Flood: colors.l7, 'Rapid Reset': colors.danger, Malformed: colors.warn, Blocked: colors.sand,
   }[label] || colors.muted
 }
 
@@ -455,9 +469,9 @@ onBeforeUnmount(() => {
 
 .dash-live-attack {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto auto;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   width: 100%;
   padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--dorian-danger, #e15241) 45%, var(--app-border));
@@ -581,9 +595,37 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
+.dash-attack-layer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.dash-attack-layer.l4 {
+  color: var(--dorian-l4, #5b9df0);
+  background: color-mix(in srgb, var(--dorian-l4, #5b9df0) 16%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-l4, #5b9df0) 35%, transparent);
+}
+
+.dash-attack-layer.l7 {
+  color: var(--dorian-l7, #b08cf0);
+  background: color-mix(in srgb, var(--dorian-l7, #b08cf0) 16%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--dorian-l7, #b08cf0) 35%, transparent);
+}
+
 .dash-attack-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1.6fr) minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(90px, 0.9fr);
+  grid-template-columns: 96px 44px minmax(0, 1.6fr) minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(90px, 0.9fr);
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -719,9 +761,9 @@ button.dash-attack-row:hover {
 }
 
 @media (max-width: 900px) {
-  .dash-live-attack { grid-template-columns: auto minmax(0, 1fr); }
+  .dash-live-attack { grid-template-columns: auto auto minmax(0, 1fr); }
   .dash-live-attack__metric { align-items: flex-start; }
-  .dash-attack-row { grid-template-columns: 88px minmax(0, 1fr) minmax(0, 0.8fr); }
+  .dash-attack-row { grid-template-columns: 88px 44px minmax(0, 1fr); }
   .dash-attack-row > :nth-child(n + 4) { display: none; }
 }
 

@@ -102,6 +102,75 @@
           </div>
         </section>
 
+        <section class="l7g-section">
+          <div class="l7g-section__title">
+            <h5>Attack detection</h5>
+          </div>
+          <div class="l7g-toggles l7g-toggles--attack">
+            <div class="l7g-inline">
+              <h5 class="info-hint-heading">
+                <span>Detect incidents</span>
+                <InfoHint text="Report L7 attack start / update / stop to the panel (report_l7_attack), like L4 attack alerts." aria-label="Attack detect help" />
+              </h5>
+              <div class="l7g-yn" role="group" aria-label="Attack detect">
+                <button type="button" class="l7g-yn__opt" :class="{ active: form.attack_detect }" :aria-pressed="form.attack_detect" :disabled="!form.enabled" @click="form.attack_detect = true">Yes</button>
+                <button type="button" class="l7g-yn__opt l7g-yn__opt--no" :class="{ active: !form.attack_detect }" :aria-pressed="!form.attack_detect" :disabled="!form.enabled" @click="form.attack_detect = false">No</button>
+              </div>
+            </div>
+          </div>
+          <div class="l7g-grid">
+            <div class="l7g-field">
+              <label for="l7g-floor-flood" class="info-hint-heading">
+                Flood floor (rps)
+                <InfoHint text="Minimum requests/s for the flood vector (raised automatically by the learned baseline)." aria-label="Flood floor help" />
+              </label>
+              <input id="l7g-floor-flood" v-model.number="form.attack_floor_flood" type="number" min="10" class="l7g-input" :disabled="!form.enabled || !form.attack_detect" />
+            </div>
+            <div class="l7g-field">
+              <label for="l7g-floor-reset" class="info-hint-heading">
+                Rapid Reset floor
+                <InfoHint text="Minimum client-reset HTTP/2 streams/s for rapid_reset." aria-label="Rapid Reset floor help" />
+              </label>
+              <input id="l7g-floor-reset" v-model.number="form.attack_floor_reset" type="number" min="10" class="l7g-input" :disabled="!form.enabled || !form.attack_detect" />
+            </div>
+            <div class="l7g-field">
+              <label for="l7g-floor-malformed" class="info-hint-heading">
+                Malformed floor
+                <InfoHint text="Minimum malformed requests/s for malformed." aria-label="Malformed floor help" />
+              </label>
+              <input id="l7g-floor-malformed" v-model.number="form.attack_floor_malformed" type="number" min="10" class="l7g-input" :disabled="!form.enabled || !form.attack_detect" />
+            </div>
+            <div class="l7g-field">
+              <label for="l7g-floor-blocked" class="info-hint-heading">
+                Blocked floor
+                <InfoHint text="Minimum 444 responses/s for blocked." aria-label="Blocked floor help" />
+              </label>
+              <input id="l7g-floor-blocked" v-model.number="form.attack_floor_blocked" type="number" min="10" class="l7g-input" :disabled="!form.enabled || !form.attack_detect" />
+            </div>
+            <div class="l7g-field">
+              <label for="l7g-confirm" class="info-hint-heading">
+                Confirm (s)
+                <InfoHint text="Consecutive seconds above threshold before a vector is under attack (1–60)." aria-label="Confirm seconds help" />
+              </label>
+              <input id="l7g-confirm" v-model.number="form.attack_confirm_seconds" type="number" min="1" max="60" class="l7g-input" :disabled="!form.enabled || !form.attack_detect" />
+            </div>
+            <div class="l7g-field">
+              <label for="l7g-exit" class="info-hint-heading">
+                Exit (s)
+                <InfoHint text="Consecutive seconds below exit threshold before a vector is normal again (5–3600)." aria-label="Exit seconds help" />
+              </label>
+              <input id="l7g-exit" v-model.number="form.attack_exit_seconds" type="number" min="5" max="3600" class="l7g-input" :disabled="!form.enabled || !form.attack_detect" />
+            </div>
+            <div class="l7g-field">
+              <label for="l7g-cooldown" class="info-hint-heading">
+                Cooldown (s)
+                <InfoHint text="All vectors normal this long closes the incident (0–3600). Re-entry within it continues the same incident." aria-label="Cooldown seconds help" />
+              </label>
+              <input id="l7g-cooldown" v-model.number="form.attack_cooldown_seconds" type="number" min="0" max="3600" class="l7g-input" :disabled="!form.enabled || !form.attack_detect" />
+            </div>
+          </div>
+        </section>
+
         <div class="l7g-row">
           <section class="l7g-section">
             <div class="l7g-section__title">
@@ -191,6 +260,14 @@ const DEFAULTS = {
   block_ttl: 600,
   block_max_ttl: 3600,
   allow_ips: [],
+  attack_detect: true,
+  attack_floor_flood: 500,
+  attack_floor_reset: 100,
+  attack_floor_malformed: 200,
+  attack_floor_blocked: 200,
+  attack_confirm_seconds: 3,
+  attack_exit_seconds: 30,
+  attack_cooldown_seconds: 60,
 }
 
 const props = defineProps({
@@ -234,6 +311,15 @@ const applyState = (state) => {
   form.req_threshold = Number(src.req_threshold ?? src.reqThreshold) || DEFAULTS.req_threshold
   form.block_ttl = Number(src.block_ttl ?? src.blockTtl) || DEFAULTS.block_ttl
   form.block_max_ttl = Number(src.block_max_ttl ?? src.blockMaxTtl) || DEFAULTS.block_max_ttl
+  form.attack_detect = src.attack_detect !== false && src.attackDetect !== false
+  form.attack_floor_flood = Number(src.attack_floor_flood ?? src.attackFloorFlood) || DEFAULTS.attack_floor_flood
+  form.attack_floor_reset = Number(src.attack_floor_reset ?? src.attackFloorReset) || DEFAULTS.attack_floor_reset
+  form.attack_floor_malformed = Number(src.attack_floor_malformed ?? src.attackFloorMalformed) || DEFAULTS.attack_floor_malformed
+  form.attack_floor_blocked = Number(src.attack_floor_blocked ?? src.attackFloorBlocked) || DEFAULTS.attack_floor_blocked
+  form.attack_confirm_seconds = Number(src.attack_confirm_seconds ?? src.attackConfirmSeconds) || DEFAULTS.attack_confirm_seconds
+  form.attack_exit_seconds = Number(src.attack_exit_seconds ?? src.attackExitSeconds) || DEFAULTS.attack_exit_seconds
+  form.attack_cooldown_seconds = Number(src.attack_cooldown_seconds ?? src.attackCooldownSeconds)
+  if (!Number.isFinite(form.attack_cooldown_seconds)) form.attack_cooldown_seconds = DEFAULTS.attack_cooldown_seconds
   const ips = Array.isArray(src.allow_ips) ? src.allow_ips : Array.isArray(src.allowIps) ? src.allowIps : []
   form.allow_ips = ips.map(String)
   allowIpsText.value = form.allow_ips.join('\n')
@@ -281,6 +367,22 @@ const validate = () => {
   if (!Number.isFinite(ttl) || ttl < 10 || ttl > 86400) return 'Block TTL must be between 10 and 86,400 seconds'
   if (!Number.isFinite(maxTtl) || maxTtl < 10 || maxTtl > 604800) return 'Block Max TTL must be between 10 and 604,800 seconds'
   if (maxTtl < ttl) return 'Block Max TTL must be greater than or equal to Block TTL'
+  const floors = [
+    ['Flood floor', form.attack_floor_flood],
+    ['Rapid Reset floor', form.attack_floor_reset],
+    ['Malformed floor', form.attack_floor_malformed],
+    ['Blocked floor', form.attack_floor_blocked],
+  ]
+  for (const [label, raw] of floors) {
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < 10) return `${label} must be at least 10`
+  }
+  const confirm = Number(form.attack_confirm_seconds)
+  if (!Number.isFinite(confirm) || confirm < 1 || confirm > 60) return 'Confirm seconds must be between 1 and 60'
+  const exit = Number(form.attack_exit_seconds)
+  if (!Number.isFinite(exit) || exit < 5 || exit > 3600) return 'Exit seconds must be between 5 and 3600'
+  const cooldown = Number(form.attack_cooldown_seconds)
+  if (!Number.isFinite(cooldown) || cooldown < 0 || cooldown > 3600) return 'Cooldown seconds must be between 0 and 3600'
   const ips = parseAllowIps()
   if (ips.length > 1000) return 'Allow IPs supports at most 1,000 addresses'
   for (const ip of ips) {
@@ -302,6 +404,14 @@ const buildPayload = () => ({
     block_ttl: Number(form.block_ttl),
     block_max_ttl: Number(form.block_max_ttl),
     allow_ips: parseAllowIps(),
+    attack_detect: !!form.attack_detect,
+    attack_floor_flood: Number(form.attack_floor_flood),
+    attack_floor_reset: Number(form.attack_floor_reset),
+    attack_floor_malformed: Number(form.attack_floor_malformed),
+    attack_floor_blocked: Number(form.attack_floor_blocked),
+    attack_confirm_seconds: Number(form.attack_confirm_seconds),
+    attack_exit_seconds: Number(form.attack_exit_seconds),
+    attack_cooldown_seconds: Number(form.attack_cooldown_seconds),
   },
 })
 
@@ -501,6 +611,12 @@ onMounted(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px 12px;
   width: 100%;
+}
+
+.l7g-toggles--attack {
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 14px;
+  max-width: 420px;
 }
 
 .l7g-inline {

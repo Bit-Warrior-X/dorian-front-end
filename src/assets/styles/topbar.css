@@ -295,6 +295,30 @@
   color: var(--alarm-accent);
 }
 
+.alarm-bell__layer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.alarm-bell__layer.l4 {
+  color: var(--dorian-l4, #5b9df0);
+  background: color-mix(in srgb, var(--dorian-l4, #5b9df0) 16%, transparent);
+}
+
+.alarm-bell__layer.l7 {
+  color: var(--dorian-l7, #b08cf0);
+  background: color-mix(in srgb, var(--dorian-l7, #b08cf0) 16%, transparent);
+}
+
 .alarm-bell__live-tag,
 .alarm-bell__ended-tag {
   padding: 0 5px;

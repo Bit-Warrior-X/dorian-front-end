@@ -26,6 +26,12 @@ const sortItems = () => {
   })
 }
 
+const inferLayer = (item) => {
+  const raw = String(item?.layer || '').toUpperCase()
+  if (raw === 'L4' || raw === 'L7') return raw
+  return /\bL7\b/i.test(`${item?.title || ''} ${item?.body || ''}`) ? 'L7' : 'L4'
+}
+
 const mapServerItem = (item) => {
   if (!item || item.dismissed) return null
   return {
@@ -40,6 +46,7 @@ const mapServerItem = (item) => {
     reqId: item.reqId ? String(item.reqId) : '',
     serverId: item.serverId ?? null,
     serverName: item.serverName ? String(item.serverName) : '',
+    layer: inferLayer(item),
     read: Boolean(item.read),
   }
 }
@@ -115,6 +122,7 @@ export const upsertAlarm = async (input) => {
       reqId: payload.reqId,
       serverId: payload.serverId,
       serverName: payload.serverName,
+      layer: inferLayer(input),
       read: false,
     })
   }

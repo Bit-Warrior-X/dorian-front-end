@@ -88,15 +88,19 @@
         <div v-show="activeTab === 'traffic'" class="attack-console__panel">
         <section class="kpis" aria-label="Summary">
           <article>
-            <span>Peak ingress</span>
-            <p><strong>{{ peakIngress.value }}</strong><em>at the firewall</em></p>
-            <small v-if="peakIngress.at"><b>{{ peakIngress.dropShare }}% dropped</b> · {{ formatClock(peakIngress.at) }}</small>
+            <span>{{ isL7 ? 'Peak requests' : 'Peak ingress' }}</span>
+            <p><strong>{{ peakIngress.value }}</strong><em>{{ isL7 ? 'all outcomes' : 'at the firewall' }}</em></p>
+            <small v-if="peakIngress.at"><b>{{ peakIngress.dropShare }}% {{ isL7 ? 'blocked' : 'dropped' }}</b> · {{ formatClock(peakIngress.at) }}</small>
             <small v-else>No samples yet</small>
           </article>
           <article>
-            <span>Sources blocked</span>
+            <span>{{ isL7 ? 'Unique clients' : 'Sources blocked' }}</span>
             <p><strong>{{ sourceCount }}</strong><em>unique IPs</em></p>
-            <small><b>{{ activeCount }} still active</b> · {{ Math.max(0, sourceCount - activeCount) }} released</small>
+            <small v-if="isL7">
+              <b>{{ formatCount(l7BlockedIPs) }} blocked IPs</b>
+              <template v-if="l7BlockedRatio != null"> · {{ Math.round(l7BlockedRatio * 100) }}% blocked</template>
+            </small>
+            <small v-else><b>{{ activeCount }} still active</b> · {{ Math.max(0, sourceCount - activeCount) }} released</small>
           </article>
           <article>
             <span>Attack vectors</span>
@@ -113,8 +117,9 @@
             </div>
           </article>
           <article>
-            <span>Detector reports</span>
-            <p><strong>{{ attack?.eventCount ?? 0 }}</strong><em>{{ durationLabel ? `over ${durationLabel}` : 'reports' }}</em></p>
+            <span>{{ isL7 ? 'Request totals' : 'Detector reports' }}</span>
+            <p v-if="isL7"><strong>{{ formatCount(l7TotalRequests) }}</strong><em>{{ durationLabel ? `over ${durationLabel}` : 'requests' }}</em></p>
+            <p v-else><strong>{{ attack?.eventCount ?? 0 }}</strong><em>{{ durationLabel ? `over ${durationLabel}` : 'reports' }}</em></p>
             <small>{{ modeLabel }}</small>
           </article>
         </section>
@@ -122,16 +127,16 @@
         <section class="panel">
           <header class="panel__head">
             <div>
-              <h3>Traffic during event</h3>
+              <h3>{{ isL7 ? 'Requests during event' : 'Traffic during event' }}</h3>
               <p>{{ chartCaption }}</p>
             </div>
             <div class="legend">
-              <span><i class="sq drop"></i>Dropped <b>{{ droppedTotal }}</b></span>
+              <span><i class="sq drop"></i>{{ isL7 ? 'Blocked' : 'Dropped' }} <b>{{ droppedTotal }}</b></span>
               <span><i class="sq pass"></i>Passed <b>{{ passedTotal }}</b></span>
             </div>
           </header>
           <div ref="trafficChartEl" class="chart" role="img" :aria-label="chartCaption"></div>
-          <p v-if="loaded && !hasDrops" class="empty">No firewall samples yet.</p>
+          <p v-if="loaded && !hasDrops" class="empty">{{ isL7 ? 'No request timeline yet.' : 'No firewall samples yet.' }}</p>
         </section>
         </div>
 
@@ -139,8 +144,8 @@
           <section class="panel sources">
             <header class="panel__head sources__head">
               <div class="sources__title">
-                <h3>Blocked sources</h3>
-                <div class="seg" role="group" aria-label="Filter sources">
+                <h3>{{ isL7 ? 'Top clients' : 'Blocked sources' }}</h3>
+                <div v-if="!isL7" class="seg" role="group" aria-label="Filter sources">
                   <button type="button" :class="{ on: srcFilter === 'active' }" @click="srcFilter = 'active'">Active {{ activeCount }}</button>
                   <button type="button" :class="{ on: srcFilter === 'all' }" @click="srcFilter = 'all'">All {{ sourceCount }}</button>
                 </div>
@@ -151,7 +156,10 @@
               </label>
             </header>
             <div class="sources__cols">
-              <span>Source</span><span>Vector</span><span>Blocked</span><span>Status</span>
+              <span>Source</span>
+              <span>{{ isL7 ? 'Outcome' : 'Vector' }}</span>
+              <span>{{ isL7 ? 'Requests' : 'Blocked' }}</span>
+              <span>Status</span>
             </div>
             <p v-if="sourcesLoading && !sources.length" class="empty">Loading sources…</p>
             <p v-else-if="loaded && !sources.length" class="empty">{{ sourcesEmptyText }}</p>
@@ -163,16 +171,24 @@
             >
               <div v-for="source in sources" :key="source.ip" class="sources__row">
                 <span class="mono">{{ source.ip }}</span>
-                <span><em class="chip" :class="vectorClass(source.attackType)">{{ source.attackType || 'L4' }}</em></span>
-                <span class="mono dim" :title="source.blocks > 1 ? `Blocked ${source.blocks} times, first at ${formatClock(source.firstBlockedAt)}` : ''">{{ formatClock(source.lastBlockedAt) }}</span>
-                <span class="status" :class="{ hot: source.active }">{{ sourceStatus(source) }}</span>
+                <span><em class="chip" :class="vectorClass(source.attackType)">{{ source.attackType || (isL7 ? 'L7' : 'L4') }}</em></span>
+                <span
+                  class="mono dim"
+                  :title="isL7
+                    ? `${formatCount(source.blocked)} blocked · ${formatCount(source.passed)} passed`
+                    : (source.blocks > 1 ? `Blocked ${source.blocks} times, first at ${formatClock(source.firstBlockedAt)}` : '')"
+                >
+                  <template v-if="isL7">{{ formatCount(source.blocked) }} / {{ formatCount(source.requests || source.blocks) }}</template>
+                  <template v-else>{{ formatClock(source.lastBlockedAt) }}</template>
+                </span>
+                <span class="status" :class="{ hot: source.active }">{{ isL7 ? (source.blocked > 0 ? 'Had blocks' : 'Passed') : sourceStatus(source) }}</span>
               </div>
               <p v-if="sourcesLoading" class="empty">Loading more…</p>
               <p v-else-if="sourcesHasMore" class="empty">Scroll for more</p>
             </div>
             <footer>
-              <span>Showing {{ sources.length }} of {{ srcFilter === 'active' ? `${activeCount} active` : sourceCount }}<template v-if="srcQuery.trim()"> matching “{{ srcQuery.trim() }}”</template></span>
-              <button type="button" @click="openEdge">View all in firewall</button>
+              <span>Showing {{ sources.length }} of {{ isL7 ? sourceCount : (srcFilter === 'active' ? `${activeCount} active` : sourceCount) }}<template v-if="srcQuery.trim()"> matching “{{ srcQuery.trim() }}”</template></span>
+              <button v-if="!isL7" type="button" @click="openEdge">View all in firewall</button>
             </footer>
           </section>
         </div>
@@ -303,11 +319,16 @@ const emit = defineEmits(['close'])
 const router = useRouter()
 
 const SAMPLE_MS = 5000
-const attackTabs = [
+const attackTabsAll = [
   { id: 'traffic', label: 'Traffic' },
   { id: 'sources', label: 'Blocked sources' },
   { id: 'console', label: 'Sparta console' },
 ]
+const attackTabsL7 = [
+  { id: 'traffic', label: 'Requests' },
+  { id: 'sources', label: 'Top clients' },
+]
+const L7_BUCKET_SECONDS = 10
 const SOURCE_PAGE = 25
 const DROP_RENDER_CAP = 720
 const SPARTA_PAGE = 120
@@ -328,6 +349,7 @@ const COUNTERS_FOR_TOKEN = {
 }
 
 const attack = ref(null)
+const l7Incident = ref(null)
 const windowRange = ref({ start: null, end: null })
 const drops = ref([])
 const sources = ref([])
@@ -377,22 +399,41 @@ let pollTimer = 0
 let clockTimer = 0
 let spartaPollTimer = 0
 
+const isL7 = computed(() => String(attack.value?.layer || '').toUpperCase() === 'L7' || Boolean(l7Incident.value))
+const attackTabs = computed(() => (isL7.value ? attackTabsL7 : attackTabsAll))
 const ongoing = computed(() => attack.value?.status === 'ongoing')
 const hasDrops = computed(() => drops.value.length > 0)
-const primaryType = computed(() => attackTypes.value[0]?.type || attack.value?.attackType || 'L4')
+const primaryType = computed(() => attackTypes.value[0]?.type || attack.value?.attackType || (isL7.value ? 'L7' : 'L4'))
 const headline = computed(() => {
   const names = attackTypes.value.map((item) => item.type).filter(Boolean).slice(0, 3)
-  if (names.length > 1) return `${names.join(' + ')} flood`
-  return `${names[0] || primaryType.value} flood`
+  const suffix = isL7.value ? 'attack' : 'flood'
+  if (names.length > 1) return `${names.join(' + ')} ${suffix}`
+  return `${names[0] || primaryType.value} ${suffix}`
 })
 const subtitle = computed(() => {
   const names = attackTypes.value.map((item) => item.type).filter(Boolean)
   if (names.length > 1) return names.join(' · ')
+  if (isL7.value) {
+    const peak = Number(l7Incident.value?.peak_rps || 0)
+    const peakBlocked = Number(l7Incident.value?.peak_blocked_rps || 0)
+    const ips = Number(l7Incident.value?.unique_ips || attack.value?.ipCount || 0)
+    const ratio = Number(l7Incident.value?.blocked_ratio)
+    return [
+      peak > 0 ? `peak ${peak.toLocaleString()} rps` : '',
+      peakBlocked > 0 ? `${peakBlocked.toLocaleString()} blocked/s` : '',
+      Number.isFinite(ratio) && ratio > 0 ? `${Math.round(ratio * 100)}% blocked` : '',
+      ips > 0 ? `${ips.toLocaleString()} unique IPs` : '',
+    ].filter(Boolean).join(' · ') || attack.value?.title || 'L7 attack'
+  }
   const events = Array.isArray(attack.value?.events) ? attack.value.events : []
   const technical = events.map((event) => event?.data || event?.attackType || '').find((value) => /ATTACK|BLOCK|PROTEC/i.test(value))
   return technical || attack.value?.attackType || attack.value?.title || 'L4 attack'
 })
 const layerChip = computed(() => {
+  if (isL7.value) {
+    const label = (attackTypes.value.map((item) => item.type).join(' ') || primaryType.value)
+    return `L7 · ${label || 'HTTP'}`
+  }
   const label = (attackTypes.value.map((item) => item.type).join(' ') || primaryType.value).toUpperCase()
   if (label.includes('UDP')) return 'L4 · UDP'
   if (label.includes('ICMP')) return 'L4 · ICMP'
@@ -400,12 +441,16 @@ const layerChip = computed(() => {
   return 'L4 · TCP'
 })
 const protectionOn = computed(() => {
+  if (isL7.value) return ongoing.value
   const raw = String(protection.value || '')
   if (raw.includes('END')) return false
   if (raw.includes('START')) return true
   return ongoing.value
 })
 const modeLabel = computed(() => {
+  if (isL7.value) {
+    return ongoing.value ? 'Detector: under attack · Athens' : 'Detector: normal · Athens'
+  }
   const events = Array.isArray(attack.value?.events) ? attack.value.events : []
   const blob = [
     attack.value?.title,
@@ -442,7 +487,42 @@ const endedMs = computed(() => {
   const parsed = Date.parse(attack.value?.endedAt || attack.value?.createdAt || '')
   return Number.isFinite(parsed) ? parsed : null
 })
+const l7Totals = computed(() => (l7Incident.value?.totals && typeof l7Incident.value.totals === 'object' ? l7Incident.value.totals : {}))
+const l7TotalRequests = computed(() => Number(l7Totals.value.requests) || drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0) + (Number(point.allowed) || 0), 0))
+const l7BlockedRatio = computed(() => {
+  const ratio = Number(l7Incident.value?.blocked_ratio)
+  if (Number.isFinite(ratio) && ratio >= 0) return ratio
+  const requests = l7TotalRequests.value
+  const blocked = Number(l7Totals.value.blocked)
+  if (requests > 0 && Number.isFinite(blocked)) return blocked / requests
+  return null
+})
+const l7BlockedIPs = computed(() => Number(l7Incident.value?.blocked_ips) || 0)
 const peakIngress = computed(() => {
+  if (isL7.value) {
+    const peak = Number(l7Incident.value?.peak_rps) || 0
+    const peakAt = Number(l7Incident.value?.peak_rps_at) || 0
+    const ratio = l7BlockedRatio.value
+    if (peak > 0) {
+      return {
+        value: formatRps(peak),
+        at: peakAt > 0 ? peakAt * 1000 : null,
+        dropShare: ratio != null ? Math.round(ratio * 100) : 0,
+      }
+    }
+    let best = null
+    drops.value.forEach((point) => {
+      const blocked = Number(point.blocked) || 0
+      const total = blocked + (Number(point.allowed) || 0)
+      if (!best || total > best.total) best = { total, blocked, at: Date.parse(point.timestamp) }
+    })
+    if (!best || best.total <= 0) return { value: formatRps(0), at: null, dropShare: 0 }
+    return {
+      value: formatRps(best.total / L7_BUCKET_SECONDS),
+      at: Number.isFinite(best.at) ? best.at : null,
+      dropShare: Math.round((best.blocked / best.total) * 100),
+    }
+  }
   let best = null
   drops.value.forEach((point) => {
     const blocked = Number(point.blocked) || 0
@@ -456,8 +536,22 @@ const peakIngress = computed(() => {
     dropShare: Math.round((best.blocked / best.total) * 100),
   }
 })
-const droppedTotal = computed(() => formatBytes(drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0), 0)))
-const passedTotal = computed(() => formatBytes(drops.value.reduce((sum, point) => sum + (Number(point.allowed) || 0), 0)))
+const droppedTotal = computed(() => {
+  if (isL7.value) {
+    const blocked = Number(l7Totals.value.blocked)
+    if (Number.isFinite(blocked) && blocked > 0) return formatCount(blocked)
+    return formatCount(drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0), 0))
+  }
+  return formatBytes(drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0), 0))
+})
+const passedTotal = computed(() => {
+  if (isL7.value) {
+    const passed = Number(l7Totals.value.passed)
+    if (Number.isFinite(passed) && passed >= 0) return formatCount(passed)
+    return formatCount(drops.value.reduce((sum, point) => sum + (Number(point.allowed) || 0), 0))
+  }
+  return formatBytes(drops.value.reduce((sum, point) => sum + (Number(point.allowed) || 0), 0))
+})
 const vectorParts = computed(() => {
   const scored = attackTypes.value.map((item) => Math.max(Number(item.count) || 0, 1))
   const total = scored.reduce((sum, value) => sum + value, 0) || 1
@@ -528,6 +622,9 @@ const sourceStatus = (source) => {
 const chartCaption = computed(() => {
   const { start, end } = windowRange.value
   const range = start && end ? `${formatShortClock(start)} – ${formatShortClock(end)} · ` : ''
+  if (isL7.value) {
+    return `${range}${L7_BUCKET_SECONDS} s buckets · requests/s · includes before/after context · shaded = attack window`
+  }
   return `${range}${SAMPLE_MS / 1000} s samples · shaded = vector windows`
 })
 
@@ -558,6 +655,21 @@ const formatBandwidthValue = (value) => {
   if (numeric >= 1024 * 1024) return `${(numeric / (1024 * 1024)).toFixed(1)} Gbps`
   if (numeric >= 1024) return `${(numeric / 1024).toFixed(1)} Mbps`
   return `${Math.round(numeric)} Kbps`
+}
+
+const formatCount = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0'
+  if (numeric >= 1_000_000) return `${(numeric / 1_000_000).toFixed(1)}M`
+  if (numeric >= 10_000) return `${Math.round(numeric / 1000)}k`
+  if (numeric >= 1000) return `${(numeric / 1000).toFixed(1)}k`
+  return Math.round(numeric).toLocaleString()
+}
+
+const formatRps = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '0 rps'
+  return `${formatCount(numeric)} rps`
 }
 
 const bytesToKbps = (bytes) => ((Number(bytes) || 0) * 8) / 1024
@@ -645,6 +757,17 @@ const cssVar = (name, fallback) => {
 }
 
 const chartSeries = () => {
+  if (isL7.value) {
+    const smoothed = bucketSeries(drops.value, ['allowed', 'blocked'], L7_BUCKET_SECONDS * 1000)
+    const toRps = (points) => points.map(([timestamp, count]) => [
+      timestamp,
+      Math.round(((Number(count) || 0) / L7_BUCKET_SECONDS) * 10) / 10,
+    ])
+    return [
+      { name: 'Passed', data: toRps(smoothed.allowed) },
+      { name: 'Blocked', data: toRps(smoothed.blocked) },
+    ]
+  }
   const smoothed = bucketSeries(drops.value, ['allowed', 'blocked'], SAMPLE_MS)
   const toRate = (points) => points.map(([timestamp, bytes]) => [timestamp, bytesToKbps(bytes)])
   return [
@@ -787,13 +910,17 @@ const renderCharts = async () => {
       min: 0,
       tickAmount: 4,
       forceNiceScale: true,
-      labels: { minWidth: 64, style: labelStyle, formatter: formatBandwidthValue },
+      labels: {
+        minWidth: 64,
+        style: labelStyle,
+        formatter: isL7.value ? formatRps : formatBandwidthValue,
+      },
     },
     tooltip: {
       theme: getApexTooltipTheme(),
       shared: true,
       x: { format: 'HH:mm:ss' },
-      y: { formatter: formatBandwidthValue },
+      y: { formatter: isL7.value ? formatRps : formatBandwidthValue },
     },
   }
   if (!trafficChart) {
@@ -812,6 +939,7 @@ const load = async () => {
   try {
     const payload = await fetchAttackConsole(props.reqId)
     attack.value = payload?.attack || null
+    l7Incident.value = payload?.l7 || null
     const windowStart = Date.parse(payload?.windowStart || '')
     const windowEnd = Date.parse(payload?.windowEnd || '')
     windowRange.value = {
@@ -822,15 +950,43 @@ const load = async () => {
     drops.value = dropRows.length > DROP_RENDER_CAP
       ? dropRows.filter((_, index) => index === 0 || index === dropRows.length - 1 || index % Math.ceil(dropRows.length / DROP_RENDER_CAP) === 0).slice(0, DROP_RENDER_CAP)
       : dropRows
+    // Backend already merges panel before/after metrics with the incident timeline.
+    // Fall back to timeline alone only if drops were empty (older API).
+    if (!drops.value.length && l7Incident.value && Array.isArray(l7Incident.value.timeline) && l7Incident.value.timeline.length) {
+      drops.value = l7Incident.value.timeline.map((bucket) => ({
+        timestamp: new Date(Number(bucket.t || 0) * 1000).toISOString(),
+        blocked: Number(bucket.blocked || 0),
+        allowed: Number(bucket.passed != null ? bucket.passed : Math.max(0, Number(bucket.requests || 0) - Number(bucket.blocked || 0) - Number(bucket.rapid_reset || 0) - Number(bucket.malformed || 0))),
+      }))
+    }
     activeCount.value = Number(payload?.activeCount) || 0
-    sourceCount.value = Number(payload?.sourceCount) || 0
+    sourceCount.value = Number(payload?.sourceCount) || Number(l7Incident.value?.unique_ips) || 0
     const serverTime = Date.parse(payload?.serverTime || '')
     clockSkew.value = Number.isFinite(serverTime) ? serverTime - Date.now() : 0
     if (!srcFilterChosen) {
-      srcFilter.value = activeCount.value > 0 ? 'active' : 'all'
+      srcFilter.value = isL7.value || activeCount.value <= 0 ? 'all' : 'active'
     }
     attackTypes.value = Array.isArray(payload?.attackTypes) ? payload.attackTypes : []
     protection.value = payload?.protection || ''
+    if (l7Incident.value && Array.isArray(l7Incident.value.top_ips)) {
+      sources.value = l7Incident.value.top_ips.slice(0, 80).map((row) => ({
+        ip: row.ip,
+        attackType: Number(row.blocked) > 0 ? 'blocked' : 'passed',
+        firstBlockedAt: attack.value?.startedAt || '',
+        lastBlockedAt: attack.value?.endedAt || attack.value?.startedAt || '',
+        releasesAt: '',
+        blocks: Number(row.blocked) || Number(row.requests) || 0,
+        requests: Number(row.requests) || 0,
+        blocked: Number(row.blocked) || 0,
+        passed: Number(row.passed) || 0,
+        active: attack.value?.status === 'ongoing' && Number(row.blocked) > 0,
+      }))
+      sourcesFetched = true
+      sourcesHasMore.value = false
+    }
+    if (activeTab.value === 'console' && String(attack.value?.layer || '').toUpperCase() === 'L7') {
+      activeTab.value = 'traffic'
+    }
     error.value = ''
     loaded.value = true
     await renderCharts()
@@ -1238,10 +1394,17 @@ const onFullLogScroll = () => {
   }
 }
 
+const consolePollMs = () => (isL7.value && ongoing.value ? 4000 : 8000)
+
+const restartPoll = () => {
+  window.clearInterval(pollTimer)
+  pollTimer = window.setInterval(load, consolePollMs())
+}
+
 onMounted(async () => {
   await load()
   srcFilterChosen = true
-  pollTimer = window.setInterval(load, 8000)
+  restartPoll()
   clockTimer = window.setInterval(() => {
     now.value = Date.now()
   }, 1000)
@@ -1253,6 +1416,10 @@ onBeforeUnmount(() => {
   window.clearInterval(clockTimer)
   window.clearTimeout(sourcesSearchTimer)
   trafficChart?.destroy()
+})
+
+watch([isL7, ongoing], () => {
+  restartPoll()
 })
 
 watch(() => props.reqId, async () => {

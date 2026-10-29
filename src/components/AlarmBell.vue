@@ -59,6 +59,11 @@
           <span class="alarm-bell__accent" aria-hidden="true"></span>
           <button type="button" class="alarm-bell__item-main" @click="openItem(item)">
             <span class="alarm-bell__item-kicker">
+              <span
+                v-if="item.kind === 'attack'"
+                class="alarm-bell__layer"
+                :class="layerTone(item)"
+              >{{ layerLabel(item) }}</span>
               {{ kindLabel(item) }}
               <span v-if="item.status === 'ongoing'" class="alarm-bell__live-tag">Live</span>
               <span v-else-if="item.status === 'ended'" class="alarm-bell__ended-tag">Ended</span>
@@ -105,8 +110,14 @@ const ariaLabel = computed(() => {
   return 'Alarms'
 })
 
+const layerLabel = (item) => {
+  const raw = String(item?.layer || '').toUpperCase()
+  if (raw === 'L7' || raw === 'L4') return raw
+  return /\bL7\b/i.test(`${item?.title || ''} ${item?.body || ''}`) ? 'L7' : 'L4'
+}
+const layerTone = (item) => (layerLabel(item) === 'L7' ? 'l7' : 'l4')
 const kindLabel = (item) => {
-  if (item.kind === 'attack') return 'L4 attack'
+  if (item.kind === 'attack') return `${layerLabel(item)} attack`
   return item.kind || 'Alarm'
 }
 
