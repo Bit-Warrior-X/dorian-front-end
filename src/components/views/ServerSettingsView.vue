@@ -87,24 +87,26 @@
           class="edge-cfg__tab"
           :class="{
             active: activeTab === tab.id,
-            'edge-cfg__tab--locked': isL4TabLocked(tab.id),
+            'edge-cfg__tab--locked': isTabLocked(tab.id),
           }"
           :aria-selected="activeTab === tab.id"
-          :aria-disabled="isL4TabLocked(tab.id) ? 'true' : undefined"
-          :title="isL4TabLocked(tab.id) ? 'Requires a valid L4 license' : tab.hint"
+          :aria-disabled="isTabLocked(tab.id) ? 'true' : undefined"
+          :title="tabLockTitle(tab)"
           @click="selectTab(tab.id)"
         >
           <svg class="edge-cfg__tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <template v-if="tab.id === 'basic-info'"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" /></template>
             <template v-else-if="tab.id === 'server-status'"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" /></template>
             <template v-else-if="tab.id === 'listening-ports'"><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M9 9v6M15 9v6M9 12h6" /></template>
+            <template v-else-if="tab.id === 'l7-guard'"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /><path d="M9.5 12.2l1.8 1.8 3.4-3.6" /></template>
             <template v-else-if="tab.id === 'l4-config'"><path d="M12 3l7.5 3v5.5c0 4.4-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5.1-7.5-9.5V6L12 3z" /></template>
             <template v-else-if="tab.id === 'l4-blacklist'"><circle cx="12" cy="12" r="8.5" /><path d="M6 6l12 12" /></template>
             <template v-else><circle cx="12" cy="12" r="8.5" /><path d="M8.5 12l2.5 2.5 4.5-5" /></template>
           </svg>
           <span class="edge-cfg__tab-label">{{ tab.label }}</span>
-          <svg v-if="isL4TabLocked(tab.id)" class="edge-cfg__tab-lock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>
+          <svg v-if="isTabLocked(tab.id)" class="edge-cfg__tab-lock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>
           <span v-else-if="tab.requiresL4" class="edge-cfg__tab-tag">L4</span>
+          <span v-else-if="tab.requiresL7" class="edge-cfg__tab-tag">L7</span>
         </button>
       </nav>
 
@@ -127,6 +129,11 @@
         <ListeningPortsPanel
           v-else-if="activeTab === 'listening-ports'"
           :key="`listening-ports-${selectedServer}`"
+          :server-id="selectedServer"
+        />
+        <L7GuardPanel
+          v-else-if="activeTab === 'l7-guard' && l7LicenseValid"
+          :key="`l7-guard-${selectedServer}`"
           :server-id="selectedServer"
         />
         <L4DdosDefensePanel
@@ -179,6 +186,7 @@ import { fetchServers } from '@/api/servers'
 import L4DdosDefensePanel from './L4DdosDefensePanel.vue'
 import L4BlacklistPanel from './L4BlacklistPanel.vue'
 import L4WhitelistPanel from './L4WhitelistPanel.vue'
+import L7GuardPanel from './L7GuardPanel.vue'
 import LayerStatusDot from '../LayerStatusDot.vue'
 import InfoHint from '../InfoHint.vue'
 import ListeningPortsPanel from './ListeningPortsPanel.vue'
@@ -189,7 +197,9 @@ import {
   angelosStatusClass,
   angelosStatusLabel,
   isL4LicenseValid,
+  isL7LicenseValid,
   l4LicenseBlockMessage,
+  l7LicenseBlockMessage,
   layerDotDescription,
   layerDotTitle,
   resolveLayerStatus,
@@ -246,19 +256,34 @@ const tabs = [
   { id: 'basic-info', label: 'Basic info', hint: 'Edge name, IP, SSH credentials and assigned users.' },
   { id: 'server-status', label: 'Monitor', hint: 'Host metrics and Angelos / Sparta / Athens service health.' },
   { id: 'listening-ports', label: 'Ports', hint: 'Ports that accept client traffic on this edge.' },
+  { id: 'l7-guard', label: 'L7 Guard', hint: 'Per-IP L7 abuse detector thresholds and XDP escalation.', requiresL7: true },
   { id: 'l4-config', label: 'XDP', hint: 'How Sparta attaches to the NIC and reacts to L4 floods.', requiresL4: true },
   { id: 'l4-blacklist', label: 'Block IP', hint: 'Blocked source IPs for this edge’s XDP path.', requiresL4: true },
   { id: 'l4-whitelist', label: 'Allow IP', hint: 'Trusted source IPs that bypass L4 blocking.', requiresL4: true },
 ]
 
 const L4_TAB_IDS = new Set(tabs.filter((tab) => tab.requiresL4).map((tab) => tab.id))
+const L7_TAB_IDS = new Set(tabs.filter((tab) => tab.requiresL7).map((tab) => tab.id))
 
 const l4LicenseValid = computed(() => isL4LicenseValid(selectedServerData.value))
+const l7LicenseValid = computed(() => isL7LicenseValid(selectedServerData.value))
 
-const isL4TabLocked = (tabId) => L4_TAB_IDS.has(tabId) && !l4LicenseValid.value
+const isTabLocked = (tabId) =>
+  (L4_TAB_IDS.has(tabId) && !l4LicenseValid.value)
+  || (L7_TAB_IDS.has(tabId) && !l7LicenseValid.value)
 
-const notifyL4LicenseBlocked = (tabId) => {
+const tabLockTitle = (tab) => {
+  if (tab.requiresL4 && !l4LicenseValid.value) return 'Requires a valid L4 license'
+  if (tab.requiresL7 && !l7LicenseValid.value) return 'Requires a valid L7 license'
+  return tab.hint
+}
+
+const notifyLicenseBlocked = (tabId) => {
   const tab = tabs.find((item) => item.id === tabId)
+  if (L7_TAB_IDS.has(tabId)) {
+    notifyWarning(tab?.label || 'L7', l7LicenseBlockMessage(selectedServerData.value))
+    return
+  }
   notifyWarning(tab?.label || 'L4', l4LicenseBlockMessage(selectedServerData.value))
 }
 
@@ -270,6 +295,7 @@ const activeConfigRows = computed(() => {
     active.id === 'basic-info'
     || active.id === 'server-status'
     || active.id === 'listening-ports'
+    || active.id === 'l7-guard'
     || active.id === 'l4-config'
     || active.id === 'l4-blacklist'
     || active.id === 'l4-whitelist'
@@ -280,9 +306,9 @@ const activeConfigRows = computed(() => {
 })
 
 const selectTab = (tabId) => {
-  if (L4_TAB_IDS.has(tabId) && !l4LicenseValid.value) {
-    notifyL4LicenseBlocked(tabId)
-    if (L4_TAB_IDS.has(activeTab.value)) activeTab.value = 'server-status'
+  if (isTabLocked(tabId)) {
+    notifyLicenseBlocked(tabId)
+    if (isTabLocked(activeTab.value)) activeTab.value = 'server-status'
     return
   }
   activeTab.value = tabId
@@ -311,6 +337,8 @@ const applyRouteQuery = () => {
     selectTab('basic-info')
   } else if (tab === 'listening-ports') {
     selectTab('listening-ports')
+  } else if (tab === 'l7-guard' || tab === 'l7guard' || tab === 'guard') {
+    selectTab('l7-guard')
   } else if (tab === 'l4-blacklist' || tab === 'blacklist') {
     selectTab('l4-blacklist')
   } else if (tab === 'l4-whitelist' || tab === 'whitelist') {

@@ -37,16 +37,14 @@
               placeholder="Search by IP"
             />
             <select id="blacklist-rule" v-model="ruleFilter">
-              <option value="" disabled>Select Trigger Rule</option>
-              <option value="all">All</option>
-              <option value="l4ddos">L4 DDOS</option>
-              <option value="blacklist">L7 Blocked List</option>
-              <option value="geo">Geo Location</option>
-              <option value="antiheader">Anti Header Setting</option>
-              <option value="intervalfreqlimit">Interval Freq Limit</option>
-              <option value="secondaryfreqlimit">Secondary Freq Limit</option>
-              <option value="responsefreq">Response Freq</option>
-              <option value="useragent">User Agent</option>
+              <option value="">All trigger rules</option>
+              <option
+                v-for="rule in availableTriggerRules"
+                :key="rule.value"
+                :value="rule.value"
+              >
+                {{ rule.label }}
+              </option>
             </select>
             <button class="success-btn" type="button" @click="applySearch">Search</button>
           </div>
@@ -57,12 +55,15 @@
     <div class="content-card table-card">
       <div class="card-title">
         <h3>Temporary blocks</h3>
-        <span class="count-pill">{{ filteredEntries.length }} items</span>
+        <span class="count-pill">
+          {{ isLoading ? 'Loading…' : `${filteredEntries.length} items` }}
+        </span>
       </div>
-      <div class="table-wrap">
-        <table class="blacklist-table">
+      <div class="table-wrap" :class="{ 'is-loading': isLoading }">
+        <table class="blacklist-table" :aria-busy="isLoading">
           <thead>
             <tr>
+              <th class="col-index">#</th>
               <th>IP address</th>
               <th>URL</th>
               <th>GeoLocation</th>
@@ -76,39 +77,50 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in filteredEntries" :key="entry.id">
-              <td>{{ entry.ipAddress }}</td>
-              <td>{{ entry.url || '-' }}</td>
-              <td>{{ entry.geolocation }}</td>
-              <td>{{ triggerLabel(entry) }}</td>
-              <td>{{ formatTimestamp(entry.createdAt) }}</td>
-              <td>{{ entry.ttl || 'Indefinite' }}</td>
-              <td>{{ formatRemainingTime(entry) }}</td>
-              <td>{{ entry.server || '-' }}</td>
-              <td>{{ siteLabel(entry) }}</td>
-              <td>
-                <button
-                  class="icon-danger-btn"
-                  type="button"
-                  aria-label="Unblock"
-                  title="Unblock"
-                  @click="removeEntry(entry.id)"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6l-1 14H6L5 6"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
-                  </svg>
-                </button>
+            <tr v-if="isLoading">
+              <td class="table-status" colspan="11">
+                <span class="table-status__spinner" aria-hidden="true"></span>
+                Loading temporary blocks…
               </td>
             </tr>
+            <tr v-else-if="!filteredEntries.length">
+              <td class="table-status table-status--empty" colspan="11">
+                No temporary blocks match the current filters.
+              </td>
+            </tr>
+            <template v-else>
+              <tr v-for="(entry, index) in filteredEntries" :key="entry.id">
+                <td class="col-index">{{ index + 1 }}</td>
+                <td>{{ entry.ipAddress }}</td>
+                <td>{{ entry.url || '-' }}</td>
+                <td>{{ entry.geolocation }}</td>
+                <td>{{ triggerLabel(entry) }}</td>
+                <td>{{ formatTimestamp(entry.createdAt) }}</td>
+                <td>{{ entry.ttl || 'Indefinite' }}</td>
+                <td>{{ formatRemainingTime(entry) }}</td>
+                <td>{{ entry.server || '-' }}</td>
+                <td>{{ siteLabel(entry) }}</td>
+                <td>
+                  <button
+                    class="icon-danger-btn"
+                    type="button"
+                    aria-label="Unblock"
+                    title="Unblock"
+                    @click="removeEntry(entry.id)"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6l-1 14H6L5 6"></path>
+                      <path d="M10 11v6"></path>
+                      <path d="M14 11v6"></path>
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
-        <div v-if="!filteredEntries.length" class="empty-state">
-          No temporary blocks match the current filters.
-        </div>
       </div>
     </div>
 
@@ -231,6 +243,7 @@ const serverFilter = ref("");
 const siteFilter = ref("");
 const ruleFilter = ref("");
 const searchQuery = ref("");
+const isLoading = ref(false);
 const isBlockDialogOpen = ref(false);
 const validationError = ref("");
 const customTriggerRule = ref("");
@@ -300,10 +313,66 @@ const entryMatchesSite = (entry, site) => {
   return url.includes(domain);
 };
 
-const triggerLabel = (entry) => {
-  if (entry?.triggerRule === "l4ddos") return entry.reason || "L4 DDOS";
-  return entry?.triggerRule || "manual";
+const KNOWN_TRIGGER_LABELS = {
+  l4ddos: "L4 DDOS",
+  blacklist: "L7 Blocked List",
+  geo: "Geo Location",
+  antiheader: "Anti Header Setting",
+  intervalfreqlimit: "Interval Freq Limit",
+  secondaryfreqlimit: "Secondary Freq Limit",
+  responsefreq: "Response Freq",
+  useragent: "User Agent",
+  anticc: "Anti CC",
+  manual: "Manual",
 };
+
+const triggerRuleValue = (entry) => String(entry?.triggerRule || "manual").trim() || "manual";
+
+const triggerRuleLabel = (value, entry) => {
+  const key = String(value || "").trim() || "manual";
+  if (key === "l4ddos" && entry?.reason) return entry.reason;
+  return KNOWN_TRIGGER_LABELS[key] || key;
+};
+
+const triggerLabel = (entry) => triggerRuleLabel(triggerRuleValue(entry), entry);
+
+/** Active blocks matching server/site/search — used to build the rule dropdown. */
+const entriesForRuleOptions = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  return blacklistEntries.value.filter((entry) => {
+    if (isBlockExpired(entry)) return false;
+    const matchesServer =
+      !serverFilter.value || String(entry.serverId) === String(serverFilter.value);
+    const matchesSite = entryMatchesSite(entry, selectedSite.value);
+    const matchesQuery =
+      !query ||
+      entry.ipAddress.toLowerCase().includes(query) ||
+      entry.geolocation.toLowerCase().includes(query) ||
+      entry.reason.toLowerCase().includes(query) ||
+      String(entry.url || "").toLowerCase().includes(query) ||
+      entry.server?.toLowerCase().includes(query);
+    return matchesServer && matchesSite && matchesQuery;
+  });
+});
+
+const availableTriggerRules = computed(() => {
+  const counts = new Map();
+  for (const entry of entriesForRuleOptions.value) {
+    const value = triggerRuleValue(entry);
+    const current = counts.get(value) || { value, label: triggerRuleLabel(value, entry), count: 0 };
+    current.count += 1;
+    if (!KNOWN_TRIGGER_LABELS[value] && entry?.reason && value === "l4ddos") {
+      current.label = entry.reason;
+    }
+    counts.set(value, current);
+  }
+  return [...counts.values()]
+    .sort((a, b) => a.label.localeCompare(b.label))
+    .map((item) => ({
+      value: item.value,
+      label: `${item.label} (${item.count})`,
+    }));
+});
 
 const siteLabel = (entry) => {
   if (Number(entry?.siteId) > 0) {
@@ -313,24 +382,12 @@ const siteLabel = (entry) => {
   return "-";
 };
 
-const filteredEntries = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase();
-  return blacklistEntries.value.filter((entry) => {
-    const matchesServer =
-      !serverFilter.value || String(entry.serverId) === String(serverFilter.value);
-    const matchesSite = entryMatchesSite(entry, selectedSite.value);
-    const matchesRule =
-      !ruleFilter.value || ruleFilter.value === "all" || entry.triggerRule === ruleFilter.value;
-    const matchesQuery =
-      !query ||
-      entry.ipAddress.toLowerCase().includes(query) ||
-      entry.geolocation.toLowerCase().includes(query) ||
-      entry.reason.toLowerCase().includes(query) ||
-      String(entry.url || "").toLowerCase().includes(query) ||
-      entry.server?.toLowerCase().includes(query);
-    return matchesServer && matchesSite && matchesRule && matchesQuery && !isBlockExpired(entry);
-  });
-});
+const filteredEntries = computed(() =>
+  entriesForRuleOptions.value.filter((entry) => {
+    if (!ruleFilter.value || ruleFilter.value === "all") return true;
+    return triggerRuleValue(entry) === ruleFilter.value;
+  }),
+);
 
 const formatTimestamp = (value) => {
   if (!value) return "-";
@@ -412,6 +469,7 @@ const loadSites = async () => {
 };
 
 const loadBlacklist = async () => {
+  isLoading.value = true;
   try {
     const serverId = serverFilter.value ? Number(serverFilter.value) : undefined;
     const list = await fetchBlacklistEntries(serverId);
@@ -447,7 +505,10 @@ const loadBlacklist = async () => {
       };
     });
   } catch (error) {
+    blacklistEntries.value = [];
     notifyError(BLACKLIST_TITLE, error?.message || "The temporary blocks could not be loaded.");
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -600,6 +661,13 @@ watch(serverFilter, async () => {
 watch(siteFilter, () => {
   if (serverFilter.value && !serverOptions.value.some((server) => String(server.id) === String(serverFilter.value))) {
     serverFilter.value = "";
+  }
+});
+
+watch(availableTriggerRules, (rules) => {
+  if (!ruleFilter.value || ruleFilter.value === "all") return;
+  if (!rules.some((rule) => rule.value === ruleFilter.value)) {
+    ruleFilter.value = "";
   }
 });
 
@@ -936,11 +1004,46 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.empty-state {
-  padding: 18px;
+.blacklist-table .col-index {
+  width: 52px;
+  padding-right: 8px;
+  color: var(--app-text-muted, #94a3b8);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.table-status {
+  padding: 28px 16px !important;
   text-align: center;
-  color: #94a3b8;
+  color: var(--app-text-muted, #94a3b8);
   font-size: var(--type-base);
+}
+
+.table-status--empty {
+  font-style: italic;
+}
+
+.table-status__spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border: 2px solid color-mix(in srgb, var(--app-text-muted, #94a3b8) 35%, transparent);
+  border-top-color: var(--dorian-viper-500, #2e9e6c);
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: blacklist-spin 0.7s linear infinite;
+}
+
+@keyframes blacklist-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.table-wrap.is-loading {
+  min-height: 120px;
 }
 </style>
 

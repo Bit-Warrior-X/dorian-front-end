@@ -84,6 +84,13 @@
               <td>Edge listening ports (HTTP/HTTPS) and system-bound ports</td>
             </tr>
             <tr>
+              <td>L7 Guard</td>
+              <td>
+                Per-IP L7 abuse detector: Rapid Reset / 444 / malformed / request thresholds, block TTL,
+                optional XDP escalation, and allow-listed IPv4 addresses
+              </td>
+            </tr>
+            <tr>
               <td>XDP</td>
               <td>
                 Sparta L4: protection mode, sensitivity, NIC, attach mode, block duration; TCP

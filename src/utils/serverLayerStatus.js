@@ -36,6 +36,24 @@ export function l4LicenseBlockMessage(server) {
   return 'The L4 license is not valid.'
 }
 
+/** L7 controls require a current license that includes Athens. */
+export function isL7LicenseValid(server) {
+  const license = String(server?.license || '').trim()
+  if (!license || !isLayerLicensed(license, 'l7')) return false
+  return !isLicenseExpired(server)
+}
+
+/** Warning copy when L7 Guard is opened without a valid L7 license. */
+export function l7LicenseBlockMessage(server) {
+  const license = String(server?.license || '').trim()
+  if (!license) return 'The L7 license is not valid. No license is assigned to this edge.'
+  if (!isLayerLicensed(license, 'l7')) {
+    return `The L7 license is not valid. ${licenseAllowsPhrase(license)}`
+  }
+  if (isLicenseExpired(server)) return 'The L7 license is not valid. This license has expired.'
+  return 'The L7 license is not valid.'
+}
+
 /** Normalize deploy/runtime status tokens from API or systemd probes. */
 export function normalizeRuntimeStatus(value) {
   const status = String(value ?? '').trim().toLowerCase()

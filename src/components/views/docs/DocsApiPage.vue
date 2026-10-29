@@ -130,6 +130,7 @@ const API_GROUPS = [
       { methods: 'POST', path: '/servers/{id}/refresh-runtime-status', note: 'Re-check Angelos, Sparta, and Athens.' },
       { methods: 'GET PUT', path: '/servers/{id}/l4', note: 'XDP settings. L4 license required.' },
       { methods: 'GET POST', path: '/servers/{id}/l4/blacklist · /l4/whitelist', note: 'Block IP and Allow IP lists.' },
+      { methods: 'GET PUT', path: '/servers/{id}/l7-guard', note: 'L7 Guard abuse detector. L7 license required.' },
       { methods: 'GET POST …', path: '/servers/{id}/listening-ports · /upstream-servers · /cache-rules · /compress' },
       { methods: 'POST', path: '/servers/{id}/upgrade-license', note: 'Change tier. Admin only.' },
       { methods: 'GET', path: '/license-plans · /deploy-versions' },
