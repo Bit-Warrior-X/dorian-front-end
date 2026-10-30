@@ -95,7 +95,7 @@
       </div>
     </section>
 
-    <AttackAlertsPanel :server-id="selectedEdge" />
+    <AttackAlertsPanel :server-id="selectedEdge" :refresh-ms="30_000" />
 
     <section class="dash-panel dash-nic-fleet" aria-label="Edge NIC traffic">
       <div class="dash-panel-head">
@@ -1546,44 +1546,51 @@ const applyHidden = (chartInstance) => {
   })
 }
 
+const applyBandwidthChartWindow = () => {
+  const now = Date.now()
+  const rangeMs = getBandwidthRangeMs(bandwidthRange.value)
+  const startMs = now - rangeMs
+  const endMs = now
+  const rangeOpts = {
+    xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
+    annotations: getApexTimeRangeAnnotations(startMs, endMs),
+  }
+  const pad = (series) => padSeriesToTimeRange(series, startMs, endMs)
+  const nicRangeOpts = { xaxis: windowXaxis(startMs, endMs) }
+  if (nicRxChartInstance) { nicRxChartInstance.updateSeries(bandwidthNicRxSeries.value, false); nicRxChartInstance.updateOptions(nicRangeOpts, false, false); applyHidden(nicRxChartInstance) }
+  if (nicTxChartInstance) { nicTxChartInstance.updateSeries(bandwidthNicTxSeries.value, false); nicTxChartInstance.updateOptions(nicRangeOpts, false, false); applyHidden(nicTxChartInstance) }
+  if (l7RxChartInstance) { l7RxChartInstance.updateSeries(pad(bandwidthL7RxSeries.value), false); l7RxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7RxChartInstance) }
+  if (l7TxChartInstance) { l7TxChartInstance.updateSeries(pad(bandwidthL7TxSeries.value), false); l7TxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7TxChartInstance) }
+  if (combinedChartInstance) { combinedChartInstance.updateSeries(pad(combinedBandwidthSeries.value), false); combinedChartInstance.updateOptions(rangeOpts, false, false) }
+  if (!deliveryChartInstance) createDeliveryChart()
+  if (deliveryChartInstance) { deliveryChartInstance.updateSeries(pad(l7BandwidthSeries.value), false); deliveryChartInstance.updateOptions(rangeOpts, false, false) }
+}
+
 const loadBandwidthSeries = async () => {
   if (!bandwidthServers.value.length) return
   try {
     const serverFilter = selectedEdge.value
     const siteFilter = selectedSite.value
-    const [payloadNicRx, payloadNicTx, payloadL7Rx, payloadL7Tx] = await Promise.all([
-      fetchBandwidthNicRxSeries(bandwidthRange.value, serverFilter, siteFilter),
+    // Paint TX + L7 first; NIC RX can be slower (L4 peak enrichment) so it must
+    // not gate the rest of Overview.
+    const [payloadNicTx, payloadL7Rx, payloadL7Tx] = await Promise.all([
       fetchBandwidthNicTxSeries(bandwidthRange.value, serverFilter, siteFilter),
       fetchBandwidthL7RxSeries(bandwidthRange.value, serverFilter, siteFilter),
       fetchBandwidthL7TxSeries(bandwidthRange.value, serverFilter, siteFilter),
     ])
-    const rxMeta = {}
     const txMeta = {}
-    bandwidthNicRxSeries.value = mapPayloadToSeries(payloadNicRx, rxMeta)
     bandwidthNicTxSeries.value = mapPayloadToSeries(payloadNicTx, txMeta)
-    nicRxMeta.value = rxMeta
     nicTxMeta.value = txMeta
     bandwidthL7RxSeries.value = mapPayloadToSeries(payloadL7Rx)
     bandwidthL7TxSeries.value = mapPayloadToSeries(payloadL7Tx)
+    applyBandwidthChartWindow()
+    scheduleEdgeNicSync()
 
-    const now = Date.now()
-    const rangeMs = getBandwidthRangeMs(bandwidthRange.value)
-    const startMs = now - rangeMs
-    const endMs = now
-    const rangeOpts = {
-      xaxis: getApexDatetimeXaxis(startMs, endMs, { tickCount: 6, fontSize: '10px' }),
-      annotations: getApexTimeRangeAnnotations(startMs, endMs),
-    }
-    const pad = (series) => padSeriesToTimeRange(series, startMs, endMs)
-
-    const nicRangeOpts = { xaxis: windowXaxis(startMs, endMs) }
-    if (nicRxChartInstance) { nicRxChartInstance.updateSeries(bandwidthNicRxSeries.value, false); nicRxChartInstance.updateOptions(nicRangeOpts, false, false); applyHidden(nicRxChartInstance) }
-    if (nicTxChartInstance) { nicTxChartInstance.updateSeries(bandwidthNicTxSeries.value, false); nicTxChartInstance.updateOptions(nicRangeOpts, false, false); applyHidden(nicTxChartInstance) }
-    if (l7RxChartInstance) { l7RxChartInstance.updateSeries(pad(bandwidthL7RxSeries.value), false); l7RxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7RxChartInstance) }
-    if (l7TxChartInstance) { l7TxChartInstance.updateSeries(pad(bandwidthL7TxSeries.value), false); l7TxChartInstance.updateOptions(rangeOpts, false, false); applyHidden(l7TxChartInstance) }
-    if (combinedChartInstance) { combinedChartInstance.updateSeries(pad(combinedBandwidthSeries.value), false); combinedChartInstance.updateOptions(rangeOpts, false, false) }
-    if (!deliveryChartInstance) createDeliveryChart()
-    if (deliveryChartInstance) { deliveryChartInstance.updateSeries(pad(l7BandwidthSeries.value), false); deliveryChartInstance.updateOptions(rangeOpts, false, false) }
+    const payloadNicRx = await fetchBandwidthNicRxSeries(bandwidthRange.value, serverFilter, siteFilter)
+    const rxMeta = {}
+    bandwidthNicRxSeries.value = mapPayloadToSeries(payloadNicRx, rxMeta)
+    nicRxMeta.value = rxMeta
+    applyBandwidthChartWindow()
     scheduleEdgeNicSync()
   } catch (error) {
     console.error('Failed to load bandwidth series', error)
