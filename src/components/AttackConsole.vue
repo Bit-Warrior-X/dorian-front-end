@@ -644,10 +644,28 @@ const formatClock = (value) => {
       ? value.getTime()
       : Date.parse(value || '')
   if (!Number.isFinite(parsed)) return ''
-  return new Date(parsed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  // Always browser-local 24h — must match chart axis/tooltip formatters.
+  return new Date(parsed).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 }
 
 const formatShortClock = (value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+
+/** ApexCharts datetime labels/tooltips — force local TZ (datetimeUTC flags are unreliable across versions). */
+const formatChartTime = (value) => {
+  const parsed = typeof value === 'number' ? value : Date.parse(value || '')
+  if (!Number.isFinite(parsed)) return ''
+  return new Date(parsed).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
 
 const formatBandwidthValue = (value) => {
   const numeric = Number(value)
@@ -900,7 +918,11 @@ const renderCharts = async () => {
       min: windowRange.value.start ?? (times.length ? times[0] : undefined),
       max: windowRange.value.end ?? (times.length ? times[times.length - 1] : undefined),
       tickAmount: 5,
-      labels: { style: labelStyle, datetimeUTC: false, format: 'HH:mm' },
+      labels: {
+        style: labelStyle,
+        datetimeUTC: false,
+        formatter: formatChartTime,
+      },
       axisBorder: { show: false },
       axisTicks: { show: false },
       tooltip: { enabled: false },
@@ -919,7 +941,7 @@ const renderCharts = async () => {
     tooltip: {
       theme: getApexTooltipTheme(),
       shared: true,
-      x: { format: 'HH:mm:ss' },
+      x: { formatter: formatChartTime },
       y: { formatter: isL7.value ? formatRps : formatBandwidthValue },
     },
   }
