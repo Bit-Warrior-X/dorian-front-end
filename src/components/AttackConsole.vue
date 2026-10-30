@@ -26,11 +26,11 @@
           <dl class="attack-console__times">
             <div>
               <dt>Started</dt>
-              <dd>{{ formatClock(attack?.startedAt) || '—' }}</dd>
+              <dd>{{ formatClock(startedMs) || '—' }}</dd>
             </div>
             <div>
               <dt>Ended</dt>
-              <dd>{{ ongoing ? '—' : (formatClock(attack?.endedAt || attack?.createdAt) || '—') }}</dd>
+              <dd>{{ ongoing ? '—' : (formatClock(endedMs) || '—') }}</dd>
             </div>
             <div>
               <dt>Duration</dt>
@@ -49,7 +49,7 @@
           <div class="track__hot" :style="{ left: `${blockPercent}%` }"></div>
           <div class="track__mark start">
             <i></i>
-            <span>Detected <b>{{ formatClock(attack?.startedAt) }}</b></span>
+            <span>Detected <b>{{ formatClock(startedMs) }}</b></span>
           </div>
           <div v-if="blockAt" class="track__mark mid" :style="{ left: `${blockPercent}%` }">
             <i class="hot"></i>
@@ -57,7 +57,7 @@
           </div>
           <div class="track__mark end">
             <i :class="{ done: !ongoing }"></i>
-            <span>{{ ongoing ? 'Ongoing' : 'Protection released' }} <b>{{ ongoing ? formatClock(now) : formatClock(attack?.endedAt || attack?.createdAt) }}</b></span>
+            <span>{{ ongoing ? 'Ongoing' : 'Protection released' }} <b>{{ ongoing ? formatClock(now) : formatClock(endedMs) }}</b></span>
           </div>
         </div>
       </header>
@@ -464,6 +464,9 @@ const modeLabel = computed(() => {
   return protectionOn.value ? 'Protection on · XDP' : 'Protection off · XDP'
 })
 const startedMs = computed(() => {
+  // Prefer edge attack.started_at (unix) over security-event report arrival.
+  const edge = Number(l7Incident.value?.started_at)
+  if (Number.isFinite(edge) && edge > 0) return edge * 1000
   const parsed = Date.parse(attack.value?.startedAt || '')
   return Number.isFinite(parsed) ? parsed : null
 })
@@ -471,21 +474,33 @@ const blockAt = computed(() => {
   const times = sources.value.map((source) => Date.parse(source.firstBlockedAt || '')).filter(Number.isFinite)
   return times.length ? Math.min(...times) : null
 })
+const endedMs = computed(() => {
+  if (ongoing.value) return now.value
+  const edge = Number(l7Incident.value?.ended_at)
+  if (Number.isFinite(edge) && edge > 0) return edge * 1000
+  const parsed = Date.parse(attack.value?.endedAt || '')
+  return Number.isFinite(parsed) ? parsed : null
+})
 const blockPercent = computed(() => {
   if (!startedMs.value || !blockAt.value) return 30
-  const end = ongoing.value ? now.value : Date.parse(attack.value?.endedAt || attack.value?.createdAt || '') || now.value
+  const end = endedMs.value || now.value
   const span = Math.max(end - startedMs.value, 1)
   return Math.min(78, Math.max(14, ((blockAt.value - startedMs.value) / span) * 100))
 })
-const durationLabel = computed(() => formatDuration(startedMs.value, ongoing.value ? now.value : Date.parse(attack.value?.endedAt || attack.value?.createdAt || '')))
+const durationLabel = computed(() => {
+  if (!startedMs.value) return ''
+  // Ongoing: live clock from started_at. Ended: prefer edge attack.duration.
+  if (ongoing.value) return formatDuration(startedMs.value, now.value)
+  const edgeSeconds = Number(l7Incident.value?.duration)
+  if (Number.isFinite(edgeSeconds) && edgeSeconds > 0) {
+    return formatDuration(0, edgeSeconds * 1000)
+  }
+  if (endedMs.value) return formatDuration(startedMs.value, endedMs.value)
+  return ''
+})
 const timeToBlock = computed(() => {
   if (!startedMs.value || !blockAt.value) return '—'
   return formatDuration(startedMs.value, blockAt.value) || '0s'
-})
-const endedMs = computed(() => {
-  if (ongoing.value) return now.value
-  const parsed = Date.parse(attack.value?.endedAt || attack.value?.createdAt || '')
-  return Number.isFinite(parsed) ? parsed : null
 })
 const l7Totals = computed(() => (l7Incident.value?.totals && typeof l7Incident.value.totals === 'object' ? l7Incident.value.totals : {}))
 const l7TotalRequests = computed(() => Number(l7Totals.value.requests) || drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0) + (Number(point.allowed) || 0), 0))
@@ -623,7 +638,7 @@ const chartCaption = computed(() => {
   const { start, end } = windowRange.value
   const range = start && end ? `${formatShortClock(start)} – ${formatShortClock(end)} · ` : ''
   if (isL7.value) {
-    return `${range}${L7_BUCKET_SECONDS} s buckets · requests/s · includes before/after context · shaded = attack window`
+    return `${range}${L7_BUCKET_SECONDS} s steps · requests/s · shaded = attack window`
   }
   return `${range}${SAMPLE_MS / 1000} s samples · shaded = vector windows`
 })
@@ -774,16 +789,46 @@ const cssVar = (name, fallback) => {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
 }
 
+/** Build a step series: each 10s bucket is a flat segment from t to t+10 (no slope). */
+const toL7StepSeries = (points) => {
+  const out = []
+  const bucketMs = L7_BUCKET_SECONDS * 1000
+  for (let i = 0; i < points.length; i += 1) {
+    const [timestamp, count] = points[i]
+    const rps = Math.round(((Number(count) || 0) / L7_BUCKET_SECONDS) * 10) / 10
+    const bucketEnd = timestamp + bucketMs
+    out.push([timestamp, rps])
+    out.push([bucketEnd, rps])
+    const nextTs = i + 1 < points.length ? points[i + 1][0] : null
+    // Gaps between buckets drop to zero — do not hold the previous rate across missing time.
+    if (nextTs != null && nextTs > bucketEnd) {
+      out.push([bucketEnd, 0])
+      out.push([nextTs, 0])
+    }
+  }
+  return out
+}
+
 const chartSeries = () => {
   if (isL7.value) {
-    const smoothed = bucketSeries(drops.value, ['allowed', 'blocked'], L7_BUCKET_SECONDS * 1000)
-    const toRps = (points) => points.map(([timestamp, count]) => [
-      timestamp,
-      Math.round(((Number(count) || 0) / L7_BUCKET_SECONDS) * 10) / 10,
-    ])
+    // Use each timeline point as-is (already 10s buckets). Do not re-average.
+    const rows = drops.value
+      .map((point) => {
+        const timestamp = Date.parse(point.timestamp)
+        if (!Number.isFinite(timestamp)) return null
+        return {
+          timestamp,
+          allowed: Number(point.allowed) || 0,
+          blocked: Number(point.blocked) || 0,
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.timestamp - b.timestamp)
+    const allowed = rows.map((row) => [row.timestamp, row.allowed])
+    const blocked = rows.map((row) => [row.timestamp, row.blocked])
     return [
-      { name: 'Passed', data: toRps(smoothed.allowed) },
-      { name: 'Blocked', data: toRps(smoothed.blocked) },
+      { name: 'Passed', data: toL7StepSeries(allowed) },
+      { name: 'Blocked', data: toL7StepSeries(blocked) },
     ]
   }
   const smoothed = bucketSeries(drops.value, ['allowed', 'blocked'], SAMPLE_MS)
@@ -885,8 +930,11 @@ const renderCharts = async () => {
   const theme = getApexChartColors()
   const seriesColors = getApexSeriesColors()
   const series = chartSeries()
-  const times = series[0].data.map((point) => point[0])
+  const times = series[0]?.data?.map((point) => point[0]) || []
   const labelStyle = { colors: theme.label, fontSize: '11px', fontFamily: 'var(--font-mono, ui-monospace, monospace)' }
+  const l7 = isL7.value
+  // L7: stepline so each 10s bucket is a flat bar (no slope between buckets).
+  // L4: smooth area as before.
   const options = {
     chart: {
       type: 'area',
@@ -901,8 +949,12 @@ const renderCharts = async () => {
     },
     series,
     colors: [seriesColors.viper, seriesColors.danger],
-    stroke: { curve: 'monotoneCubic', width: 1.5 },
-    fill: { type: 'solid', opacity: [0.28, 0.55] },
+    stroke: {
+      curve: l7 ? 'stepline' : 'monotoneCubic',
+      width: l7 ? 1.25 : 1.5,
+      lineCap: 'butt',
+    },
+    fill: { type: 'solid', opacity: l7 ? [0.22, 0.5] : [0.28, 0.55] },
     dataLabels: { enabled: false },
     grid: {
       borderColor: theme.grid,
@@ -935,18 +987,23 @@ const renderCharts = async () => {
       labels: {
         minWidth: 64,
         style: labelStyle,
-        formatter: isL7.value ? formatRps : formatBandwidthValue,
+        formatter: l7 ? formatRps : formatBandwidthValue,
       },
     },
     tooltip: {
       theme: getApexTooltipTheme(),
       shared: true,
       x: { formatter: formatChartTime },
-      y: { formatter: isL7.value ? formatRps : formatBandwidthValue },
+      y: { formatter: l7 ? formatRps : formatBandwidthValue },
     },
+  }
+  if (trafficChart && trafficChart.__dorianL7 !== l7) {
+    trafficChart.destroy()
+    trafficChart = null
   }
   if (!trafficChart) {
     trafficChart = new ApexCharts(trafficChartEl.value, options)
+    trafficChart.__dorianL7 = l7
     await trafficChart.render()
     return
   }
@@ -969,11 +1026,12 @@ const load = async () => {
       end: Number.isFinite(windowEnd) ? windowEnd : null,
     }
     const dropRows = Array.isArray(payload?.drops) ? payload.drops : []
-    drops.value = dropRows.length > DROP_RENDER_CAP
+    const isL7Attack = String(payload?.attack?.layer || '').toUpperCase() === 'L7' || Boolean(payload?.l7)
+    // Keep every L7 10s bucket — thinning would invent slopes across gaps.
+    drops.value = (!isL7Attack && dropRows.length > DROP_RENDER_CAP)
       ? dropRows.filter((_, index) => index === 0 || index === dropRows.length - 1 || index % Math.ceil(dropRows.length / DROP_RENDER_CAP) === 0).slice(0, DROP_RENDER_CAP)
       : dropRows
-    // Backend already merges panel before/after metrics with the incident timeline.
-    // Fall back to timeline alone only if drops were empty (older API).
+    // Fall back to incident timeline if drops were empty (older API).
     if (!drops.value.length && l7Incident.value && Array.isArray(l7Incident.value.timeline) && l7Incident.value.timeline.length) {
       drops.value = l7Incident.value.timeline.map((bucket) => ({
         timestamp: new Date(Number(bucket.t || 0) * 1000).toISOString(),
@@ -1099,8 +1157,8 @@ const exportReport = () => {
     `title: ${headline.value}`,
     `edge: ${attack.value?.serverName || '—'}`,
     `status: ${ongoing.value ? 'ongoing' : 'ended'}`,
-    `started: ${attack.value?.startedAt || '—'}`,
-    `ended: ${attack.value?.endedAt || attack.value?.createdAt || '—'}`,
+    `started: ${startedMs.value ? new Date(startedMs.value).toISOString() : '—'}`,
+    `ended: ${ongoing.value ? 'ongoing' : (endedMs.value ? new Date(endedMs.value).toISOString() : '—')}`,
     `duration: ${durationLabel.value || '—'}`,
     `sources: ${sourceCount.value} (${activeCount.value} active)`,
     `detector_reports: ${attack.value?.eventCount ?? 0}`,
