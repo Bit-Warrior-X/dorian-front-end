@@ -145,6 +145,11 @@ const props = defineProps({
     type: String,
     default: 'attack-detection',
   },
+  /** Optional layer filter: `l4`, `l7`, or empty for both. */
+  layer: {
+    type: String,
+    default: '',
+  },
   refreshMs: {
     type: Number,
     default: 10_000,
@@ -200,8 +205,18 @@ const rangeStatsSuffix = computed(() => {
   return label ? `in ${label}` : 'in range'
 })
 
+const layerFilter = computed(() => String(props.layer || '').trim().toLowerCase())
+const matchesLayer = (period) => {
+  const want = layerFilter.value
+  if (!want) return true
+  const isL7 = String(period?.layer || '').toUpperCase() === 'L7'
+  if (want === 'l7') return isL7
+  if (want === 'l4') return !isL7
+  return true
+}
 const scopedPeriods = computed(() => securityEvents.value.filter((period) => (
-  isAllServers.value || String(period.serverId ?? '') === String(props.serverId)
+  (isAllServers.value || String(period.serverId ?? '') === String(props.serverId))
+  && matchesLayer(period)
 )))
 const recentAttacks = computed(() => scopedPeriods.value.filter((period) => period.reqId))
 const liveAttacks = computed(() => recentAttacks.value.filter((period) => period.status === 'ongoing'))
@@ -350,7 +365,7 @@ const loadSecurityEvents = async () => {
         }
       : null
     const limit = rangeQuery ? 100 : 30
-    const payload = await fetchSecurityEvents(limit, props.serverId, rangeQuery)
+    const payload = await fetchSecurityEvents(limit, props.serverId, rangeQuery, layerFilter.value)
     securityEvents.value = Array.isArray(payload) ? payload : []
   } catch {
     securityEvents.value = []
@@ -366,7 +381,7 @@ const onVisible = () => {
 }
 
 watch(
-  () => [props.serverId, props.range, props.customStart, props.customEnd],
+  () => [props.serverId, props.range, props.customStart, props.customEnd, props.layer],
   () => {
     void loadSecurityEvents()
   },

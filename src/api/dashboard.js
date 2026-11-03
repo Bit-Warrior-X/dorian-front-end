@@ -73,12 +73,13 @@ export const downloadAttackSpartaArchive = async (reqId) => {
   return { blob, fileName, size: blob.size }
 }
 
-export const fetchSecurityEvents = async (limit = 5, serverId = 'all', range = null) => {
+export const fetchSecurityEvents = async (limit = 5, serverId = 'all', range = null, layer = '') => {
   const params = new URLSearchParams()
   if (limit) params.set('limit', String(limit))
   if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
   if (range?.start) params.set('start', String(range.start))
   if (range?.end) params.set('end', String(range.end))
+  if (layer) params.set('layer', String(layer))
   const query = params.toString()
   return apiRequest(`/dashboard/security-events${query ? `?${query}` : ''}`)
 }

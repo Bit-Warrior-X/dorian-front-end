@@ -62,6 +62,17 @@
       </button>
     </div>
 
+    <AttackAlertsPanel
+      :server-id="appliedFilters.server"
+      :range="appliedFilters.isCustom ? 'custom' : appliedFilters.range"
+      :custom-start="appliedFilters.isCustom ? appliedFilters.customStart : null"
+      :custom-end="appliedFilters.isCustom ? appliedFilters.customEnd : null"
+      :range-label="selectedRangeLabel"
+      layer="l7"
+      :refresh-ms="30_000"
+      detection-route="attack-detection"
+    />
+
     <nav class="dash-tabbar" aria-label="L7 attack sections" role="tablist">
       <button
         v-for="tab in securityTabs"
@@ -521,6 +532,7 @@ import 'flatpickr/dist/flatpickr.css'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import AttackAlertsPanel from '@/components/AttackAlertsPanel.vue'
 import InfoHint from '@/components/InfoHint.vue'
 import L7TempBlockConsole from '@/components/L7TempBlockConsole.vue'
 import PreviewDataBadge from '@/components/views/analytics/PreviewDataBadge.vue'

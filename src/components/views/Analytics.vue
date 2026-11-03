@@ -1617,16 +1617,12 @@ const loadAnalyticsData = async (tabId = activeTab.value) => {
   }
 
   try {
-    if (!loadedTabs.value.has('__summary')) {
-      await loadSummary(params)
-      if (seq !== analyticsLoadSeq) return
-      markTabLoaded('__summary')
-    }
-    if (!loadedTabs.value.has(tabId)) {
-      await loadTabData(tabId, params)
-      if (seq !== analyticsLoadSeq) return
-      markTabLoaded(tabId)
-    }
+    const jobs = []
+    const needSummary = !loadedTabs.value.has('__summary')
+    const needTab = !loadedTabs.value.has(tabId)
+    if (needSummary) jobs.push(loadSummary(params).then(() => markTabLoaded('__summary')))
+    if (needTab) jobs.push(loadTabData(tabId, params).then(() => markTabLoaded(tabId)))
+    if (jobs.length) await Promise.all(jobs)
     if (seq !== analyticsLoadSeq) return
     renderChartsForTab(tabId)
   } catch (error) {

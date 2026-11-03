@@ -61,6 +61,8 @@
       :custom-start="appliedFilters.isCustom ? appliedFilters.start : null"
       :custom-end="appliedFilters.isCustom ? appliedFilters.end : null"
       :range-label="selectedRangeLabel"
+      layer="l4"
+      :refresh-ms="30_000"
       detection-route="attack-detection"
     />
 
@@ -387,7 +389,6 @@ import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import AttackAlertsPanel from '@/components/AttackAlertsPanel.vue'
 import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchServers } from '@/api/servers'
-import { fetchSites } from '@/api/sites'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { l4AttackKind, l4AttackLabel } from '@/utils/l4AttackType'
@@ -792,13 +793,22 @@ const loadServers = async () => {
   }
 }
 
-const loadSites = async () => {
+const loadL4AttackLists = async (params = buildL4Params()) => {
   try {
-    const list = await fetchSites()
-    sites.value = Array.isArray(list) ? list : []
+    const [recentAttacks, topIps, attackSummaryPayload] = await Promise.all([
+      fetchL4Attacks('recent', { ...params, limit: 40 }),
+      fetchL4Attacks('top-ips', { ...params, limit: 50 }),
+      fetchL4Attacks('summary', params).catch(() => null),
+    ])
+    recentAttackRows.value = Array.isArray(recentAttacks) ? recentAttacks : []
+    seenIpRows.value = Array.isArray(topIps) ? topIps : []
+    attackTotals.value = {
+      attempts: Number(attackSummaryPayload?.attempts) || 0,
+      sources: Number(attackSummaryPayload?.sources) || 0,
+      edges: Number(attackSummaryPayload?.edges) || 0,
+    }
   } catch (error) {
-    console.error('Failed to load sites', error)
-    sites.value = []
+    console.error('Failed to load l4 attack lists', error)
   }
 }
 
@@ -807,13 +817,12 @@ const loadL4Analytics = async () => {
   isLoading.value = true
   const params = buildL4Params()
   try {
-    const [summary, trafficSeries, protocolSeries, recentAttacks, topIps, attackSummaryPayload] = await Promise.all([
+    // Overview first: summary + chart series. Attack lists load with the Attacks tab
+    // (or in the background) so the page is interactive sooner.
+    const [summary, trafficSeries, protocolSeries] = await Promise.all([
       fetchL4Summary(params),
       fetchL4Series('traffic', params),
       fetchL4Series('protocols', params),
-      fetchL4Attacks('recent', { ...params, limit: 40 }),
-      fetchL4Attacks('top-ips', { ...params, limit: 50 }),
-      fetchL4Attacks('summary', params).catch(() => null),
     ])
 
     l4Summary.value = {
@@ -823,15 +832,14 @@ const loadL4Analytics = async () => {
     }
     trafficPoints.value = Array.isArray(trafficSeries) ? trafficSeries : []
     protocolPoints.value = Array.isArray(protocolSeries) ? protocolSeries : []
-    recentAttackRows.value = Array.isArray(recentAttacks) ? recentAttacks : []
-    seenIpRows.value = Array.isArray(topIps) ? topIps : []
-    attackTotals.value = {
-      attempts: Number(attackSummaryPayload?.attempts) || 0,
-      sources: Number(attackSummaryPayload?.sources) || 0,
-      edges: Number(attackSummaryPayload?.edges) || 0,
-    }
 
     nextTick(() => renderChartsForTab(activeTab.value))
+
+    if (activeTab.value === 'attacks') {
+      await loadL4AttackLists(params)
+    } else {
+      void loadL4AttackLists(params)
+    }
   } catch (error) {
     console.error('Failed to load l4 analytics', error)
   } finally {
@@ -1062,7 +1070,12 @@ const renderChartsForTab = (tabId) => {
 
 const rerenderActiveCharts = () => renderChartsForTab(activeTab.value)
 
-watch(activeTab, (tab) => nextTick(() => renderChartsForTab(tab)))
+watch(activeTab, (tab) => {
+  if (tab === 'attacks' && !recentAttackRows.value.length && !seenIpRows.value.length) {
+    void loadL4AttackLists()
+  }
+  nextTick(() => renderChartsForTab(tab))
+})
 
 watch(selectedServer, () => {
   if (selectedSite.value === 'all') return
@@ -1072,7 +1085,6 @@ watch(selectedServer, () => {
 
 onMounted(() => {
   loadServers()
-  loadSites()
   loadL4Analytics()
   window.addEventListener('cdnproxy-theme-change', rerenderActiveCharts)
 })
