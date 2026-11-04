@@ -59,7 +59,7 @@ export const licensePlans = [
       'Custom WAF rules & request rate limiting',
       'Bot detection & CC attack protection',
       'Upstream load balancing & health checks',
-      'Access logs, security analytics & export',
+      'Live access, security events & log export',
     ],
   },
   {

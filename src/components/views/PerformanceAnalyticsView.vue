@@ -11,6 +11,8 @@
       </div>
     </header>
 
+    <AnalyticsGroupNav />
+
     <AnalyticsFilterBar :filters="filters" :loading="isLoading" id-prefix="performance" />
 
     <p v-if="loadError" class="analytics-error" role="alert">{{ loadError }}</p>
@@ -242,6 +244,7 @@ Use this to find which domains drag edge latency — a high p95 with a rising 5x
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import AnalyticsGroupNav from '@/components/AnalyticsGroupNav.vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import InfoHint from '@/components/InfoHint.vue'
 import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'

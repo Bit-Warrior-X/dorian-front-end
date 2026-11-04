@@ -110,7 +110,7 @@
       </div>
       <p class="docs-lead">
         Fleet-wide blocks also live under
-        <RouterLink :to="{ name: 'server-blacklist' }">Temporary blocks</RouterLink>.
+        <RouterLink :to="{ name: 'temp-blocks' }">Temporary blocks</RouterLink>.
       </p>
     </div>
   </div>

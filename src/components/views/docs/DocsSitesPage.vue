@@ -81,7 +81,7 @@
         <li>SSL issued or manual cert uploaded</li>
         <li>WAF pack assigned (or intentionally left open for testing)</li>
         <li>DNS A/AAAA (or CNAME) pointed at the edge public IP</li>
-        <li>Confirm hits in Access logs and Traffic analytics</li>
+        <li>Confirm hits in Live access and L7 Traffic</li>
       </ul>
     </div>
   </div>

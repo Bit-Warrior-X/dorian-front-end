@@ -5,10 +5,13 @@
         <h2>L4 Traffic</h2>
         <p>Everything crossing the NIC (HTTP, floods, SSH, system) — edge-wide, not per site.</p>
       </div>
-      <div class="dash-topbar__right">
+      <div class="dash-topbar__right dash-topbar__links">
+        <RouterLink class="dash-panel-link" :to="{ name: 'ddos-analytics' }">DDoS (L4)</RouterLink>
         <AppTopbarActions />
       </div>
     </header>
+
+    <AnalyticsGroupNav />
 
     <AnalyticsFilterBar :filters="filters" :loading="isLoading" id-prefix="l4-traffic" hide-site />
 
@@ -102,6 +105,8 @@
                 Packets seen by XDP and packets XDP dropped
                 · <code>pps_xdp_rx</code> / <code>pps_xdp_blocked</code>
                 · {{ filters.rangeLabel }}
+                · flood volume and attackers live under
+                <RouterLink class="dash-panel-link" :to="{ name: 'ddos-analytics' }">DDoS (L4)</RouterLink>
               </p>
             </div>
             <div class="dash-chart-readouts">
@@ -223,6 +228,8 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
+import AnalyticsGroupNav from '@/components/AnalyticsGroupNav.vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'
 import AnalyticsTimeChart from '@/components/views/analytics/AnalyticsTimeChart.vue'

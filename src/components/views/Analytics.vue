@@ -5,65 +5,15 @@
         <h2>L7 Traffic</h2>
         <p>Application-layer bandwidth, request counts, status codes, HTTP versions, and visitors.</p>
       </div>
-      <div class="dash-topbar__right">
+      <div class="dash-topbar__right dash-topbar__links">
+        <RouterLink class="dash-panel-link" :to="{ name: 'access-log' }">Live access</RouterLink>
         <AppTopbarActions />
       </div>
     </header>
 
-    <div class="dash-filterbar">
-      <div class="dash-filter-field">
-        <label for="analytics-server">Edge</label>
-        <select id="analytics-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
-          <option v-for="server in serverOptions" :key="server.value" :value="server.value">
-            {{ server.label }}
-          </option>
-        </select>
-      </div>
-      <div class="dash-filter-field">
-        <label for="analytics-site">Site</label>
-        <select id="analytics-site" v-model="selectedSite" class="dash-select" :disabled="isLoading">
-          <option v-for="site in siteOptions" :key="site.value" :value="site.value">
-            {{ site.label }}
-          </option>
-        </select>
-      </div>
-      <div class="dash-filter-field">
-        <label>Time range</label>
-        <div class="dash-range-pills">
-          <button
-            v-for="range in timeRanges"
-            :key="range.value"
-            type="button"
-            class="dash-range-pill"
-            :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
-            :disabled="isLoading"
-            @click="selectTimeRange(range.value)"
-          >
-            {{ range.label }}
-          </button>
-          <button
-            type="button"
-            class="dash-range-pill dash-range-pill--custom"
-            :class="{ active: isCustomRange }"
-            :disabled="isLoading"
-            @click="showCustomDialog = true"
-          >
-            Custom
-          </button>
-        </div>
-      </div>
-      <div class="dash-filter-summary">
-        <span class="dash-live-dot" aria-hidden="true"></span>
-        {{ selectedRangeLabel }}
-      </div>
-      <button type="button" class="dash-filter-apply" :disabled="isLoading" @click="applyFilters">
-        <span v-if="isLoading" class="dash-spinner dash-spinner--btn" aria-hidden="true"></span>
-        {{ isLoading ? 'Loading…' : 'Apply' }}
-      </button>
-    </div>
-    <p v-if="showHeavyRangeHint" class="dash-range-hint" role="note">
-      Longer ranges load more data and are slower. This choice applies for this visit only — returning to Analytics restores your last short range (≤12H).
-    </p>
+    <AnalyticsGroupNav />
+
+    <AnalyticsFilterBar :filters="filters" :loading="isLoading" id-prefix="l7-traffic" />
 
     <nav class="dash-tabbar" aria-label="Analytics sections" role="tablist">
       <button
@@ -100,7 +50,7 @@
               L7 Bandwidth
               <span class="dash-panel-hint">Application throughput · not NIC</span>
             </h3>
-            <span class="dash-count-tag">{{ selectedRangeLabel }}</span>
+            <span class="dash-count-tag">{{ filters.rangeLabel }}</span>
           </div>
           <div class="dash-readout-strip" aria-label="Live L7 bandwidth">
             <div class="dash-readout-cell lead">
@@ -136,7 +86,7 @@
               L7 Requests
               <span class="dash-panel-hint">HTTP request count over time</span>
             </h3>
-            <span class="dash-count-tag">{{ selectedRangeLabel }}</span>
+            <span class="dash-count-tag">{{ filters.rangeLabel }}</span>
           </div>
           <div class="dash-readout-strip" aria-label="L7 request summary">
             <div class="dash-readout-cell lead">
@@ -176,7 +126,7 @@
               Request / Response
               <span class="dash-panel-hint">Requests vs answered responses (excludes 444/499/5xx/9xx)</span>
             </h3>
-            <span class="dash-count-tag">{{ selectedRangeLabel }}</span>
+            <span class="dash-count-tag">{{ filters.rangeLabel }}</span>
           </div>
           <div class="dash-readout-strip" aria-label="Request / response summary">
             <div class="dash-readout-cell lead">
@@ -539,65 +489,21 @@
       </section>
     </div>
 
-    <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
-      <div class="dialog-content">
-        <div class="dialog-header">
-          <h3>Custom Time Range</h3>
-          <button class="dialog-close" @click="showCustomDialog = false">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div class="dialog-body">
-          <div class="dialog-form-group">
-            <label>Start Date & Time</label>
-            <FlatPickr
-              v-model="customStartDate"
-              :config="datePickerConfig"
-              class="dialog-input"
-              placeholder="Select start time"
-            />
-          </div>
-          <div class="dialog-form-group">
-            <label>End Date & Time</label>
-            <FlatPickr
-              v-model="customEndDate"
-              :config="datePickerConfig"
-              class="dialog-input"
-              placeholder="Select end time"
-            />
-          </div>
-        </div>
-        <div class="dialog-footer">
-          <button class="dialog-btn cancel-btn" @click="showCustomDialog = false">Cancel</button>
-          <button class="dialog-btn apply-btn" @click="applyCustomRange">Apply</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, reactive, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { RouterLink } from 'vue-router'
 import ApexCharts from 'apexcharts'
-import FlatPickr from 'vue-flatpickr-component'
-import 'flatpickr/dist/flatpickr.css'
 import { SvgMap } from 'vue-svg-map'
 import world from '@svg-maps/world'
+import AnalyticsGroupNav from '@/components/AnalyticsGroupNav.vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import { fetchServers } from '@/api/servers'
-import { fetchSites } from '@/api/sites'
+import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'
 import { fetchAnalyticsSeries, fetchAnalyticsSummary, fetchAnalyticsSummaryGroup } from '@/api/analytics'
+import { useAnalyticsFilters } from '@/composables/useAnalyticsFilters'
 import { notifyError } from '@/utils/notify'
-import {
-  isHeavyTimeRange,
-  rangeDurationMs,
-  readSharedTimeRange,
-  sharedTimeRanges,
-  writeSharedTimeRange,
-} from '@/utils/timeRange'
 import {
   formatApexTimeTick,
   getApexChartColors,
@@ -1002,28 +908,16 @@ const analyticsTabs = [
   { id: 'http', label: 'HTTP', hint: 'Methods and protocol versions' },
 ]
 
-const selectedServer = ref('all')
-const selectedSite = ref('all')
-const selectedTimeRange = ref(readSharedTimeRange())
-const isCustomRange = ref(false)
-const showCustomDialog = ref(false)
-const customStartDate = ref(null)
-const customEndDate = ref(null)
 const isLoading = ref(false)
-const datePickerConfig = { enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i' }
-const appliedFilters = ref({
-  server: 'all',
-  site: 'all',
-  range: readSharedTimeRange(),
-  isCustom: false,
-  customStart: '',
-  customEnd: '',
-})
 /** Tabs already fetched for the current applied-filter key. */
 const loadedTabs = ref(new Set())
 const loadedFilterKey = ref('')
 /** Shared across bandwidth + requests tabs so request-response is fetched once. */
 const requestResponseLoaded = ref(false)
+
+const filters = reactive(useAnalyticsFilters(() => {
+  void loadAnalyticsData()
+}))
 const l7BandwidthChart = ref(null)
 const l7RequestChart = ref(null)
 
@@ -1148,30 +1042,6 @@ const colorFromRate = (ratio) => {
   return chartColors().l4
 }
 
-const servers = ref([])
-const sites = ref([])
-const serverOptions = computed(() => [
-  { label: 'All edges', value: 'all' },
-  ...servers.value.map((server) => ({ label: server.name || `Server ${server.id}`, value: server.id })),
-])
-const siteOptions = computed(() => {
-  let list = sites.value
-  if (selectedServer.value !== 'all') {
-    const serverId = Number(selectedServer.value)
-    list = list.filter(
-      (site) =>
-        Array.isArray(site.serverIds) && site.serverIds.some((id) => Number(id) === serverId),
-    )
-  }
-  return [
-    { label: 'All Sites', value: 'all' },
-    ...list.map((site) => ({
-      label: site.domain || `Site ${site.id}`,
-      value: String(site.id),
-    })),
-  ]
-})
-
 const formatCompactCount = (value) => {
   const n = Number(value)
   if (value == null || !Number.isFinite(n)) return '—'
@@ -1236,13 +1106,6 @@ const formatDateTime = (value) => {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleString()
-}
-
-const formatDateInput = (value) => {
-  if (!value) return ''
-  const parsed = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(parsed.getTime())) return ''
-  return parsed.toISOString()
 }
 
 const statsDisplay = computed(() => ({
@@ -1310,54 +1173,6 @@ const statusCodeLegend = computed(() => {
   }))
 })
 
-const selectedRangeLabel = computed(() => {
-  if (isCustomRange.value) {
-    if (customStartDate.value && customEndDate.value) {
-      return `${formatDateTime(customStartDate.value)} → ${formatDateTime(customEndDate.value)}`
-    }
-    return 'Custom'
-  }
-  const found = timeRanges.find((range) => range.value === selectedTimeRange.value)
-  return found?.label || 'All'
-})
-
-const showHeavyRangeHint = computed(
-  () => !isCustomRange.value && isHeavyTimeRange(selectedTimeRange.value),
-)
-
-const timeRanges = sharedTimeRanges
-
-const selectTimeRange = (value) => {
-  selectedTimeRange.value = value
-  isCustomRange.value = false
-  writeSharedTimeRange(value)
-}
-
-const applyCustomRange = () => {
-  if (customStartDate.value && customEndDate.value) {
-    isCustomRange.value = true
-    selectedTimeRange.value = 'custom'
-    showCustomDialog.value = false
-    applyFilters()
-  }
-}
-
-const applyFilters = () => {
-  appliedFilters.value = {
-    server: selectedServer.value,
-    site: selectedSite.value,
-    range: selectedTimeRange.value,
-    isCustom: isCustomRange.value,
-    customStart: isCustomRange.value ? formatDateInput(customStartDate.value) : '',
-    customEnd: isCustomRange.value ? formatDateInput(customEndDate.value) : '',
-  }
-  loadedTabs.value = new Set()
-  loadedFilterKey.value = ''
-  void loadAnalyticsData()
-}
-
-const resolveRangeMs = (filters) => rangeDurationMs(filters?.range)
-
 const statusCodeList = [
   '200', '206', '301', '302', '400', '403', '404', '444',
   '499', '500', '502', '503', '504', '904', '929', '978',
@@ -1397,31 +1212,12 @@ const protocolLegend = computed(() => {
   }))
 })
 
-const loadServers = async () => {
-  try {
-    const list = await fetchServers()
-    servers.value = Array.isArray(list) ? list : []
-  } catch (error) {
-    console.error('Failed to load servers', error)
-    servers.value = []
+const analyticsFilterKey = () => {
+  const params = filters.params
+  if (params.start && params.end) {
+    return `${params.serverId}|${params.siteId}|custom|${params.start}|${params.end}`
   }
-}
-
-const loadSites = async () => {
-  try {
-    const list = await fetchSites()
-    sites.value = Array.isArray(list) ? list : []
-  } catch (error) {
-    console.error('Failed to load sites', error)
-    sites.value = []
-  }
-}
-
-const analyticsFilterKey = (filters = appliedFilters.value) => {
-  if (filters.isCustom) {
-    return `${filters.server}|${filters.site}|custom|${filters.customStart}|${filters.customEnd}`
-  }
-  return `${filters.server}|${filters.site}|${filters.range}`
+  return `${params.serverId}|${params.siteId}|${params.range}`
 }
 
 const applyRequestResponseSeries = (requestResponse) => {
@@ -1634,37 +1430,12 @@ const loadAnalyticsData = async (tabId = activeTab.value) => {
   }
 }
 
-const resolveRangeWindow = (filters) => {
-  const now = new Date()
-  if (filters.isCustom && filters.customStart && filters.customEnd) {
-    return {
-      start: new Date(filters.customStart),
-      end: new Date(filters.customEnd),
-    }
-  }
-  if (filters.range === 'today') {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
-  }
-  if (filters.range === 'yesterday') {
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    return { start: new Date(end.getTime() - 24 * 60 * 60 * 1000), end }
-  }
-  const duration = resolveRangeMs(filters)
-  return { start: new Date(now.getTime() - duration), end: now }
+const resolveRangeWindow = () => {
+  const { start, end } = filters.window
+  return { start: new Date(start), end: new Date(end) }
 }
 
-const buildAnalyticsParams = () => {
-  const filters = appliedFilters.value
-  const params = { serverId: filters.server, siteId: filters.site }
-  if (filters.isCustom && filters.customStart && filters.customEnd) {
-    params.start = filters.customStart
-    params.end = filters.customEnd
-  } else {
-    params.range = filters.range
-  }
-  return params
-}
+const buildAnalyticsParams = () => ({ ...filters.params })
 
 const mapSeriesPoints = (points, field) =>
   points
@@ -1691,7 +1462,7 @@ const buildRateRows = (rows) => {
 
 const renderL7BandwidthChart = () => {
   if (!l7BandwidthChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange([
     ...(l7RxBandwidthSeries.value.length ? [{ name: 'RX', data: l7RxBandwidthSeries.value[0].data }] : []),
@@ -1718,7 +1489,7 @@ const renderL7BandwidthChart = () => {
 
 const renderL7RequestChart = () => {
   if (!l7RequestChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(l7RequestSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
@@ -1742,7 +1513,7 @@ const renderL7RequestChart = () => {
 
 const renderRequestResponseChart = () => {
   if (!requestResponseChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(requestResponseSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
@@ -1766,7 +1537,7 @@ const renderRequestResponseChart = () => {
 
 const renderStatusCodeChart = () => {
   if (!statusCodeChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(statusCodeSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
@@ -1790,7 +1561,7 @@ const renderStatusCodeChart = () => {
 
 const renderIpCountChart = () => {
   if (!ipCountChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(ipCountSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
@@ -1815,7 +1586,7 @@ const renderIpCountChart = () => {
 
 const renderMethodChart = () => {
   if (!methodChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(methodSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
@@ -1852,7 +1623,7 @@ const renderProtocolPie = () => {
 
 const renderProtocolChart = () => {
   if (!protocolChart.value) return
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const rangeAxis = timeSeriesAxis(start, end)
   const series = padSeriesToTimeRange(protocolSeries.value, rangeAxis.startMs, rangeAxis.endMs)
   const options = {
@@ -1967,16 +1738,9 @@ watch(activeTab, (tab) => {
   void loadAnalyticsData(tab)
 })
 
-watch(selectedServer, () => {
-  if (selectedSite.value === 'all') return
-  const stillValid = siteOptions.value.some((option) => option.value === selectedSite.value)
-  if (!stillValid) selectedSite.value = 'all'
-})
-
-onMounted(() => {
-  loadServers()
-  loadSites()
-  void loadAnalyticsData(activeTab.value)
+onMounted(async () => {
+  await filters.loadScope()
+  filters.apply()
   window.addEventListener('cdnproxy-theme-change', rerenderAllCharts)
 })
 
@@ -2168,113 +1932,6 @@ onBeforeUnmount(() => {
   .analytics-view .dash-readout-cell:nth-child(n + 3) {
     border-top: 0.5px solid var(--app-border);
   }
-}
-
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--app-overlay);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.dialog-content {
-  background: var(--app-surface-solid);
-  border: 1px solid var(--app-border-strong);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px var(--app-shadow);
-  width: 90%;
-  max-width: 500px;
-}
-
-.dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--app-border-strong);
-}
-
-.dialog-header h3 {
-  margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: 700;
-  color: var(--app-heading);
-}
-
-.dialog-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--app-text-muted);
-  border-radius: 6px;
-}
-
-.dialog-body {
-  padding: 20px 24px;
-}
-
-.dialog-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.dialog-form-group label {
-  font-size: var(--type-caption);
-  color: var(--app-text-secondary);
-}
-
-.dialog-input {
-  padding: 10px 12px;
-  border: 1px solid var(--app-input-border);
-  border-radius: 8px;
-  font-size: var(--type-base);
-  outline: none;
-  background: var(--app-input-bg);
-  color: var(--app-text);
-}
-
-.dialog-input:focus {
-  border-color: var(--app-accent);
-  box-shadow: 0 0 0 3px var(--app-accent-soft);
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 24px 24px;
-  border-top: 1px solid var(--app-border-strong);
-}
-
-.dialog-btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: var(--type-base);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.cancel-btn {
-  background: var(--app-surface-hover);
-  color: var(--app-text-secondary);
-}
-
-.apply-btn {
-  /* primary fill from theme.css */
 }
 
 .top-ips-pie :deep(.apexcharts-canvas),

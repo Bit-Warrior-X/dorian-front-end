@@ -5,68 +5,18 @@
         <h2>DDoS (L4)</h2>
         <p>Network-layer flood rates, allowed vs dropped traffic, protocol mix, and attacking IPs.</p>
       </div>
-      <div class="dash-topbar__right">
+      <div class="dash-topbar__right dash-topbar__links">
+        <RouterLink class="dash-panel-link" :to="{ name: 'l4-traffic-analytics' }">L4 Traffic</RouterLink>
         <AppTopbarActions />
       </div>
     </header>
 
-    <div class="dash-filterbar">
-      <div class="dash-filter-field">
-        <label for="layer4-server">Edge</label>
-        <select id="layer4-server" v-model="selectedServer" class="dash-select" :disabled="isLoading">
-          <option v-for="server in serverOptions" :key="server.value" :value="server.value">
-            {{ server.label }}
-          </option>
-        </select>
-      </div>
-      <p class="dash-filter-note">L4 counters are per edge, not per site.</p>
-      <div class="dash-filter-field">
-        <label>Time range</label>
-        <div class="dash-range-pills">
-          <button
-            v-for="range in timeRanges"
-            :key="range.value"
-            type="button"
-            class="dash-range-pill"
-            :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
-            :disabled="isLoading"
-            @click="selectTimeRange(range.value)"
-          >
-            {{ range.label }}
-          </button>
-          <button
-            type="button"
-            class="dash-range-pill dash-range-pill--custom"
-            :class="{ active: isCustomRange }"
-            :disabled="isLoading"
-            @click="showCustomDialog = true"
-          >
-            Custom
-          </button>
-        </div>
-      </div>
-      <div class="dash-filter-summary">
-        <span class="dash-live-dot" aria-hidden="true"></span>
-        {{ selectedRangeLabel }}
-      </div>
-      <button type="button" class="dash-filter-apply" :disabled="isLoading" @click="applyFilters">
-        <span v-if="isLoading" class="dash-spinner dash-spinner--btn" aria-hidden="true"></span>
-        {{ isLoading ? 'Loading…' : 'Apply' }}
-      </button>
-    </div>
+    <AnalyticsGroupNav />
 
-    <AttackAlertsPanel
-      :server-id="appliedFilters.server"
-      :range="appliedFilters.range"
-      :custom-start="appliedFilters.isCustom ? appliedFilters.start : null"
-      :custom-end="appliedFilters.isCustom ? appliedFilters.end : null"
-      :range-label="selectedRangeLabel"
-      layer="l4"
-      :refresh-ms="30_000"
-      detection-route="attack-detection"
-    />
+    <AnalyticsFilterBar :filters="filters" :loading="isLoading" id-prefix="ddos" hide-site />
+    <p class="dash-filter-note">L4 counters are per edge, not per site.</p>
 
-    <nav class="dash-tabbar" aria-label="Layer 4 analytics sections" role="tablist">
+    <nav class="dash-tabbar" aria-label="DDoS sections" role="tablist">
       <button
         v-for="tab in l4Tabs"
         :key="tab.id"
@@ -303,44 +253,6 @@
       </section>
     </div>
 
-    <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
-      <div class="dialog-content">
-        <div class="dialog-header">
-          <h3>Custom time range</h3>
-          <button type="button" class="dialog-close" @click="showCustomDialog = false">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div class="dialog-body">
-          <div class="dialog-form-group">
-            <label>Start date &amp; time</label>
-            <FlatPickr
-              v-model="customStartDate"
-              :config="datePickerConfig"
-              class="dialog-input"
-              placeholder="Select start time"
-            />
-          </div>
-          <div class="dialog-form-group">
-            <label>End date &amp; time</label>
-            <FlatPickr
-              v-model="customEndDate"
-              :config="datePickerConfig"
-              class="dialog-input"
-              placeholder="Select end time"
-            />
-          </div>
-        </div>
-        <div class="dialog-footer">
-          <button type="button" class="dialog-btn cancel-btn" @click="showCustomDialog = false">Cancel</button>
-          <button type="button" class="dialog-btn apply-btn" @click="applyCustomRange">Apply</button>
-        </div>
-      </div>
-    </div>
-
     <div v-if="showBlacklistDialog" class="dialog-overlay" @click.self="closeBlacklistDialog">
       <div class="dialog-content">
         <div class="dialog-header">
@@ -381,20 +293,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, reactive } from 'vue'
+import { RouterLink } from 'vue-router'
 import ApexCharts from 'apexcharts'
-import FlatPickr from 'vue-flatpickr-component'
-import 'flatpickr/dist/flatpickr.css'
+import AnalyticsGroupNav from '@/components/AnalyticsGroupNav.vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
-import AttackAlertsPanel from '@/components/AttackAlertsPanel.vue'
+import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'
 import { createL4BlacklistEntry } from '@/api/l4'
-import { fetchServers } from '@/api/servers'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
+import { useAnalyticsFilters } from '@/composables/useAnalyticsFilters'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { l4AttackKind, l4AttackLabel } from '@/utils/l4AttackType'
 import { formatDateTime24, formatRelativeTime } from '@/utils/auditFormat'
 import { maskIp } from '@/utils/maskIp'
-import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
 import {
   formatApexTimeTick,
   getApexChartColors,
@@ -419,48 +330,34 @@ const chartTooltipTheme = () =>
     ? 'dark'
     : 'light'
 
-const resolveRangeMs = (filters) => rangeDurationMs(filters?.range)
-
-const resolveRangeWindow = (filters) => {
-  const now = new Date()
-  if (filters.isCustom && filters.start && filters.end) {
-    return { start: new Date(filters.start), end: new Date(filters.end) }
-  }
-  if (filters.range === 'today') {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    return { start, end: now }
-  }
-  if (filters.range === 'yesterday') {
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    return { start: new Date(end.getTime() - 24 * 60 * 60 * 1000), end }
-  }
-  const duration = resolveRangeMs(filters)
-  return { start: new Date(now.getTime() - duration), end: now }
+const resolveRangeWindow = () => {
+  const window = filters.window
+  return { start: new Date(window.start), end: new Date(window.end) }
 }
 
 const activeTab = ref('overview')
 const l4Tabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'protocols', label: 'Protocols' },
-  { id: 'attacks', label: 'Attacks' },
+  { id: 'attacks', label: 'Sources' },
 ]
 
-const selectedServer = ref('all')
-const selectedSite = ref('all')
-const selectedTimeRange = ref(readSharedTimeRange())
-const isCustomRange = ref(false)
-const showCustomDialog = ref(false)
-const customStartDate = ref(null)
-const customEndDate = ref(null)
 const isLoading = ref(false)
-const datePickerConfig = { enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i' }
-const appliedFilters = ref({
-  server: 'all',
-  site: 'all',
-  range: readSharedTimeRange(),
-  isCustom: false,
-  start: null,
-  end: null,
+const filters = reactive(useAnalyticsFilters(() => {
+  void loadL4Analytics()
+}))
+const selectedRangeLabel = computed(() => filters.rangeLabel)
+const servers = computed(() => filters.servers)
+const appliedFilters = computed(() => {
+  const params = filters.params
+  return {
+    server: params.serverId,
+    site: 'all',
+    range: params.range || 'custom',
+    isCustom: Boolean(params.start && params.end),
+    start: params.start || null,
+    end: params.end || null,
+  }
 })
 
 const trafficChart = ref(null)
@@ -469,8 +366,6 @@ let trafficChartInstance = null
 let protocolChartInstance = null
 
 const seenIpLimit = ref('10')
-const servers = ref([])
-const sites = ref([])
 const l4Summary = ref({
   totalTraffic: 0,
   allowedTraffic: 0,
@@ -486,70 +381,6 @@ const blacklistForm = ref({
   ip: '',
   reason: '',
   serverId: 'all',
-})
-
-const timeRanges = sharedTimeRanges
-
-const serverOptions = computed(() => [
-  { label: 'All edges', value: 'all' },
-  ...servers.value.map((server) => ({
-    label: server.name || `Server ${server.id}`,
-    value: server.id,
-  })),
-])
-
-const siteOptions = computed(() => {
-  let list = sites.value
-  if (selectedServer.value !== 'all') {
-    const serverId = Number(selectedServer.value)
-    list = list.filter(
-      (site) =>
-        Array.isArray(site.serverIds) && site.serverIds.some((id) => Number(id) === serverId),
-    )
-  }
-  return [
-    { label: 'All Sites', value: 'all' },
-    ...list.map((site) => ({
-      label: site.domain || `Site ${site.id}`,
-      value: String(site.id),
-    })),
-  ]
-})
-
-const selectTimeRange = (value) => {
-  selectedTimeRange.value = value
-  isCustomRange.value = false
-  writeSharedTimeRange(value)
-  applyFilters()
-}
-
-const applyCustomRange = () => {
-  if (!customStartDate.value || !customEndDate.value) return
-  isCustomRange.value = true
-  selectedTimeRange.value = 'custom'
-  showCustomDialog.value = false
-  applyFilters()
-}
-
-const applyFilters = () => {
-  appliedFilters.value = {
-    server: selectedServer.value,
-    site: 'all',
-    range: selectedTimeRange.value,
-    isCustom: isCustomRange.value,
-    start: isCustomRange.value ? formatDateInput(customStartDate.value) : null,
-    end: isCustomRange.value ? formatDateInput(customEndDate.value) : null,
-  }
-  loadL4Analytics()
-}
-
-const selectedRangeLabel = computed(() => {
-  const filters = appliedFilters.value
-  if (filters.isCustom && filters.start && filters.end) {
-    return `${formatDateTime(filters.start)} → ${formatDateTime(filters.end)}`
-  }
-  const match = timeRanges.find((range) => range.value === filters.range)
-  return match?.label ?? 'Custom'
 })
 
 const visibleSeenIps = computed(() => {
@@ -680,7 +511,7 @@ const protocolLegend = computed(() => {
 })
 
 const openBlacklistDialog = (ip, serverId) => {
-  const edgeId = serverId || (selectedServer.value !== 'all' ? selectedServer.value : 'all')
+  const edgeId = serverId || (filters.selectedServer !== 'all' ? filters.selectedServer : 'all')
   blacklistForm.value = {
     ip,
     reason: 'L4 attacking source',
@@ -694,7 +525,7 @@ const closeBlacklistDialog = () => {
 }
 
 const submitBlacklist = async () => {
-  const selectedId = blacklistForm.value.serverId || selectedServer.value
+  const selectedId = blacklistForm.value.serverId || filters.selectedServer
   const serverId = Number(selectedId)
   if (!serverId) {
     notifyError(L4_DDOS_TITLE, 'Please select an edge first.')
@@ -742,20 +573,6 @@ const formatThroughput = (value) => {
 
 const formatRate = (value) => `${formatThroughput(value).replace(' bytes', ' B')}/s`
 
-const formatDateTime = (value) => {
-  if (!value) return '-'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return parsed.toLocaleString()
-}
-
-const formatDateInput = (value) => {
-  if (!value) return ''
-  const parsed = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(parsed.getTime())) return ''
-  return parsed.toISOString()
-}
-
 const attackTypeLabel = (value) => l4AttackLabel(value)
 
 const attackBadgeClass = (value) => {
@@ -771,27 +588,7 @@ const mapSeriesPoints = (points, field) =>
     }))
     .filter((point) => !Number.isNaN(point.x))
 
-const buildL4Params = () => {
-  const filters = appliedFilters.value
-  const params = { serverId: filters.server, siteId: filters.site }
-  if (filters.isCustom && filters.start && filters.end) {
-    params.start = filters.start
-    params.end = filters.end
-  } else {
-    params.range = filters.range
-  }
-  return params
-}
-
-const loadServers = async () => {
-  try {
-    const list = await fetchServers()
-    servers.value = Array.isArray(list) ? list : []
-  } catch (error) {
-    console.error('Failed to load servers', error)
-    servers.value = []
-  }
-}
+const buildL4Params = () => ({ ...filters.params, siteId: 'all' })
 
 const loadL4AttackLists = async (params = buildL4Params()) => {
   try {
@@ -850,7 +647,7 @@ const loadL4Analytics = async () => {
 const renderTrafficChart = () => {
   if (!trafficChart.value) return
 
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const startMs = start.getTime()
   const endMs = end.getTime()
   const colors = chartColors()
@@ -965,7 +762,7 @@ const renderTrafficChart = () => {
 const renderProtocolChart = () => {
   if (!protocolChart.value) return
 
-  const { start, end } = resolveRangeWindow(appliedFilters.value)
+  const { start, end } = resolveRangeWindow()
   const startMs = start.getTime()
   const endMs = end.getTime()
   const palette = getApexLinePalette()
@@ -1077,15 +874,9 @@ watch(activeTab, (tab) => {
   nextTick(() => renderChartsForTab(tab))
 })
 
-watch(selectedServer, () => {
-  if (selectedSite.value === 'all') return
-  const stillValid = siteOptions.value.some((option) => option.value === selectedSite.value)
-  if (!stillValid) selectedSite.value = 'all'
-})
-
-onMounted(() => {
-  loadServers()
-  loadL4Analytics()
+onMounted(async () => {
+  await filters.loadScope()
+  filters.apply()
   window.addEventListener('cdnproxy-theme-change', rerenderActiveCharts)
 })
 

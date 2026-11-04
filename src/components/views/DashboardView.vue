@@ -87,10 +87,10 @@
           <span class="dash-kpi__value num">{{ formatPerMinute(latestRequestRate) }}</span>
           <span class="dash-kpi__hint">{{ formatPerMinute(latestResponseRate) }} responses / min</span>
         </div>
-        <RouterLink class="dash-kpi tone-warn" role="listitem" :to="{ name: 'attack-detection' }">
+        <RouterLink class="dash-kpi tone-warn" role="listitem" :to="{ name: 'security-events' }">
           <span class="dash-kpi__label">Threats blocked</span>
           <span class="dash-kpi__value num warn">{{ formatNumber(threatsThisMonth) }}</span>
-          <span class="dash-kpi__hint">this month · open detection</span>
+          <span class="dash-kpi__hint">this month · Security events</span>
         </RouterLink>
       </div>
     </section>
@@ -204,7 +204,7 @@
           </h3>
           <div class="dash-panel-head__actions">
             <span class="dash-count-tag">{{ bandwidthRangeLabel }}</span>
-            <RouterLink class="dash-panel-link" :to="{ name: 'l7-traffic-analytics' }">Analytics</RouterLink>
+            <RouterLink class="dash-panel-link" :to="{ name: 'l7-traffic-analytics' }">L7 Traffic</RouterLink>
           </div>
         </div>
 
@@ -319,9 +319,8 @@ import {
   fetchBandwidthNicTxSeries,
   fetchDashboardSummary,
   fetchDashboardTopDomains,
-  fetchRequestResponseSeries,
-  fetchStatusCodeSeries,
 } from '@/api/dashboard'
+import { fetchAnalyticsSeries } from '@/api/analytics'
 import { fetchSecuritySummaryGroup } from '@/api/securityAnalytics'
 import { fetchSites } from '@/api/sites'
 import { fetchServers, fetchServersHostMetrics } from '@/api/servers'
@@ -545,7 +544,7 @@ const threatPanels = computed(() => {
       hint: 'this month',
       tone: 'l4',
       delta: threatDelta(stats.l4AttacksThisMonth, stats.l4AttacksPreviousMonth),
-      to: { name: 'layer4-attack-analytics' },
+      to: { name: 'security-events' },
     },
     {
       id: 'l4-prev',
@@ -554,7 +553,7 @@ const threatPanels = computed(() => {
       hint: 'last month',
       tone: 'l4',
       delta: null,
-      to: { name: 'layer4-attack-analytics' },
+      to: { name: 'security-events' },
     },
     {
       id: 'l7-now',
@@ -563,7 +562,7 @@ const threatPanels = computed(() => {
       hint: 'this month',
       tone: 'l7',
       delta: threatDelta(stats.l7ThreatsThisMonth, stats.l7ThreatsPreviousMonth),
-      to: { name: 'security-analytics-detail' },
+      to: { name: 'security-events' },
     },
     {
       id: 'l7-prev',
@@ -572,7 +571,7 @@ const threatPanels = computed(() => {
       hint: 'last month',
       tone: 'l7',
       delta: null,
-      to: { name: 'security-analytics-detail' },
+      to: { name: 'security-events' },
     },
     {
       id: 'blocked',
@@ -581,7 +580,7 @@ const threatPanels = computed(() => {
       hint: 'active blocks',
       tone: 'danger',
       delta: null,
-      to: { name: 'server-blacklist' },
+      to: { name: 'temp-blocks' },
     },
   ]
 })
@@ -1597,9 +1596,16 @@ const loadBandwidthSeries = async () => {
   }
 }
 
+const overviewSeriesParams = (range) => ({
+  range,
+  serverId: selectedEdge.value,
+  siteId: selectedSite.value,
+})
+
 const loadRequestResponseSeries = async () => {
   try {
-    const payload = await fetchRequestResponseSeries(requestRange.value, selectedEdge.value, selectedSite.value)
+    // Prefer /analytics/series (canonical) over legacy /dashboard/request-response.
+    const payload = await fetchAnalyticsSeries('request-response', overviewSeriesParams(requestRange.value))
     const points = Array.isArray(payload) ? payload : []
     const mapped = points
       .map((p) => ({ x: new Date(p.timestamp).getTime(), request: Number(p.requestCount ?? 0), response: Number(p.responseCount ?? 0) }))
@@ -1621,7 +1627,7 @@ const loadRequestResponseSeries = async () => {
 
 const loadStatusCodeSeries = async () => {
   try {
-    const payload = await fetchStatusCodeSeries(statusRange.value, selectedEdge.value, selectedSite.value)
+    const payload = await fetchAnalyticsSeries('status-codes', overviewSeriesParams(statusRange.value))
     const points = Array.isArray(payload) ? payload : []
     const mapped = points
       .map((p) => ({

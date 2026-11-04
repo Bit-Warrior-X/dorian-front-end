@@ -1,138 +1,156 @@
 <template>
-  <div class="dashboard-view log-export-view">
+  <div class="dashboard-view log-export-view" :aria-busy="isListing || isExporting">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Log export</h2>
-        <p>Download hourly L4/L7 files from an edge, or query live L7 access and refused-HTTP rows.</p>
+        <h2>Export &amp; history</h2>
+        <p>Download retained edge hours or stream Athens L7 history.</p>
+      </div>
+      <div class="dash-topbar__right">
+        <AppTopbarActions />
       </div>
     </header>
 
-    <nav class="dash-tabbar export-tabbar" aria-label="Log export modes" role="tablist">
-      <button
-        type="button"
-        role="tab"
-        class="dash-tab"
-        :class="{ active: mode === 'browse' }"
-        :aria-selected="mode === 'browse'"
-        @click="mode = 'browse'"
-      >
-        <svg class="dash-tab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 6h16M4 12h16M4 18h10" />
-        </svg>
-        <span class="dash-tab__label">Hourly files</span>
-      </button>
-      <button
-        type="button"
-        role="tab"
-        class="dash-tab"
-        :class="{ active: mode === 'query' }"
-        :aria-selected="mode === 'query'"
-        @click="mode = 'query'"
-      >
-        <svg class="dash-tab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v12M8 11l4 4 4-4M5 19h14" />
-        </svg>
-        <span class="dash-tab__label">Query export</span>
-      </button>
-    </nav>
+    <AnalyticsGroupNav />
 
-    <section v-if="mode === 'browse'" class="dash-grid12">
-      <div class="dash-panel c-12">
-        <div class="dash-panel-head">
-          <div>
-            <h3>Edge hourly logs</h3>
-            <p class="dash-panel-desc">L4 Sparta and L7 Athens files retained on the edge. Larger hours usually indicate attack traffic.</p>
-          </div>
-          <span class="dash-count-tag">{{ browseRangeLabel }}</span>
+    <div class="export-toolbar">
+      <nav class="export-segment" aria-label="Export modes" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="export-segment__btn"
+          :class="{ active: mode === 'browse' }"
+          :aria-selected="mode === 'browse'"
+          @click="mode = 'browse'"
+        >
+          Hourly files
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="export-segment__btn"
+          :class="{ active: mode === 'query' }"
+          :aria-selected="mode === 'query'"
+          @click="mode = 'query'"
+        >
+          Query export
+        </button>
+      </nav>
+      <p class="export-toolbar__hint">
+        <template v-if="mode === 'browse'">Browse L4/L7 files kept on the edge.</template>
+        <template v-else>Stream L7 access and refused-HTTP rows (max {{ maxDays }}d / {{ maxRowsLabel }} rows).</template>
+      </p>
+    </div>
+
+    <template v-if="mode === 'browse'">
+      <div class="dash-filterbar export-filterbar">
+        <div class="dash-filter-field">
+          <label for="browse-server">Edge</label>
+          <select
+            id="browse-server"
+            v-model="browseServer"
+            class="dash-select"
+            :disabled="isLoadingMeta || isListing"
+          >
+            <option disabled value="">Select an edge</option>
+            <option v-for="server in browseServerOptions" :key="server.value" :value="server.value">
+              {{ server.label }}
+            </option>
+          </select>
         </div>
-
-        <div class="browse-toolbar">
-          <div class="export-field browse-server-field">
-            <label for="browse-server">Edge</label>
-            <select
-              id="browse-server"
-              v-model="browseServer"
-              class="dash-select"
-              :disabled="isLoadingMeta || isListing"
+        <div class="dash-filter-field">
+          <label>Layer</label>
+          <div class="layer-segmented" role="radiogroup" aria-label="Log layer">
+            <button
+              v-for="option in layerOptions"
+              :key="option.value"
+              type="button"
+              class="layer-segmented__btn"
+              :class="{ active: browseLayer === option.value }"
+              :disabled="isListing"
+              @click="browseLayer = option.value"
             >
-              <option disabled value="">Select an edge</option>
-              <option v-for="server in browseServerOptions" :key="server.value" :value="server.value">
-                {{ server.label }}
-              </option>
-            </select>
+              {{ option.label }}
+            </button>
           </div>
-
-          <div class="export-field browse-range-field">
-            <span class="export-field__label">Time range</span>
-            <div class="dash-range-pills export-range-pills">
-              <button
-                v-for="range in timeRanges"
-                :key="`browse-${range.value}`"
-                type="button"
-                class="dash-range-pill"
-                :class="{ active: browseTimeRange === range.value && !browseIsCustom }"
-                :disabled="isListing"
-                @click="selectBrowseTimeRange(range.value)"
-              >
-                {{ range.label }}
-              </button>
-              <button
-                type="button"
-                class="dash-range-pill dash-range-pill--custom"
-                :class="{ active: browseIsCustom }"
-                :disabled="isListing"
-                @click="openCustomDialog('browse')"
-              >
-                Custom
-              </button>
-            </div>
-          </div>
-
-          <div class="export-field">
-            <span class="export-field__label">Layer</span>
-            <div class="layer-segmented" role="radiogroup" aria-label="Log layer">
-              <button
-                v-for="option in layerOptions"
-                :key="option.value"
-                type="button"
-                class="layer-segmented__btn"
-                :class="{ active: browseLayer === option.value }"
-                :disabled="isListing"
-                @click="browseLayer = option.value"
-              >
-                {{ option.label }}
-              </button>
-            </div>
-          </div>
-
-          <div class="browse-actions">
+        </div>
+        <div class="dash-filter-field dash-filter-field--grow">
+          <label>Time range</label>
+          <div class="dash-range-pills">
+            <button
+              v-for="range in timeRanges"
+              :key="`browse-${range.value}`"
+              type="button"
+              class="dash-range-pill"
+              :class="{ active: browseTimeRange === range.value && !browseIsCustom }"
+              :disabled="isListing"
+              @click="selectBrowseTimeRange(range.value)"
+            >
+              {{ range.label }}
+            </button>
             <button
               type="button"
-              class="dash-filter-apply"
-              :disabled="!browseServer || isListing || isLoadingMeta"
-              @click="loadLogFiles"
+              class="dash-range-pill dash-range-pill--custom"
+              :class="{ active: browseIsCustom }"
+              :disabled="isListing"
+              @click="openCustomDialog('browse')"
             >
-              {{ isListing ? 'Loading…' : 'List logs' }}
+              Custom
             </button>
-            <label class="browse-check">
-              <input v-model="attackOnly" type="checkbox" />
-              Attack-sized only
-            </label>
           </div>
         </div>
+        <button
+          type="button"
+          class="export-toggle"
+          :class="{ active: attackOnly }"
+          :aria-pressed="attackOnly"
+          :disabled="isListing"
+          @click="attackOnly = !attackOnly"
+        >
+          Attack-sized
+        </button>
+        <div class="dash-filter-summary">{{ browseRangeLabel }}</div>
+        <button
+          type="button"
+          class="dash-filter-apply"
+          :disabled="!browseServer || isListing || isLoadingMeta"
+          @click="loadLogFiles"
+        >
+          <span v-if="isListing" class="dash-spinner dash-spinner--btn" aria-hidden="true"></span>
+          {{ isListing ? 'Loading…' : 'List logs' }}
+        </button>
+      </div>
 
-        <p v-if="listError" class="export-warn">{{ listError }}</p>
+      <p v-if="listError" class="export-banner export-banner--warn" role="alert">{{ listError }}</p>
+
+      <section class="dash-panel export-panel">
+        <div class="export-panel__head">
+          <div>
+            <h3>Edge hourly logs</h3>
+            <p class="dash-panel-desc">Open to inspect lines, or download the raw hour file.</p>
+          </div>
+          <div v-if="filteredFiles.length" class="export-meta" aria-label="Listed files">
+            <span class="export-meta__item">
+              <strong class="num">{{ browseKpis.files }}</strong> files
+            </span>
+            <span class="export-meta__item export-meta__item--warn">
+              <strong class="num">{{ browseKpis.attackCount }}</strong> attack-sized
+            </span>
+            <span class="export-meta__item">
+              <strong class="num">{{ formatBrowseBytes(browseKpis.totalBytes) }}</strong> total
+            </span>
+          </div>
+        </div>
 
         <div v-if="filteredFiles.length" class="log-table-wrap">
           <table class="log-table">
             <thead>
               <tr>
                 <th>Layer</th>
-                <th>Hour / name</th>
+                <th>Hour</th>
                 <th>Kind</th>
                 <th class="num">Size</th>
                 <th>Path</th>
-                <th></th>
+                <th class="actions-head"></th>
               </tr>
             </thead>
             <tbody>
@@ -147,151 +165,147 @@
                 <td>
                   <div class="hour-cell">
                     <strong>{{ file.hour || file.name }}</strong>
-                    <span v-if="file.attackHint" class="attack-badge">Likely attack</span>
+                    <span v-if="file.attackHint" class="attack-badge">Attack</span>
                   </div>
                   <div class="muted">{{ file.name }}</div>
                 </td>
-                <td>{{ file.kind }}</td>
+                <td class="kind-cell">{{ file.kind }}</td>
                 <td class="num">{{ file.sizeLabel }}</td>
                 <td class="path-cell" :title="file.path">{{ shortPath(file.path) }}</td>
                 <td class="actions-cell">
-                  <button type="button" class="link-btn" @click="openLogFile(file)">Open</button>
-                  <button
-                    type="button"
-                    class="link-btn"
-                    :disabled="downloadingPath === file.path"
-                    @click="downloadLogFile(file)"
-                  >
-                    {{ downloadingPath === file.path ? '…' : 'Download' }}
-                  </button>
+                  <div class="actions-cell__inner">
+                    <button type="button" class="table-link" @click="openLogFile(file)">Open</button>
+                    <button
+                      type="button"
+                      class="table-link table-link--accent"
+                      :disabled="downloadingPath === file.path"
+                      @click="downloadLogFile(file)"
+                    >
+                      {{ downloadingPath === file.path ? '…' : 'Download' }}
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p v-else-if="hasListed && !isListing" class="export-hint">
-          No log files in {{ browseRangeLabel }} for this edge / layer.
-        </p>
-      </div>
-    </section>
 
-    <section v-else class="dash-grid12">
-      <div class="dash-panel c-8 dash-chart-panel dash-chart-panel--info">
-        <div class="dash-panel-head">
-          <div>
-            <h3>Athens query export</h3>
-            <p class="dash-panel-desc">Stream L7 access rows and refused-HTTP rows via Athens (max {{ maxDays }} days, {{ maxRowsLabel }} rows). L4 files are on Hourly files.</p>
-          </div>
+        <div v-else-if="hasListed && !isListing" class="export-empty">
+          <h4>No files in this window</h4>
+          <p>Nothing matched {{ browseRangeLabel }} for this edge and layer{{ attackOnly ? ' with attack-sized on' : '' }}.</p>
         </div>
 
-        <form class="export-form" @submit.prevent="handleExport">
-          <div class="export-field-row">
-            <div class="export-field">
-              <label for="export-server">Edge</label>
-              <select id="export-server" v-model="selectedServer" class="dash-select" :disabled="isLoadingMeta || isExporting">
-                <option v-for="server in serverOptions" :key="server.value" :value="server.value">
-                  {{ server.label }}
-                </option>
-              </select>
-            </div>
-            <div class="export-field">
-              <label for="export-site">Site</label>
-              <select id="export-site" v-model="selectedSite" class="dash-select" :disabled="isLoadingMeta || isExporting">
-                <option v-for="site in siteOptions" :key="site.value" :value="site.value">
-                  {{ site.label }}
-                </option>
-              </select>
-            </div>
-          </div>
+        <div v-else-if="!hasListed && !isListing" class="export-empty">
+          <h4>Select an edge, then list logs</h4>
+          <p>Hourly archives stay on the edge until you list and download them.</p>
+        </div>
+      </section>
+    </template>
 
-          <div class="export-field">
-            <span class="export-field__label">Time range</span>
-            <div class="dash-range-pills export-range-pills">
-              <button
-                v-for="range in timeRanges"
-                :key="`query-${range.value}`"
-                type="button"
-                class="dash-range-pill"
-                :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
-                :disabled="isExporting"
-                @click="selectTimeRange(range.value)"
-              >
-                {{ range.label }}
-              </button>
-              <button
-                type="button"
-                class="dash-range-pill dash-range-pill--custom"
-                :class="{ active: isCustomRange }"
-                :disabled="isExporting"
-                @click="openCustomDialog('query')"
-              >
-                Custom
-              </button>
-            </div>
-            <p class="export-hint">{{ rangeLabel }}</p>
-          </div>
-
-          <div class="export-field">
-            <label for="export-type">Log type</label>
-            <select id="export-type" v-model="logType" class="dash-select">
-              <option value="access">Access logs (L7)</option>
-              <option value="security">Refused HTTP (Athens)</option>
-              <option value="all">Access + refused HTTP</option>
-              <option value="error" disabled>Error logs (not available yet)</option>
-            </select>
-          </div>
-
-          <div class="export-field">
-            <span class="export-field__label">Export format</span>
-            <div class="export-format-row" role="radiogroup" aria-label="Export format">
-              <label
-                v-for="option in formatOptions"
-                :key="option.value"
-                class="export-format"
-                :class="{ active: format === option.value }"
-              >
-                <input v-model="format" type="radio" :value="option.value" />
-                <span>{{ option.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="export-actions">
-            <button type="submit" class="dash-filter-apply" :disabled="!canExport || isExporting || isLoadingMeta">
-              {{ isExporting ? 'Preparing…' : 'Export logs' }}
+    <template v-else>
+      <form class="dash-filterbar export-filterbar" @submit.prevent="handleExport">
+        <div class="dash-filter-field">
+          <label for="export-server">Edge</label>
+          <select id="export-server" v-model="selectedServer" class="dash-select" :disabled="isLoadingMeta || isExporting">
+            <option v-for="server in serverOptions" :key="server.value" :value="server.value">
+              {{ server.label }}
+            </option>
+          </select>
+        </div>
+        <div class="dash-filter-field">
+          <label for="export-site">Site</label>
+          <select id="export-site" v-model="selectedSite" class="dash-select" :disabled="isLoadingMeta || isExporting">
+            <option v-for="site in siteOptions" :key="site.value" :value="site.value">
+              {{ site.label }}
+            </option>
+          </select>
+        </div>
+        <div class="dash-filter-field">
+          <label for="export-type">Log type</label>
+          <select id="export-type" v-model="logType" class="dash-select" :disabled="isExporting">
+            <option value="access">Access logs (L7)</option>
+            <option value="security">Refused HTTP (Athens)</option>
+            <option value="all">Access + refused HTTP</option>
+            <option value="error" disabled>Error logs (not available yet)</option>
+          </select>
+        </div>
+        <div class="dash-filter-field">
+          <label>Format</label>
+          <div class="layer-segmented" role="radiogroup" aria-label="Export format">
+            <button
+              v-for="option in formatOptions"
+              :key="option.value"
+              type="button"
+              class="layer-segmented__btn"
+              :class="{ active: format === option.value }"
+              :disabled="isExporting"
+              @click="format = option.value"
+            >
+              {{ option.label }}
             </button>
-            <p v-if="lastWarning" class="export-warn">{{ lastWarning }}</p>
           </div>
-        </form>
-      </div>
+        </div>
+        <div class="dash-filter-field dash-filter-field--grow">
+          <label>Time range</label>
+          <div class="dash-range-pills">
+            <button
+              v-for="range in timeRanges"
+              :key="`query-${range.value}`"
+              type="button"
+              class="dash-range-pill"
+              :class="{ active: selectedTimeRange === range.value && !isCustomRange }"
+              :disabled="isExporting"
+              @click="selectTimeRange(range.value)"
+            >
+              {{ range.label }}
+            </button>
+            <button
+              type="button"
+              class="dash-range-pill dash-range-pill--custom"
+              :class="{ active: isCustomRange }"
+              :disabled="isExporting"
+              @click="openCustomDialog('query')"
+            >
+              Custom
+            </button>
+          </div>
+        </div>
+        <div class="dash-filter-summary">{{ rangeLabel }}</div>
+        <button type="submit" class="dash-filter-apply" :disabled="!canExport || isExporting || isLoadingMeta">
+          <span v-if="isExporting" class="dash-spinner dash-spinner--btn" aria-hidden="true"></span>
+          {{ isExporting ? 'Preparing…' : 'Export' }}
+        </button>
+      </form>
 
-      <div class="dash-panel c-4">
-        <div class="dash-panel-head">
+      <p v-if="lastWarning" class="export-banner export-banner--warn" role="status">{{ lastWarning }}</p>
+
+      <section class="dash-panel export-panel">
+        <div class="export-panel__head">
           <div>
-            <h3>Summary</h3>
-            <p class="dash-panel-desc">Current selection</p>
+            <h3>Ready to export</h3>
+            <p class="dash-panel-desc">Athens streams matching rows for the filters above.</p>
           </div>
         </div>
-        <div class="dash-kpi-strip export-summary">
-          <article class="dash-kpi dash-kpi--info">
-            <span class="dash-kpi__label">Log type</span>
-            <span class="dash-kpi__value">{{ logTypeLabel }}</span>
-          </article>
-          <article class="dash-kpi dash-kpi--total">
-            <span class="dash-kpi__label">Format</span>
-            <span class="dash-kpi__value">{{ format.toUpperCase() }}</span>
-          </article>
-          <article class="dash-kpi">
-            <span class="dash-kpi__label">Scope</span>
-            <span class="dash-kpi__value export-summary__range">{{ scopeLabel }}</span>
-          </article>
-          <article class="dash-kpi">
-            <span class="dash-kpi__label">Range</span>
-            <span class="dash-kpi__value export-summary__range">{{ rangeLabel }}</span>
-          </article>
-        </div>
-      </div>
-    </section>
+        <dl class="export-summary-inline">
+          <div>
+            <dt>Type</dt>
+            <dd>{{ logTypeLabel }}</dd>
+          </div>
+          <div>
+            <dt>Format</dt>
+            <dd class="num">{{ format.toUpperCase() }}</dd>
+          </div>
+          <div>
+            <dt>Scope</dt>
+            <dd>{{ scopeLabel }}</dd>
+          </div>
+          <div>
+            <dt>Range</dt>
+            <dd>{{ rangeLabel }}</dd>
+          </div>
+        </dl>
+      </section>
+    </template>
 
     <div
       v-if="openFile"
@@ -433,6 +447,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import FlatPickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
+import AnalyticsGroupNav from '@/components/AnalyticsGroupNav.vue'
+import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import {
   downloadEdgeLogFile,
@@ -443,7 +459,7 @@ import {
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'
 
-const EXPORT_TITLE = 'Log Export'
+const EXPORT_TITLE = 'Export & history'
 const maxDays = 7
 const maxRowsLabel = '100k'
 const LARGE_DOWNLOAD_BYTES = 500 * 1024 * 1024
@@ -699,6 +715,28 @@ const filteredFiles = computed(() => {
   if (attackOnly.value) rows = rows.filter((f) => f.attackHint)
   return rows
 })
+
+const browseKpis = computed(() => {
+  const rows = filteredFiles.value
+  const attackCount = rows.filter((f) => f.attackHint).length
+  const totalBytes = rows.reduce((sum, f) => {
+    const bytes = Number(f.sizeBytes ?? f.size) || 0
+    return sum + bytes
+  }, 0)
+  return {
+    files: rows.length,
+    attackCount,
+    totalBytes,
+  }
+})
+
+const formatBrowseBytes = (value) => {
+  const n = Number(value) || 0
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(n >= 10 * 1024 ? 0 : 1)} KB`
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(n >= 10 * 1024 * 1024 ? 0 : 1)} MB`
+  return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
 
 const shortPath = (path) => {
   const raw = String(path || '')
@@ -973,7 +1011,10 @@ watch(selectedServer, () => {
 })
 
 watch([browseServer, browseLayer], () => {
-  if (hasListed.value) logFiles.value = []
+  if (!hasListed.value) return
+  logFiles.value = []
+  hasListed.value = false
+  listError.value = ''
 })
 
 const handleExport = async () => {
@@ -1004,7 +1045,7 @@ const handleExport = async () => {
       notifyError(EXPORT_TITLE, 'Export returned an empty response.')
     }
   } catch (error) {
-    notifyError(EXPORT_TITLE, error?.message || 'Log export could not be started.')
+    notifyError(EXPORT_TITLE, error?.message || 'Export could not be started.')
   } finally {
     isExporting.value = false
   }
@@ -1027,48 +1068,190 @@ onUnmounted(() => {
   margin: 0 auto;
 }
 
-.export-tabbar {
-  margin: 0 0 16px;
-  max-width: 420px;
-}
-
-.browse-toolbar {
-  display: grid;
-  grid-template-columns: minmax(160px, 220px) minmax(280px, 1.4fr) minmax(180px, 240px) auto;
-  gap: 14px 16px;
-  align-items: end;
-  margin-bottom: 16px;
-}
-
-.browse-actions {
+.export-toolbar {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.browse-check {
-  display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--app-text-muted);
+  gap: 12px 18px;
+  margin: 0 0 12px;
 }
 
-.layer-segmented {
+.export-segment {
   display: inline-flex;
-  gap: 4px;
-  padding: 4px;
+  padding: 3px;
+  gap: 2px;
   border-radius: 10px;
   border: 0.5px solid var(--app-border);
   background: var(--app-surface);
 }
 
-.layer-segmented__btn {
-  height: 32px;
-  padding: 0 12px;
+.export-segment__btn {
+  height: 34px;
+  padding: 0 14px;
   border: 0;
   border-radius: 8px;
+  background: transparent;
+  color: var(--app-text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.export-segment__btn.active {
+  color: var(--app-heading, var(--app-text));
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 14%, var(--app-surface-muted));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 35%, transparent);
+}
+
+.export-toolbar__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+
+.export-filterbar {
+  margin-bottom: 12px;
+  align-items: flex-end;
+}
+
+.dash-filter-field--grow {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.export-toggle {
+  align-self: flex-end;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.export-toggle.active {
+  color: var(--dorian-warn, #c48a00);
+  border-color: color-mix(in srgb, var(--dorian-warn, #c48a00) 40%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-warn, #c48a00) 12%, var(--app-surface));
+}
+
+.export-toggle:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.export-banner {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 0.5px solid var(--app-border);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.export-banner--warn {
+  color: var(--dorian-warn, #c48a00);
+  border-color: color-mix(in srgb, var(--dorian-warn, #c48a00) 35%, var(--app-border));
+  background: color-mix(in srgb, var(--dorian-warn, #c48a00) 8%, var(--app-surface));
+}
+
+.export-panel {
+  grid-column: span 12;
+  padding: 0;
+  overflow: hidden;
+}
+
+.export-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 16px 18px 14px;
+  border-bottom: 0.5px solid var(--app-border);
+}
+
+.export-panel__head h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.export-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-meta__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface-muted, transparent);
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.export-meta__item strong {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--app-heading, var(--app-text));
+  font-variant-numeric: tabular-nums;
+}
+
+.export-meta__item--warn {
+  border-color: color-mix(in srgb, var(--dorian-warn, #c48a00) 35%, var(--app-border));
+  color: color-mix(in srgb, var(--dorian-warn, #c48a00) 80%, var(--app-text-muted));
+}
+
+.export-meta__item--warn strong {
+  color: var(--dorian-warn, #c48a00);
+}
+
+.export-empty {
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.export-empty h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.export-empty p {
+  margin: 0 auto;
+  max-width: 34rem;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--app-text-muted);
+}
+
+.layer-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.layer-segmented__btn {
+  height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
   color: var(--app-text-muted);
   font: inherit;
@@ -1078,9 +1261,9 @@ onUnmounted(() => {
 }
 
 .layer-segmented__btn.active {
-  color: var(--dorian-viper-400, var(--app-accent));
+  color: var(--app-heading, var(--app-text));
   background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 12%, var(--app-surface-muted));
-  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 40%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 35%, transparent);
 }
 
 .layer-segmented__btn:disabled {
@@ -1090,22 +1273,22 @@ onUnmounted(() => {
 
 .log-table-wrap {
   overflow: auto;
-  border: 0.5px solid var(--app-border);
-  border-radius: 10px;
+  max-height: min(70vh, 820px);
 }
 
 .log-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
   font-size: 13px;
 }
 
 .log-table th,
 .log-table td {
-  padding: 10px 12px;
+  padding: 12px 16px;
   border-bottom: 0.5px solid var(--app-border);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .log-table th {
@@ -1113,7 +1296,18 @@ onUnmounted(() => {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--app-text-muted);
-  background: var(--app-surface-muted, transparent);
+  background: var(--app-surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.log-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.log-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--app-surface-muted, var(--app-surface)) 65%, transparent);
 }
 
 .log-table .num {
@@ -1122,18 +1316,22 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.log-table tr.is-attack {
-  background: color-mix(in srgb, var(--dorian-warn, #c48a00) 8%, transparent);
+.log-table tr.is-attack td {
+  background: color-mix(in srgb, var(--dorian-warn, #c48a00) 7%, transparent);
+}
+
+.log-table tr.is-attack:hover td {
+  background: color-mix(in srgb, var(--dorian-warn, #c48a00) 11%, transparent);
 }
 
 .layer-pill {
   display: inline-flex;
-  min-width: 2.4rem;
+  min-width: 2.2rem;
   justify-content: center;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 650;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
   letter-spacing: 0.04em;
   background: var(--app-surface-muted);
   color: var(--app-text-muted);
@@ -1156,12 +1354,27 @@ onUnmounted(() => {
   gap: 8px;
 }
 
+.hour-cell strong {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .attack-badge {
+  display: inline-flex;
+  padding: 1px 7px;
+  border-radius: 999px;
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dorian-warn, #c48a00);
+  background: color-mix(in srgb, var(--dorian-warn, #c48a00) 12%, transparent);
+}
+
+.kind-cell {
+  color: var(--app-text-muted);
+  font-size: 12px;
+  text-transform: lowercase;
 }
 
 .muted,
@@ -1176,29 +1389,51 @@ onUnmounted(() => {
 }
 
 .path-cell {
-  max-width: 22rem;
+  max-width: 26rem;
   font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
   font-size: 11px;
   color: var(--app-text-muted);
   word-break: break-all;
 }
 
+.actions-head,
 .actions-cell {
+  width: 1%;
+  text-align: right;
   white-space: nowrap;
 }
 
-.link-btn {
-  border: 0;
-  background: transparent;
-  color: var(--dorian-viper-400, var(--app-accent));
-  font: inherit;
-  font-size: 12px;
-  font-weight: 550;
-  cursor: pointer;
-  padding: 0 6px 0 0;
+.actions-cell__inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
-.link-btn:disabled {
+.table-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--app-text-secondary, var(--app-text-muted));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.table-link:hover:not(:disabled) {
+  color: var(--app-heading, var(--app-text));
+}
+
+.table-link--accent {
+  color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.table-link--accent:hover:not(:disabled) {
+  color: var(--dorian-viper-300, var(--dorian-viper-400, var(--app-accent)));
+}
+
+.table-link:disabled {
   opacity: 0.5;
   cursor: default;
 }
@@ -1405,41 +1640,10 @@ onUnmounted(() => {
   font-size: 12px;
 }
 
-.export-form {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.export-field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.export-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.export-field > label,
-.export-field__label {
-  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--app-text-muted);
-}
-
 .export-hint {
   margin: 0;
   font-size: 12px;
   color: var(--app-text-muted);
-}
-
-.export-range-pills {
-  flex-wrap: wrap;
 }
 
 .dash-select,
@@ -1453,59 +1657,43 @@ onUnmounted(() => {
   width: 100%;
 }
 
-.export-format-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.export-format {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 0.5px solid var(--app-border);
-  background: var(--app-surface-muted, var(--app-surface));
-  color: var(--app-text-muted);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 550;
-}
-
-.export-format input {
-  accent-color: var(--dorian-viper-500, var(--app-accent));
-}
-
-.export-format.active {
-  color: var(--dorian-viper-400, var(--app-accent));
-  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 40%, var(--app-border));
-  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 10%, var(--app-surface));
-}
-
-.export-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  padding-top: 4px;
-}
-
-.export-warn {
+.export-summary-inline {
   margin: 0;
-  max-width: 52rem;
-  color: var(--dorian-warn, #c48a00);
-  font-size: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+
+.export-summary-inline > div {
+  padding: 16px 18px 18px;
+  border-right: 0.5px solid var(--app-border);
+  min-width: 0;
+}
+
+.export-summary-inline > div:last-child {
+  border-right: 0;
+}
+
+.export-summary-inline dt {
+  margin: 0 0 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+}
+
+.export-summary-inline dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--app-text);
+  word-break: break-word;
   line-height: 1.4;
 }
 
-.export-summary {
-  grid-template-columns: 1fr;
-}
-
-.export-summary__range {
-  font-size: 14px !important;
-  word-break: break-word;
+.export-summary-inline .num {
+  font-variant-numeric: tabular-nums;
 }
 
 .dialog-overlay {
@@ -1594,17 +1782,41 @@ onUnmounted(() => {
 }
 
 @media (max-width: 1100px) {
-  .c-4,
-  .c-8 {
-    grid-column: span 12;
-  }
-  .export-field-row,
-  .browse-toolbar,
   .log-viewer__stats {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .export-summary-inline {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .export-summary-inline > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .export-summary-inline > div:nth-child(1),
+  .export-summary-inline > div:nth-child(2) {
+    border-bottom: 0.5px solid var(--app-border);
+  }
+}
+
+@media (max-width: 720px) {
+  .log-viewer__stats,
+  .export-summary-inline {
     grid-template-columns: 1fr;
   }
-  .export-tabbar {
-    max-width: none;
+
+  .export-summary-inline > div {
+    border-right: 0;
+    border-bottom: 0.5px solid var(--app-border);
+  }
+
+  .export-summary-inline > div:last-child {
+    border-bottom: 0;
+  }
+
+  .actions-cell__inner {
+    gap: 10px;
   }
 }
 </style>

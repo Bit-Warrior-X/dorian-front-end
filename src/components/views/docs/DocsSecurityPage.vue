@@ -81,7 +81,7 @@
       </div>
       <p class="docs-lead">
         Blocked requests appear in
-        <RouterLink :to="{ name: 'security-analytics-detail' }">Firewall (L7)</RouterLink>; see
+        <RouterLink :to="{ name: 'firewall-analytics' }">Firewall (L7)</RouterLink>; see
         <RouterLink :to="{ name: 'docs-metrics', hash: '#firewall' }">metric definitions</RouterLink>.
       </p>
       <ul class="docs-bullets">
@@ -90,10 +90,42 @@
         </li>
         <li>
           Edge-scoped and global IP blocks:
-          <RouterLink :to="{ name: 'server-blacklist' }">Temporary blocks</RouterLink>
+          <RouterLink :to="{ name: 'temp-blocks' }">Temporary blocks</RouterLink>
           and Configure edges → Block IP / Allow IP.
         </li>
       </ul>
+
+      <h2 class="docs-subhead">Three kinds of “blocks”</h2>
+      <div class="docs-table-wrap">
+        <table class="docs-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Where</th>
+              <th>What it does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Temporary blocks</strong></td>
+              <td>
+                <RouterLink :to="{ name: 'temp-blocks' }">Analytics → Temporary blocks</RouterLink>
+              </td>
+              <td>Short-lived IP bans from Drop+Block / L7 Guard. Expire automatically.</td>
+            </tr>
+            <tr>
+              <td><strong>L4 block / allow list</strong></td>
+              <td>Configure edges → Block IP / Allow IP (XDP)</td>
+              <td>Persistent network-layer IP lists on a single edge, before HTTP.</td>
+            </tr>
+            <tr>
+              <td><strong>WAF IP lists</strong></td>
+              <td>WAF rules → Blacklist / Whitelist</td>
+              <td>Policy packs applied to sites: refuse or trust IPs/CIDRs on matched URLs.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>

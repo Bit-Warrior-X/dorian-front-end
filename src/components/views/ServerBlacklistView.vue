@@ -1,5 +1,9 @@
 <template>
   <div class="servers-view">
+    <AnalyticsGroupNav />
+    <p class="temp-blocks-guide">
+      Runtime bans from Drop+Block / L7 Guard. Not the same as WAF Blacklist/Whitelist packs or edge XDP Block IP / Allow IP under Configure edges.
+    </p>
     <div class="content-card filter-card">
       <div class="filter-header">
         <h3>Filters</h3>
@@ -10,7 +14,7 @@
       </div>
       <div class="filter-row">
         <div class="filter-field">
-          <label for="blacklist-server">Server</label>
+          <label for="blacklist-server">Edge</label>
           <select id="blacklist-server" v-model="serverFilter">
             <option value="">All</option>
             <option v-for="server in serverOptions" :key="server.id" :value="String(server.id)">
@@ -165,7 +169,7 @@
             />
           </div>
           <div class="dialog-field">
-            <label for="block-server">Server</label>
+            <label for="block-server">Edge</label>
             <select id="block-server" v-model="newBlock.server">
               <option value="" disabled>Select server</option>
               <option v-for="server in servers" :key="server.id" :value="String(server.id)">
@@ -227,6 +231,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
+import AnalyticsGroupNav from "@/components/AnalyticsGroupNav.vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import { fetchServers } from "@/api/servers";
 import { fetchSites } from "@/api/sites";
@@ -690,6 +695,13 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.temp-blocks-guide {
+  margin: 0;
+  color: var(--app-text-muted, #718096);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .content-card {

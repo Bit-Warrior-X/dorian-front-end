@@ -9,7 +9,7 @@
           <span class="pill layer">L7 · Temporary block</span>
           <span class="pill edge">{{ event?.serverName || 'Edge' }}</span>
           <div class="l7-console__chips-spacer"></div>
-          <RouterLink class="ghost" :to="{ name: 'server-blacklist' }" @click="emit('close')">
+          <RouterLink class="ghost" :to="{ name: 'temp-blocks' }" @click="emit('close')">
             Temporary blocks
           </RouterLink>
           <button class="icon" type="button" aria-label="Close" @click="emit('close')">

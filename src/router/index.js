@@ -295,19 +295,17 @@ const routes = [
         ],
       },
       {
-        path: 'blacklist',
-        name: 'server-blacklist',
+        path: 'analytics/temp-blocks',
+        name: 'temp-blocks',
         component: () => import('@/components/views/ServerBlacklistView.vue'),
         meta: {
           title: 'Temporary blocks',
-          section: 'blacklist',
-          description: 'Current temporary blocks, with URL, rule, and time remaining.',
+          section: 'analytics',
+          description: 'Active Drop+Block / L7 Guard bans with URL, rule, and time remaining. Distinct from WAF IP lists and edge XDP blocklists.',
         }
       },
-      {
-        path: 'servers/blacklist',
-        redirect: { name: 'server-blacklist' }
-      },
+      { path: 'blacklist', redirect: { name: 'temp-blocks' } },
+      { path: 'servers/blacklist', redirect: { name: 'temp-blocks' } },
       {
         path: 'analytics/traffic',
         name: 'l7-traffic-analytics',
@@ -350,32 +348,32 @@ const routes = [
       },
       {
         path: 'analytics/security-events',
-        name: 'attack-detection',
+        name: 'security-events',
         component: () => import('@/components/views/DetectionAnalyticsView.vue'),
         meta: {
           title: 'Security events',
           section: 'analytics',
-          description: 'Timeline of L4 floods and L7 block bursts detected in the selected window.',
+          description: 'Unified L4 + L7 attack timeline for the selected window, with drop-rate and refused-HTTP context.',
         }
       },
       {
         path: 'analytics/firewall',
-        name: 'security-analytics-detail',
+        name: 'firewall-analytics',
         component: () => import('@/components/views/SecurityAnalyticsView.vue'),
         meta: {
           title: 'Firewall (L7)',
           section: 'analytics',
-          description: 'HTTP requests blocked by WAF rules, rate limits, and IP/geo blocks, with where they came from.',
+          description: 'HTTP refusals by WAF/rate/geo rules, Temporary-block history, and attack geography. Configure rules under WAF.',
         }
       },
       {
         path: 'analytics/ddos',
-        name: 'layer4-attack-analytics',
+        name: 'ddos-analytics',
         component: () => import('@/components/views/Layer4AttackAnalyticsView.vue'),
         meta: {
           title: 'DDoS (L4)',
           section: 'analytics',
-          description: 'Network-layer flood volume, allowed vs dropped packets, and attacking sources.',
+          description: 'Network-layer flood volume, allowed vs dropped traffic, protocol mix, and attacking sources.',
         }
       },
       {
@@ -383,9 +381,9 @@ const routes = [
         name: 'access-log',
         component: () => import('@/components/views/AccessLogView.vue'),
         meta: {
-          title: 'Access logs',
+          title: 'Live access',
           section: 'analytics',
-          description: 'Raw HTTP access log lines streamed from your edges.',
+          description: 'Live tail of HTTP access lines from one edge. Use Export & history for hourly files and offline queries.',
         }
       },
       {
@@ -393,16 +391,20 @@ const routes = [
         name: 'log-export',
         component: () => import('@/components/views/LogExportView.vue'),
         meta: {
-          title: 'Log export',
+          title: 'Export & history',
           section: 'analytics',
-          description: 'Export historical logs for offline analysis.',
+          description: 'Download hourly L4/L7 edge log files or run historical access / refused-HTTP queries.',
         }
       },
-      { path: 'analytics/security-analytics', name: 'security-analytics', redirect: { name: 'l7-traffic-analytics' } },
-      { path: 'analytics/security-analytics-detail', redirect: { name: 'security-analytics-detail' } },
-      { path: 'analytics/layer4-attack-analytics', redirect: { name: 'layer4-attack-analytics' } },
-      { path: 'analytics/detection', redirect: { name: 'attack-detection' } },
+      // Legacy paths / route names — keep redirects so bookmarks and old links work.
+      { path: 'analytics/security-analytics', name: 'security-analytics', redirect: { name: 'security-events' } },
+      { path: 'analytics/security-analytics-detail', redirect: { name: 'firewall-analytics' } },
+      { path: 'analytics/layer4-attack-analytics', redirect: { name: 'ddos-analytics' } },
+      { path: 'analytics/detection', name: 'attack-detection', redirect: { name: 'security-events' } },
+      { path: 'analytics/firewall-legacy', name: 'security-analytics-detail', redirect: { name: 'firewall-analytics' } },
+      { path: 'analytics/ddos-legacy', name: 'layer4-attack-analytics', redirect: { name: 'ddos-analytics' } },
       { path: 'analytics/access-log', redirect: { name: 'access-log' } },
+      { path: 'analytics/blacklist', name: 'server-blacklist', redirect: { name: 'temp-blocks' } },
       {
         path: 'users',
         redirect: { name: 'users-information' }

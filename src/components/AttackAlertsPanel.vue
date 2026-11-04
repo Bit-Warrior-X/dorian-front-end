@@ -143,7 +143,7 @@ const props = defineProps({
   },
   detectionRoute: {
     type: String,
-    default: 'attack-detection',
+    default: 'security-events',
   },
   /** Optional layer filter: `l4`, `l7`, or empty for both. */
   layer: {

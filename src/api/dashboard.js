@@ -1,5 +1,6 @@
 import { apiRequest, resolveApiBaseUrl } from './client'
 import { readStoredAuth } from '@/stores/authStorage'
+import { fetchAnalyticsAttacks, fetchAnalyticsByServerSeries } from './analytics'
 
 const appendScopeParams = (params, serverId = 'all', siteId = 'all') => {
   if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
@@ -73,57 +74,42 @@ export const downloadAttackSpartaArchive = async (reqId) => {
   return { blob, fileName, size: blob.size }
 }
 
+/**
+ * Compact period list for Overview/alerts. Uses /analytics/attacks and returns the
+ * items array so callers stay unchanged. Prefer fetchAnalyticsAttacks for pagination.
+ */
 export const fetchSecurityEvents = async (limit = 5, serverId = 'all', range = null, layer = '') => {
-  const params = new URLSearchParams()
-  if (limit) params.set('limit', String(limit))
-  if (serverId && serverId !== 'all') params.set('serverId', String(serverId))
-  if (range?.start) params.set('start', String(range.start))
-  if (range?.end) params.set('end', String(range.end))
-  if (layer) params.set('layer', String(layer))
-  const query = params.toString()
-  return apiRequest(`/dashboard/security-events${query ? `?${query}` : ''}`)
+  const payload = await fetchAnalyticsAttacks({
+    limit,
+    offset: 0,
+    serverId,
+    layer: layer || undefined,
+    start: range?.start || undefined,
+    end: range?.end || undefined,
+  })
+  return Array.isArray(payload?.items) ? payload.items : []
 }
+
+// Multi-edge bandwidth via /analytics/series/by-server/* (legacy /dashboard/bandwidth* still registered).
 
 export const fetchBandwidthSeries = async (range, serverId = 'all', siteId = 'all') => {
-  const params = new URLSearchParams()
-  if (range) params.set('range', range)
-  appendScopeParams(params, serverId, siteId)
-  const query = params.toString()
-  return apiRequest(`/dashboard/bandwidth${query ? `?${query}` : ''}`)
+  // Aggregate L7 delivery helper kept for rare callers; Overview uses nic/l7 by-server.
+  return fetchAnalyticsByServerSeries('l7-tx-bandwidth', { range, serverId, siteId })
 }
 
-export const fetchBandwidthNicRxSeries = async (range, serverId = 'all', siteId = 'all') => {
-  const params = new URLSearchParams()
-  if (range) params.set('range', range)
-  appendScopeParams(params, serverId, siteId)
-  const query = params.toString()
-  return apiRequest(`/dashboard/bandwidth-nic-rx${query ? `?${query}` : ''}`)
-}
+export const fetchBandwidthNicRxSeries = async (range, serverId = 'all', siteId = 'all') =>
+  fetchAnalyticsByServerSeries('nic-rx-bandwidth', { range, serverId, siteId })
 
-export const fetchBandwidthNicTxSeries = async (range, serverId = 'all', siteId = 'all') => {
-  const params = new URLSearchParams()
-  if (range) params.set('range', range)
-  appendScopeParams(params, serverId, siteId)
-  const query = params.toString()
-  return apiRequest(`/dashboard/bandwidth-nic-tx${query ? `?${query}` : ''}`)
-}
+export const fetchBandwidthNicTxSeries = async (range, serverId = 'all', siteId = 'all') =>
+  fetchAnalyticsByServerSeries('nic-tx-bandwidth', { range, serverId, siteId })
 
-export const fetchBandwidthL7RxSeries = async (range, serverId = 'all', siteId = 'all') => {
-  const params = new URLSearchParams()
-  if (range) params.set('range', range)
-  appendScopeParams(params, serverId, siteId)
-  const query = params.toString()
-  return apiRequest(`/dashboard/bandwidth-l7-rx${query ? `?${query}` : ''}`)
-}
+export const fetchBandwidthL7RxSeries = async (range, serverId = 'all', siteId = 'all') =>
+  fetchAnalyticsByServerSeries('l7-rx-bandwidth', { range, serverId, siteId })
 
-export const fetchBandwidthL7TxSeries = async (range, serverId = 'all', siteId = 'all') => {
-  const params = new URLSearchParams()
-  if (range) params.set('range', range)
-  appendScopeParams(params, serverId, siteId)
-  const query = params.toString()
-  return apiRequest(`/dashboard/bandwidth-l7-tx${query ? `?${query}` : ''}`)
-}
+export const fetchBandwidthL7TxSeries = async (range, serverId = 'all', siteId = 'all') =>
+  fetchAnalyticsByServerSeries('l7-tx-bandwidth', { range, serverId, siteId })
 
+/** @deprecated Prefer fetchAnalyticsSeries('request-response', params) from @/api/analytics */
 export const fetchRequestResponseSeries = async (range, serverId = 'all', siteId = 'all') => {
   const params = new URLSearchParams()
   if (range) params.set('range', String(range))
@@ -132,6 +118,7 @@ export const fetchRequestResponseSeries = async (range, serverId = 'all', siteId
   return apiRequest(`/dashboard/request-response${query ? `?${query}` : ''}`)
 }
 
+/** @deprecated Prefer fetchAnalyticsSeries('status-codes', params) from @/api/analytics */
 export const fetchStatusCodeSeries = async (range, serverId = 'all', siteId = 'all') => {
   const params = new URLSearchParams()
   if (range) params.set('range', String(range))

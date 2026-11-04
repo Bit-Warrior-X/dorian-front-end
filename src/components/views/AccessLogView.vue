@@ -2,10 +2,10 @@
   <div class="dashboard-view access-log-view" :aria-busy="isLoading">
     <header class="dash-topbar">
       <div class="dash-topbar__left">
-        <h2>Access logs</h2>
-        <p>Live tail of HTTP access log lines from one edge. Time range only filters already-loaded lines — use Log export for history.</p>
+        <h2>Live access</h2>
+        <p>Live tail of HTTP access log lines from one edge. Time range only filters already-loaded lines.</p>
       </div>
-      <div class="dash-topbar__right">
+      <div class="dash-topbar__right dash-topbar__links">
         <div class="status-indicator" :class="statusClass">
           <span class="status-dot" aria-hidden="true"></span>
           <span>{{ status }}</span>
@@ -13,6 +13,8 @@
         <AppTopbarActions />
       </div>
     </header>
+
+    <AnalyticsGroupNav />
 
     <div class="dash-filterbar">
       <div class="dash-filter-field">
@@ -206,6 +208,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import AnalyticsGroupNav from '@/components/AnalyticsGroupNav.vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import { fetchServers } from '@/api/servers'
 import { fetchSites } from '@/api/sites'

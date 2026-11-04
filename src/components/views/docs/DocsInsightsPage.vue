@@ -30,11 +30,11 @@
           (presets + custom).
         </li>
         <li>
-          <RouterLink :to="{ name: 'log-export' }">Log export</RouterLink>
+          <RouterLink :to="{ name: 'log-export' }">Export &amp; history</RouterLink>
           builds offline downloads (access / error / security / all · CSV, JSON, or TXT).
         </li>
         <li>
-          On L4 Attacks → Attacks, you can promote noisy sources into the blacklist from the top
+          On DDoS (L4) → Sources, you can promote noisy IPs into Temporary blocks from the top
           attacking IPs list.
         </li>
       </ul>

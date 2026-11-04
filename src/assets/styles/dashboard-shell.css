@@ -41,6 +41,17 @@
   flex-shrink: 0;
 }
 
+.dash-topbar__links {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.dash-topbar__links .dash-panel-link {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .dash-live-dot {
   width: 6px;
   height: 6px;
@@ -222,6 +233,12 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.dash-panel-foot {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
 }
 
 .dash-tabbar {

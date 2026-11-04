@@ -73,17 +73,6 @@
               <span>WAF rules</span>
             </RouterLink>
           </li>
-          <li :class="['nav-item', isRouteActive('server-blacklist') ? 'active' : '']">
-            <RouterLink to="/app/blacklist">
-              <span class="nav-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
-                  <path d="m4.9 4.9 14.2 14.2"></path>
-                </svg>
-              </span>
-              <span>Temporary blocks</span>
-            </RouterLink>
-          </li>
 
           <li class="nav-group-label" aria-hidden="true">Insights</li>
           <li :class="['nav-item', 'nav-item-parent', isDataAnalyticsOpen ? 'open' : '', isAnalyticsRoute ? 'active' : '']">
@@ -119,7 +108,7 @@
             </ul>
           </li>
 
-          <li class="nav-group-label" aria-hidden="true">Account</li>
+          <li class="nav-group-label" aria-hidden="true">Help</li>
           <li :class="['nav-item', isDocsRoute ? 'active' : '']">
             <RouterLink to="/app/docs">
               <span class="nav-icon">
@@ -132,6 +121,7 @@
               <span>Docs</span>
             </RouterLink>
           </li>
+          <li class="nav-group-label" aria-hidden="true">Billing</li>
           <li :class="['nav-item', isRouteActive('server-license') ? 'active' : '']">
             <RouterLink to="/app/license">
               <span class="nav-icon">
@@ -144,6 +134,7 @@
               <span>Licensing</span>
             </RouterLink>
           </li>
+          <li class="nav-group-label" aria-hidden="true">Account</li>
           <li
             :class="['nav-item', 'nav-item-parent', isUsersOpen ? 'open' : '', isUsersRoute ? 'active' : '']"
           >
@@ -258,7 +249,7 @@ import AttackAlertHost from './AttackAlertHost.vue'
 import DorianBrandMark from './DorianBrandMark.vue'
 import InfoHint from './InfoHint.vue'
 import NotificationToastStack from './NotificationToastStack.vue'
-import { analyticsNavGroups } from '@/utils/analyticsNav'
+import { analyticsNavGroups, shellTopbarHiddenRouteNames } from '@/utils/analyticsNav'
 
 const auth = useAuth()
 const route = useRoute()
@@ -291,21 +282,7 @@ const isRouteActive = (name) => route.name === name
 const hideShellTopbar = computed(
   () =>
     Boolean(route.meta?.hideShellTopbar) ||
-    [
-      'dashboard',
-      'access-log',
-      'attack-detection',
-      'l7-traffic-analytics',
-      'l4-traffic-analytics',
-      'security-analytics-detail',
-      'layer4-attack-analytics',
-      'cache-analytics',
-      'performance-analytics',
-      'server-license',
-      'users-information',
-      'users',
-      'users-history',
-    ].includes(route.name) ||
+    shellTopbarHiddenRouteNames.includes(route.name) ||
     isDocsRoute.value
 )
 

@@ -46,7 +46,7 @@ export const startSteps = [
     title: 'Point DNS and verify',
     body: 'Aim A/AAAA (or CNAME) at the edge IP, then confirm traffic and mitigations in Insights.',
     tips: [
-      'Use Access logs for immediate request proof; Traffic for bandwidth and L7 request trends.',
+      'Use Live access for immediate request proof; L7 Traffic for bandwidth and request trends.',
     ],
     to: { name: 'dashboard' },
     cta: 'Open Overview',
@@ -104,26 +104,26 @@ export const insightRows = [
   {
     title: 'Security events',
     body: 'Timeline of L4 floods and L7 block bursts for the selected window',
-    to: { name: 'attack-detection' },
+    to: { name: 'security-events' },
   },
   {
     title: 'Firewall (L7)',
     body: 'Blocked HTTP requests over time, blocks by rule, geography, request context',
-    to: { name: 'security-analytics-detail' },
+    to: { name: 'firewall-analytics' },
   },
   {
     title: 'DDoS (L4)',
     body: 'Allowed vs dropped volume, protocol mix, recent attempts, top attacking IPs',
-    to: { name: 'layer4-attack-analytics' },
+    to: { name: 'ddos-analytics' },
   },
   {
-    title: 'Access logs',
-    body: 'Live HTTP stream, status KPIs, filters, CSV export',
+    title: 'Live access',
+    body: 'Live HTTP stream from one edge, status KPIs, and line filters',
     to: { name: 'access-log' },
   },
   {
-    title: 'Log export',
-    body: 'Historical access / error / security downloads (CSV, JSON, TXT)',
+    title: 'Export & history',
+    body: 'Hourly L4/L7 edge files plus historical access / refused-HTTP queries',
     to: { name: 'log-export' },
   },
 ]
@@ -157,10 +157,10 @@ export const troubleshooting = [
     steps: [
       'Confirm DNS A/AAAA points at the edge public IP.',
       'Verify HTTP/HTTPS listeners on the site Traffic → Ports and edge Ports tabs.',
-      'Test the origin from the edge network; watch Access logs for 502/504 clues.',
+      'Test the origin from the edge network; watch Live access for 502/504 clues.',
     ],
     to: { name: 'access-log' },
-    cta: 'Open Access logs',
+    cta: 'Open Live access',
   },
   {
     q: 'L4 floods still hurt the origin',
@@ -170,7 +170,7 @@ export const troubleshooting = [
       'Configure edges → XDP: enable relevant flood checks and set block duration.',
       'Use DDoS (L4) analytics to identify top sources, then Block IP / Temporary blocks.',
     ],
-    to: { name: 'layer4-attack-analytics' },
+    to: { name: 'ddos-analytics' },
     cta: 'Open DDoS (L4)',
   },
 ]
@@ -270,7 +270,6 @@ export const cheatSheet = [
   { label: 'All sites', path: '/app/sites/list', to: { name: 'site-list' } },
   { label: 'Configure sites', path: '/app/sites/settings', to: { name: 'site-settings' } },
   { label: 'WAF rules', path: '/app/waf', to: { name: 'waf-rules' } },
-  { label: 'Temporary blocks', path: '/app/blacklist', to: { name: 'server-blacklist' } },
   ...analyticsNavGroups.flatMap((group) =>
     group.items.map((item) => ({ label: item.label, path: item.path, to: { name: item.name } })),
   ),

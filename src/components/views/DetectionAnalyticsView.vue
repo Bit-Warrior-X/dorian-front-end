@@ -5,75 +5,29 @@
         <h2>Security events</h2>
         <p>{{ detectionDetail }}</p>
       </div>
-      <div class="dash-topbar__right">
+      <div class="dash-topbar__right dash-topbar__links">
+        <RouterLink class="dash-panel-link" :to="{ name: 'temp-blocks' }">Temporary blocks</RouterLink>
+        <RouterLink class="dash-panel-link" :to="{ name: 'waf-rules' }">WAF rules</RouterLink>
         <AppTopbarActions />
       </div>
     </header>
 
-    <div class="dash-filterbar">
-      <div class="dash-filter-field">
-        <label for="detect-edge">Edge</label>
-        <select id="detect-edge" v-model="selectedEdge" class="dash-select" :disabled="isLoading">
-          <option v-for="option in serverOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
-      </div>
-      <div class="dash-filter-field">
-        <label for="detect-site">Site</label>
-        <select id="detect-site" v-model="selectedSite" class="dash-select" :disabled="isLoading">
-          <option v-for="option in siteOptions" :key="option.value" :value="option.value">
-            {{ option.label }}
-          </option>
-        </select>
-      </div>
-      <div class="dash-filter-field">
-        <label>Time range</label>
-        <div class="dash-range-pills">
-          <button
-            v-for="pill in timeRanges"
-            :key="pill.value"
-            type="button"
-            class="dash-range-pill"
-            :class="{ active: selectedRange === pill.value && !isCustomRange }"
-            :disabled="isLoading"
-            @click="selectTimeRange(pill.value)"
-          >
-            {{ pill.label }}
-          </button>
-          <button
-            type="button"
-            class="dash-range-pill dash-range-pill--custom"
-            :class="{ active: isCustomRange }"
-            :disabled="isLoading"
-            @click="openCustomDialog"
-          >
-            Custom
-          </button>
-        </div>
-      </div>
-      <div class="dash-filter-summary">
-        <span class="dash-live-dot" aria-hidden="true"></span>
-        {{ rangeLabel }}
-      </div>
-      <button type="button" class="dash-filter-apply" :disabled="isLoading" @click="applyFilters">
-        <span v-if="isLoading" class="dash-spinner dash-spinner--btn" aria-hidden="true"></span>
-        {{ isLoading ? 'Loading…' : 'Apply' }}
-      </button>
-    </div>
+    <AnalyticsGroupNav />
+
+    <AnalyticsFilterBar :filters="filters" :loading="isLoading" id-prefix="detect" />
 
     <section class="dash-kpi-strip" aria-label="Attack totals">
       <article class="dash-kpi dash-kpi--danger">
         <span class="dash-kpi__label">L4 drop rate</span>
         <span class="dash-kpi__value num">{{ formatRate(latestL4DropRate) }}</span>
-        <span class="dash-kpi__hint">latest Sparta sample · {{ rangeLabel }}</span>
+        <span class="dash-kpi__hint">latest Sparta sample · {{ filters.rangeLabel }}</span>
       </article>
       <article class="dash-kpi dash-kpi--warn">
         <span class="dash-kpi__label">Refused HTTP</span>
         <span class="dash-kpi__value num">{{ formatNumber(l7Defense.blockRequestCounts) }}</span>
-        <span class="dash-kpi__hint">every blocked L7 request · {{ rangeLabel }}</span>
+        <span class="dash-kpi__hint">every blocked L7 request · {{ filters.rangeLabel }}</span>
       </article>
-      <RouterLink class="dash-kpi" :to="{ name: 'server-blacklist' }">
+      <RouterLink class="dash-kpi" :to="{ name: 'temp-blocks' }">
         <span class="dash-kpi__label">Active temp-blocks</span>
         <span class="dash-kpi__value num">{{ formatNumber(monthStats.blockedIps) }}</span>
         <span class="dash-kpi__hint">live Temporary blocks · all edges</span>
@@ -86,7 +40,7 @@
           <div>
             <h3>Attack timeline</h3>
             <p class="dash-panel-desc">
-              Every L4 and L7 attack window across {{ rangeLabel }}
+              Every L4 and L7 attack window across {{ filters.rangeLabel }}
               · click a bar to open Attack Console
             </p>
           </div>
@@ -224,9 +178,9 @@
         <div class="dash-panel-head">
           <div>
             <h3>L4 drop rate</h3>
-            <p class="dash-panel-desc">Sparta drop rate (bytes/s) · edge-wide, site filter ignored · {{ rangeLabel }}</p>
+            <p class="dash-panel-desc">Sparta drop rate (bytes/s) · edge-wide, site filter ignored · {{ filters.rangeLabel }}</p>
           </div>
-          <RouterLink class="dash-panel-link" :to="{ name: 'layer4-attack-analytics' }">L4 detail</RouterLink>
+          <RouterLink class="dash-panel-link" :to="{ name: 'ddos-analytics' }">L4 detail</RouterLink>
         </div>
         <div class="dash-chart-wrap">
           <div ref="l4AttackChart"></div>
@@ -236,9 +190,9 @@
         <div class="dash-panel-head">
           <div>
             <h3>Refused HTTP</h3>
-            <p class="dash-panel-desc">Every L7 request Athens refused. Long ranges average per chart point · {{ rangeLabel }}</p>
+            <p class="dash-panel-desc">Every L7 request Athens refused. Long ranges average per chart point · {{ filters.rangeLabel }}</p>
           </div>
-          <RouterLink class="dash-panel-link" :to="{ name: 'security-analytics-detail' }">L7 detail</RouterLink>
+          <RouterLink class="dash-panel-link" :to="{ name: 'firewall-analytics' }">L7 detail</RouterLink>
         </div>
         <div class="dash-chart-wrap">
           <div ref="l7BlockChart"></div>
@@ -252,7 +206,7 @@
           <h3>L4 attack periods</h3>
           <span class="dash-count-tag">{{ formatNumber(l4EventRows.length) }} total</span>
         </div>
-        <p v-if="!l4EventRows.length" class="dash-empty">No L4 attack periods{{ selectedEdge === 'all' ? '' : ' on this edge' }} in {{ rangeLabel }}.</p>
+        <p v-if="!l4EventRows.length" class="dash-empty">No L4 attack periods{{ appliedFilters.server === 'all' ? '' : ' on this edge' }} in {{ filters.rangeLabel }}.</p>
         <div v-else class="dash-log dash-log--full">
           <button
             v-for="event in l4EventRows"
@@ -278,7 +232,7 @@
           <h3>L7 attack periods</h3>
           <span class="dash-count-tag">{{ formatNumber(l7EventRows.length) }} total</span>
         </div>
-        <p v-if="!l7EventRows.length" class="dash-empty">No L7 attack periods{{ selectedEdge === 'all' ? '' : ' on this edge' }} in {{ rangeLabel }}.</p>
+        <p v-if="!l7EventRows.length" class="dash-empty">No L7 attack periods{{ appliedFilters.server === 'all' ? '' : ' on this edge' }} in {{ filters.rangeLabel }}.</p>
         <div v-else class="dash-log dash-log--full">
           <button
             v-for="event in l7EventRows"
@@ -299,64 +253,31 @@
           </button>
         </div>
       </div>
+      <div v-if="attacksHasMore" class="c-12 dash-panel-foot">
+        <button type="button" class="dash-filter-apply" :disabled="isLoadingMore" @click="loadMoreAttacks">
+          {{ isLoadingMore ? 'Loading…' : 'Load more attacks' }}
+        </button>
+      </div>
     </section>
     <SecurityEventDialog :event="selectedSecurityEvent" @close="selectedSecurityEvent = null" />
-
-    <div v-if="showCustomDialog" class="dialog-overlay" @click.self="showCustomDialog = false">
-      <div class="dialog-content">
-        <div class="dialog-header">
-          <h3>Custom time range</h3>
-          <button type="button" class="dialog-close" @click="showCustomDialog = false">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div class="dialog-body">
-          <div class="dialog-form-group">
-            <label>Start date &amp; time</label>
-            <FlatPickr
-              v-model="customStartDate"
-              :config="datePickerConfig"
-              class="dialog-input"
-              placeholder="Select start time"
-            />
-          </div>
-          <div class="dialog-form-group">
-            <label>End date &amp; time</label>
-            <FlatPickr
-              v-model="customEndDate"
-              :config="datePickerConfig"
-              class="dialog-input"
-              placeholder="Select end time"
-            />
-          </div>
-        </div>
-        <div class="dialog-footer">
-          <button type="button" class="dialog-btn cancel-btn" @click="showCustomDialog = false">Cancel</button>
-          <button type="button" class="dialog-btn apply-btn" @click="applyCustomRange">Apply</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ApexCharts from 'apexcharts'
-import FlatPickr from 'vue-flatpickr-component'
-import 'flatpickr/dist/flatpickr.css'
+import AnalyticsGroupNav from '@/components/AnalyticsGroupNav.vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
+import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'
 import SecurityEventDialog from '@/components/SecurityEventDialog.vue'
 import { openAttackConsole } from '@/stores/attackAlert'
 import { l4AttackLabel } from '@/utils/l4AttackType'
-import { fetchDashboardSummary, fetchSecurityEvents } from '@/api/dashboard'
+import { fetchAnalyticsAttacks } from '@/api/analytics'
+import { fetchDashboardSummary } from '@/api/dashboard'
 import { fetchL4Series, fetchL4Summary } from '@/api/l4Analytics'
 import { fetchSecuritySeries, fetchSecuritySummary } from '@/api/securityAnalytics'
-import { fetchServers } from '@/api/servers'
-import { fetchSites } from '@/api/sites'
+import { useAnalyticsFilters } from '@/composables/useAnalyticsFilters'
 import {
   getApexAxisLabelStyle,
   getApexBaseChartOptions,
@@ -367,50 +288,26 @@ import {
   getApexTimeRangeAnnotations,
   padSeriesToTimeRange,
 } from '@/utils/chartTheme'
-import { rangeDurationMs, readSharedTimeRange, sharedTimeRanges, writeSharedTimeRange } from '@/utils/timeRange'
 
 const CHART_HEIGHT = 240
-const timeRanges = sharedTimeRanges
-const datePickerConfig = { enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i' }
 
-const pad = (n) => String(n).padStart(2, '0')
-const toLocalStamp = (date) => {
-  const d = date instanceof Date ? date : new Date(date)
-  if (Number.isNaN(d.getTime())) return ''
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-const formatDateTime = (value) => {
-  if (!value) return '-'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return String(value)
-  return parsed.toLocaleString()
-}
-const formatDateInput = (value) => {
-  if (!value) return ''
-  const parsed = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(parsed.getTime())) return ''
-  return parsed.toISOString()
-}
-
-const selectedEdge = ref('all')
-const selectedSite = ref('all')
-const selectedRange = ref(readSharedTimeRange())
-const isCustomRange = ref(false)
-const showCustomDialog = ref(false)
-const customStartDate = ref(null)
-const customEndDate = ref(null)
 const isLoading = ref(false)
-const appliedFilters = ref({
-  server: 'all',
-  site: 'all',
-  range: readSharedTimeRange(),
-  isCustom: false,
-  customStart: '',
-  customEnd: '',
-})
-const servers = ref([])
-const sites = ref([])
+const filters = reactive(useAnalyticsFilters(() => {
+  void loadDetection()
+}))
+const appliedFilters = computed(() => ({
+  server: filters.params.serverId,
+  site: filters.params.siteId,
+  range: filters.params.range || 'custom',
+  isCustom: Boolean(filters.params.start && filters.params.end),
+  customStart: filters.params.start || '',
+  customEnd: filters.params.end || '',
+}))
 const securityEvents = ref([])
+const attacksOffset = ref(0)
+const attacksHasMore = ref(false)
+const isLoadingMore = ref(false)
+const ATTACKS_PAGE = 50
 const selectedSecurityEvent = ref(null)
 const openSecurityEvent = (event) => {
   if (event?.reqId) {
@@ -431,44 +328,10 @@ let l4Chart = null
 let l7Chart = null
 let pollTimer = 0
 
-const resolveRangeWindow = (filters = appliedFilters.value) => {
-  if (filters.isCustom && filters.customStart && filters.customEnd) {
-    const start = new Date(filters.customStart).getTime()
-    const end = new Date(filters.customEnd).getTime()
-    if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
-      return { start, end }
-    }
-  }
-  const end = Date.now()
-  return { start: end - rangeDurationMs(filters.range), end }
+const resolveRangeWindow = () => {
+  const window = filters.window
+  return { start: window.start, end: window.end }
 }
-
-const rangeLabel = computed(() => {
-  const filters = appliedFilters.value
-  if (filters.isCustom && filters.customStart && filters.customEnd) {
-    return `${formatDateTime(filters.customStart)} → ${formatDateTime(filters.customEnd)}`
-  }
-  return timeRanges.find((pill) => pill.value === filters.range)?.label || filters.range
-})
-
-const serverOptions = computed(() => [
-  { label: 'All edges', value: 'all' },
-  ...servers.value.map((server) => ({ label: server.name || `Edge ${server.id}`, value: String(server.id) })),
-])
-
-const siteOptions = computed(() => {
-  let list = sites.value
-  if (selectedEdge.value !== 'all') {
-    const edgeId = Number(selectedEdge.value)
-    list = list.filter(
-      (site) => Array.isArray(site.serverIds) && site.serverIds.some((id) => Number(id) === edgeId),
-    )
-  }
-  return [
-    { label: 'All sites', value: 'all' },
-    ...list.map((site) => ({ label: site.domain || `Site ${site.id}`, value: String(site.id) })),
-  ]
-})
 
 const eventTag = (event) => {
   const layer = String(event?.layer || '').toUpperCase()
@@ -791,7 +654,7 @@ const l4Hit = computed(() => Number(l4Defense.value.blockedTraffic) > 0 || l4Eve
 const l7Hit = computed(() => Number(l7Defense.value.blockRequestCounts) > 0 || l7EventRows.value.length > 0)
 
 const detectionDetail = computed(() => {
-  const windowLabel = rangeLabel.value
+  const windowLabel = filters.rangeLabel
   if (l4Hit.value && l7Hit.value) return `L4 floods and L7 attacks in ${windowLabel}.`
   if (l4Hit.value) return `L4 floods in ${windowLabel}. No L7 attacks in this window.`
   if (l7Hit.value) return `L7 attacks in ${windowLabel}. No L4 floods in this window.`
@@ -911,14 +774,13 @@ const renderCharts = () => {
 let loadToken = 0
 
 const buildDetectionParams = () => {
-  const filters = appliedFilters.value
-  const window = resolveRangeWindow(filters)
+  const window = filters.window
   return {
-    serverId: filters.server,
-    siteId: filters.site,
+    serverId: filters.params.serverId,
+    siteId: filters.params.siteId,
     start: new Date(window.start).toISOString(),
     end: new Date(window.end).toISOString(),
-    range: filters.isCustom ? 'custom' : filters.range,
+    range: filters.params.range || 'custom',
   }
 }
 
@@ -926,16 +788,14 @@ const loadDetection = async () => {
   const token = ++loadToken
   isLoading.value = true
   const params = buildDetectionParams()
-  const eventRange = { start: params.start, end: params.end }
+  attacksOffset.value = 0
   try {
-    const [l4Summary, l4Series, l7Summary, l7Series, l4Events, l7Events, summary] = await Promise.all([
+    const [l4Summary, l4Series, l7Summary, l7Series, attacksPage, summary] = await Promise.all([
       fetchL4Summary(params),
       fetchL4Series('traffic', params),
       fetchSecuritySummary(params),
       fetchSecuritySeries('block-count', params),
-      // Layer-scoped periods (not temp-block rows): same attack windows as Attack alerts.
-      fetchSecurityEvents(100, params.serverId, eventRange, 'l4'),
-      fetchSecurityEvents(100, params.serverId, eventRange, 'l7'),
+      fetchAnalyticsAttacks({ ...params, limit: ATTACKS_PAGE, offset: 0 }),
       fetchDashboardSummary(),
     ])
     if (token !== loadToken) return
@@ -943,10 +803,9 @@ const loadDetection = async () => {
     l7Defense.value = { blockRequestCounts: Number(l7Summary?.blockRequestCounts ?? 0) }
     l4BlockedSeries.value = [{ name: 'Drop rate', data: mapL4Points(l4Series) }]
     l7BlockSeries.value = [{ name: 'Refused HTTP', data: mapL7Points(l7Series) }]
-    securityEvents.value = [
-      ...(Array.isArray(l4Events) ? l4Events : []),
-      ...(Array.isArray(l7Events) ? l7Events : []),
-    ]
+    securityEvents.value = Array.isArray(attacksPage?.items) ? attacksPage.items : []
+    attacksHasMore.value = Boolean(attacksPage?.hasMore)
+    attacksOffset.value = securityEvents.value.length
     monthStats.value = {
       l4AttacksThisMonth: Number(summary?.l4AttacksThisMonth ?? 0),
       l7ThreatsThisMonth: Number(summary?.l7ThreatsThisMonth ?? 0),
@@ -960,45 +819,26 @@ const loadDetection = async () => {
   }
 }
 
-const selectTimeRange = (value) => {
-  selectedRange.value = value
-  isCustomRange.value = false
-  writeSharedTimeRange(value)
-}
-
-const openCustomDialog = () => {
-  const { start, end } = resolveRangeWindow({
-    range: selectedRange.value,
-    isCustom: isCustomRange.value,
-    customStart: customStartDate.value ? formatDateInput(customStartDate.value) : '',
-    customEnd: customEndDate.value ? formatDateInput(customEndDate.value) : '',
-  })
-  customStartDate.value = toLocalStamp(start)
-  customEndDate.value = toLocalStamp(end)
-  showCustomDialog.value = true
-}
-
-const applyCustomRange = () => {
-  if (!customStartDate.value || !customEndDate.value) return
-  const start = new Date(customStartDate.value)
-  const end = new Date(customEndDate.value)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return
-  isCustomRange.value = true
-  selectedRange.value = 'custom'
-  showCustomDialog.value = false
-  applyFilters()
-}
-
-const applyFilters = () => {
-  appliedFilters.value = {
-    server: selectedEdge.value,
-    site: selectedSite.value,
-    range: selectedRange.value,
-    isCustom: isCustomRange.value,
-    customStart: isCustomRange.value ? formatDateInput(customStartDate.value) : '',
-    customEnd: isCustomRange.value ? formatDateInput(customEndDate.value) : '',
+const loadMoreAttacks = async () => {
+  if (isLoadingMore.value || !attacksHasMore.value) return
+  isLoadingMore.value = true
+  const params = buildDetectionParams()
+  try {
+    const page = await fetchAnalyticsAttacks({
+      ...params,
+      limit: ATTACKS_PAGE,
+      offset: attacksOffset.value,
+    })
+    const items = Array.isArray(page?.items) ? page.items : []
+    securityEvents.value = [...securityEvents.value, ...items]
+    attacksHasMore.value = Boolean(page?.hasMore)
+    attacksOffset.value = securityEvents.value.length
+    renderCharts()
+  } catch (error) {
+    console.error('Failed to load more attacks', error)
+  } finally {
+    isLoadingMore.value = false
   }
-  void loadDetection()
 }
 
 const refreshTheme = () => {
@@ -1007,18 +847,10 @@ const refreshTheme = () => {
   l7Chart?.updateOptions(patch, false, false)
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('cdnproxy-theme-change', refreshTheme)
-  void (async () => {
-    try {
-      const [serverList, siteList] = await Promise.all([fetchServers(), fetchSites()])
-      servers.value = Array.isArray(serverList) ? serverList : []
-      sites.value = Array.isArray(siteList) ? siteList : []
-    } catch (error) {
-      console.error('Failed to load detection filters', error)
-    }
-    applyFilters()
-  })()
+  await filters.loadScope()
+  filters.apply()
   pollTimer = window.setInterval(() => {
     if (document.visibilityState !== 'hidden') void loadDetection()
   }, 60_000)
@@ -1031,110 +863,9 @@ onBeforeUnmount(() => {
   l4Chart?.destroy()
   l7Chart?.destroy()
 })
-
-watch(selectedEdge, () => {
-  if (selectedSite.value === 'all') return
-  const stillValid = siteOptions.value.some((option) => option.value === selectedSite.value)
-  if (!stillValid) selectedSite.value = 'all'
-})
 </script>
 
 <style scoped>
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: var(--app-overlay, rgba(0, 0, 0, 0.45));
-}
-
-.dialog-content {
-  width: min(420px, 100%);
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  background: var(--app-bg, var(--app-surface));
-  box-shadow: 0 18px 48px color-mix(in srgb, #000 35%, transparent);
-}
-
-.dialog-header,
-.dialog-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-}
-
-.dialog-header {
-  border-bottom: 1px solid var(--app-border);
-}
-
-.dialog-header h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.dialog-close {
-  border: 0;
-  background: transparent;
-  color: var(--app-text-muted);
-  cursor: pointer;
-}
-
-.dialog-body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-}
-
-.dialog-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.dialog-form-group label {
-  font-size: 12px;
-  color: var(--app-text-muted);
-}
-
-.dialog-input {
-  background: var(--app-input-bg);
-  border: 0.5px solid var(--app-border-strong);
-  color: var(--app-text);
-  font-size: var(--type-caption, 13px);
-  padding: 8px 10px;
-  border-radius: 6px;
-  width: 100%;
-}
-
-.dialog-footer {
-  border-top: 1px solid var(--app-border);
-  justify-content: flex-end;
-}
-
-.dialog-btn {
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface-muted, transparent);
-  color: var(--app-text);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.dialog-btn.apply-btn {
-  border-color: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 40%, var(--app-border));
-  background: color-mix(in srgb, var(--dorian-viper-500, var(--app-accent)) 14%, var(--app-surface));
-  color: var(--dorian-viper-400, var(--app-accent));
-}
-
 .detection-view :deep(.dash-chart-wrap) {
   min-height: 0;
   height: auto;

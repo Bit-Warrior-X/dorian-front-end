@@ -11,6 +11,8 @@
       </div>
     </header>
 
+    <AnalyticsGroupNav />
+
     <AnalyticsFilterBar :filters="filters" :loading="isLoading" id-prefix="cache" />
 
     <p v-if="loadError" class="analytics-error" role="alert">{{ loadError }}</p>
@@ -229,6 +231,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import AnalyticsGroupNav from '@/components/AnalyticsGroupNav.vue'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'
 import AnalyticsTimeChart from '@/components/views/analytics/AnalyticsTimeChart.vue'
