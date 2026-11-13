@@ -69,10 +69,6 @@
           <option value="failed">Failed or denied</option>
         </select>
       </div>
-      <label class="audit-ip-toggle">
-        <input v-model="showFullIps" type="checkbox" />
-        Show full IPs
-      </label>
       <button class="acct-btn audit-filters__refresh" type="button" :disabled="isLoading" @click="loadHistory">
         {{ isLoading ? 'Loading…' : 'Refresh' }}
       </button>
@@ -156,7 +152,7 @@
                   <span class="acct-cell-sub">{{ formatAuditCategory(entry.category) }}</span>
                 </td>
                 <td>
-                  <span class="acct-cell-main num nowrap audit-ip">{{ entry.ipAddress ? (showFullIps ? entry.ipAddress : maskIp(entry.ipAddress)) : '—' }}</span>
+                  <span class="acct-cell-main num nowrap audit-ip">{{ entry.ipAddress || '—' }}</span>
                   <span v-if="entry.userAgent" class="acct-cell-sub audit-ellipsis">{{ describeUserAgent(entry.userAgent) }}</span>
                 </td>
                 <td>
@@ -230,7 +226,6 @@ import {
   formatDateTime24,
   splitAuditDetails,
 } from '@/utils/auditFormat'
-import { maskIp } from '@/utils/maskIp'
 import { notifyError } from '@/utils/notify'
 
 const FETCH_LIMIT = 1000
@@ -255,7 +250,6 @@ const loadError = ref('')
 const pageSize = ref(25)
 const currentPage = ref(1)
 const expandedId = ref(null)
-const showFullIps = ref(false)
 
 const filters = reactive({
   range: '7d',
@@ -438,21 +432,6 @@ onMounted(() => {
 
 .audit-filters__refresh {
   margin-left: auto;
-}
-
-.audit-ip-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  align-self: flex-end;
-  height: 34px;
-  font-size: 12px;
-  color: var(--app-text-muted);
-  cursor: pointer;
-}
-
-.audit-ip-toggle input {
-  accent-color: var(--dorian-viper-400, var(--app-accent));
 }
 
 .audit-date {

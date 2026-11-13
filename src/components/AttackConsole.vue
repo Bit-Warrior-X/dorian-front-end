@@ -89,9 +89,23 @@
         <section class="kpis" aria-label="Summary">
           <article>
             <span>{{ isL7 ? 'Peak requests' : 'Peak ingress' }}</span>
-            <p><strong>{{ peakIngress.value }}</strong><em>{{ isL7 ? 'all outcomes' : 'at the firewall' }}</em></p>
+            <p><strong>{{ peakIngress.value }}</strong><em>{{ isL7 ? 'all outcomes' : 'avg ingress rate' }}</em></p>
             <small v-if="peakIngress.at"><b>{{ peakIngress.dropShare }}% {{ isL7 ? 'blocked' : 'dropped' }}</b> · {{ formatClock(peakIngress.at) }}</small>
             <small v-else>No samples yet</small>
+          </article>
+          <article>
+            <span>Host at peak</span>
+            <p v-if="peakHost">
+              <strong>{{ formatCpuPercent(peakHost.cpuPercent) }}</strong>
+              <em>CPU</em>
+            </p>
+            <p v-else><strong>—</strong><em>CPU / RAM</em></p>
+            <small v-if="peakHost">
+              <b>{{ formatMemPair(peakHost.memoryUsedBytes, peakHost.memoryTotalBytes) }}</b>
+              <template v-if="peakHost.sampledAt"> · {{ formatClock(Date.parse(peakHost.sampledAt)) }}</template>
+              <template v-if="peakHost.sampleSkewSeconds >= 60"> · {{ peakHost.sampleSkewSeconds }}s from peak</template>
+            </small>
+            <small v-else>{{ ongoing ? 'Sampling during attack…' : 'No host sample during this attack' }}</small>
           </article>
           <article>
             <span>{{ isL7 ? 'Unique clients' : 'Sources blocked' }}</span>
@@ -350,6 +364,7 @@ const COUNTERS_FOR_TOKEN = {
 
 const attack = ref(null)
 const l7Incident = ref(null)
+const peakInfo = ref(null)
 const windowRange = ref({ start: null, end: null })
 const drops = ref([])
 const sources = ref([])
@@ -417,11 +432,11 @@ const subtitle = computed(() => {
     const peak = Number(l7Incident.value?.peak_rps || 0)
     const peakBlocked = Number(l7Incident.value?.peak_blocked_rps || 0)
     const ips = Number(l7Incident.value?.unique_ips || attack.value?.ipCount || 0)
-    const ratio = Number(l7Incident.value?.blocked_ratio)
+    const ratio = l7BlockedRatio.value
     return [
       peak > 0 ? `peak ${peak.toLocaleString()} rps` : '',
       peakBlocked > 0 ? `${peakBlocked.toLocaleString()} blocked/s` : '',
-      Number.isFinite(ratio) && ratio > 0 ? `${Math.round(ratio * 100)}% blocked` : '',
+      ratio != null && ratio > 0 ? `${Math.round(ratio * 100)}% blocked` : '',
       ips > 0 ? `${ips.toLocaleString()} unique IPs` : '',
     ].filter(Boolean).join(' · ') || attack.value?.title || 'L7 attack'
   }
@@ -503,16 +518,71 @@ const timeToBlock = computed(() => {
   return formatDuration(startedMs.value, blockAt.value) || '0s'
 })
 const l7Totals = computed(() => (l7Incident.value?.totals && typeof l7Incident.value.totals === 'object' ? l7Incident.value.totals : {}))
+const l7MitigatedRequests = computed(() => {
+  const blocked = Number(l7Totals.value.blocked) || 0
+  const malformed = Number(l7Totals.value.malformed) || 0
+  const rapid = Number(l7Totals.value.rapid_reset) || 0
+  const sum = blocked + malformed + rapid
+  if (sum > 0) return sum
+  const requests = Number(l7Totals.value.requests) || 0
+  const passed = Number(l7Totals.value.passed) || 0
+  if (requests > passed) return requests - passed
+  return drops.value.reduce((total, point) => total + (Number(point.blocked) || 0), 0)
+})
 const l7TotalRequests = computed(() => Number(l7Totals.value.requests) || drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0) + (Number(point.allowed) || 0), 0))
 const l7BlockedRatio = computed(() => {
+  // Edge blocked_ratio is IP/rule blocks only. Console "% blocked" means mitigated
+  // share (blocked + malformed + rapid_reset) so malformed floods are not 0%.
+  const requests = l7TotalRequests.value
+  const mitigated = l7MitigatedRequests.value
+  if (requests > 0 && mitigated >= 0) return Math.min(1, mitigated / requests)
   const ratio = Number(l7Incident.value?.blocked_ratio)
   if (Number.isFinite(ratio) && ratio >= 0) return ratio
-  const requests = l7TotalRequests.value
-  const blocked = Number(l7Totals.value.blocked)
-  if (requests > 0 && Number.isFinite(blocked)) return blocked / requests
   return null
 })
-const l7BlockedIPs = computed(() => Number(l7Incident.value?.blocked_ips) || 0)
+const l7BlockedIPs = computed(() => {
+  const reported = Number(l7Incident.value?.blocked_ips) || 0
+  if (reported > 0) return reported
+  // Malformed / rapid-reset mitigation does not populate blocked_ips. Count
+  // sampled clients with any non-passed outcome; when the whole sample was
+  // mitigated and most traffic was, use unique_ips.
+  const tops = Array.isArray(l7Incident.value?.top_ips) ? l7Incident.value.top_ips : []
+  let mitigatedClients = 0
+  tops.forEach((row) => {
+    const requests = Number(row.requests) || 0
+    const passed = Number(row.passed) || 0
+    const blocked = Number(row.blocked) || 0
+    if (blocked > 0 || requests > passed) mitigatedClients += 1
+  })
+  const unique = Number(l7Incident.value?.unique_ips) || sourceCount.value || 0
+  const ratio = l7BlockedRatio.value
+  if (
+    mitigatedClients > 0
+    && tops.length > 0
+    && mitigatedClients === tops.length
+    && unique > mitigatedClients
+    && ratio != null
+    && ratio >= 0.8
+  ) {
+    return unique
+  }
+  return mitigatedClients
+})
+const peakHost = computed(() => {
+  const host = peakInfo.value?.host
+  if (!host || typeof host !== 'object') return null
+  const cpu = Number(host.cpuPercent)
+  const used = Number(host.memoryUsedBytes)
+  const total = Number(host.memoryTotalBytes)
+  if (!Number.isFinite(cpu) && !Number.isFinite(used)) return null
+  return {
+    cpuPercent: Number.isFinite(cpu) ? cpu : 0,
+    memoryUsedBytes: Number.isFinite(used) ? used : 0,
+    memoryTotalBytes: Number.isFinite(total) ? total : 0,
+    sampledAt: host.sampledAt || '',
+    sampleSkewSeconds: Number(host.sampleSkewSeconds) || 0,
+  }
+})
 const peakIngress = computed(() => {
   if (isL7.value) {
     const peak = Number(l7Incident.value?.peak_rps) || 0
@@ -553,8 +623,8 @@ const peakIngress = computed(() => {
 })
 const droppedTotal = computed(() => {
   if (isL7.value) {
-    const blocked = Number(l7Totals.value.blocked)
-    if (Number.isFinite(blocked) && blocked > 0) return formatCount(blocked)
+    const mitigated = l7MitigatedRequests.value
+    if (mitigated > 0) return formatCount(mitigated)
     return formatCount(drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0), 0))
   }
   return formatBytes(drops.value.reduce((sum, point) => sum + (Number(point.blocked) || 0), 0))
@@ -718,6 +788,19 @@ const formatBytes = (value) => {
     index += 1
   }
   return `${current.toFixed(current >= 10 ? 0 : 1)} ${units[index]}`
+}
+
+const formatCpuPercent = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '—'
+  return `${numeric.toFixed(numeric >= 10 ? 0 : 1)}%`
+}
+
+const formatMemPair = (used, total) => {
+  const usedLabel = formatBytes(used)
+  const totalNum = Number(total)
+  if (!Number.isFinite(totalNum) || totalNum <= 0) return usedLabel
+  return `${usedLabel} / ${formatBytes(totalNum)} RAM`
 }
 
 const vectorColor = (type, index) => {
@@ -1019,6 +1102,7 @@ const load = async () => {
     const payload = await fetchAttackConsole(props.reqId)
     attack.value = payload?.attack || null
     l7Incident.value = payload?.l7 || null
+    peakInfo.value = payload?.peak || null
     const windowStart = Date.parse(payload?.windowStart || '')
     const windowEnd = Date.parse(payload?.windowEnd || '')
     windowRange.value = {
@@ -1033,11 +1117,22 @@ const load = async () => {
       : dropRows
     // Fall back to incident timeline if drops were empty (older API).
     if (!drops.value.length && l7Incident.value && Array.isArray(l7Incident.value.timeline) && l7Incident.value.timeline.length) {
-      drops.value = l7Incident.value.timeline.map((bucket) => ({
-        timestamp: new Date(Number(bucket.t || 0) * 1000).toISOString(),
-        blocked: Number(bucket.blocked || 0),
-        allowed: Number(bucket.passed != null ? bucket.passed : Math.max(0, Number(bucket.requests || 0) - Number(bucket.blocked || 0) - Number(bucket.rapid_reset || 0) - Number(bucket.malformed || 0))),
-      }))
+      drops.value = l7Incident.value.timeline.map((bucket) => {
+        const requests = Number(bucket.requests || 0)
+        const passedRaw = bucket.passed != null ? Number(bucket.passed) : null
+        const mitigated = (Number(bucket.blocked) || 0)
+          + (Number(bucket.malformed) || 0)
+          + (Number(bucket.rapid_reset) || 0)
+        let allowed = Number.isFinite(passedRaw) ? passedRaw : Math.max(0, requests - mitigated)
+        let blocked = mitigated
+        if (blocked <= 0 && requests > allowed) blocked = requests - allowed
+        if (!Number.isFinite(passedRaw) && requests > 0) allowed = Math.max(0, requests - blocked)
+        return {
+          timestamp: new Date(Number(bucket.t || 0) * 1000).toISOString(),
+          blocked,
+          allowed,
+        }
+      })
     }
     activeCount.value = Number(payload?.activeCount) || 0
     sourceCount.value = Number(payload?.sourceCount) || Number(l7Incident.value?.unique_ips) || 0
@@ -1049,18 +1144,25 @@ const load = async () => {
     attackTypes.value = Array.isArray(payload?.attackTypes) ? payload.attackTypes : []
     protection.value = payload?.protection || ''
     if (l7Incident.value && Array.isArray(l7Incident.value.top_ips)) {
-      sources.value = l7Incident.value.top_ips.slice(0, 80).map((row) => ({
-        ip: row.ip,
-        attackType: Number(row.blocked) > 0 ? 'blocked' : 'passed',
-        firstBlockedAt: attack.value?.startedAt || '',
-        lastBlockedAt: attack.value?.endedAt || attack.value?.startedAt || '',
-        releasesAt: '',
-        blocks: Number(row.blocked) || Number(row.requests) || 0,
-        requests: Number(row.requests) || 0,
-        blocked: Number(row.blocked) || 0,
-        passed: Number(row.passed) || 0,
-        active: attack.value?.status === 'ongoing' && Number(row.blocked) > 0,
-      }))
+      sources.value = l7Incident.value.top_ips.slice(0, 80).map((row) => {
+        const requests = Number(row.requests) || 0
+        const passed = Number(row.passed) || 0
+        const blockedRaw = Number(row.blocked) || 0
+        // Treat non-passed outcomes (IP block, malformed, rapid_reset) as mitigated.
+        const blocked = blockedRaw > 0 ? blockedRaw : Math.max(0, requests - passed)
+        return {
+          ip: row.ip,
+          attackType: blocked > 0 ? 'blocked' : 'passed',
+          firstBlockedAt: attack.value?.startedAt || '',
+          lastBlockedAt: attack.value?.endedAt || attack.value?.startedAt || '',
+          releasesAt: '',
+          blocks: blocked || requests,
+          requests,
+          blocked,
+          passed,
+          active: attack.value?.status === 'ongoing' && blocked > 0,
+        }
+      })
       sourcesFetched = true
       sourcesHasMore.value = false
     }
@@ -1795,7 +1897,7 @@ footer button {
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -2175,7 +2277,8 @@ footer button {
 }
 
 @media (max-width: 980px) {
-  .kpis, .split, .attack-console__times { grid-template-columns: 1fr 1fr; display: grid; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split, .attack-console__times { grid-template-columns: 1fr 1fr; display: grid; }
   .attack-console__times { display: grid; gap: 12px; }
   .sources, .console { max-height: none; }
 }

@@ -185,14 +185,18 @@ export const deleteServer = async (serverId) =>
     method: 'DELETE',
   })
 
-/** Newest Sparta counter lines from the edge journal (GET /servers/:id/sparta-log). */
-export const fetchSpartaLog = async (serverId) => {
+/** Newest live lines for Angelos / Sparta / Athens (GET /servers/:id/service-log). */
+export const fetchServiceLog = async (serverId, service = 'sparta') => {
   const opts = {}
   if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
     opts.signal = AbortSignal.timeout(8_000)
   }
-  return apiRequest(`/servers/${serverId}/sparta-log`, opts)
+  const params = new URLSearchParams({ service: String(service || 'sparta') })
+  return apiRequest(`/servers/${serverId}/service-log?${params.toString()}`, opts)
 }
+
+/** @deprecated Prefer fetchServiceLog(serverId, 'sparta'). */
+export const fetchSpartaLog = async (serverId) => fetchServiceLog(serverId, 'sparta')
 
 const mockHostMetrics = {
   cpuPercent: 37.4,

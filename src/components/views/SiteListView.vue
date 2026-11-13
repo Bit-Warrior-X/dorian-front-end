@@ -11,7 +11,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          New Site
+          {{ isAdminUser ? 'New Site' : 'Order sites' }}
         </button>
       </div>
     </header>
@@ -109,7 +109,7 @@
             <tr v-else-if="!filteredSites.length">
               <td colspan="8" class="sites-empty">
                 No sites match these filters.
-                <button class="sites-empty-link" type="button" @click="openNewSiteDialog">Create a site</button>
+                <button class="sites-empty-link" type="button" @click="openNewSiteDialog">{{ isAdminUser ? 'Create a site' : 'Order sites' }}</button>
               </td>
             </tr>
             <tr
@@ -458,6 +458,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuth } from '@/stores/auth'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import SiteFormSections from '../SiteFormSections.vue'
 import { createSite, deleteSite, fetchSites, renewSiteCertificate, updateSite } from '@/api/sites'
@@ -488,6 +489,8 @@ const notifySitesChanged = () => {
 }
 
 const router = useRouter()
+const auth = useAuth()
+const isAdminUser = computed(() => String(auth.state.user?.role || '').toLowerCase() === 'admin')
 
 const sites = ref([])
 const serverOptions = ref([])
@@ -1288,6 +1291,10 @@ const validateOriginRouting = (form) => {
 }
 
 const openNewSiteDialog = () => {
+  if (!isAdminUser.value) {
+    void router.push({ name: 'order-new', query: { addon: '1' } })
+    return
+  }
   resetNewSiteForm()
   isNewSiteDialogOpen.value = true
 }

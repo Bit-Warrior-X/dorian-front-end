@@ -81,13 +81,13 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 5v14M5 12h14" />
           </svg>
-          New Edge
+          {{ isAdminUser ? 'New Edge' : 'Order edge' }}
         </button>
       </div>
 
       <div v-if="!filteredServers.length" class="edges-empty edges-empty--panel">
         No edges match these filters.
-        <button class="edges-empty-link" type="button" @click="openNewServerDialog">Create an edge</button>
+        <button class="edges-empty-link" type="button" @click="openNewServerDialog">{{ isAdminUser ? 'Create an edge' : 'Order an edge' }}</button>
       </div>
 
       <div v-else class="edges-card-grid" role="list">
@@ -993,6 +993,7 @@ const currentEdgeWizardStep = computed(
 const detectedHostOs = ref('')
 const isCreatingServer = ref(false)
 const auth = useAuth()
+const isAdminUser = computed(() => String(auth.state.user?.role || '').toLowerCase() === 'admin')
 const allUsers = ref([])
 const selectedUsers = ref([])
 const isUserDropdownOpen = ref(false)
@@ -1384,6 +1385,10 @@ const defaultManagementUserIds = () => {
 }
 
 const openNewServerDialog = () => {
+  if (!isAdminUser.value) {
+    void router.push({ name: 'order-new' })
+    return
+  }
   // Reset dialog state each time it's opened
   selectedUsers.value = defaultManagementUserIds()
   userSearch.value = ''

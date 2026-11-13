@@ -113,8 +113,32 @@ const routes = [
         meta: {
           title: 'Licensing',
           section: 'license',
-          description: 'Review and upgrade edge license tiers (Trial, L4, L7, Unified).',
+          description: 'Your licenses, renewals, and edge license tiers.',
         }
+      },
+      {
+        path: 'orders',
+        name: 'orders',
+        component: () => import('@/components/views/OrdersView.vue'),
+        meta: { title: 'Orders', section: 'license', hideShellTopbar: true },
+      },
+      {
+        path: 'orders/new',
+        name: 'order-new',
+        component: () => import('@/components/views/OrderWizardView.vue'),
+        meta: { title: 'New order', section: 'license', hideShellTopbar: true },
+      },
+      {
+        path: 'orders/:id(\\d+)',
+        name: 'order-detail',
+        component: () => import('@/components/views/OrderDetailView.vue'),
+        meta: { title: 'Order', section: 'license', hideShellTopbar: true },
+      },
+      {
+        path: 'orders/:id(\\d+)/edit',
+        name: 'order-edit',
+        component: () => import('@/components/views/OrderWizardView.vue'),
+        meta: { title: 'Edit order', section: 'license', hideShellTopbar: true },
       },
       {
         path: 'docs',

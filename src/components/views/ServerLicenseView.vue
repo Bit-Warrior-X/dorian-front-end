@@ -4,12 +4,95 @@
       <div class="dash-topbar__left">
         <p class="dash-kicker">Billing</p>
         <h2>Licensing</h2>
-        <p>Each edge carries its own license. Changing a tier regenerates the license and runs a license-only deploy.</p>
+        <p>Every protected edge and site, when it renews and what it costs. Renew before the period ends to keep changes unlocked.</p>
       </div>
       <div class="dash-topbar__right">
+        <router-link class="ord-cta-btn license-head-btn" :to="{ name: 'order-new' }">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New order
+        </router-link>
+        <router-link class="secondary-btn license-head-btn" :to="{ name: 'order-new', query: { addon: '1' } }">+ Add-on</router-link>
         <AppTopbarActions />
       </div>
     </header>
+
+    <div v-if="isAdmin" class="license-tabs" role="tablist">
+      <button type="button" role="tab" :aria-selected="tab === 'licenses'" :class="{ active: tab === 'licenses' }" @click="setTab('licenses')">
+        Customer licenses
+      </button>
+      <button type="button" role="tab" :aria-selected="tab === 'override'" :class="{ active: tab === 'override' }" @click="setTab('override')">
+        Edge tier override
+        <span>operator</span>
+      </button>
+    </div>
+
+    <LicenseInventoryPanel v-show="!isAdmin || tab === 'licenses'" />
+
+    <template v-if="isAdmin && tab === 'override'">
+    <p class="license-operator-note">
+      Changing a tier here regenerates the edge license and runs a license-only deploy. It does not bill the customer;
+      use orders for anything billable.
+    </p>
+
+    <section v-if="fleetRows.length" class="dash-panel license-fleet" aria-label="Licenses across edges">
+      <div class="dash-panel-head">
+        <h3>
+          <span class="license-panel-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="12" height="4" rx="1" />
+              <rect x="2" y="9" width="12" height="4" rx="1" />
+            </svg>
+          </span>
+          All edges
+          <span class="license-panel-hint">sorted by expiry · select a row to change its tier</span>
+        </h3>
+        <div class="license-fleet__totals">
+          <span v-if="fleetSummary.expired" class="license-chip tone-danger">{{ fleetSummary.expired }} expired</span>
+          <span v-if="fleetSummary.soon" class="license-chip tone-warn">{{ fleetSummary.soon }} within 14 days</span>
+          <span class="dash-count-tag">{{ fleetRows.length }} edges</span>
+        </div>
+      </div>
+      <div class="license-fleet__scroll">
+        <table class="license-fleet__table">
+          <thead>
+            <tr>
+              <th scope="col">Edge</th>
+              <th scope="col">Tier</th>
+              <th scope="col">Expires</th>
+              <th scope="col" class="num-col">Days left</th>
+              <th scope="col">L4</th>
+              <th scope="col">L7</th>
+              <th scope="col">Angelos</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in fleetRows"
+              :key="row.id"
+              :class="{ selected: row.id === selectedServer }"
+              tabindex="0"
+              @click="selectedServer = row.id"
+              @keydown.enter="selectedServer = row.id"
+            >
+              <td>
+                <span class="license-fleet__name">{{ row.name }}</span>
+                <span class="license-fleet__ip num">{{ row.maskedIp }}</span>
+              </td>
+              <td><span class="license-tier-tag" :class="row.tierAccent">{{ row.tier }}</span></td>
+              <td class="num">{{ row.expiry.dateLabel }}</td>
+              <td class="num num-col">
+                <span class="license-chip" :class="`tone-${row.expiry.tone}`">{{ row.expiry.shortLabel }}</span>
+              </td>
+              <td>{{ row.l4 }}</td>
+              <td>{{ row.l7 }}</td>
+              <td>{{ row.angelos }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
     <div class="dash-filterbar">
       <div class="dash-filter-field">
@@ -118,75 +201,21 @@
       <p>Choose a target edge above to review pricing and change its license tier.</p>
     </section>
 
-    <section v-if="fleetRows.length" class="dash-panel license-fleet" aria-label="Licenses across edges">
-      <div class="dash-panel-head">
-        <h3>
-          <span class="license-panel-icon" aria-hidden="true">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="3" width="12" height="4" rx="1" />
-              <rect x="2" y="9" width="12" height="4" rx="1" />
-            </svg>
-          </span>
-          All edges
-          <span class="license-panel-hint">sorted by expiry · select a row to manage it</span>
-        </h3>
-        <div class="license-fleet__totals">
-          <span v-if="fleetSummary.expired" class="license-chip tone-danger">{{ fleetSummary.expired }} expired</span>
-          <span v-if="fleetSummary.soon" class="license-chip tone-warn">{{ fleetSummary.soon }} within 14 days</span>
-          <span class="dash-count-tag">{{ fleetRows.length }} edges</span>
-        </div>
-      </div>
-      <div class="license-fleet__scroll">
-        <table class="license-fleet__table">
-          <thead>
-            <tr>
-              <th scope="col">Edge</th>
-              <th scope="col">Tier</th>
-              <th scope="col">Expires</th>
-              <th scope="col" class="num-col">Days left</th>
-              <th scope="col">L4</th>
-              <th scope="col">L7</th>
-              <th scope="col">Angelos</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in fleetRows"
-              :key="row.id"
-              :class="{ selected: row.id === selectedServer }"
-              tabindex="0"
-              @click="selectedServer = row.id"
-              @keydown.enter="selectedServer = row.id"
-            >
-              <td>
-                <span class="license-fleet__name">{{ row.name }}</span>
-                <span class="license-fleet__ip num">{{ row.maskedIp }}</span>
-              </td>
-              <td><span class="license-tier-tag" :class="row.tierAccent">{{ row.tier }}</span></td>
-              <td class="num">{{ row.expiry.dateLabel }}</td>
-              <td class="num num-col">
-                <span class="license-chip" :class="`tone-${row.expiry.tone}`">{{ row.expiry.shortLabel }}</span>
-              </td>
-              <td>{{ row.l4 }}</td>
-              <td>{{ row.l7 }}</td>
-              <td>{{ row.angelos }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { fetchServers } from '@/api/servers'
 import { notifySuccess } from '@/utils/notify'
 import { normalizeLicenseTier } from '@/data/licensePlans'
 import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import LicenseTierUpgradePanel from '../LicenseTierUpgradePanel.vue'
 import LayerStatusDot from '../LayerStatusDot.vue'
+import LicenseInventoryPanel from '../LicenseInventoryPanel.vue'
+import { useAuth } from '@/stores/auth'
 import {
   angelosStatusLabel,
   layerDotDescription,
@@ -194,6 +223,9 @@ import {
   runtimeStatusLabel,
 } from '@/utils/serverLayerStatus'
 import { maskIp } from '@/utils/maskIp'
+
+const auth = useAuth()
+const isAdmin = computed(() => String(auth.state.user?.role || '').toLowerCase() === 'admin')
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const SOON_DAYS = 14
@@ -224,6 +256,18 @@ const describeExpiry = (server) => {
 }
 
 const route = useRoute()
+const router = useRouter()
+const tab = ref(route.query.tab === 'override' || route.query.server ? 'override' : 'licenses')
+const setTab = (value) => {
+  tab.value = value
+  const query = { ...route.query }
+  if (value === 'override') query.tab = 'override'
+  else {
+    delete query.tab
+    delete query.server
+  }
+  router.replace({ query })
+}
 const serverOptions = ref([])
 const selectedServer = ref('')
 
@@ -300,6 +344,7 @@ const applyRouteQuery = () => {
     const id = Number(raw)
     if (!Number.isNaN(id)) {
       selectedServer.value = id
+      tab.value = 'override'
     }
   }
 }
@@ -320,6 +365,7 @@ watch(
 )
 
 onMounted(() => {
+  if (!isAdmin.value) return
   void loadServers().then(() => {
     applyRouteQuery()
   })
@@ -327,6 +373,57 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.license-head-btn {
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.license-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 0.5px solid var(--app-border);
+}
+
+.license-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: -0.5px;
+  padding: 9px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-muted);
+  cursor: pointer;
+}
+
+.license-tabs button:hover {
+  color: var(--app-text);
+}
+
+.license-tabs button.active {
+  color: var(--app-heading);
+  border-bottom-color: var(--dorian-viper-400, var(--app-accent));
+}
+
+.license-tabs button span {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dorian-warn, #e0a83f);
+  background: color-mix(in srgb, var(--dorian-warn, #e0a83f) 12%, transparent);
+}
+
+.license-operator-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--app-text-muted);
+}
+
 .license-view {
   max-width: 1680px;
   margin: 0 auto;

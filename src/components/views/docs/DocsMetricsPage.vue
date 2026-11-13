@@ -10,9 +10,10 @@
     <div class="docs-article__body">
       <div class="docs-callout docs-callout--info">
         <p>
-          Athens (L7) and Sparta (L4) count traffic on each edge and the control plane collects it every 30
-          seconds. Totals cover the selected edge, site, and time range. A page marked <strong>Preview</strong> is
-          showing sample numbers because the edges do not report that data yet.
+          Athens (L7) and Sparta (L4) count traffic on each edge. Angelos pushes closed minute buckets to the
+          control plane about every 60 seconds (<code>report_edge_metrics</code>). Totals cover the selected edge,
+          site, and time range. A page marked <strong>Preview</strong> is showing sample numbers because the edges
+          do not report that data yet.
         </p>
       </div>
 

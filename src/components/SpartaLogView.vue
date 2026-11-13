@@ -1,7 +1,7 @@
 <template>
   <div ref="logEl" class="sparta-log">
     <p v-if="error" class="sparta-log__error">{{ error }}</p>
-    <p v-else-if="!parsed.length" class="sparta-wait">Waiting for Sparta log…</p>
+    <p v-else-if="!parsed.length" class="sparta-wait">Waiting for {{ waitingLabel }}…</p>
     <div
       v-for="(line, index) in parsed"
       :key="index"
@@ -19,9 +19,17 @@ import { computed, nextTick, ref, watch } from 'vue'
 const props = defineProps({
   lines: { type: Array, default: () => [] },
   error: { type: String, default: '' },
+  service: { type: String, default: 'sparta' },
 })
 
 const logEl = ref(null)
+
+const waitingLabel = computed(() => {
+  const key = String(props.service || 'sparta').toLowerCase()
+  if (key === 'angelos') return 'Angelos log'
+  if (key === 'athens') return 'Athens log'
+  return 'Sparta log'
+})
 
 const parseSpartaLine = (raw) => {
   const text = String(raw || '')

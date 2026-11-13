@@ -13,6 +13,13 @@
         On <RouterLink :to="{ name: 'server-list' }">All edges</RouterLink>, open
         <strong>New Edge</strong>. The wizard walks through three stages:
       </p>
+      <div class="docs-callout docs-callout--info">
+        <strong>Customers order edges</strong>
+        <span>
+          The New Edge wizard is for Admins. Customer accounts add edges through
+          <RouterLink :to="{ name: 'orders' }">Orders</RouterLink>; the operator runs this setup after payment.
+        </span>
+      </div>
       <div class="docs-table-wrap">
         <table class="docs-table">
           <thead>

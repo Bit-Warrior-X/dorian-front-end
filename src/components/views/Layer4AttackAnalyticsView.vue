@@ -112,6 +112,11 @@
     <div v-show="activeTab === 'attacks'" class="analytics-tab-panel">
       <section class="l4-attack-summary" aria-label="Attack summary">
         <article class="l4-attack-summary__card">
+          <span class="l4-attack-summary__label">Attack periods</span>
+          <span class="l4-attack-summary__value num">{{ formatNumber(attackPeriodRows.length) }}</span>
+          <span class="l4-attack-summary__hint">Sparta campaigns in {{ selectedRangeLabel }}</span>
+        </article>
+        <article class="l4-attack-summary__card">
           <span class="l4-attack-summary__label">Source blocks</span>
           <span class="l4-attack-summary__value num">{{ formatNumber(attackSummary.attempts) }}</span>
           <span class="l4-attack-summary__hint">every per-IP Sparta block in {{ selectedRangeLabel }}</span>
@@ -129,11 +134,62 @@
       </section>
 
       <section class="dash-grid12">
+        <div class="dash-panel c-12 l4-attack-panel">
+          <div class="dash-panel-head">
+            <div>
+              <h3>Attack periods</h3>
+              <p class="dash-panel-desc">Detected L4 campaigns (short Sparta fragments are folded into one window)</p>
+            </div>
+            <span class="dash-count-tag">{{ formatNumber(attackPeriodRows.length) }} shown</span>
+          </div>
+          <p v-if="!attackPeriodRows.length" class="dash-empty">No L4 attack periods in this range.</p>
+          <ul v-else class="l4-attack-list" aria-label="Attack periods">
+            <li
+              v-for="period in attackPeriodRows"
+              :key="period.reqId || period.id"
+              class="l4-attack-row l4-attack-row--period"
+            >
+              <div class="l4-attack-row__time">
+                <span class="l4-attack-row__clock num">{{ formatClock(period.startedAt || period.createdAt) }}</span>
+                <span class="l4-attack-row__rel">{{ formatRelativeTime(period.startedAt || period.createdAt) }}</span>
+              </div>
+              <div class="l4-attack-row__body">
+                <div class="l4-attack-row__main">
+                  <span class="l4-attack-row__ip">{{ attackPeriodLabel(period) }}</span>
+                  <span :class="['badge', attackBadgeClass(period.attackType || 'ACK')]">
+                    {{ period.status === 'ongoing' ? 'LIVE' : 'ENDED' }}
+                  </span>
+                </div>
+                <div class="l4-attack-row__meta">
+                  <span class="l4-edge-chip">
+                    <span class="l4-edge-chip__dot" aria-hidden="true"></span>
+                    {{ period.serverName || edgeLabel(period) }}
+                  </span>
+                  <span class="num">{{ formatNumber(period.ipCount || 0) }} sources</span>
+                  <span v-if="(period.relatedReqIds || []).length > 1" class="num">
+                    {{ period.relatedReqIds.length }} fragments
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="ip-blacklist-btn"
+                :disabled="!period.reqId"
+                @click="openAttackConsole(period.reqId)"
+              >
+                Open
+              </button>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="dash-grid12">
         <div class="dash-panel c-6 l4-attack-panel">
           <div class="dash-panel-head">
             <div>
               <h3>Recent source blocks</h3>
-              <p class="dash-panel-desc">Per-IP Sparta blocks — not the same as attack periods on Security events</p>
+              <p class="dash-panel-desc">Per-IP Sparta blocks — often fewer than the flood's true source set</p>
             </div>
             <span class="dash-count-tag">{{ formatNumber(recentAttackRows.length) }} shown</span>
           </div>
@@ -301,6 +357,8 @@ import AppTopbarActions from '@/components/AppTopbarActions.vue'
 import AnalyticsFilterBar from '@/components/views/analytics/AnalyticsFilterBar.vue'
 import { createL4BlacklistEntry } from '@/api/l4'
 import { fetchL4Summary, fetchL4Series, fetchL4Attacks } from '@/api/l4Analytics'
+import { fetchSecurityEvents } from '@/api/dashboard'
+import { openAttackConsole } from '@/stores/attackAlert'
 import { useAnalyticsFilters } from '@/composables/useAnalyticsFilters'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { l4AttackKind, l4AttackLabel } from '@/utils/l4AttackType'
@@ -339,7 +397,7 @@ const activeTab = ref('overview')
 const l4Tabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'protocols', label: 'Protocols' },
-  { id: 'attacks', label: 'Sources' },
+  { id: 'attacks', label: 'Attacks' },
 ]
 
 const isLoading = ref(false)
@@ -374,8 +432,14 @@ const l4Summary = ref({
 const trafficPoints = ref([])
 const protocolPoints = ref([])
 const recentAttackRows = ref([])
+const attackPeriodRows = ref([])
 const seenIpRows = ref([])
 const attackTotals = ref({ attempts: 0, sources: 0, edges: 0 })
+
+const attackPeriodLabel = (period) => {
+  const raw = period?.attackType || period?.title || 'L4 attack'
+  return l4AttackLabel(raw) || raw
+}
 const showBlacklistDialog = ref(false)
 const blacklistForm = ref({
   ip: '',
@@ -592,13 +656,20 @@ const buildL4Params = () => ({ ...filters.params, siteId: 'all' })
 
 const loadL4AttackLists = async (params = buildL4Params()) => {
   try {
-    const [recentAttacks, topIps, attackSummaryPayload] = await Promise.all([
+    const win = resolveRangeWindow()
+    const range = {
+      start: win.start.toISOString(),
+      end: win.end.toISOString(),
+    }
+    const [recentAttacks, topIps, attackSummaryPayload, periods] = await Promise.all([
       fetchL4Attacks('recent', { ...params, limit: 40 }),
       fetchL4Attacks('top-ips', { ...params, limit: 50 }),
       fetchL4Attacks('summary', params).catch(() => null),
+      fetchSecurityEvents(40, params.serverId || 'all', range, 'l4').catch(() => []),
     ])
     recentAttackRows.value = Array.isArray(recentAttacks) ? recentAttacks : []
     seenIpRows.value = Array.isArray(topIps) ? topIps : []
+    attackPeriodRows.value = Array.isArray(periods) ? periods.filter((row) => row?.reqId) : []
     attackTotals.value = {
       attempts: Number(attackSummaryPayload?.attempts) || 0,
       sources: Number(attackSummaryPayload?.sources) || 0,

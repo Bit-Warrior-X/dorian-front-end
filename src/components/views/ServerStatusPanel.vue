@@ -229,12 +229,26 @@
       />
     </div>
 
-    <section v-if="showServices" class="status-card sparta-live">
-      <div class="status-card-header">
-        <h3 class="status-card-title">Sparta log</h3>
+    <section v-if="showServices" class="status-card service-live">
+      <div class="status-card-header service-live__head">
+        <h3 class="status-card-title">{{ serviceLogTitle }}</h3>
+        <div class="service-log-tabs" role="tablist" aria-label="Edge service logs">
+          <button
+            v-for="option in serviceLogOptions"
+            :key="option.id"
+            type="button"
+            role="tab"
+            class="service-log-tabs__btn"
+            :class="{ active: logService === option.id }"
+            :aria-selected="logService === option.id"
+            @click="selectServiceLog(option.id)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
-      <div class="sparta-live__body">
-        <SpartaLogView :lines="spartaLines" :error="spartaError" />
+      <div class="service-live__body">
+        <SpartaLogView :lines="serviceLogLines" :error="serviceLogError" :service="logService" />
       </div>
     </section>
 
@@ -255,7 +269,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   controlServerService,
   fetchServerHostMetrics,
-  fetchSpartaLog,
+  fetchServiceLog,
   refreshServerRuntimeStatus,
   serverHostPower,
 } from '@/api/servers'
@@ -306,22 +320,49 @@ const props = defineProps({
 const emit = defineEmits(['updated'])
 
 const statusTitle = computed(() => (props.variant === 'snapshot' ? 'Edge details' : 'Monitor Status'))
-const spartaLines = ref([])
-const spartaError = ref('')
-let spartaTimer = 0
-let spartaBusy = false
+const serviceLogOptions = [
+  { id: 'angelos', label: 'Angelos' },
+  { id: 'sparta', label: 'Sparta' },
+  { id: 'athens', label: 'Athens' },
+]
+const logService = ref('sparta')
+const serviceLogLines = ref([])
+const serviceLogError = ref('')
+let serviceLogTimer = 0
+let serviceLogBusy = false
+let serviceLogPicked = false
 
-const loadSpartaLog = async () => {
-  if (!props.showServices || !props.serverId || spartaBusy || document.visibilityState === 'hidden') return
-  spartaBusy = true
+const serviceLogTitle = computed(() => {
+  const match = serviceLogOptions.find((option) => option.id === logService.value)
+  return `${match?.label || 'Sparta'} log`
+})
+
+const selectServiceLog = (service) => {
+  const next = String(service || '').toLowerCase()
+  if (!serviceLogOptions.some((option) => option.id === next)) return
+  serviceLogPicked = true
+  if (logService.value === next) return
+  logService.value = next
+  serviceLogLines.value = []
+  serviceLogError.value = ''
+  void loadServiceLog()
+}
+
+const loadServiceLog = async () => {
+  if (!props.showServices || !props.serverId || serviceLogBusy || document.visibilityState === 'hidden') return
+  serviceLogBusy = true
+  const service = logService.value
   try {
-    const payload = await fetchSpartaLog(props.serverId)
-    spartaLines.value = Array.isArray(payload?.lines) ? payload.lines : []
-    spartaError.value = payload?.error || ''
+    const payload = await fetchServiceLog(props.serverId, service)
+    if (logService.value !== service) return
+    serviceLogLines.value = Array.isArray(payload?.lines) ? payload.lines : []
+    serviceLogError.value = payload?.error || ''
   } catch (err) {
-    spartaError.value = err?.message || 'Sparta log is unavailable'
+    if (logService.value !== service) return
+    const label = SERVICE_LABELS[service] || 'Service'
+    serviceLogError.value = err?.message || `${label} log is unavailable`
   } finally {
-    spartaBusy = false
+    serviceLogBusy = false
   }
 }
 
@@ -351,6 +392,16 @@ const athensStatus = computed(() => resolveLayerStatus(localServer.value, 'l7'))
 const angelosStatusLabelText = computed(() => angelosStatusLabel(localServer.value))
 const spartaStatusLabelText = computed(() => runtimeStatusLabel(spartaStatus.value))
 const athensStatusLabelText = computed(() => runtimeStatusLabel(athensStatus.value))
+
+const preferServiceLog = () => {
+  const candidates = [
+    { id: 'sparta', status: spartaStatus.value },
+    { id: 'athens', status: athensStatus.value },
+    { id: 'angelos', status: angelosStatus.value },
+  ]
+  const unhealthy = candidates.find((item) => item.status === 'stopped')
+  return unhealthy?.id || 'sparta'
+}
 
 const hostAliveStatus = computed(() => {
   if (hostReachable.value === true) return 'running'
@@ -913,23 +964,26 @@ watch(
     metricsError.value = ''
     hostReachable.value = null
     lastServiceCheckedAt.value = null
-    spartaLines.value = []
-    spartaError.value = ''
+    serviceLogPicked = false
+    logService.value = preferServiceLog()
+    serviceLogLines.value = []
+    serviceLogError.value = ''
     void refreshMetrics()
     void refreshServiceStatuses()
-    void loadSpartaLog()
+    void loadServiceLog()
   }
 )
 
 onMounted(() => {
+  if (!serviceLogPicked) logService.value = preferServiceLog()
   void refreshMetrics()
   void refreshServiceStatuses({ announce: false })
-  void loadSpartaLog()
-  spartaTimer = window.setInterval(loadSpartaLog, 2000)
+  void loadServiceLog()
+  serviceLogTimer = window.setInterval(loadServiceLog, 2000)
 })
 
 onBeforeUnmount(() => {
-  window.clearInterval(spartaTimer)
+  window.clearInterval(serviceLogTimer)
 })
 </script>
 
@@ -985,8 +1039,41 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
-.sparta-live__body {
+.service-live__head {
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.service-live__body {
   padding: 12px;
+}
+
+.service-log-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  border: 0.5px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.service-log-tabs__btn {
+  height: 28px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--app-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.service-log-tabs__btn.active {
+  color: var(--app-heading, var(--app-text));
+  background: color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 12%, var(--app-surface-muted));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--dorian-viper-400, #3fbd85) 35%, transparent);
 }
 
 .status-card {

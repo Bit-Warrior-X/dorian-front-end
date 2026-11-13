@@ -274,7 +274,7 @@
                   <span v-if="item.current" class="acct-badge tone-signal">This device</span>
                 </span>
                 <span class="acct-cell-sub">
-                  {{ describeSignInMethod(item.method) }} · <span class="num">{{ maskIp(item.ipAddress) }}</span> ·
+                  {{ describeSignInMethod(item.method) }} · <span class="num">{{ item.ipAddress || '—' }}</span> ·
                   signed in {{ formatDateTime24(item.createdAt) }} · active {{ formatRelativeTime(item.lastSeenAt) }}
                   <template v-if="item.remember"> · kept signed in</template>
                 </span>
@@ -441,7 +441,8 @@
                 <span v-if="!auditSucceeded(entry)" class="acct-badge tone-danger">{{ auditResultLabel(entry) }}</span>
               </td>
               <td class="nowrap muted">
-                <span v-if="entry.ipAddress" class="num">{{ maskIp(entry.ipAddress) }}</span>
+                <span v-if="entry.ipAddress" class="num">{{ entry.ipAddress }}</span>
+                <span v-else>—</span>
                 <template v-if="entry.userAgent"> · {{ describeUserAgent(entry.userAgent) }}</template>
               </td>
             </tr>
@@ -475,7 +476,6 @@ import {
   formatRelativeTime,
   splitAuditDetails,
 } from '@/utils/auditFormat'
-import { maskIp } from '@/utils/maskIp'
 import { notifyError, notifySuccess } from '@/utils/notify'
 import { joinDisplayName, splitDisplayName } from '@/utils/userName'
 
